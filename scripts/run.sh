@@ -233,15 +233,38 @@ git push -u origin feature/$branch_name
 
 ### Step 5: Self-Review
 
-Before creating a PR, perform a self-review and score your implementation.
+Before creating a PR, perform a multi-perspective self-review from different personas.
 
-#### Review Criteria (10 points total)
-1. **Correctness (2 points)**: Does the code solve the issue correctly?
-2. **Code Quality (2 points)**: Is the code clean, readable, and follows existing patterns?
-3. **Testing (2 points)**: Are there adequate tests? Do all tests pass?
-4. **Documentation Consistency (2 points)**: Are all docs (README, SKILL, AGENTS, SPECIFICATION) consistent with the changes?
-5. **Minimal Changes (1 point)**: Are changes focused and minimal?
-6. **No Regressions (1 point)**: Does the change break existing functionality?
+#### Persona-Based Review Criteria (10 points total)
+
+**🔧 Senior Engineer** - Code quality, design patterns, edge cases
+| Criterion | Points | Focus |
+|-----------|--------|-------|
+| Correctness & Completeness | 3 | Does the code solve the issue correctly? Are all requirements implemented? |
+| Code Quality | 2 | Is the code clean, readable, and follows existing patterns? |
+
+**🧪 QA Engineer** - Test coverage, edge cases, error handling
+| Criterion | Points | Focus |
+|-----------|--------|-------|
+| Testing | 2 | Are there adequate tests? Do all tests pass? Are edge cases covered? |
+
+**📚 Technical Writer** - Documentation, clarity, consistency
+| Criterion | Points | Focus |
+|-----------|--------|-------|
+| Documentation Consistency | 2 | Are all docs (README, SKILL, AGENTS, SPECIFICATION) consistent with the changes? |
+
+**All Personas**
+| Criterion | Points | Focus |
+|-----------|--------|-------|
+| No Regressions | 1 | Does the change break existing functionality? |
+
+#### Implementation Completeness Check
+Before scoring, verify these items:
+- [ ] All requirements from the issue are implemented
+- [ ] All edge cases are handled
+- [ ] Error handling is complete
+- [ ] All affected files are updated
+- [ ] No TODO/FIXME left unresolved
 
 #### Consistency Check Items
 - If script options changed → Update option descriptions in all docs
@@ -258,11 +281,15 @@ grep -E "--[a-z]+" README.md SKILL.md docs/SPECIFICATION.md
 # Check directory structure consistency
 ls -la scripts/ lib/
 grep -A20 "ディレクトリ構造" README.md AGENTS.md docs/SPECIFICATION.md
+
+# Check for unresolved TODOs
+grep -rn "TODO\|FIXME" --include="*.sh" --include="*.md" .
 \`\`\`
 
 #### Scoring
 - Review your changes: \`git diff HEAD~1\`
-- Score each criterion and calculate total
+- Score each criterion from each persona's perspective
+- Calculate total and check Implementation Completeness
 - **If score >= 9**: Proceed to Step 6
 - **If score < 9**: Fix the issues and repeat Step 5
 
@@ -270,14 +297,33 @@ grep -A20 "ディレクトリ構造" README.md AGENTS.md docs/SPECIFICATION.md
 \`\`\`
 ## Self-Review Score: X/10
 
+### 🔧 Senior Engineer Review
 | Criterion | Score | Notes |
 |-----------|-------|-------|
-| Correctness | X/2 | ... |
+| Correctness & Completeness | X/3 | ... |
 | Code Quality | X/2 | ... |
+
+### 🧪 QA Engineer Review
+| Criterion | Score | Notes |
+|-----------|-------|-------|
 | Testing | X/2 | ... |
+
+### 📚 Technical Writer Review
+| Criterion | Score | Notes |
+|-----------|-------|-------|
 | Documentation Consistency | X/2 | ... |
-| Minimal Changes | X/1 | ... |
+
+### All Personas
+| Criterion | Score | Notes |
+|-----------|-------|-------|
 | No Regressions | X/1 | ... |
+
+### Implementation Completeness
+- [x] All requirements from the issue are implemented
+- [x] All edge cases are handled
+- [x] Error handling is complete
+- [x] All affected files are updated
+- [x] No TODO/FIXME left unresolved
 
 ### Issues to Fix (if score < 9)
 - ...
