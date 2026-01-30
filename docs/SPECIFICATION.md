@@ -160,11 +160,15 @@ Options:
 ### status.sh - 状態確認
 
 ```bash
-./scripts/status.sh [options]
+./scripts/status.sh <session-name|issue-number> [options]
+
+Arguments:
+    session-name    tmuxセッション名（例: pi-issue-42）
+    issue-number    GitHub Issue番号（例: 42）
 
 Options:
-    --all           すべてのセッションを表示
-    --json          JSON形式で出力
+    --output N      セッション出力の最新N行を表示（デフォルト: 20）
+    -h, --help      このヘルプを表示
 ```
 
 ### attach.sh - セッションアタッチ
