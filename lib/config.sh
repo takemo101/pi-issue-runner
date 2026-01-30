@@ -14,6 +14,7 @@ CONFIG_TMUX_SESSION_PREFIX="${CONFIG_TMUX_SESSION_PREFIX:-pi}"
 CONFIG_TMUX_START_IN_SESSION="${CONFIG_TMUX_START_IN_SESSION:-true}"
 CONFIG_PI_COMMAND="${CONFIG_PI_COMMAND:-pi}"
 CONFIG_PI_ARGS="${CONFIG_PI_ARGS:-}"
+CONFIG_PARALLEL_MAX_CONCURRENT="${CONFIG_PARALLEL_MAX_CONCURRENT:-0}"  # 0 = unlimited
 
 # 設定ファイルを探す
 find_config_file() {
@@ -132,6 +133,9 @@ _parse_config_file() {
                     # スペース区切りの単一行形式
                     CONFIG_PI_ARGS="$value"
                     ;;
+                parallel_max_concurrent)
+                    CONFIG_PARALLEL_MAX_CONCURRENT="$value"
+                    ;;
             esac
             continue
         fi
@@ -189,6 +193,9 @@ _apply_env_overrides() {
     if [[ -n "${PI_RUNNER_PI_ARGS:-}" ]]; then
         CONFIG_PI_ARGS="$PI_RUNNER_PI_ARGS"
     fi
+    if [[ -n "${PI_RUNNER_PARALLEL_MAX_CONCURRENT:-}" ]]; then
+        CONFIG_PARALLEL_MAX_CONCURRENT="$PI_RUNNER_PARALLEL_MAX_CONCURRENT"
+    fi
 }
 
 # 設定値を取得
@@ -212,6 +219,9 @@ get_config() {
             ;;
         pi_args)
             echo "$CONFIG_PI_ARGS"
+            ;;
+        parallel_max_concurrent)
+            echo "$CONFIG_PARALLEL_MAX_CONCURRENT"
             ;;
         *)
             echo ""

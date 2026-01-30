@@ -133,6 +133,13 @@ main() {
         fi
     fi
 
+    # 並列実行数の制限チェック（--forceの場合はスキップ）
+    if [[ "$force" != "true" ]]; then
+        if ! check_concurrent_limit; then
+            exit 1
+        fi
+    fi
+
     # Issue情報取得
     echo "Fetching Issue #$issue_number..."
     local issue_title
