@@ -139,6 +139,8 @@ Options:
     --branch NAME   カスタムブランチ名
     --base BRANCH   ベースブランチ（デフォルト: HEAD）
     --no-attach     セッション作成後にアタッチしない
+    --reattach      既存セッションがあればアタッチ
+    --force         既存セッション/worktreeを削除して再作成
     --pi-args ARGS  piに渡す追加の引数
 ```
 
