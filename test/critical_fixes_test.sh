@@ -91,12 +91,12 @@ assert_contains "run.sh gets issue body" 'get_issue_body' "$run_source"
 assert_contains "run.sh creates prompt file" '.pi-prompt.md' "$run_source"
 assert_contains "run.sh includes issue title in prompt" 'issue_title' "$run_source"
 assert_contains "run.sh includes issue body in prompt" 'issue_body' "$run_source"
-# grepで直接検索（シェル変数展開の問題を回避）
-if grep -q 'cat.*prompt_file.*pi_command' "$PROJECT_ROOT/scripts/run.sh"; then
-    echo "✓ run.sh uses cat to pipe prompt"
+# @でファイル参照する方式をテスト
+if grep -q '@.*prompt_file' "$PROJECT_ROOT/scripts/run.sh"; then
+    echo "✓ run.sh uses @ to reference prompt file"
     ((TESTS_PASSED++)) || true
 else
-    echo "✗ run.sh uses cat to pipe prompt"
+    echo "✗ run.sh uses @ to reference prompt file"
     ((TESTS_FAILED++)) || true
 fi
 
