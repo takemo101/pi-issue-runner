@@ -10,6 +10,9 @@ source "$SCRIPT_DIR/../lib/worktree.sh"
 source "$SCRIPT_DIR/../lib/tmux.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
 
+# 依存関係チェック
+check_dependencies || exit 1
+
 # エラー時のクリーンアップを設定
 setup_cleanup_trap cleanup_worktree_on_error
 
