@@ -202,7 +202,16 @@ $issue_title
 $issue_body
 
 ---
-Please implement this issue following the project's coding standards.
+
+## Instructions
+
+1. **Implement** the issue following project coding standards
+2. **Commit** your changes with a descriptive message
+3. **Push** the branch: \`git push -u origin feature/$branch_name\`
+4. **Create PR**: \`gh pr create --title "..." --body "Closes #$issue_number"\`
+5. **Merge PR**: \`gh pr merge --merge --delete-branch\`
+
+Complete all steps automatically without asking for confirmation.
 EOF
     
     # piにプロンプトファイルを渡す（@でファイル参照）
