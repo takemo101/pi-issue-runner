@@ -51,6 +51,13 @@ Pi Issue RunnerはGitHub Issueを入力として、Git worktreeとtmuxセッシ�
 - tmuxセッションの終了
 - ブランチの削除（`--delete-branch`オプション）
 
+### 7. 自動クリーンアップ
+
+- piセッション終了後のクリーンアッププロンプト表示（デフォルト）
+- `--auto-cleanup`オプションで確認なしの自動クリーンアップ
+- `--no-cleanup`オプションでクリーンアップを無効化
+- バックグラウンド実行（`--no-attach`）との併用サポート
+
 ## コアコンセプト
 
 ### 実行フロー
@@ -97,7 +104,8 @@ project-root/
     ├── status.sh            # 状態確認
     ├── attach.sh            # セッションアタッチ
     ├── stop.sh              # セッション停止
-    └── cleanup.sh           # クリーンアップ
+    ├── cleanup.sh           # クリーンアップ
+    └── post-session.sh      # セッション終了後処理
 ```
 
 ## 設定
@@ -144,8 +152,23 @@ Options:
     --no-attach     セッション作成後にアタッチしない
     --reattach      既存セッションがあればアタッチ
     --force         既存セッション/worktreeを削除して再作成
+    --auto-cleanup  セッション終了時に確認なしで自動クリーンアップ
+    --no-cleanup    セッション終了時のクリーンアッププロンプトを無効化
     --pi-args ARGS  piに渡す追加の引数
 ```
+
+### post-session.sh - セッション終了後処理
+
+```bash
+./scripts/post-session.sh <issue-number> [options]
+
+Options:
+    --auto          確認なしで自動クリーンアップ
+    --worktree PATH worktreeパス
+    --session NAME  セッション名
+```
+
+※ このスクリプトは通常、piセッション終了後に自動的に呼び出されます。
 
 ### list.sh - セッション一覧
 

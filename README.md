@@ -55,6 +55,15 @@ scripts/run.sh 42 --reattach
 
 # 既存セッション/worktreeを削除して再作成
 scripts/run.sh 42 --force
+
+# セッション終了時に自動クリーンアップ
+scripts/run.sh 42 --auto-cleanup
+
+# バックグラウンド実行 + 自動クリーンアップ
+scripts/run.sh 42 --no-attach --auto-cleanup
+
+# クリーンアッププロンプトを無効化
+scripts/run.sh 42 --no-cleanup
 ```
 
 ### セッション管理
@@ -136,7 +145,8 @@ pi-issue-runner/
 │   ├── status.sh           # 状態確認
 │   ├── attach.sh           # セッションアタッチ
 │   ├── stop.sh             # セッション停止
-│   └── cleanup.sh          # クリーンアップ
+│   ├── cleanup.sh          # クリーンアップ
+│   └── post-session.sh     # セッション終了後処理
 ├── lib/
 │   ├── config.sh           # 設定読み込み
 │   ├── github.sh           # GitHub API操作
