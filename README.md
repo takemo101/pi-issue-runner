@@ -18,7 +18,7 @@ gh auth status
 # tmux
 which tmux
 
-# pi-mono
+# pi
 which pi
 ```
 
@@ -27,7 +27,7 @@ which pi
 piのスキルディレクトリにクローン:
 
 ```bash
-git clone https://github.com/yourusername/pi-issue-runner ~/.pi/skills/pi-issue-runner
+git clone https://github.com/yourusername/pi-issue-runner ~/.pi/agent/skills/pi-issue-runner
 ```
 
 ## 使い方
@@ -90,31 +90,6 @@ pi:
   args: []
 ```
 
-## ディレクトリ構造
-
-```
-pi-issue-runner/
-├── SKILL.md                 # スキル定義
-├── AGENTS.md                # 開発ガイド
-├── README.md                # このファイル
-├── scripts/
-│   ├── run.sh              # Issue実行
-│   ├── list.sh             # セッション一覧
-│   ├── status.sh           # 状態確認
-│   ├── attach.sh           # セッションアタッチ
-│   ├── stop.sh             # セッション停止
-│   └── cleanup.sh          # クリーンアップ
-├── lib/
-│   ├── config.sh           # 設定読み込み
-│   ├── worktree.sh         # Git worktree操作
-│   ├── tmux.sh             # tmux操作
-│   └── github.sh           # GitHub API操作
-├── docs/                    # ドキュメント
-├── test/                    # 単体テスト
-├── tests/                   # Batsテスト
-└── .worktrees/              # worktree作成先（実行時に生成）
-```
-
 ## ワークフロー例
 
 ### 複数Issueの並列作業
@@ -139,14 +114,43 @@ scripts/attach.sh 42
 scripts/cleanup.sh 42
 ```
 
-## ドキュメント
+## ディレクトリ構造
 
-- [スキル仕様](SKILL.md) - スキルの使い方と設定
-- [アーキテクチャ](docs/architecture.md) - システム設計
-- [Git Worktree管理](docs/worktree-management.md) - worktree運用
-- [tmux統合](docs/tmux-integration.md) - tmuxセッション管理
-- [並列実行](docs/parallel-execution.md) - 複数タスクの並列処理
-- [設定リファレンス](docs/configuration.md) - 設定オプション
+```
+pi-issue-runner/
+├── SKILL.md                 # スキル定義（piから参照）
+├── AGENTS.md                # 開発ガイド
+├── README.md                # このファイル
+├── scripts/
+│   ├── run.sh              # Issue実行
+│   ├── list.sh             # セッション一覧
+│   ├── status.sh           # 状態確認
+│   ├── attach.sh           # セッションアタッチ
+│   ├── stop.sh             # セッション停止
+│   └── cleanup.sh          # クリーンアップ
+├── lib/
+│   ├── config.sh           # 設定読み込み
+│   ├── worktree.sh         # Git worktree操作
+│   ├── tmux.sh             # tmux操作
+│   └── github.sh           # GitHub API操作
+├── docs/                    # ドキュメント
+├── test/                    # 単体テスト
+├── tests/                   # Batsテスト
+└── .worktrees/              # worktree作成先（実行時に生成）
+```
+
+実行時に対象プロジェクトに作成されるworktree構造:
+
+```
+your-project/
+├── .worktrees/
+│   ├── issue-42/           # Issue #42 のworktree
+│   │   ├── .env            # コピーされたファイル
+│   │   └── ...
+│   └── issue-43/           # Issue #43 のworktree
+│       └── ...
+└── .pi-issue-runner.yml    # 設定ファイル（オプション）
+```
 
 ## トラブルシューティング
 
@@ -179,6 +183,18 @@ gh auth status
 # 再認証
 gh auth login
 ```
+
+## ドキュメント
+
+- [アーキテクチャ](docs/architecture.md) - システム設計
+- [Git Worktree管理](docs/worktree-management.md) - worktree運用
+- [tmux統合](docs/tmux-integration.md) - tmuxセッション管理
+- [並列実行](docs/parallel-execution.md) - 複数タスクの並列処理
+- [設定リファレンス](docs/configuration.md) - 設定オプション
+
+## 開発
+
+開発に参加する場合は [AGENTS.md](AGENTS.md) を参照してください。
 
 ## ライセンス
 
