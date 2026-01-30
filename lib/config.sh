@@ -14,7 +14,7 @@ CONFIG_PI_ARGS="${CONFIG_PI_ARGS:-}"
 # 設定ファイルを探す
 find_config_file() {
     local start_dir="${1:-.}"
-    local config_name=".pi-issue-runner.yml"
+    local config_name=".pi-runner.yml"
     local current_dir
     current_dir="$(cd "$start_dir" && pwd)"
 
