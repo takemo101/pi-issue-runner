@@ -1,0 +1,9 @@
+# Default workflow for GitHub issue processing
+# Template variables: {{issue_number}}, {{issue_title}}, {{branch_name}}, {{worktree_path}}
+name: default
+description: 完全なワークフロー（計画・実装・レビュー・マージ）
+steps:
+  - plan
+  - implement
+  - review
+  - merge
