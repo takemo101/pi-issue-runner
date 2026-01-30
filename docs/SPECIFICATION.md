@@ -147,6 +147,16 @@ Options:
     --pi-args ARGS  piに渡す追加の引数
 ```
 
+### list.sh - セッション一覧
+
+```bash
+./scripts/list.sh [options]
+
+Options:
+    -v, --verbose   詳細情報を表示
+    -h, --help      このヘルプを表示
+```
+
 ### status.sh - 状態確認
 
 ```bash
