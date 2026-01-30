@@ -28,19 +28,20 @@ create_worktree() {
     mkdir -p "$(get_config worktree_base_dir)"
     
     # worktree作成
-    echo "Creating worktree: $worktree_dir (branch: feature/$branch_name)"
+    echo "Creating worktree: $worktree_dir (branch: feature/$branch_name)" >&2
     
     if git rev-parse --verify "feature/$branch_name" &> /dev/null; then
         # ブランチが既に存在する場合
-        git worktree add "$worktree_dir" "feature/$branch_name"
+        git worktree add "$worktree_dir" "feature/$branch_name" >&2
     else
         # 新規ブランチ作成
-        git worktree add -b "feature/$branch_name" "$worktree_dir" "$base_branch"
+        git worktree add -b "feature/$branch_name" "$worktree_dir" "$base_branch" >&2
     fi
     
     # ファイルのコピー
     copy_files_to_worktree "$worktree_dir"
     
+    # 最後にパスのみを標準出力に出力
     echo "$worktree_dir"
 }
 
@@ -54,7 +55,7 @@ copy_files_to_worktree() {
     
     for file in $files; do
         if [[ -f "$file" ]]; then
-            echo "Copying $file to worktree"
+            echo "Copying $file to worktree" >&2
             cp "$file" "$worktree_dir/"
         fi
     done
