@@ -125,8 +125,9 @@ main() {
     local pi_args
     pi_args="$(get_config pi_args)"
     
-    # Issue番号とタイトルをpiに渡す
-    local full_command="$pi_command $pi_args $extra_pi_args \"$issue_number --auto\""
+    # Issue番号をプロンプトとして渡す
+    # 形式: pi [options] --auto "issue_number"
+    local full_command="$pi_command $pi_args $extra_pi_args --auto \"$issue_number\""
 
     # tmuxセッション作成
     echo ""
