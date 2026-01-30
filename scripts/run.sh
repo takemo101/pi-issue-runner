@@ -236,12 +236,29 @@ git push -u origin feature/$branch_name
 Before creating a PR, perform a self-review and score your implementation.
 
 #### Review Criteria (10 points total)
-1. **Correctness (3 points)**: Does the code solve the issue correctly?
+1. **Correctness (2 points)**: Does the code solve the issue correctly?
 2. **Code Quality (2 points)**: Is the code clean, readable, and follows existing patterns?
 3. **Testing (2 points)**: Are there adequate tests? Do all tests pass?
-4. **Documentation (1 point)**: Are comments and docs updated if needed?
+4. **Documentation Consistency (2 points)**: Are all docs (README, SKILL, AGENTS, SPECIFICATION) consistent with the changes?
 5. **Minimal Changes (1 point)**: Are changes focused and minimal?
 6. **No Regressions (1 point)**: Does the change break existing functionality?
+
+#### Consistency Check Items
+- If script options changed → Update option descriptions in all docs
+- If new files added → Update directory structure explanations
+- If configuration items changed → Update configuration examples
+- If dependencies added → Update prerequisites section
+
+#### Consistency Check Commands
+\`\`\`bash
+# Check option consistency across docs
+./scripts/run.sh --help
+grep -E "--[a-z]+" README.md SKILL.md docs/SPECIFICATION.md
+
+# Check directory structure consistency
+ls -la scripts/ lib/
+grep -A20 "ディレクトリ構造" README.md AGENTS.md docs/SPECIFICATION.md
+\`\`\`
 
 #### Scoring
 - Review your changes: \`git diff HEAD~1\`
@@ -255,10 +272,10 @@ Before creating a PR, perform a self-review and score your implementation.
 
 | Criterion | Score | Notes |
 |-----------|-------|-------|
-| Correctness | X/3 | ... |
+| Correctness | X/2 | ... |
 | Code Quality | X/2 | ... |
 | Testing | X/2 | ... |
-| Documentation | X/1 | ... |
+| Documentation Consistency | X/2 | ... |
 | Minimal Changes | X/1 | ... |
 | No Regressions | X/1 | ... |
 
