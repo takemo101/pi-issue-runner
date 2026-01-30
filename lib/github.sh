@@ -3,11 +3,14 @@
 
 set -euo pipefail
 
+_GITHUB_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$_GITHUB_LIB_DIR/log.sh"
+
 # jqがインストールされているか確認
 check_jq() {
     if ! command -v jq &> /dev/null; then
-        echo "Error: jq is not installed" >&2
-        echo "Install: brew install jq (macOS) or apt install jq (Linux)" >&2
+        log_error "jq is not installed"
+        log_info "Install: brew install jq (macOS) or apt install jq (Linux)"
         return 1
     fi
 }
@@ -15,14 +18,14 @@ check_jq() {
 # gh CLIがインストールされているか確認
 check_gh_cli() {
     if ! command -v gh &> /dev/null; then
-        echo "Error: GitHub CLI (gh) is not installed" >&2
-        echo "Install: https://cli.github.com/" >&2
+        log_error "GitHub CLI (gh) is not installed"
+        log_info "Install: https://cli.github.com/"
         return 1
     fi
     
     if ! gh auth status &> /dev/null; then
-        echo "Error: GitHub CLI is not authenticated" >&2
-        echo "Run: gh auth login" >&2
+        log_error "GitHub CLI is not authenticated"
+        log_info "Run: gh auth login"
         return 1
     fi
 }

@@ -5,6 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
+source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/tmux.sh"
 
 usage() {
@@ -34,7 +35,7 @@ main() {
                 exit 0
                 ;;
             -*)
-                echo "Error: Unknown option: $1" >&2
+                log_error "Unknown option: $1"
                 usage >&2
                 exit 1
                 ;;
@@ -46,7 +47,7 @@ main() {
     done
 
     if [[ -z "$target" ]]; then
-        echo "Error: Session name or issue number is required" >&2
+        log_error "Session name or issue number is required"
         usage >&2
         exit 1
     fi
@@ -63,7 +64,7 @@ main() {
         session_name="$target"
     fi
 
-    echo "Attaching to session: $session_name"
+    log_info "Attaching to session: $session_name"
     attach_session "$session_name"
 }
 

@@ -87,7 +87,7 @@ main() {
                 exit 0
                 ;;
             -*)
-                echo "Error: Unknown option: $1" >&2
+                log_error "Unknown option: $1"
                 usage >&2
                 exit 1
                 ;;
@@ -95,7 +95,7 @@ main() {
                 if [[ -z "$issue_number" ]]; then
                     issue_number="$1"
                 else
-                    echo "Error: Unexpected argument: $1" >&2
+                    log_error "Unexpected argument: $1"
                     usage >&2
                     exit 1
                 fi
@@ -105,7 +105,7 @@ main() {
     done
 
     if [[ -z "$issue_number" ]]; then
-        echo "Error: Issue number is required" >&2
+        log_error "Issue number is required"
         usage >&2
         exit 1
     fi
@@ -120,18 +120,17 @@ main() {
     # 既存セッションのチェック
     if session_exists "$session_name"; then
         if [[ "$reattach" == "true" ]]; then
-            echo "Attaching to existing session: $session_name"
+            log_info "Attaching to existing session: $session_name"
             attach_session "$session_name"
             exit 0
         elif [[ "$force" == "true" ]]; then
-            echo "Removing existing session: $session_name"
+            log_info "Removing existing session: $session_name"
             kill_session "$session_name" || true
         else
-            echo "Error: Session '$session_name' already exists." >&2
-            echo "" >&2
-            echo "Options:" >&2
-            echo "  --reattach  Attach to existing session" >&2
-            echo "  --force     Remove and recreate session" >&2
+            log_error "Session '$session_name' already exists."
+            log_info "Options:"
+            log_info "  --reattach  Attach to existing session"
+            log_info "  --force     Remove and recreate session"
             exit 1
         fi
     fi
@@ -144,10 +143,10 @@ main() {
     fi
 
     # Issue情報取得
-    echo "Fetching Issue #$issue_number..."
+    log_info "Fetching Issue #$issue_number..."
     local issue_title
     issue_title="$(get_issue_title "$issue_number")"
-    echo "Title: $issue_title"
+    log_info "Title: $issue_title"
     
     local issue_body
     issue_body="$(get_issue_body "$issue_number" 2>/dev/null)" || issue_body=""
@@ -159,26 +158,24 @@ main() {
     else
         branch_name="$(issue_to_branch_name "$issue_number")"
     fi
-    echo "Branch: feature/$branch_name"
+    log_info "Branch: feature/$branch_name"
 
     # 既存Worktreeのチェック
     local existing_worktree
     if existing_worktree="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
         if [[ "$force" == "true" ]]; then
-            echo "Removing existing worktree: $existing_worktree"
+            log_info "Removing existing worktree: $existing_worktree"
             remove_worktree "$existing_worktree" true || true
         else
-            echo "Error: Worktree already exists: $existing_worktree" >&2
-            echo "" >&2
-            echo "Options:" >&2
-            echo "  --force     Remove and recreate worktree" >&2
+            log_error "Worktree already exists: $existing_worktree"
+            log_info "Options:"
+            log_info "  --force     Remove and recreate worktree"
             exit 1
         fi
     fi
 
     # Worktree作成
-    echo ""
-    echo "=== Creating Worktree ==="
+    log_info "=== Creating Worktree ==="
     local worktree_path
     worktree_path="$(create_worktree "$branch_name" "$base_branch")"
     local full_worktree_path
@@ -255,32 +252,29 @@ EOF
     local full_command="$pi_command $pi_args $extra_pi_args @\"$prompt_file\""
 
     # tmuxセッション作成
-    echo ""
-    echo "=== Starting Pi Session ==="
+    log_info "=== Starting Pi Session ==="
     create_session "$session_name" "$full_worktree_path" "$full_command"
     
     # セッション作成成功 - クリーンアップ対象から除外
     unregister_worktree_for_cleanup
 
-    echo ""
-    echo "=== Summary ==="
-    echo "Issue:     #$issue_number - $issue_title"
-    echo "Worktree:  $worktree_path"
-    echo "Branch:    feature/$branch_name"
-    echo "Session:   $session_name"
-    echo ""
+    log_info "=== Summary ==="
+    log_info "Issue:     #$issue_number - $issue_title"
+    log_info "Worktree:  $worktree_path"
+    log_info "Branch:    feature/$branch_name"
+    log_info "Session:   $session_name"
 
     # アタッチ
     if [[ "$no_attach" == "false" ]]; then
         local start_in_session
         start_in_session="$(get_config tmux_start_in_session)"
         if [[ "$start_in_session" == "true" ]]; then
-            echo "Attaching to session..."
+            log_info "Attaching to session..."
             attach_session "$session_name"
         fi
     else
-        echo "Session started in background."
-        echo "Attach with: $(basename "$0")/../attach.sh $session_name"
+        log_info "Session started in background."
+        log_info "Attach with: $(basename "$0")/../attach.sh $session_name"
     fi
 }
 

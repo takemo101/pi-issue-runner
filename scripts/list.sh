@@ -5,6 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
+source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/tmux.sh"
 source "$SCRIPT_DIR/../lib/worktree.sh"
 
@@ -25,6 +26,7 @@ main() {
         case "$1" in
             -v|--verbose)
                 verbose=true
+                enable_verbose
                 shift
                 ;;
             -h|--help)
@@ -32,7 +34,7 @@ main() {
                 exit 0
                 ;;
             *)
-                echo "Error: Unknown option: $1" >&2
+                log_error "Unknown option: $1"
                 usage >&2
                 exit 1
                 ;;

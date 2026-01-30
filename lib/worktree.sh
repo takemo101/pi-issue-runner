@@ -6,8 +6,9 @@ set -euo pipefail
 # 現在のディレクトリを取得
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# configを読み込み
+# configとlogを読み込み
 source "$SCRIPT_DIR/config.sh"
+source "$SCRIPT_DIR/log.sh"
 
 # worktreeを作成
 create_worktree() {
@@ -20,7 +21,7 @@ create_worktree() {
     
     # 既存のworktreeチェック
     if [[ -d "$worktree_dir" ]]; then
-        echo "Error: Worktree already exists: $worktree_dir" >&2
+        log_error "Worktree already exists: $worktree_dir"
         return 1
     fi
     
@@ -28,7 +29,7 @@ create_worktree() {
     mkdir -p "$(get_config worktree_base_dir)"
     
     # worktree作成
-    echo "Creating worktree: $worktree_dir (branch: feature/$branch_name)" >&2
+    log_info "Creating worktree: $worktree_dir (branch: feature/$branch_name)"
     
     if git rev-parse --verify "feature/$branch_name" &> /dev/null; then
         # ブランチが既に存在する場合
@@ -55,7 +56,7 @@ copy_files_to_worktree() {
     
     for file in $files; do
         if [[ -f "$file" ]]; then
-            echo "Copying $file to worktree" >&2
+            log_debug "Copying $file to worktree"
             cp "$file" "$worktree_dir/"
         fi
     done
@@ -67,11 +68,11 @@ remove_worktree() {
     local force="${2:-false}"
     
     if [[ ! -d "$worktree_path" ]]; then
-        echo "Error: Worktree not found: $worktree_path" >&2
+        log_error "Worktree not found: $worktree_path"
         return 1
     fi
     
-    echo "Removing worktree: $worktree_path"
+    log_info "Removing worktree: $worktree_path"
     
     if [[ "$force" == "true" ]]; then
         git worktree remove --force "$worktree_path"
