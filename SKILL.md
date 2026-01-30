@@ -11,7 +11,15 @@ GitHub Issueを入力として、Git worktreeを作成し、tmuxセッション�
 
 ```bash
 # Issue実行（メインコマンド）
-scripts/run.sh <issue-number> [--no-attach] [--branch <name>] [--base <branch>]
+scripts/run.sh <issue-number> [options]
+
+Options:
+  --no-attach       バックグラウンドで起動
+  --reattach        既存セッションにアタッチ
+  --force           強制再作成
+  --branch <name>   カスタムブランチ名
+  --base <branch>   ベースブランチ
+  --pi-args <args>  piへの追加引数
 
 # セッション管理
 scripts/list.sh              # セッション一覧
