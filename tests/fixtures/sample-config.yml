@@ -1,0 +1,14 @@
+# tests/fixtures/sample-config.yml
+# テスト用サンプル設定ファイル
+
+worktree:
+  base_dir: ".test-worktrees"
+  copy_files: ".env .envrc"
+
+tmux:
+  session_prefix: "test"
+  start_in_session: false
+
+pi:
+  command: "echo"
+  args: "--test"
