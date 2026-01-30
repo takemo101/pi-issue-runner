@@ -19,6 +19,7 @@ orch
 .env
 .env.local
 .env.*.local
+.envrc
 
 # Logs
 *.log
@@ -46,3 +47,6 @@ temp/
 
 # Pi Agent
 .pi
+
+# Config file (user-specific)
+.pi-issue-runner.yml
