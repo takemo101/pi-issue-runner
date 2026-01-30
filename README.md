@@ -90,7 +90,7 @@ worktree:
 
 # tmux設定
 tmux:
-  session_prefix: "pi-issue"
+  session_prefix: "pi"
   start_in_session: true
 
 # pi設定
