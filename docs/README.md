@@ -1,0 +1,167 @@
+# Pi Issue Runner ドキュメント
+
+Pi Issue Runnerの詳細な仕様とアーキテクチャドキュメント。
+
+## 📚 目次
+
+### 仕様書
+
+- **[SPECIFICATION.md](./SPECIFICATION.md)** - 全体仕様概要
+  - 目的と主要機能
+  - コアコンセプト
+  - データモデル
+  - 非機能要件
+  - 将来の拡張性
+
+### アーキテクチャ設計
+
+- **[architecture.md](./architecture.md)** - システムアーキテクチャ
+  - システム構成とレイヤー構成
+  - コンポーネント設計
+  - データフロー
+  - エラーハンドリング
+  - セキュリティとパフォーマンス
+
+### 機能詳細
+
+- **[worktree-management.md](./worktree-management.md)** - Git Worktree管理
+  - Worktree作成・削除
+  - ファイルコピー
+  - エッジケース処理
+  - パフォーマンス最適化
+
+- **[tmux-integration.md](./tmux-integration.md)** - Tmux統合
+  - セッション管理
+  - コマンド実行
+  - 出力キャプチャ
+  - ログ管理
+
+- **[parallel-execution.md](./parallel-execution.md)** - 並列実行
+  - 同時実行制御
+  - タスクキュー管理
+  - 依存関係解決
+  - リソース管理
+
+- **[state-management.md](./state-management.md)** - 状態管理
+  - データ永続化
+  - トランザクション管理
+  - キャッシュ
+  - バックアップとリストア
+
+- **[configuration.md](./configuration.md)** - 設定
+  - 設定ファイルフォーマット
+  - 設定項目の詳細
+  - 環境変数
+  - ベストプラクティス
+
+## 🚀 クイックリンク
+
+### 開発者向け
+
+- [システム構成図](./architecture.md#システム構成)
+- [データモデル](./SPECIFICATION.md#データモデル)
+- [API設計](./architecture.md#core-service-layer)
+- [エラーハンドリング](./architecture.md#エラーハンドリング)
+
+### 運用者向け
+
+- [設定ガイド](./configuration.md)
+- [トラブルシューティング](./worktree-management.md#トラブルシューティング)
+- [パフォーマンスチューニング](./parallel-execution.md#パフォーマンス最適化)
+- [バックアップ戦略](./state-management.md#バックアップとリストア)
+
+## 📖 ドキュメントの読み方
+
+### 初めて読む方
+
+1. [SPECIFICATION.md](./SPECIFICATION.md) - 全体像を把握
+2. [architecture.md](./architecture.md) - システム設計を理解
+3. [configuration.md](./configuration.md) - 設定方法を学ぶ
+
+### 機能実装する方
+
+1. [architecture.md](./architecture.md) - レイヤー構成を確認
+2. 該当する機能のドキュメント（worktree, tmux, parallel, state）を参照
+3. [SPECIFICATION.md](./SPECIFICATION.md#データモデル) - データ構造を確認
+
+### トラブルシューティング
+
+1. 該当する機能のドキュメント内の「トラブルシューティング」セクション
+2. [state-management.md](./state-management.md#復旧処理) - 復旧処理
+3. [configuration.md](./configuration.md#トラブルシューティング) - 設定問題
+
+## 🔄 ドキュメント更新履歴
+
+- **2024-01-30**: 初版作成
+  - 全体仕様書
+  - アーキテクチャ設計
+  - 主要機能の詳細仕様
+
+## 📝 ドキュメント規約
+
+### ファイル命名
+
+- `SPECIFICATION.md` - 全体仕様（大文字）
+- `{機能名}.md` - 機能別仕様（小文字、ハイフン区切り）
+- `README.md` - インデックス（各ディレクトリ）
+
+### Markdown記法
+
+- **見出し**: H1は1つ、H2以降で構造化
+- **コードブロック**: 言語を明示（```typescript, ```bash等）
+- **リンク**: 相対パスで関連ドキュメントへリンク
+- **図**: Mermaid記法またはASCII図
+
+### コード例
+
+- **実装例**: 実際に動作するコード
+- **擬似コード**: 概念を説明する簡略化されたコード
+- **設定例**: YAMLまたはJSON形式
+
+## 🤝 ドキュメント貢献
+
+ドキュメントの改善提案は歓迎します：
+
+1. Issueを作成して問題点を報告
+2. PRでドキュメントを修正
+3. 不明点や追加したい内容をDiscussionで議論
+
+### ドキュメント改善のポイント
+
+- ✅ 具体例を追加
+- ✅ 図表で視覚化
+- ✅ トラブルシューティング情報を追加
+- ✅ ベストプラクティスを共有
+- ✅ 実装経験からのTipsを追記
+
+## 📚 参考資料
+
+### 外部ドキュメント
+
+- [Git Worktree](https://git-scm.com/docs/git-worktree)
+- [Tmux Documentation](https://github.com/tmux/tmux/wiki)
+- [GitHub REST API](https://docs.github.com/en/rest)
+- [Pi Mono](https://github.com/badlogic/pi-mono)
+
+### 関連プロジェクト
+
+- [orchestrator-hybrid](https://github.com/takemo101/orchestrator-hybrid) - インスピレーション元
+- [Ralph Orchestrator](https://github.com/ralphscheid/ralph-orchestrator) - ループベースオーケストレーション
+
+## ❓ よくある質問
+
+### Q: どのドキュメントから読めば良い？
+
+A: 初めての方は [SPECIFICATION.md](./SPECIFICATION.md) から、実装する方は [architecture.md](./architecture.md) から読むことをお勧めします。
+
+### Q: ドキュメントが古い・間違っている
+
+A: Issueまたは PRを作成してください。実装とドキュメントの乖離を防ぐため、PRには関連ドキュメントの更新も含めてください。
+
+### Q: もっと詳しく知りたい機能がある
+
+A: Discussionで質問するか、ドキュメント拡充のIssueを作成してください。
+
+## 📄 ライセンス
+
+このドキュメントはプロジェクトと同じライセンス（MIT）で提供されます。
