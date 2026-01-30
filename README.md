@@ -95,6 +95,8 @@ pi:
 ```
 pi-issue-runner/
 ├── SKILL.md                 # スキル定義
+├── AGENTS.md                # 開発ガイド
+├── README.md                # このファイル
 ├── scripts/
 │   ├── run.sh              # Issue実行
 │   ├── list.sh             # セッション一覧
@@ -108,8 +110,9 @@ pi-issue-runner/
 │   ├── tmux.sh             # tmux操作
 │   └── github.sh           # GitHub API操作
 ├── docs/                    # ドキュメント
-├── README.md               # このファイル
-└── CLAUDE.md               # 開発ガイド
+├── test/                    # 単体テスト
+├── tests/                   # Batsテスト
+└── .worktrees/              # worktree作成先（実行時に生成）
 ```
 
 ## ワークフロー例

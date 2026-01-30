@@ -15,6 +15,8 @@
 ```
 pi-issue-runner/
 ├── SKILL.md           # スキル定義（必須）
+├── AGENTS.md          # 開発ガイド（このファイル）
+├── README.md          # プロジェクト説明
 ├── scripts/           # 実行スクリプト
 │   ├── run.sh         # メインエントリーポイント
 │   ├── list.sh        # セッション一覧
@@ -28,7 +30,9 @@ pi-issue-runner/
 │   ├── worktree.sh    # Git worktree操作
 │   └── tmux.sh        # tmux操作
 ├── docs/              # ドキュメント
-└── tests/             # テスト（Bats）
+├── test/              # 単体テスト（*_test.sh形式）
+├── tests/             # Batsテスト（fixtures, helpers含む）
+└── .worktrees/        # 実行時に作成されるworktreeディレクトリ
 ```
 
 ## 開発コマンド
@@ -37,7 +41,10 @@ pi-issue-runner/
 # スクリプト実行
 ./scripts/run.sh 42
 
-# テスト実行（Batsがインストールされている場合）
+# 単体テスト実行
+./test/config_test.sh
+
+# Batsテスト実行（Batsがインストールされている場合）
 bats tests/
 
 # シェルスクリプトの構文チェック
