@@ -17,14 +17,14 @@ Pi Issue RunnerはGitHub Issueを入力として、Git worktreeとtmuxセッシ�
 
 - GitHub CLI (`gh`) を使用してIssueを取得
 - Issue番号から自動的にタスク情報を抽出
-- Issue本文をpiのプロンプトとして使用
+- Issue番号をpiのプロンプトとして使用
 
 ### 2. Git Worktree管理
 
 - 各Issue専用のworktreeを自動作成
-- ブランチ名はIssue番号から自動生成（例: `issue-42`）
+- ブランチ名はIssue番号とタイトルから自動生成（例: `feature/issue-42-bug-fix`）
 - 必要なファイル（.env等）を自動コピー
-- タスク完了後の自動クリーンアップ
+- タスク完了後のクリーンアップ（オプションでブランチも削除）
 
 ### 3. Tmuxセッション統合
 
@@ -36,47 +36,21 @@ Pi Issue RunnerはGitHub Issueを入力として、Git worktreeとtmuxセッシ�
 ### 4. Pi実行制御
 
 - Worktree内で独立したpiインスタンスを起動
-- Issue内容を自動的にプロンプトとして渡す
+- Issue番号を自動的にプロンプトとして渡す
 - piコマンドへのカスタム引数サポート
 
 ### 5. 並列実行
 
 - 複数のIssueを同時に処理
 - 各タスクは完全に独立した環境で実行
-- 同時実行数の制限設定（リソース管理）
 
-### 6. 状態管理
+### 6. クリーンアップ
 
-- タスクの状態追跡（queued, running, completed, failed）
-- 実行時間の記録
-- 終了コードの保存
-- 永続化されたタスク情報（JSON形式）
-
-### 7. ログ管理
-
-- 各タスクのログをファイルに保存
-- リアルタイムログストリーミング
-- ログの検索・フィルタリング
-
-### 8. クリーンアップ
-
-- 完了したworktreeの自動削除
+- Worktreeの削除
 - tmuxセッションの終了
-- タスク履歴のクリア
+- ブランチの削除（`--delete-branch`オプション）
 
 ## コアコンセプト
-
-### タスクライフサイクル
-
-```
-queued → running → completed
-                 ↘ failed
-```
-
-1. **queued**: タスクが作成され、実行待機中
-2. **running**: Worktree作成、tmuxセッション起動、pi実行中
-3. **completed**: piが正常終了
-4. **failed**: piがエラー終了、またはタイムアウト
 
 ### 実行フロー
 
@@ -91,9 +65,7 @@ Git Worktreeを作成（git worktree add）
     ↓
 Tmuxセッションを作成（tmux new-session）
     ↓
-セッション内でpiを起動（pi "Issue内容"）
-    ↓
-タスク状態を監視
+セッション内でpiを起動（pi --auto "Issue番号"）
     ↓
 完了後、オプションでクリーンアップ
 ```
@@ -103,99 +75,126 @@ Tmuxセッションを作成（tmux new-session）
 ```
 project-root/
 ├── .worktrees/              # Worktree作業ディレクトリ
-│   ├── issue-42/            # Issue #42のworktree
+│   ├── issue-42-xxx/        # Issue #42のworktree
 │   │   ├── .env             # コピーされた設定ファイル
 │   │   ├── src/
 │   │   └── ...
-│   └── issue-43/            # Issue #43のworktree
+│   └── issue-43-yyy/        # Issue #43のworktree
 │       └── ...
-├── .pi-runner/              # Pi Runner管理ディレクトリ
-│   ├── tasks.json           # タスク状態（永続化）
-│   ├── config.yml           # 設定ファイル
-│   └── logs/                # ログディレクトリ
-│       ├── issue-42.log     # Issue #42のログ
-│       └── issue-43.log     # Issue #43のログ
-└── .pi-runner.yml           # ユーザー設定（オプション）
+├── .pi-runner.yml           # ユーザー設定
+├── lib/                     # シェルスクリプトライブラリ
+│   ├── config.sh            # 設定管理
+│   ├── github.sh            # GitHub CLI操作
+│   ├── tmux.sh              # tmux操作
+│   └── worktree.sh          # Git worktree操作
+└── scripts/                 # 実行スクリプト
+    ├── run.sh               # タスク起動
+    ├── status.sh            # 状態確認
+    ├── attach.sh            # セッションアタッチ
+    └── cleanup.sh           # クリーンアップ
 ```
 
-## データモデル
+## 設定
 
-### Task
+### 設定ファイル形式（YAML）
 
-```typescript
-interface Task {
-  id: string;              // タスクID（例: "pi-issue-42"）
-  issue: number;           // GitHub Issue番号
-  status: TaskStatus;      // タスク状態
-  branch: string;          // ブランチ名
-  worktreePath: string;    // Worktreeのパス
-  tmuxSession: string;     // Tmuxセッション名
-  startedAt?: Date;        // 開始時刻
-  completedAt?: Date;      // 完了時刻
-  exitCode?: number;       // 終了コード
-  error?: string;          // エラーメッセージ
-}
+```yaml
+# .pi-runner.yml
+worktree:
+  base_dir: ".worktrees"     # Worktree作成先
+  copy_files: ".env"         # コピーするファイル（スペース区切り）
+
+tmux:
+  session_prefix: "pi"       # セッション名プレフィックス
+  start_in_session: true     # 作成後に自動アタッチ
+
+pi:
+  command: "pi"              # piコマンドのパス
+  args: ""                   # デフォルト引数
 ```
 
-### TaskStatus
+### 環境変数による上書き
 
-```typescript
-type TaskStatus = 
-  | 'queued'     // 実行待機中
-  | 'running'    // 実行中
-  | 'completed'  // 正常完了
-  | 'failed';    // 失敗
+```bash
+PI_RUNNER_WORKTREE_BASE_DIR=".worktrees"
+PI_RUNNER_TMUX_SESSION_PREFIX="pi"
+PI_RUNNER_PI_COMMAND="pi"
 ```
 
-### Config
+## CLI コマンド
 
-```typescript
-interface Config {
-  worktree: {
-    baseDir: string;        // Worktree作成先
-    copyFiles: string[];    // コピーするファイル
-  };
-  tmux: {
-    sessionPrefix: string;  // セッション名プレフィックス
-    startInSession: boolean; // 作成後に自動アタッチ
-  };
-  pi: {
-    command: string;        // piコマンドのパス
-    args: string[];         // デフォルト引数
-  };
-  parallel: {
-    maxConcurrent: number;  // 最大同時実行数
-    autoCleanup: boolean;   // 自動クリーンアップ
-  };
-}
+### run.sh - タスク起動
+
+```bash
+./scripts/run.sh <issue-number> [options]
+
+Options:
+    --branch NAME   カスタムブランチ名
+    --base BRANCH   ベースブランチ（デフォルト: HEAD）
+    --no-attach     セッション作成後にアタッチしない
+    --pi-args ARGS  piに渡す追加の引数
 ```
+
+### status.sh - 状態確認
+
+```bash
+./scripts/status.sh [options]
+
+Options:
+    --all           すべてのセッションを表示
+    --json          JSON形式で出力
+```
+
+### attach.sh - セッションアタッチ
+
+```bash
+./scripts/attach.sh <session-name|issue-number>
+```
+
+### cleanup.sh - クリーンアップ
+
+```bash
+./scripts/cleanup.sh <session-name|issue-number> [options]
+
+Options:
+    --force, -f       強制削除
+    --delete-branch   対応するGitブランチも削除
+    --keep-session    セッションを維持
+    --keep-worktree   worktreeを維持
+```
+
+## 依存関係
+
+### 必須
+
+- **Bash** 4.0以上
+- **Git** 2.17以上（worktreeサポート）
+- **GitHub CLI** 2.0以上（認証済み）
+- **tmux** 2.1以上
+- **jq** 1.6以上（JSON処理）
+- **pi** latest
+
+### オプション
+
+- **yq** (YAML設定ファイルの高度な処理)
 
 ## 非機能要件
 
-### パフォーマンス
-
-- タスク起動時間: 5秒以内（worktree作成 + tmuxセッション起動）
-- 並列実行数: デフォルト5、設定で変更可能
-- ログファイルサイズ制限: 100MB/タスク
-
 ### 信頼性
 
-- タスク状態の永続化（プロセス再起動後も復元）
-- エラー発生時の適切なクリーンアップ
-- Worktree/セッションの孤立を防ぐ
+- 必須コマンドの存在確認（jq, gh等）
+- エラー発生時の適切なメッセージ表示
+- Worktree/セッションの孤立を防ぐクリーンアップ
 
 ### 互換性
 
-- Bun 1.0以上
-- GitHub CLI 2.0以上
-- tmux 3.0以上
-- pi-mono latest
+- macOS / Linux対応
+- Bash 4.0+互換
 
 ### セキュリティ
 
 - `.env`ファイルのコピー時の権限保持
 - GitHub認証情報の安全な取り扱い
-- ログファイルへの機密情報記録の回避
 
 ## 制約事項
 
@@ -211,9 +210,29 @@ interface Config {
 - GitHub CLI認証が必須
 - プロジェクトルートからの実行を推奨
 
-## 将来の拡張性
+## 将来の拡張（Phase 2）
 
-### Phase 2（検討中）
+以下の機能は将来のバージョンで検討予定です：
+
+### 状態管理
+
+- タスクの状態追跡（queued, running, completed, failed）
+- 実行時間の記録
+- 終了コードの保存
+- 永続化されたタスク情報（JSON形式）
+
+### ログ管理
+
+- 各タスクのログをファイルに保存
+- リアルタイムログストリーミング
+- ログの検索・フィルタリング
+
+### 並列実行制御
+
+- 最大同時実行数の設定
+- 自動クリーンアップ
+
+### その他
 
 - Zellij対応（tmux代替）
 - Docker/Podman統合
@@ -222,7 +241,7 @@ interface Config {
 - 依存関係解決（Issue間の依存）
 - Webhookサポート
 
-### Phase 3（検討中）
+## 将来の拡張（Phase 3）
 
 - WebダッシュボードUI
 - メトリクス収集・可視化
