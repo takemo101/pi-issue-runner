@@ -30,7 +30,7 @@ which jq
 piのスキルディレクトリにクローン:
 
 ```bash
-git clone https://github.com/yourusername/pi-issue-runner ~/.pi/agent/skills/pi-issue-runner
+git clone https://github.com/takemo101/pi-issue-runner ~/.pi/agent/skills/pi-issue-runner
 ```
 
 ## 使い方
