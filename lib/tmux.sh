@@ -159,3 +159,37 @@ get_session_output() {
     
     tmux capture-pane -t "$session_name" -p -S "-$lines"
 }
+
+# アクティブなセッション数をカウント
+count_active_sessions() {
+    local count
+    count="$(list_sessions | wc -l | tr -d ' ')"
+    echo "$count"
+}
+
+# 並列実行数の制限をチェック
+# 戻り値: 0=OK, 1=制限超過
+check_concurrent_limit() {
+    load_config
+    local max_concurrent
+    max_concurrent="$(get_config parallel_max_concurrent)"
+    
+    # 0または空は無制限
+    if [[ -z "$max_concurrent" || "$max_concurrent" == "0" ]]; then
+        return 0
+    fi
+    
+    local current_count
+    current_count="$(count_active_sessions)"
+    
+    if [[ "$current_count" -ge "$max_concurrent" ]]; then
+        echo "Error: Maximum concurrent sessions ($max_concurrent) reached." >&2
+        echo "Currently running ($current_count sessions):" >&2
+        list_sessions | sed 's/^/  - /' >&2
+        echo "" >&2
+        echo "Use --force to override or cleanup existing sessions." >&2
+        return 1
+    fi
+    
+    return 0
+}
