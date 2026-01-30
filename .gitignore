@@ -49,5 +49,5 @@ temp/
 .pi
 
 # Config file (user-specific)
-.pi-issue-runner.yml
+.pi-runner.yml
 .pi-prompt.md
