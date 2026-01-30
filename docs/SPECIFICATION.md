@@ -175,6 +175,17 @@ Options:
 
 ```bash
 ./scripts/attach.sh <session-name|issue-number>
+
+Arguments:
+    session-name    tmuxセッション名（例: pi-issue-42）
+    issue-number    GitHub Issue番号（例: 42）
+
+Options:
+    -h, --help      このヘルプを表示
+
+Examples:
+    ./scripts/attach.sh pi-issue-42
+    ./scripts/attach.sh 42
 ```
 
 ### stop.sh - セッション停止
