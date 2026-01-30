@@ -217,8 +217,10 @@ You are implementing GitHub Issue #$issue_number in an isolated worktree.
 - Add/update tests if applicable
 
 ### Step 3: Verify
-- Run existing tests if available
-- Check for syntax errors: \`bash -n <file>\`
+- Run unit tests: \`./test/*_test.sh\` (if modified lib/ files)
+- Run Bats tests: \`bats tests/\` (if Bats installed)
+- Check syntax for all changed files: \`bash -n <file>\`
+- If no tests exist for modified code, consider adding them
 
 ### Step 4: Commit & Push
 \`\`\`bash
