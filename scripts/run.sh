@@ -208,13 +208,47 @@ $issue_body
 
 ## Instructions
 
-1. **Implement** the issue following project coding standards
-2. **Commit** your changes with a descriptive message
-3. **Push** the branch: \`git push -u origin feature/$branch_name\`
-4. **Create PR**: \`gh pr create --title "..." --body "Closes #$issue_number"\`
-5. **Merge PR**: \`gh pr merge --merge --delete-branch\`
+You are implementing GitHub Issue #$issue_number in an isolated worktree.
 
-Complete all steps automatically without asking for confirmation.
+### Step 1: Understand the Issue
+- Read the issue description carefully
+- If unclear, check related files in the codebase
+
+### Step 2: Implement
+- Follow existing code style and patterns
+- Keep changes minimal and focused
+- Add/update tests if applicable
+
+### Step 3: Verify
+- Run existing tests if available
+- Check for syntax errors: \`bash -n <file>\`
+
+### Step 4: Commit & Push
+\`\`\`bash
+git add -A
+git commit -m "<type>: <description>
+
+Closes #$issue_number"
+git push -u origin feature/$branch_name
+\`\`\`
+
+### Step 5: Create & Merge PR
+\`\`\`bash
+gh pr create --title "<type>: <short description>" --body "Closes #$issue_number"
+gh pr merge --merge --delete-branch
+\`\`\`
+
+### Commit Types
+- feat: New feature
+- fix: Bug fix  
+- docs: Documentation
+- refactor: Code refactoring
+- test: Adding tests
+- chore: Maintenance
+
+### On Error
+- If tests fail, fix the issue before committing
+- If PR merge fails, report the error
 EOF
     
     # piにプロンプトファイルを渡す（@でファイル参照）
