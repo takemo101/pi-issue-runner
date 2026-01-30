@@ -97,6 +97,9 @@ main() {
     local issue_title
     issue_title="$(get_issue_title "$issue_number")"
     echo "Title: $issue_title"
+    
+    local issue_body
+    issue_body="$(get_issue_body "$issue_number" 2>/dev/null)" || issue_body=""
 
     # ブランチ名決定
     local branch_name
@@ -125,8 +128,23 @@ main() {
     local pi_args
     pi_args="$(get_config pi_args)"
     
-    # Issue番号とタイトルをpiに渡す
-    local full_command="$pi_command $pi_args $extra_pi_args \"$issue_number --auto\""
+    # プロンプトファイルを作成（シェルエスケープ問題を回避）
+    local prompt_file="$full_worktree_path/.pi-prompt.md"
+    cat > "$prompt_file" << EOF
+Implement GitHub Issue #$issue_number
+
+## Title
+$issue_title
+
+## Description
+$issue_body
+
+---
+Please implement this issue following the project's coding standards.
+EOF
+    
+    # Issue本文をpiに渡す（catでパイプ）
+    local full_command="cat \"$prompt_file\" | $pi_command $pi_args $extra_pi_args --auto"
 
     # tmuxセッション作成
     echo ""

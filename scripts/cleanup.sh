@@ -82,7 +82,7 @@ main() {
         session_name="$(generate_session_name "$issue_number")"
     else
         session_name="$target"
-        issue_number="${session_name##*-}"
+        issue_number="$(extract_issue_number "$session_name")"
     fi
 
     echo "=== Cleanup ==="
