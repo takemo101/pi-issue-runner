@@ -88,6 +88,7 @@ project-root/
 ├── lib/                     # シェルスクリプトライブラリ
 │   ├── config.sh            # 設定管理
 │   ├── github.sh            # GitHub CLI操作
+│   ├── log.sh               # ログ出力
 │   ├── tmux.sh              # tmux操作
 │   └── worktree.sh          # Git worktree操作
 └── scripts/                 # 実行スクリプト
