@@ -17,6 +17,8 @@ Options:
   --no-attach       バックグラウンドで起動
   --reattach        既存セッションにアタッチ
   --force           強制再作成
+  --auto-cleanup    セッション終了時に自動クリーンアップ
+  --no-cleanup      クリーンアッププロンプトを無効化
   --branch <name>   カスタムブランチ名
   --base <branch>   ベースブランチ
   --pi-args <args>  piへの追加引数

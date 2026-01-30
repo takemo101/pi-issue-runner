@@ -23,7 +23,8 @@ pi-issue-runner/
 │   ├── status.sh      # 状態確認
 │   ├── attach.sh      # セッションアタッチ
 │   ├── stop.sh        # セッション停止
-│   └── cleanup.sh     # クリーンアップ
+│   ├── cleanup.sh     # クリーンアップ
+│   └── post-session.sh # セッション終了後処理
 ├── lib/               # 共通ライブラリ
 │   ├── config.sh      # 設定読み込み
 │   ├── github.sh      # GitHub CLI操作
