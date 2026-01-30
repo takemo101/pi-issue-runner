@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# config.sh - 設定ファイル読み込み（Bash 3互換）
+# config.sh - 設定ファイル読み込み（Bash 4.0以上）
 
 # Note: set -euo pipefail はsource先の環境に影響するため、
 # このファイルでは設定しない（呼び出し元で設定）
