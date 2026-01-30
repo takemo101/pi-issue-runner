@@ -43,6 +43,7 @@ Pi Issue RunnerはGitHub Issueを入力として、Git worktreeとtmuxセッシ�
 
 - 複数のIssueを同時に処理
 - 各タスクは完全に独立した環境で実行
+- 最大同時実行数の設定（`parallel.max_concurrent`）
 
 ### 6. クリーンアップ
 
@@ -65,7 +66,9 @@ Git Worktreeを作成（git worktree add）
     ↓
 Tmuxセッションを作成（tmux new-session）
     ↓
-セッション内でpiを起動（pi --auto "Issue番号"）
+.pi-prompt.mdを生成（Issue情報を埋め込み）
+    ↓
+セッション内でpiを起動（pi @.pi-prompt.md）
     ↓
 完了後、オプションでクリーンアップ
 ```
@@ -111,6 +114,9 @@ tmux:
 pi:
   command: "pi"              # piコマンドのパス
   args: ""                   # デフォルト引数
+
+parallel:
+  max_concurrent: 0          # 最大同時実行数（0 = 無制限）
 ```
 
 ### 環境変数による上書き
@@ -119,6 +125,7 @@ pi:
 PI_RUNNER_WORKTREE_BASE_DIR=".worktrees"
 PI_RUNNER_TMUX_SESSION_PREFIX="pi"
 PI_RUNNER_PI_COMMAND="pi"
+PI_RUNNER_PARALLEL_MAX_CONCURRENT="5"
 ```
 
 ## CLI コマンド
@@ -226,11 +233,6 @@ Options:
 - 各タスクのログをファイルに保存
 - リアルタイムログストリーミング
 - ログの検索・フィルタリング
-
-### 並列実行制御
-
-- 最大同時実行数の設定
-- 自動クリーンアップ
 
 ### その他
 
