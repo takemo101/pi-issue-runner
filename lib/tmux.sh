@@ -19,7 +19,30 @@ generate_session_name() {
     local issue_number="$1"
     
     load_config
-    echo "$(get_config tmux_session_prefix)-$issue_number"
+    local prefix
+    prefix="$(get_config tmux_session_prefix)"
+    echo "${prefix}-issue-${issue_number}"
+}
+
+# セッション名からIssue番号を抽出
+# 例: "pi-issue-42" -> "42", "pi-issue-42-feature" -> "42"
+extract_issue_number() {
+    local session_name="$1"
+    
+    # 正規表現で issue-(\d+) パターンを抽出
+    if [[ "$session_name" =~ issue-([0-9]+) ]]; then
+        echo "${BASH_REMATCH[1]}"
+        return 0
+    fi
+    
+    # フォールバック: 最後の数字部分を抽出
+    if [[ "$session_name" =~ ([0-9]+) ]]; then
+        echo "${BASH_REMATCH[1]}"
+        return 0
+    fi
+    
+    echo ""
+    return 1
 }
 
 # セッションを作成してコマンドを実行

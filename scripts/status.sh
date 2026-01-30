@@ -68,7 +68,7 @@ main() {
     else
         # セッション名
         session_name="$target"
-        issue_number="${session_name##*-}"
+        issue_number="$(extract_issue_number "$session_name")"
     fi
 
     echo "=== Task Status ==="
