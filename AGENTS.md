@@ -27,8 +27,9 @@ pi-issue-runner/
 ├── lib/               # 共通ライブラリ
 │   ├── config.sh      # 設定読み込み
 │   ├── github.sh      # GitHub CLI操作
-│   ├── worktree.sh    # Git worktree操作
-│   └── tmux.sh        # tmux操作
+│   ├── log.sh         # ログ出力
+│   ├── tmux.sh        # tmux操作
+│   └── worktree.sh    # Git worktree操作
 ├── docs/              # ドキュメント
 ├── test/              # 単体テスト（*_test.sh形式）
 ├── tests/             # Batsテスト（fixtures, helpers含む）

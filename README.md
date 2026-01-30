@@ -133,9 +133,10 @@ pi-issue-runner/
 │   └── cleanup.sh          # クリーンアップ
 ├── lib/
 │   ├── config.sh           # 設定読み込み
-│   ├── worktree.sh         # Git worktree操作
+│   ├── github.sh           # GitHub API操作
+│   ├── log.sh              # ログ出力
 │   ├── tmux.sh             # tmux操作
-│   └── github.sh           # GitHub API操作
+│   └── worktree.sh         # Git worktree操作
 ├── docs/                    # ドキュメント
 ├── test/                    # 単体テスト
 ├── tests/                   # Batsテスト
