@@ -5,11 +5,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config.sh"
+source "$SCRIPT_DIR/log.sh"
 
 # tmuxがインストールされているか確認
 check_tmux() {
     if ! command -v tmux &> /dev/null; then
-        echo "Error: tmux is not installed" >&2
+        log_error "tmux is not installed"
         return 1
     fi
 }
@@ -66,13 +67,13 @@ create_session() {
     check_tmux || return 1
     
     if session_exists "$session_name"; then
-        echo "Error: Session already exists: $session_name" >&2
+        log_error "Session already exists: $session_name"
         return 1
     fi
     
-    echo "Creating tmux session: $session_name"
-    echo "Working directory: $working_dir"
-    echo "Command: $command"
+    log_info "Creating tmux session: $session_name"
+    log_debug "Working directory: $working_dir"
+    log_debug "Command: $command"
     
     # デタッチ状態でセッション作成
     tmux new-session -d -s "$session_name" -c "$working_dir"
@@ -80,7 +81,7 @@ create_session() {
     # コマンドを送信
     tmux send-keys -t "$session_name" "$command" Enter
     
-    echo "Session created: $session_name"
+    log_info "Session created: $session_name"
 }
 
 # セッションが存在するか確認
@@ -97,7 +98,7 @@ attach_session() {
     check_tmux || return 1
     
     if ! session_exists "$session_name"; then
-        echo "Error: Session not found: $session_name" >&2
+        log_error "Session not found: $session_name"
         return 1
     fi
     
@@ -111,11 +112,11 @@ kill_session() {
     check_tmux || return 1
     
     if ! session_exists "$session_name"; then
-        echo "Warning: Session not found: $session_name" >&2
+        log_warn "Session not found: $session_name"
         return 0
     fi
     
-    echo "Killing session: $session_name"
+    log_info "Killing session: $session_name"
     tmux kill-session -t "$session_name"
 }
 
@@ -153,7 +154,7 @@ get_session_output() {
     check_tmux || return 1
     
     if ! session_exists "$session_name"; then
-        echo "Error: Session not found: $session_name" >&2
+        log_error "Session not found: $session_name"
         return 1
     fi
     
@@ -183,11 +184,10 @@ check_concurrent_limit() {
     current_count="$(count_active_sessions)"
     
     if [[ "$current_count" -ge "$max_concurrent" ]]; then
-        echo "Error: Maximum concurrent sessions ($max_concurrent) reached." >&2
-        echo "Currently running ($current_count sessions):" >&2
+        log_error "Maximum concurrent sessions ($max_concurrent) reached."
+        log_info "Currently running ($current_count sessions):"
         list_sessions | sed 's/^/  - /' >&2
-        echo "" >&2
-        echo "Use --force to override or cleanup existing sessions." >&2
+        log_info "Use --force to override or cleanup existing sessions."
         return 1
     fi
     

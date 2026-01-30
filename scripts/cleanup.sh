@@ -5,6 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
+source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/tmux.sh"
 source "$SCRIPT_DIR/../lib/worktree.sh"
 
@@ -61,7 +62,7 @@ main() {
                 exit 0
                 ;;
             -*)
-                echo "Error: Unknown option: $1" >&2
+                log_error "Unknown option: $1"
                 usage >&2
                 exit 1
                 ;;
@@ -73,7 +74,7 @@ main() {
     done
 
     if [[ -z "$target" ]]; then
-        echo "Error: Session name or issue number is required" >&2
+        log_error "Session name or issue number is required"
         usage >&2
         exit 1
     fi
@@ -92,17 +93,16 @@ main() {
         issue_number="$(extract_issue_number "$session_name")"
     fi
 
-    echo "=== Cleanup ==="
-    echo "Target: $session_name (Issue #$issue_number)"
-    echo ""
+    log_info "=== Cleanup ==="
+    log_info "Target: $session_name (Issue #$issue_number)"
 
     # セッション停止
     if [[ "$keep_session" == "false" ]]; then
         if session_exists "$session_name"; then
-            echo "Stopping session: $session_name"
+            log_info "Stopping session: $session_name"
             kill_session "$session_name"
         else
-            echo "Session not found: $session_name (skipping)"
+            log_debug "Session not found: $session_name (skipping)"
         fi
     fi
 
@@ -116,27 +116,26 @@ main() {
                 branch_name="$(get_worktree_branch "$worktree")"
             fi
             
-            echo "Removing worktree: $worktree"
+            log_info "Removing worktree: $worktree"
             remove_worktree "$worktree" "$force"
             
             # ブランチ削除
             if [[ "$delete_branch" == "true" && -n "$branch_name" ]]; then
-                echo "Deleting branch: $branch_name"
+                log_info "Deleting branch: $branch_name"
                 if ! git branch -d "$branch_name" 2>/dev/null; then
                     if [[ "$force" == "true" ]]; then
                         git branch -D "$branch_name"
                     else
-                        echo "Warning: Branch has unmerged changes. Use --force to delete anyway." >&2
+                        log_warn "Branch has unmerged changes. Use --force to delete anyway."
                     fi
                 fi
             fi
         else
-            echo "Worktree not found for Issue #$issue_number (skipping)"
+            log_debug "Worktree not found for Issue #$issue_number (skipping)"
         fi
     fi
 
-    echo ""
-    echo "Cleanup completed."
+    log_info "Cleanup completed."
 }
 
 main "$@"
