@@ -233,7 +233,16 @@ git push -u origin feature/$branch_name
 
 ### Step 5: Create & Merge PR
 \`\`\`bash
-gh pr create --title "<type>: <short description>" --body "Closes #$issue_number"
+gh pr create --title "<type>: <short description>" --body "## Summary
+Closes #$issue_number
+
+## Changes
+- <list key changes made>
+- <files modified and why>
+
+## Testing
+- <how the changes were tested>
+- <test commands run>"
 gh pr merge --merge --delete-branch
 \`\`\`
 
