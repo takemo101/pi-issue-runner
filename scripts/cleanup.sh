@@ -17,21 +17,24 @@ Arguments:
     issue-number    GitHub Issue番号（例: 42）
 
 Options:
-    --force, -f     強制削除（未コミットの変更があっても削除）
-    --keep-session  セッションを維持（worktreeのみ削除）
-    --keep-worktree worktreeを維持（セッションのみ削除）
-    -h, --help      このヘルプを表示
+    --force, -f       強制削除（未コミットの変更があっても削除）
+    --delete-branch   対応するGitブランチも削除
+    --keep-session    セッションを維持（worktreeのみ削除）
+    --keep-worktree   worktreeを維持（セッションのみ削除）
+    -h, --help        このヘルプを表示
 
 Examples:
     $(basename "$0") pi-issue-42
     $(basename "$0") 42
     $(basename "$0") 42 --force
+    $(basename "$0") 42 --delete-branch
 EOF
 }
 
 main() {
     local target=""
     local force=false
+    local delete_branch=false
     local keep_session=false
     local keep_worktree=false
 
@@ -39,6 +42,10 @@ main() {
         case "$1" in
             --force|-f)
                 force=true
+                shift
+                ;;
+            --delete-branch)
+                delete_branch=true
                 shift
                 ;;
             --keep-session)
@@ -102,9 +109,27 @@ main() {
     # Worktree削除
     if [[ "$keep_worktree" == "false" ]]; then
         local worktree
+        local branch_name=""
         if worktree="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
+            # ブランチ名を取得（削除前に取得する必要がある）
+            if [[ "$delete_branch" == "true" ]]; then
+                branch_name="$(get_worktree_branch "$worktree")"
+            fi
+            
             echo "Removing worktree: $worktree"
             remove_worktree "$worktree" "$force"
+            
+            # ブランチ削除
+            if [[ "$delete_branch" == "true" && -n "$branch_name" ]]; then
+                echo "Deleting branch: $branch_name"
+                if ! git branch -d "$branch_name" 2>/dev/null; then
+                    if [[ "$force" == "true" ]]; then
+                        git branch -D "$branch_name"
+                    else
+                        echo "Warning: Branch has unmerged changes. Use --force to delete anyway." >&2
+                    fi
+                fi
+            fi
         else
             echo "Worktree not found for Issue #$issue_number (skipping)"
         fi
