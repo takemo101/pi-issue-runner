@@ -49,6 +49,12 @@ scripts/run.sh 42 --branch custom-feature
 
 # 特定のベースブランチから作成
 scripts/run.sh 42 --base develop
+
+# 既存セッションがあればアタッチ
+scripts/run.sh 42 --reattach
+
+# 既存セッション/worktreeを削除して再作成
+scripts/run.sh 42 --force
 ```
 
 ### セッション管理
