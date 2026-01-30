@@ -92,21 +92,22 @@ enable_quiet() {
 
 # エラー時のクリーンアップハンドラを設定
 # 使用例: setup_cleanup_trap "cleanup_function"
+_CLEANUP_FUNC=""
+
 setup_cleanup_trap() {
-    local cleanup_func="${1:-}"
-    
-    _cleanup_handler() {
-        local exit_code=$?
-        if [[ $exit_code -ne 0 ]]; then
-            log_error "Script exited with code $exit_code"
-            if [[ -n "$cleanup_func" ]] && declare -f "$cleanup_func" > /dev/null 2>&1; then
-                log_debug "Running cleanup function: $cleanup_func"
-                "$cleanup_func" || true
-            fi
+    _CLEANUP_FUNC="${1:-}"
+    trap '_cleanup_handler' EXIT
+}
+
+_cleanup_handler() {
+    local exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
+        log_error "Script exited with code $exit_code"
+        if [[ -n "${_CLEANUP_FUNC:-}" ]] && declare -f "$_CLEANUP_FUNC" > /dev/null 2>&1; then
+            log_debug "Running cleanup function: $_CLEANUP_FUNC"
+            "$_CLEANUP_FUNC" || true
         fi
-    }
-    
-    trap _cleanup_handler EXIT
+    fi
 }
 
 # worktree作成時のクリーンアップ用
