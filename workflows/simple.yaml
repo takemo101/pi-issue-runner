@@ -1,0 +1,7 @@
+# Simple workflow for straightforward tasks
+# Template variables: {{issue_number}}, {{issue_title}}, {{branch_name}}, {{worktree_path}}
+name: simple
+description: 簡易ワークフロー（実装・マージのみ）
+steps:
+  - implement
+  - merge
