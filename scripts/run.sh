@@ -205,8 +205,8 @@ $issue_body
 Please implement this issue following the project's coding standards.
 EOF
     
-    # Issue本文をpiに渡す（catでパイプ）
-    local full_command="cat \"$prompt_file\" | $pi_command $pi_args $extra_pi_args --auto"
+    # piにプロンプトファイルを渡す（@でファイル参照）
+    local full_command="$pi_command $pi_args $extra_pi_args @\"$prompt_file\""
 
     # tmuxセッション作成
     echo ""
