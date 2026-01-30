@@ -26,6 +26,7 @@ scripts/cleanup.sh <session> # クリーンアップ
 - `gh` (GitHub CLI、認証済み)
 - `tmux`
 - `pi`
+- `jq` (JSON処理)
 
 ## 詳細ドキュメント
 
