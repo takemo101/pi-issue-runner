@@ -163,6 +163,23 @@ Options:
 ./scripts/attach.sh <session-name|issue-number>
 ```
 
+### stop.sh - セッション停止
+
+```bash
+./scripts/stop.sh <session-name|issue-number>
+
+Arguments:
+    session-name    tmuxセッション名（例: pi-issue-42）
+    issue-number    GitHub Issue番号（例: 42）
+
+Options:
+    -h, --help      このヘルプを表示
+
+Examples:
+    ./scripts/stop.sh pi-issue-42
+    ./scripts/stop.sh 42
+```
+
 ### cleanup.sh - クリーンアップ
 
 ```bash
