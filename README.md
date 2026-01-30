@@ -20,6 +20,9 @@ which tmux
 
 # pi
 which pi
+
+# jq (JSON処理)
+which jq
 ```
 
 ## インストール
