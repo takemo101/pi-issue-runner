@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+# cleanup.sh - worktree + セッション削除
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/config.sh"
+source "$SCRIPT_DIR/../lib/tmux.sh"
+source "$SCRIPT_DIR/../lib/worktree.sh"
+
+usage() {
+    cat << EOF
+Usage: $(basename "$0") <session-name|issue-number> [options]
+
+Arguments:
+    session-name    tmuxセッション名（例: pi-issue-42）
+    issue-number    GitHub Issue番号（例: 42）
+
+Options:
+    --force, -f     強制削除（未コミットの変更があっても削除）
+    --keep-session  セッションを維持（worktreeのみ削除）
+    --keep-worktree worktreeを維持（セッションのみ削除）
+    -h, --help      このヘルプを表示
+
+Examples:
+    $(basename "$0") pi-issue-42
+    $(basename "$0") 42
+    $(basename "$0") 42 --force
+EOF
+}
+
+main() {
+    local target=""
+    local force=false
+    local keep_session=false
+    local keep_worktree=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --force|-f)
+                force=true
+                shift
+                ;;
+            --keep-session)
+                keep_session=true
+                shift
+                ;;
+            --keep-worktree)
+                keep_worktree=true
+                shift
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            -*)
+                echo "Error: Unknown option: $1" >&2
+                usage >&2
+                exit 1
+                ;;
+            *)
+                target="$1"
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$target" ]]; then
+        echo "Error: Session name or issue number is required" >&2
+        usage >&2
+        exit 1
+    fi
+
+    load_config
+
+    # Issue番号かセッション名か判定
+    local session_name
+    local issue_number
+
+    if [[ "$target" =~ ^[0-9]+$ ]]; then
+        issue_number="$target"
+        session_name="$(generate_session_name "$issue_number")"
+    else
+        session_name="$target"
+        issue_number="${session_name##*-}"
+    fi
+
+    echo "=== Cleanup ==="
+    echo "Target: $session_name (Issue #$issue_number)"
+    echo ""
+
+    # セッション停止
+    if [[ "$keep_session" == "false" ]]; then
+        if session_exists "$session_name"; then
+            echo "Stopping session: $session_name"
+            kill_session "$session_name"
+        else
+            echo "Session not found: $session_name (skipping)"
+        fi
+    fi
+
+    # Worktree削除
+    if [[ "$keep_worktree" == "false" ]]; then
+        local worktree
+        if worktree="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
+            echo "Removing worktree: $worktree"
+            remove_worktree "$worktree" "$force"
+        else
+            echo "Worktree not found for Issue #$issue_number (skipping)"
+        fi
+    fi
+
+    echo ""
+    echo "Cleanup completed."
+}
+
+main "$@"
