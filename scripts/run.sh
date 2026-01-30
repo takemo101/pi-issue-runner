@@ -8,6 +8,10 @@ source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/github.sh"
 source "$SCRIPT_DIR/../lib/worktree.sh"
 source "$SCRIPT_DIR/../lib/tmux.sh"
+source "$SCRIPT_DIR/../lib/log.sh"
+
+# エラー時のクリーンアップを設定
+setup_cleanup_trap cleanup_worktree_on_error
 
 usage() {
     cat << EOF
@@ -169,6 +173,9 @@ main() {
     worktree_path="$(create_worktree "$branch_name" "$base_branch")"
     local full_worktree_path
     full_worktree_path="$(cd "$worktree_path" && pwd)"
+    
+    # エラー時クリーンアップ用にworktreeを登録
+    register_worktree_for_cleanup "$full_worktree_path"
 
     # piコマンド構築
     local pi_command
@@ -198,6 +205,9 @@ EOF
     echo ""
     echo "=== Starting Pi Session ==="
     create_session "$session_name" "$full_worktree_path" "$full_command"
+    
+    # セッション作成成功 - クリーンアップ対象から除外
+    unregister_worktree_for_cleanup
 
     echo ""
     echo "=== Summary ==="
