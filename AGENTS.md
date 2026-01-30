@@ -6,7 +6,7 @@
 
 ## 技術スタック
 
-- **言語**: Bash (POSIX互換)
+- **言語**: Bash 4.0以上
 - **依存ツール**: `gh` (GitHub CLI), `tmux`, `git`, `jq`
 - **テストフレームワーク**: Bats (Bash Automated Testing System)
 
