@@ -93,8 +93,10 @@ project-root/
 │   └── worktree.sh          # Git worktree操作
 └── scripts/                 # 実行スクリプト
     ├── run.sh               # タスク起動
+    ├── list.sh              # セッション一覧
     ├── status.sh            # 状態確認
     ├── attach.sh            # セッションアタッチ
+    ├── stop.sh              # セッション停止
     └── cleanup.sh           # クリーンアップ
 ```
 
