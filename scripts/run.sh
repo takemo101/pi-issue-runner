@@ -231,7 +231,42 @@ Closes #$issue_number"
 git push -u origin feature/$branch_name
 \`\`\`
 
-### Step 5: Create & Merge PR
+### Step 5: Self-Review
+
+Before creating a PR, perform a self-review and score your implementation.
+
+#### Review Criteria (10 points total)
+1. **Correctness (3 points)**: Does the code solve the issue correctly?
+2. **Code Quality (2 points)**: Is the code clean, readable, and follows existing patterns?
+3. **Testing (2 points)**: Are there adequate tests? Do all tests pass?
+4. **Documentation (1 point)**: Are comments and docs updated if needed?
+5. **Minimal Changes (1 point)**: Are changes focused and minimal?
+6. **No Regressions (1 point)**: Does the change break existing functionality?
+
+#### Scoring
+- Review your changes: \`git diff HEAD~1\`
+- Score each criterion and calculate total
+- **If score >= 9**: Proceed to Step 6
+- **If score < 9**: Fix the issues and repeat Step 5
+
+#### Output Format
+\`\`\`
+## Self-Review Score: X/10
+
+| Criterion | Score | Notes |
+|-----------|-------|-------|
+| Correctness | X/3 | ... |
+| Code Quality | X/2 | ... |
+| Testing | X/2 | ... |
+| Documentation | X/1 | ... |
+| Minimal Changes | X/1 | ... |
+| No Regressions | X/1 | ... |
+
+### Issues to Fix (if score < 9)
+- ...
+\`\`\`
+
+### Step 6: Create & Merge PR
 \`\`\`bash
 gh pr create --title "<type>: <short description>" --body "## Summary
 Closes #$issue_number
