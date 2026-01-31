@@ -19,13 +19,15 @@ pi-issue-runner/
 ├── README.md          # プロジェクト説明
 ├── scripts/           # 実行スクリプト
 │   ├── run.sh         # メインエントリーポイント
+│   ├── init.sh        # プロジェクト初期化
 │   ├── list.sh        # セッション一覧
 │   ├── status.sh      # 状態確認
 │   ├── attach.sh      # セッションアタッチ
 │   ├── stop.sh        # セッション停止
 │   ├── cleanup.sh     # クリーンアップ
 │   ├── improve.sh     # 継続的改善スクリプト
-│   └── wait-for-sessions.sh  # 複数セッション完了待機
+│   ├── wait-for-sessions.sh  # 複数セッション完了待機
+│   └── watch-session.sh  # セッション監視
 ├── lib/               # 共通ライブラリ
 │   ├── config.sh      # 設定読み込み
 │   ├── github.sh      # GitHub CLI操作
