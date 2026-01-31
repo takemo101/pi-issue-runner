@@ -270,12 +270,16 @@ assert_contains "dry-run shows would-create marker" '###WOULD_CREATE_ISSUES###' 
 echo ""
 echo "=== Issue number extraction tests ==="
 
-# Function to extract issue numbers (same logic as improve.sh)
+# Function to extract issue numbers (same logic as improve.sh - updated version)
 extract_issue_numbers() {
     local input_file="$1"
     local max_issues="${2:-5}"
     
-    sed -n '/###CREATED_ISSUES###/,/###END_ISSUES###/p' "$input_file" \
+    # ANSIエスケープコードと制御文字を除去してから処理
+    cat "$input_file" \
+        | tr -d '\r' \
+        | sed 's/\x1b\[[0-9;]*m//g' \
+        | sed -n '/###CREATED_ISSUES###/,/###END_ISSUES###/p' \
         | grep -oE '[0-9]+' \
         | head -n "$max_issues"
 }
@@ -399,12 +403,88 @@ EOF
         "999" -- "${result[@]}"
 }
 
+# Test: ANSI escape codes in output
+test_ansi_escape_codes() {
+    local tmp_file
+    tmp_file="$(mktemp)"
+    # Simulate ANSI colored output (e.g., green text)
+    printf "Some output from pi...\n\033[32m###CREATED_ISSUES###\033[0m\n\033[32m 162\033[0m\n\033[32m 163\033[0m\n\033[32m 164\033[0m\n\033[32m###END_ISSUES###\033[0m\nDone.\n" > "$tmp_file"
+    
+    local -a result=()
+    while IFS= read -r line; do
+        [[ -n "$line" ]] && result+=("$line")
+    done < <(extract_issue_numbers "$tmp_file")
+    
+    rm -f "$tmp_file"
+    
+    assert_array_equals "ANSI escape codes: extracts issue numbers with color codes" \
+        "162" "163" "164" -- "${result[@]}"
+}
+
+# Test: Carriage return in output
+test_carriage_return() {
+    local tmp_file
+    tmp_file="$(mktemp)"
+    # Simulate output with \r characters (Windows-style line endings)
+    printf "Some output from pi...\r\n###CREATED_ISSUES###\r\n 162\r\n 163\r\n 164\r\n###END_ISSUES###\r\nDone.\r\n" > "$tmp_file"
+    
+    local -a result=()
+    while IFS= read -r line; do
+        [[ -n "$line" ]] && result+=("$line")
+    done < <(extract_issue_numbers "$tmp_file")
+    
+    rm -f "$tmp_file"
+    
+    assert_array_equals "Carriage return: extracts issue numbers with \\r" \
+        "162" "163" "164" -- "${result[@]}"
+}
+
+# Test: Mixed ANSI codes and carriage returns
+test_mixed_ansi_and_cr() {
+    local tmp_file
+    tmp_file="$(mktemp)"
+    # Simulate output with both ANSI codes and \r
+    printf "Some output...\r\n\033[1;32m###CREATED_ISSUES###\033[0m\r\n \033[33m162\033[0m\r\n \033[33m163\033[0m\r\n###END_ISSUES###\r\n" > "$tmp_file"
+    
+    local -a result=()
+    while IFS= read -r line; do
+        [[ -n "$line" ]] && result+=("$line")
+    done < <(extract_issue_numbers "$tmp_file")
+    
+    rm -f "$tmp_file"
+    
+    assert_array_equals "Mixed ANSI and CR: extracts issue numbers correctly" \
+        "162" "163" -- "${result[@]}"
+}
+
+# Test: Complex ANSI sequences (bold, color, reset)
+test_complex_ansi() {
+    local tmp_file
+    tmp_file="$(mktemp)"
+    # Simulate complex ANSI sequences with bold, multiple color codes
+    printf "\033[1;4;32m###CREATED_ISSUES###\033[0m\n\033[38;5;208m999\033[0m\n\033[0;1m###END_ISSUES###\033[0m\n" > "$tmp_file"
+    
+    local -a result=()
+    while IFS= read -r line; do
+        [[ -n "$line" ]] && result+=("$line")
+    done < <(extract_issue_numbers "$tmp_file")
+    
+    rm -f "$tmp_file"
+    
+    assert_array_equals "Complex ANSI: extracts issue numbers with complex sequences" \
+        "999" -- "${result[@]}"
+}
+
 # Run issue extraction tests
 test_normal_case
 test_leading_spaces
 test_no_markers
 test_max_issues_limit
 test_single_issue
+test_ansi_escape_codes
+test_carriage_return
+test_mixed_ansi_and_cr
+test_complex_ansi
 
 # ===================
 # 結果サマリー

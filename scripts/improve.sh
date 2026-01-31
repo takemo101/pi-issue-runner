@@ -301,11 +301,30 @@ review_and_create_issues() {
         # レビューのみモードではIssue番号を抽出しない
         CREATED_ISSUES=()
     else
-        # Issue番号を抽出（数字のみ、先頭・末尾の空白を許容）
+        # デバッグログ: 抽出前の状態を表示
+        if [[ "${LOG_LEVEL:-}" == "DEBUG" ]]; then
+            log_debug "Output file size: $(wc -c < "$output_file") bytes"
+            log_debug "Checking for CREATED_ISSUES marker..."
+            if grep -q "###CREATED_ISSUES###" "$output_file"; then
+                log_debug "Marker found. Raw content between markers:"
+                sed -n '/###CREATED_ISSUES###/,/###END_ISSUES###/p' "$output_file" | cat -A | head -20
+            else
+                log_debug "Marker NOT found in output"
+            fi
+        fi
+        
+        # Issue番号を抽出（ANSIエスケープコード・制御文字を除去してから処理）
         local issues_text
-        issues_text=$(sed -n '/###CREATED_ISSUES###/,/###END_ISSUES###/p' "$output_file" \
+        issues_text=$(cat "$output_file" \
+            | tr -d '\r' \
+            | sed 's/\x1b\[[0-9;]*m//g' \
+            | sed -n '/###CREATED_ISSUES###/,/###END_ISSUES###/p' \
             | grep -oE '[0-9]+' \
             | head -n "$max_issues") || true
+        
+        if [[ "${LOG_LEVEL:-}" == "DEBUG" ]]; then
+            log_debug "Extracted issues_text: '$issues_text'"
+        fi
         
         if [[ -n "$issues_text" ]]; then
             while IFS= read -r issue; do
@@ -313,6 +332,10 @@ review_and_create_issues() {
                     CREATED_ISSUES+=("$issue")
                 fi
             done <<< "$issues_text"
+        fi
+        
+        if [[ "${LOG_LEVEL:-}" == "DEBUG" ]]; then
+            log_debug "Final CREATED_ISSUES array: (${CREATED_ISSUES[*]:-})"
         fi
     fi
 
