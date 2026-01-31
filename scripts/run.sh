@@ -30,6 +30,7 @@ Options:
     --workflow NAME   ワークフロー名（デフォルト: default）
                       利用可能: default, simple
     --no-attach       セッション作成後にアタッチしない
+    --no-cleanup      pi終了後の自動クリーンアップを無効化
     --reattach        既存セッションがあればアタッチ
     --force           既存セッション/worktreeを削除して再作成
     --pi-args ARGS    piに渡す追加の引数
@@ -39,8 +40,8 @@ Options:
 Examples:
     $(basename "$0") 42
     $(basename "$0") 42 --workflow simple
-    $(basename "$0") 42 --workflow thorough
     $(basename "$0") 42 --no-attach
+    $(basename "$0") 42 --no-cleanup
     $(basename "$0") 42 --reattach
     $(basename "$0") 42 --force
     $(basename "$0") 42 --branch custom-feature
@@ -57,6 +58,7 @@ main() {
     local reattach=false
     local force=false
     local extra_pi_args=""
+    local cleanup_mode="auto"  # デフォルト: 自動クリーンアップ
     local list_workflows=false
 
     # 引数のパース
@@ -92,6 +94,10 @@ main() {
                 ;;
             --force)
                 force=true
+                shift
+                ;;
+            --no-cleanup)
+                cleanup_mode="none"
                 shift
                 ;;
             --pi-args)
@@ -213,21 +219,17 @@ main() {
     local pi_args
     pi_args="$(get_config pi_args)"
     
-    # プロンプトファイルをワークフローから生成
+    # ワークフローからプロンプトファイルを生成
     local prompt_file="$full_worktree_path/.pi-prompt.md"
     log_info "Workflow: $workflow_name"
-    
-    if ! write_workflow_prompt "$prompt_file" "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path"; then
-        log_error "Failed to generate workflow prompt"
-        exit 1
-    fi
+    write_workflow_prompt "$prompt_file" "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path"
     
     # piにプロンプトファイルを渡す（@でファイル参照）
     local full_command="$pi_command $pi_args $extra_pi_args @\"$prompt_file\""
 
     # tmuxセッション作成
     log_info "=== Starting Pi Session ==="
-    create_session "$session_name" "$full_worktree_path" "$full_command"
+    create_session "$session_name" "$full_worktree_path" "$full_command" "$cleanup_mode" "$issue_number"
     
     # セッション作成成功 - クリーンアップ対象から除外
     unregister_worktree_for_cleanup
@@ -237,6 +239,11 @@ main() {
     log_info "Worktree:  $worktree_path"
     log_info "Branch:    feature/$branch_name"
     log_info "Session:   $session_name"
+    if [[ "$cleanup_mode" == "none" ]]; then
+        log_info "Cleanup:   disabled (--no-cleanup)"
+    else
+        log_info "Cleanup:   auto (on pi exit)"
+    fi
 
     # アタッチ
     if [[ "$no_attach" == "false" ]]; then

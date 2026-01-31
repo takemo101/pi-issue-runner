@@ -7,7 +7,7 @@
 ## 技術スタック
 
 - **言語**: Bash 4.0以上
-- **依存ツール**: `gh` (GitHub CLI), `tmux`, `git`, `jq`
+- **依存ツール**: `gh` (GitHub CLI), `tmux`, `git`, `jq`, `yq` (YAMLパーサー、オプション)
 - **テストフレームワーク**: Bats (Bash Automated Testing System)
 
 ## ディレクトリ構造
@@ -23,14 +23,15 @@ pi-issue-runner/
 │   ├── status.sh      # 状態確認
 │   ├── attach.sh      # セッションアタッチ
 │   ├── stop.sh        # セッション停止
-│   └── cleanup.sh     # クリーンアップ
+│   ├── cleanup.sh     # クリーンアップ
+│   └── post-session.sh # セッション終了後処理
 ├── lib/               # 共通ライブラリ
 │   ├── config.sh      # 設定読み込み
 │   ├── github.sh      # GitHub CLI操作
 │   ├── log.sh         # ログ出力
 │   ├── tmux.sh        # tmux操作
-│   ├── worktree.sh    # Git worktree操作
-│   └── workflow.sh    # ワークフローエンジン
+│   ├── workflow.sh    # ワークフローエンジン
+│   └── worktree.sh    # Git worktree操作
 ├── workflows/         # ビルトインワークフロー定義
 │   ├── default.yaml   # 完全ワークフロー
 │   └── simple.yaml    # 簡易ワークフロー
@@ -143,7 +144,6 @@ GitHub Issue #{{issue_number}} のテストを実行します。
 
 ## コンテキスト
 - **Issue番号**: #{{issue_number}}
-- **タイトル**: {{issue_title}}
 - **ブランチ**: {{branch_name}}
 
 ## タスク
@@ -157,7 +157,6 @@ GitHub Issue #{{issue_number}} のテストを実行します。
 | 変数 | 説明 |
 |------|------|
 | `{{issue_number}}` | GitHub Issue番号 |
-| `{{issue_title}}` | Issueタイトル |
 | `{{branch_name}}` | ブランチ名 |
 | `{{worktree_path}}` | worktreeのパス |
 

@@ -39,37 +39,19 @@ Pi Issue RunnerはGitHub Issueを入力として、Git worktreeとtmuxセッシ�
 - Issue番号を自動的にプロンプトとして渡す
 - piコマンドへのカスタム引数サポート
 
-### 5. ワークフローエンジン
-
-- YAMLベースのワークフロー定義
-- エージェントテンプレートによるステップ実行
-- テンプレート変数: `{{issue_number}}`, `{{issue_title}}`, `{{branch_name}}`, `{{worktree_path}}`
-- プロジェクト固有のワークフローをオーバーライド可能
-
-#### ビルトインワークフロー
-
-| ワークフロー | 説明 | ステップ |
-|------------|------|---------|
-| default | 完全ワークフロー | plan → implement → review → merge |
-| simple | 簡易ワークフロー | implement → merge |
-
-#### ワークフロー優先順位
-
-1. `.pi-runner.yaml`（プロジェクトルート）
-2. `.pi/workflow.yaml`
-3. ビルトイン（workflows/ディレクトリ）
-
-### 6. 並列実行
+### 5. 並列実行
 
 - 複数のIssueを同時に処理
 - 各タスクは完全に独立した環境で実行
 - 最大同時実行数の設定（`parallel.max_concurrent`）
 
-### 7. クリーンアップ
+### 6. クリーンアップ
 
-- Worktreeの削除
-- tmuxセッションの終了
+- **自動クリーンアップ（デフォルト）**: pi終了後、worktreeとセッションを自動削除
+- `--no-cleanup`オプションで自動クリーンアップを無効化
+- 手動クリーンアップ: `cleanup.sh`でworktreeとセッションを削除
 - ブランチの削除（`--delete-branch`オプション）
+- バックグラウンド実行（`--no-attach`）との併用サポート
 
 ## コアコンセプト
 
@@ -90,7 +72,7 @@ Tmuxセッションを作成（tmux new-session）
     ↓
 セッション内でpiを起動（pi @.pi-prompt.md）
     ↓
-完了後、オプションでクリーンアップ
+pi終了後、自動クリーンアップ実行（--no-cleanup指定時は省略）
 ```
 
 ### ディレクトリ構造
@@ -118,15 +100,16 @@ project-root/
 │   ├── github.sh            # GitHub CLI操作
 │   ├── log.sh               # ログ出力
 │   ├── tmux.sh              # tmux操作
-│   ├── worktree.sh          # Git worktree操作
-│   └── workflow.sh          # ワークフローエンジン
+│   ├── workflow.sh          # ワークフローエンジン
+│   └── worktree.sh          # Git worktree操作
 └── scripts/                 # 実行スクリプト
     ├── run.sh               # タスク起動
     ├── list.sh              # セッション一覧
     ├── status.sh            # 状態確認
     ├── attach.sh            # セッションアタッチ
     ├── stop.sh              # セッション停止
-    └── cleanup.sh           # クリーンアップ
+    ├── cleanup.sh           # クリーンアップ
+    └── post-session.sh      # セッション終了後処理
 ```
 
 ## 設定
@@ -173,11 +156,29 @@ Options:
     --workflow NAME   ワークフロー名（デフォルト: default）
                       利用可能: default, simple
     --no-attach       セッション作成後にアタッチしない
+    --no-cleanup      pi終了後の自動クリーンアップを無効化
     --reattach        既存セッションがあればアタッチ
     --force           既存セッション/worktreeを削除して再作成
     --pi-args ARGS    piに渡す追加の引数
     --list-workflows  利用可能なワークフロー一覧を表示
 ```
+
+デフォルトでは、piが終了すると自動的にworktreeとセッションがクリーンアップされます。
+`--no-cleanup`を指定すると、クリーンアップをスキップしてworktreeとセッションを保持します。
+
+### post-session.sh - セッション終了後処理
+
+```bash
+./scripts/post-session.sh <issue-number> [options]
+
+Options:
+    --no-cleanup    クリーンアップを実行しない
+    --worktree PATH worktreeパス
+    --session NAME  セッション名
+```
+
+※ このスクリプトは通常、piセッション終了後に自動的に呼び出されます。
+デフォルトでは確認なしで自動クリーンアップを行います。
 
 ### list.sh - セッション一覧
 
@@ -262,7 +263,7 @@ Options:
 
 ### オプション
 
-- **yq** (YAML設定ファイルの高度な処理)
+- **yq** (YAMLパーサー、ワークフローカスタマイズに必要)
 
 ## 非機能要件
 

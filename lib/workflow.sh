@@ -1,203 +1,369 @@
 #!/usr/bin/env bash
-# workflow.sh - ワークフローエンジン
+# workflow.sh - ワークフローエンジン（YAMLワークフロー定義の読み込みと実行）
 
-# ワークフロー変数
-WORKFLOW_VARS=""
+set -euo pipefail
 
-# ワークフロー変数を設定する
-# Usage: set_workflow_vars <issue_number> <issue_title> <branch_name> <worktree_path>
-set_workflow_vars() {
-    local issue_number="$1"
-    local issue_title="$2"
-    local branch_name="$3"
-    local worktree_path="$4"
-    
-    WORKFLOW_VARS="issue_number=$issue_number"
-    WORKFLOW_VARS="$WORKFLOW_VARS issue_title=$issue_title"
-    WORKFLOW_VARS="$WORKFLOW_VARS branch_name=$branch_name"
-    WORKFLOW_VARS="$WORKFLOW_VARS worktree_path=$worktree_path"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/config.sh"
+source "$SCRIPT_DIR/log.sh"
+
+# ビルトインワークフロー定義
+# workflows/ ディレクトリが存在しない場合に使用
+_BUILTIN_WORKFLOW_DEFAULT="plan implement review merge"
+_BUILTIN_WORKFLOW_SIMPLE="implement merge"
+
+# ビルトインエージェントプロンプト（最小限）
+_BUILTIN_AGENT_PLAN='Plan the implementation for issue #{{issue_number}}.
+Read the issue description and create an implementation plan.'
+
+_BUILTIN_AGENT_IMPLEMENT='Implement the changes for issue #{{issue_number}}.
+Follow the plan and make the necessary code changes.'
+
+_BUILTIN_AGENT_REVIEW='Review the implementation for issue #{{issue_number}}.
+Check code quality, tests, and documentation.'
+
+_BUILTIN_AGENT_MERGE='Create a PR and merge for issue #{{issue_number}}.
+Push changes and create a pull request.'
+
+# ===================
+# 依存チェック
+# ===================
+
+# yq の存在確認
+check_yq() {
+    if command -v yq &> /dev/null; then
+        return 0
+    else
+        log_debug "yq not found, using builtin workflow"
+        return 1
+    fi
 }
 
-# ビルトインワークフローディレクトリを取得
-get_builtin_workflow_dir() {
-    local script_dir
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    echo "$script_dir/../workflows"
-}
+# ===================
+# ファイル検索
+# ===================
 
-# ビルトインエージェントディレクトリを取得
-get_builtin_agent_dir() {
-    local script_dir
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    echo "$script_dir/../agents"
-}
-
-# ワークフローファイルを検索する（優先順位順）
-# Usage: find_workflow_file <workflow_name> [project_root]
+# ワークフローファイル検索（優先順位順）
 # 優先順位:
-#   1. プロジェクトルートの .pi-runner.yaml
-#   2. プロジェクトルートの .pi/workflow.yaml
-#   3. ビルトインワークフロー
+#   1. .pi-runner.yaml（プロジェクトルート）の workflow セクション
+#   2. .pi/workflow.yaml
+#   3. workflows/default.yaml
+#   4. ビルトイン default
 find_workflow_file() {
-    local workflow_name="$1"
+    local workflow_name="${1:-default}"
     local project_root="${2:-.}"
     
-    # デフォルト名の設定
-    if [[ -z "$workflow_name" ]]; then
-        workflow_name="default"
-    fi
-    
-    # 1. プロジェクトルートの .pi-runner.yaml
+    # 1. .pi-runner.yaml の存在確認
     if [[ -f "$project_root/.pi-runner.yaml" ]]; then
-        echo "$project_root/.pi-runner.yaml"
-        return 0
+        if check_yq && yq -e '.workflow' "$project_root/.pi-runner.yaml" &>/dev/null; then
+            echo "$project_root/.pi-runner.yaml"
+            return 0
+        fi
     fi
     
-    # 2. プロジェクトルートの .pi/workflow.yaml
+    # 2. .pi/workflow.yaml
     if [[ -f "$project_root/.pi/workflow.yaml" ]]; then
         echo "$project_root/.pi/workflow.yaml"
         return 0
     fi
     
-    # 3. ビルトインワークフロー
-    local builtin_dir
-    builtin_dir="$(get_builtin_workflow_dir)"
-    
-    if [[ -f "$builtin_dir/${workflow_name}.yaml" ]]; then
-        echo "$builtin_dir/${workflow_name}.yaml"
+    # 3. workflows/{name}.yaml
+    if [[ -f "$project_root/workflows/${workflow_name}.yaml" ]]; then
+        echo "$project_root/workflows/${workflow_name}.yaml"
         return 0
     fi
     
-    # 見つからない場合はデフォルトにフォールバック
-    if [[ "$workflow_name" != "default" ]] && [[ -f "$builtin_dir/default.yaml" ]]; then
-        log_warn "Workflow '$workflow_name' not found, using default"
-        echo "$builtin_dir/default.yaml"
-        return 0
-    fi
-    
-    log_error "Workflow file not found: $workflow_name"
-    return 1
+    # 4. ビルトイン（特殊な値で返す）
+    echo "builtin:${workflow_name}"
+    return 0
 }
 
-# エージェントファイルを検索する
-# Usage: find_agent_file <step_name> [project_root]
+# エージェントファイル検索
+# 優先順位:
+#   1. agents/{step}.md
+#   2. .pi/agents/{step}.md
+#   3. ビルトイン
 find_agent_file() {
     local step_name="$1"
     local project_root="${2:-.}"
     
-    # 1. プロジェクトルートのagents
-    if [[ -f "$project_root/.pi/agents/${step_name}.md" ]]; then
-        echo "$project_root/.pi/agents/${step_name}.md"
-        return 0
-    fi
-    
+    # 1. agents/{step}.md
     if [[ -f "$project_root/agents/${step_name}.md" ]]; then
         echo "$project_root/agents/${step_name}.md"
         return 0
     fi
     
-    # 2. ビルトインエージェント
-    local builtin_dir
-    builtin_dir="$(get_builtin_agent_dir)"
-    
-    if [[ -f "$builtin_dir/${step_name}.md" ]]; then
-        echo "$builtin_dir/${step_name}.md"
+    # 2. .pi/agents/{step}.md
+    if [[ -f "$project_root/.pi/agents/${step_name}.md" ]]; then
+        echo "$project_root/.pi/agents/${step_name}.md"
         return 0
     fi
     
-    log_error "Agent file not found: $step_name"
-    return 1
+    # 3. ビルトイン
+    echo "builtin:${step_name}"
+    return 0
 }
 
-# テンプレート変数を展開する
-# Usage: render_template <template_content> <issue_number> <issue_title> <branch_name> <worktree_path>
-render_template() {
-    local content="$1"
-    local issue_number="$2"
-    local issue_title="$3"
-    local branch_name="$4"
-    local worktree_path="$5"
-    
-    # テンプレート変数を置換
-    content="${content//\{\{issue_number\}\}/$issue_number}"
-    content="${content//\{\{issue_title\}\}/$issue_title}"
-    content="${content//\{\{branch_name\}\}/$branch_name}"
-    content="${content//\{\{worktree_path\}\}/$worktree_path}"
-    
-    echo "$content"
-}
+# ===================
+# ワークフロー読み込み
+# ===================
 
-# ワークフローからステップ一覧を取得する
-# Usage: get_workflow_steps <workflow_file>
+# ワークフローからステップ一覧を取得
 get_workflow_steps() {
     local workflow_file="$1"
     
-    # yqがインストールされているか確認
-    if command -v yq &>/dev/null; then
-        yq -r '.steps[]' "$workflow_file" 2>/dev/null
-    else
-        # yqがない場合はgrepでパース（シンプルなYAML向け）
-        grep -E '^\s*-\s+\w+' "$workflow_file" | sed 's/^[[:space:]]*-[[:space:]]*//'
+    # ビルトインの場合
+    if [[ "$workflow_file" == builtin:* ]]; then
+        local workflow_name="${workflow_file#builtin:}"
+        case "$workflow_name" in
+            simple)
+                echo "$_BUILTIN_WORKFLOW_SIMPLE"
+                ;;
+            *)
+                echo "$_BUILTIN_WORKFLOW_DEFAULT"
+                ;;
+        esac
+        return 0
     fi
-}
-
-# ワークフロー名を取得する
-# Usage: get_workflow_name <workflow_file>
-get_workflow_name() {
-    local workflow_file="$1"
     
-    if command -v yq &>/dev/null; then
-        yq -r '.name // "default"' "$workflow_file" 2>/dev/null
-    else
-        grep -E '^name:' "$workflow_file" | sed 's/^name:[[:space:]]*//' | head -1
+    # ファイルが存在しない場合
+    if [[ ! -f "$workflow_file" ]]; then
+        log_error "Workflow file not found: $workflow_file"
+        return 1
     fi
-}
-
-# ワークフロー説明を取得する
-# Usage: get_workflow_description <workflow_file>
-get_workflow_description() {
-    local workflow_file="$1"
     
-    if command -v yq &>/dev/null; then
-        yq -r '.description // ""' "$workflow_file" 2>/dev/null
+    # yq が利用可能か確認
+    if ! check_yq; then
+        log_warn "yq not available, using builtin workflow"
+        echo "$_BUILTIN_WORKFLOW_DEFAULT"
+        return 0
+    fi
+    
+    # YAMLからstepsを読み込む
+    # .pi-runner.yaml の場合は .workflow.steps を参照
+    local steps
+    if [[ "$workflow_file" == *".pi-runner.yaml" ]]; then
+        steps=$(yq -r '.workflow.steps[]' "$workflow_file" 2>/dev/null | tr '\n' ' ' || echo "")
     else
-        grep -E '^description:' "$workflow_file" | sed 's/^description:[[:space:]]*//' | head -1
+        steps=$(yq -r '.steps[]' "$workflow_file" 2>/dev/null | tr '\n' ' ' || echo "")
+    fi
+    
+    # 末尾のスペースを削除
+    steps="${steps% }"
+    
+    if [[ -z "$steps" ]]; then
+        log_warn "No steps found in workflow, using builtin"
+        echo "$_BUILTIN_WORKFLOW_DEFAULT"
+        return 0
+    fi
+    
+    echo "$steps"
+}
+
+# ===================
+# テンプレート処理
+# ===================
+
+# テンプレート変数展開
+# 対応変数:
+#   {{issue_number}} - Issue番号
+#   {{branch_name}} - ブランチ名
+#   {{worktree_path}} - ワークツリーパス
+#   {{step_name}} - 現在のステップ名
+#   {{workflow_name}} - ワークフロー名
+render_template() {
+    local template="$1"
+    local issue_number="${2:-}"
+    local branch_name="${3:-}"
+    local worktree_path="${4:-}"
+    local step_name="${5:-}"
+    local workflow_name="${6:-default}"
+    
+    local result="$template"
+    
+    # 変数展開
+    result="${result//\{\{issue_number\}\}/$issue_number}"
+    result="${result//\{\{branch_name\}\}/$branch_name}"
+    result="${result//\{\{worktree_path\}\}/$worktree_path}"
+    result="${result//\{\{step_name\}\}/$step_name}"
+    result="${result//\{\{workflow_name\}\}/$workflow_name}"
+    
+    echo "$result"
+}
+
+# エージェントプロンプトを取得
+get_agent_prompt() {
+    local agent_file="$1"
+    local issue_number="${2:-}"
+    local branch_name="${3:-}"
+    local worktree_path="${4:-}"
+    local step_name="${5:-}"
+    
+    local prompt
+    
+    # ビルトインの場合
+    if [[ "$agent_file" == builtin:* ]]; then
+        local agent_name="${agent_file#builtin:}"
+        case "$agent_name" in
+            plan)
+                prompt="$_BUILTIN_AGENT_PLAN"
+                ;;
+            implement)
+                prompt="$_BUILTIN_AGENT_IMPLEMENT"
+                ;;
+            review)
+                prompt="$_BUILTIN_AGENT_REVIEW"
+                ;;
+            merge)
+                prompt="$_BUILTIN_AGENT_MERGE"
+                ;;
+            *)
+                log_warn "Unknown builtin agent: $agent_name, using implement"
+                prompt="$_BUILTIN_AGENT_IMPLEMENT"
+                ;;
+        esac
+    else
+        # ファイルから読み込み
+        if [[ ! -f "$agent_file" ]]; then
+            log_error "Agent file not found: $agent_file"
+            return 1
+        fi
+        prompt=$(cat "$agent_file")
+    fi
+    
+    # テンプレート変数展開
+    render_template "$prompt" "$issue_number" "$branch_name" "$worktree_path" "$step_name"
+}
+
+# ===================
+# ステップ実行
+# ===================
+
+# ステップ結果の定数
+STEP_RESULT_DONE="DONE"
+STEP_RESULT_BLOCKED="BLOCKED"
+STEP_RESULT_FIX_NEEDED="FIX_NEEDED"
+STEP_RESULT_UNKNOWN="UNKNOWN"
+
+# エージェント出力から結果を判定
+parse_step_result() {
+    local output="$1"
+    
+    # 出力から結果マーカーを検出
+    if echo "$output" | grep -q '\[DONE\]'; then
+        echo "$STEP_RESULT_DONE"
+    elif echo "$output" | grep -q '\[BLOCKED\]'; then
+        echo "$STEP_RESULT_BLOCKED"
+    elif echo "$output" | grep -q '\[FIX_NEEDED\]'; then
+        echo "$STEP_RESULT_FIX_NEEDED"
+    else
+        # マーカーがない場合はDONEとみなす（後方互換性）
+        echo "$STEP_RESULT_DONE"
     fi
 }
 
-# 利用可能なワークフロー一覧を取得する
-# Usage: list_available_workflows [project_root]
+# 単一ステップ実行
+# 注: この関数はエージェントプロンプトを返す（実際の実行は呼び出し元で行う）
+run_step() {
+    local step_name="$1"
+    local issue_number="${2:-}"
+    local branch_name="${3:-}"
+    local worktree_path="${4:-}"
+    local project_root="${5:-.}"
+    
+    log_info "Running step: $step_name"
+    
+    # エージェントファイル検索
+    local agent_file
+    agent_file=$(find_agent_file "$step_name" "$project_root")
+    log_debug "Agent file: $agent_file"
+    
+    # プロンプト取得
+    local prompt
+    prompt=$(get_agent_prompt "$agent_file" "$issue_number" "$branch_name" "$worktree_path" "$step_name")
+    
+    echo "$prompt"
+}
+
+# ===================
+# ワークフロー実行
+# ===================
+
+# ワークフロー全体実行
+# この関数は実行計画を出力する（実際の実行は呼び出し元で行う）
+run_workflow() {
+    local workflow_name="${1:-default}"
+    local issue_number="${2:-}"
+    local branch_name="${3:-}"
+    local worktree_path="${4:-}"
+    local project_root="${5:-.}"
+    
+    log_info "Starting workflow: $workflow_name"
+    
+    # ワークフローファイル検索
+    local workflow_file
+    workflow_file=$(find_workflow_file "$workflow_name" "$project_root")
+    log_debug "Workflow file: $workflow_file"
+    
+    # ステップ一覧取得
+    local steps
+    steps=$(get_workflow_steps "$workflow_file")
+    log_info "Steps: $steps"
+    
+    # 各ステップの情報を出力
+    local step_index=0
+    for step in $steps; do
+        echo "step:$step_index:$step"
+        ((step_index++)) || true
+    done
+    
+    echo "total:$step_index"
+}
+
+# ワークフローステップを配列として取得
+get_workflow_steps_array() {
+    local workflow_name="${1:-default}"
+    local project_root="${2:-.}"
+    
+    local workflow_file
+    workflow_file=$(find_workflow_file "$workflow_name" "$project_root")
+    
+    get_workflow_steps "$workflow_file"
+}
+
+# ===================
+# ワークフロー一覧
+# ===================
+
+# 利用可能なワークフロー一覧を表示
 list_available_workflows() {
     local project_root="${1:-.}"
-    local builtin_dir
-    builtin_dir="$(get_builtin_workflow_dir)"
     
-    # ビルトインワークフロー
-    if [[ -d "$builtin_dir" ]]; then
-        for f in "$builtin_dir"/*.yaml; do
+    echo "default: 完全ワークフロー（計画・実装・レビュー・マージ）"
+    echo "simple: 簡易ワークフロー（実装・マージのみ）"
+    
+    # プロジェクト固有のワークフロー
+    if [[ -d "$project_root/workflows" ]]; then
+        for f in "$project_root/workflows"/*.yaml; do
             if [[ -f "$f" ]]; then
                 local name
                 name="$(basename "$f" .yaml)"
-                local desc
-                desc="$(get_workflow_description "$f")"
-                echo "$name: $desc"
+                if [[ "$name" != "default" && "$name" != "simple" ]]; then
+                    echo "$name: (custom workflow)"
+                fi
             fi
         done
     fi
-    
-    # プロジェクト固有のワークフロー
-    if [[ -f "$project_root/.pi-runner.yaml" ]]; then
-        echo "custom: (project .pi-runner.yaml)"
-    fi
-    if [[ -f "$project_root/.pi/workflow.yaml" ]]; then
-        echo "custom: (project .pi/workflow.yaml)"
-    fi
 }
+
+# ===================
+# プロンプト生成
+# ===================
 
 # ワークフロープロンプトを生成する
 # Usage: generate_workflow_prompt <workflow_name> <issue_number> <issue_title> <issue_body> <branch_name> <worktree_path> [project_root]
 generate_workflow_prompt() {
-    local workflow_name="$1"
+    local workflow_name="${1:-default}"
     local issue_number="$2"
     local issue_title="$3"
     local issue_body="$4"
@@ -205,62 +371,85 @@ generate_workflow_prompt() {
     local worktree_path="$6"
     local project_root="${7:-.}"
     
-    # ワークフローファイルを取得
+    # ワークフローファイル検索
     local workflow_file
-    workflow_file="$(find_workflow_file "$workflow_name" "$project_root")" || return 1
+    workflow_file=$(find_workflow_file "$workflow_name" "$project_root")
     
-    # ステップを取得
+    # ステップ一覧取得
     local steps
-    steps="$(get_workflow_steps "$workflow_file")"
+    steps=$(get_workflow_steps "$workflow_file")
     
-    if [[ -z "$steps" ]]; then
-        log_error "No steps found in workflow: $workflow_file"
-        return 1
-    fi
+    # プロンプトヘッダー
+    cat << EOF
+Implement GitHub Issue #$issue_number
+
+## Title
+$issue_title
+
+## Description
+$issue_body
+
+---
+
+## Workflow: $workflow_name
+
+You are implementing GitHub Issue #$issue_number in an isolated worktree.
+Follow the workflow steps below.
+
+EOF
     
-    # プロンプトの生成開始
-    local prompt=""
-    prompt+="Implement GitHub Issue #$issue_number\n\n"
-    prompt+="## Title\n$issue_title\n\n"
-    prompt+="## Description\n$issue_body\n\n"
-    prompt+="---\n\n"
-    prompt+="## Workflow: $(get_workflow_name "$workflow_file")\n\n"
-    
+    # 各ステップのプロンプトを生成
     local step_num=1
-    while IFS= read -r step; do
-        [[ -z "$step" ]] && continue
-        
+    for step in $steps; do
         local agent_file
-        agent_file="$(find_agent_file "$step" "$project_root")" || continue
+        agent_file=$(find_agent_file "$step" "$project_root")
         
-        local agent_content
-        agent_content="$(cat "$agent_file")"
+        local agent_prompt
+        agent_prompt=$(get_agent_prompt "$agent_file" "$issue_number" "$branch_name" "$worktree_path" "$step")
         
-        # テンプレート変数を展開
-        agent_content="$(render_template "$agent_content" "$issue_number" "$issue_title" "$branch_name" "$worktree_path")"
-        
-        # 最初の文字を大文字にする
+        # ステップ名の最初を大文字に
         local step_name
         step_name="$(echo "$step" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
-        prompt+="\n## Step $step_num: $step_name\n\n"
-        prompt+="$agent_content\n"
         
-        ((step_num++))
-    done <<< "$steps"
+        echo "### Step $step_num: $step_name"
+        echo ""
+        echo "$agent_prompt"
+        echo ""
+        
+        ((step_num++)) || true
+    done
     
-    # プロンプトを出力
-    echo -e "$prompt"
+    # フッター（コミット情報）
+    cat << 'EOF'
+---
+
+### Commit Types
+- feat: New feature
+- fix: Bug fix
+- docs: Documentation
+- refactor: Code refactoring
+- test: Adding tests
+- chore: Maintenance
+
+### On Error
+- If tests fail, fix the issue before committing
+- If PR merge fails, report the error
+EOF
 }
 
 # ワークフロープロンプトをファイルに書き出す
 # Usage: write_workflow_prompt <output_file> <workflow_name> <issue_number> <issue_title> <issue_body> <branch_name> <worktree_path> [project_root]
 write_workflow_prompt() {
     local output_file="$1"
-    shift
+    local workflow_name="$2"
+    local issue_number="$3"
+    local issue_title="$4"
+    local issue_body="$5"
+    local branch_name="$6"
+    local worktree_path="$7"
+    local project_root="${8:-.}"
     
-    local prompt
-    prompt="$(generate_workflow_prompt "$@")" || return 1
+    generate_workflow_prompt "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$worktree_path" "$project_root" > "$output_file"
     
-    echo -e "$prompt" > "$output_file"
     log_debug "Workflow prompt written to: $output_file"
 }
