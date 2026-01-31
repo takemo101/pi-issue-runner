@@ -260,6 +260,146 @@ else
     echo "⚠ Skipping JSON validation (jq not installed)"
 fi
 
+# --- json_escape 関数のテスト ---
+echo ""
+echo "--- json_escape function ---"
+
+# バックスラッシュのエスケープ
+result="$(json_escape 'test\backslash')"
+if [[ "$result" == 'test\\backslash' ]]; then
+    echo "✓ json_escape handles backslash"
+    ((TESTS_PASSED++)) || true
+else
+    echo "✗ json_escape should escape backslash"
+    echo "  Expected: 'test\\\\backslash'"
+    echo "  Actual:   '$result'"
+    ((TESTS_FAILED++)) || true
+fi
+
+# ダブルクォートのエスケープ
+result="$(json_escape 'test"quote')"
+if [[ "$result" == 'test\"quote' ]]; then
+    echo "✓ json_escape handles double quotes"
+    ((TESTS_PASSED++)) || true
+else
+    echo "✗ json_escape should escape double quotes"
+    echo "  Expected: 'test\\\"quote'"
+    echo "  Actual:   '$result'"
+    ((TESTS_FAILED++)) || true
+fi
+
+# タブのエスケープ
+result="$(json_escape $'test\ttab')"
+if [[ "$result" == 'test\ttab' ]]; then
+    echo "✓ json_escape handles tabs"
+    ((TESTS_PASSED++)) || true
+else
+    echo "✗ json_escape should escape tabs"
+    echo "  Expected: 'test\\ttab'"
+    echo "  Actual:   '$result'"
+    ((TESTS_FAILED++)) || true
+fi
+
+# 改行のエスケープ
+result="$(json_escape $'line1\nline2')"
+if [[ "$result" == 'line1\nline2' ]]; then
+    echo "✓ json_escape handles newlines"
+    ((TESTS_PASSED++)) || true
+else
+    echo "✗ json_escape should escape newlines"
+    echo "  Expected: 'line1\\nline2'"
+    echo "  Actual:   '$result'"
+    ((TESTS_FAILED++)) || true
+fi
+
+# キャリッジリターンのエスケープ
+result="$(json_escape $'test\rreturn')"
+if [[ "$result" == 'test\rreturn' ]]; then
+    echo "✓ json_escape handles carriage returns"
+    ((TESTS_PASSED++)) || true
+else
+    echo "✗ json_escape should escape carriage returns"
+    echo "  Expected: 'test\\rreturn'"
+    echo "  Actual:   '$result'"
+    ((TESTS_FAILED++)) || true
+fi
+
+# 複合テスト（複数の特殊文字）
+complex_input=$'Line1\nLine2 with "quotes" and \\backslash\tand\ttabs'
+result="$(json_escape "$complex_input")"
+expected='Line1\nLine2 with \"quotes\" and \\backslash\tand\ttabs'
+if [[ "$result" == "$expected" ]]; then
+    echo "✓ json_escape handles complex strings"
+    ((TESTS_PASSED++)) || true
+else
+    echo "✗ json_escape should handle complex strings"
+    echo "  Expected: '$expected'"
+    echo "  Actual:   '$result'"
+    ((TESTS_FAILED++)) || true
+fi
+
+# --- save_status with complex error message ---
+echo ""
+echo "--- save_status with complex error message ---"
+complex_error=$'Error on line 1\nError on line 2 with "quotes"\tand\ttabs and \\backslash'
+save_status "45" "error" "pi-issue-45" "$complex_error"
+json_content="$(cat "$status_dir/45.json")"
+
+if command -v jq &>/dev/null; then
+    if echo "$json_content" | jq . > /dev/null 2>&1; then
+        echo "✓ Complex error message produces valid JSON"
+        ((TESTS_PASSED++)) || true
+        
+        # jqで値を取得して検証
+        extracted_error="$(echo "$json_content" | jq -r '.error_message')"
+        if [[ "$extracted_error" == "$complex_error" ]]; then
+            echo "✓ Complex error message is correctly preserved"
+            ((TESTS_PASSED++)) || true
+        else
+            echo "✗ Complex error message should be preserved"
+            echo "  Expected: '$complex_error'"
+            echo "  Actual:   '$extracted_error'"
+            ((TESTS_FAILED++)) || true
+        fi
+    else
+        echo "✗ Complex error message should produce valid JSON"
+        echo "  JSON content: $json_content"
+        ((TESTS_FAILED++)) || true
+    fi
+else
+    echo "⚠ Skipping complex JSON validation (jq not installed)"
+fi
+
+# --- build_json_fallback テスト ---
+echo ""
+echo "--- build_json_fallback ---"
+# フォールバック関数を直接テスト
+fallback_json="$(build_json_fallback "99" "error" "pi-issue-99" "2025-01-01T00:00:00Z" $'Error\nwith\tnewlines')"
+if command -v jq &>/dev/null; then
+    if echo "$fallback_json" | jq . > /dev/null 2>&1; then
+        echo "✓ build_json_fallback produces valid JSON"
+        ((TESTS_PASSED++)) || true
+    else
+        echo "✗ build_json_fallback should produce valid JSON"
+        echo "  JSON content: $fallback_json"
+        ((TESTS_FAILED++)) || true
+    fi
+else
+    echo "⚠ Skipping fallback JSON validation (jq not installed)"
+fi
+
+# フォールバック（エラーなし）
+fallback_json_no_error="$(build_json_fallback "98" "running" "pi-issue-98" "2025-01-01T00:00:00Z")"
+if command -v jq &>/dev/null; then
+    if echo "$fallback_json_no_error" | jq . > /dev/null 2>&1; then
+        echo "✓ build_json_fallback (no error) produces valid JSON"
+        ((TESTS_PASSED++)) || true
+    else
+        echo "✗ build_json_fallback (no error) should produce valid JSON"
+        ((TESTS_FAILED++)) || true
+    fi
+fi
+
 # クリーンアップ
 teardown
 
