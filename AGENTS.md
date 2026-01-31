@@ -8,7 +8,7 @@
 
 - **言語**: Bash 4.0以上
 - **依存ツール**: `gh` (GitHub CLI), `tmux`, `git`, `jq`, `yq` (YAMLパーサー、オプション)
-- **テストフレームワーク**: Bats (Bash Automated Testing System)
+- **テストフレームワーク**: シェルスクリプト形式（`*_test.sh`）
 
 ## ディレクトリ構造
 
@@ -41,8 +41,7 @@ pi-issue-runner/
 │   ├── review.md      # レビューエージェント
 │   └── merge.md       # マージエージェント
 ├── docs/              # ドキュメント
-├── test/              # 単体テスト（*_test.sh形式）
-├── tests/             # Batsテスト（fixtures, helpers含む）
+├── test/              # 単体テスト（*_test.sh形式、fixtures/helpers含む）
 └── .worktrees/        # 実行時に作成されるworktreeディレクトリ
 ```
 
@@ -55,8 +54,8 @@ pi-issue-runner/
 # 単体テスト実行
 ./test/config_test.sh
 
-# Batsテスト実行（Batsがインストールされている場合）
-bats tests/
+# 全テスト実行
+for f in test/*_test.sh; do bash "$f"; done
 
 # シェルスクリプトの構文チェック
 shellcheck scripts/*.sh lib/*.sh
@@ -84,16 +83,39 @@ shellcheck scripts/*.sh lib/*.sh
 
 ## テスト
 
-### Batsテストの書き方
+### テストの書き方
 
 ```bash
-#!/usr/bin/env bats
+#!/usr/bin/env bash
+# example_test.sh
 
-@test "run.sh requires issue number" {
-    run ./scripts/run.sh
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"Issue number is required"* ]]
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/config.sh"
+
+TESTS_PASSED=0
+TESTS_FAILED=0
+
+assert_equals() {
+    local description="$1" expected="$2" actual="$3"
+    if [[ "$actual" == "$expected" ]]; then
+        echo "✓ $description"
+        ((TESTS_PASSED++)) || true
+    else
+        echo "✗ $description"
+        echo "  Expected: '$expected'"
+        echo "  Actual:   '$actual'"
+        ((TESTS_FAILED++)) || true
+    fi
 }
+
+# テスト実行
+echo "=== Example tests ==="
+assert_equals "1+1=2" "2" "$((1+1))"
+
+# 結果表示
+echo ""
+echo "Results: $TESTS_PASSED passed, $TESTS_FAILED failed"
+exit $TESTS_FAILED
 ```
 
 ### 手動テスト
