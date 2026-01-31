@@ -1,4 +1,4 @@
-# tests/fixtures/sample-config.yml
+# test/fixtures/sample-config.yaml
 # テスト用サンプル設定ファイル
 
 worktree:
