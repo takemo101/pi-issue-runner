@@ -33,6 +33,7 @@ pi-issue-runner/
 ├── lib/               # 共通ライブラリ
 │   ├── config.sh      # 設定読み込み
 │   ├── github.sh      # GitHub CLI操作
+│   ├── hooks.sh       # Hook機能
 │   ├── log.sh         # ログ出力
 │   ├── notify.sh      # 通知機能
 │   ├── status.sh      # 状態管理
@@ -54,6 +55,7 @@ pi-issue-runner/
 │   ├── lib/           # ライブラリのユニットテスト
 │   │   ├── config.bats
 │   │   ├── github.bats
+│   │   ├── hooks.bats
 │   │   ├── log.bats
 │   │   ├── notify.bats
 │   │   ├── status.bats
