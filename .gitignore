@@ -45,6 +45,7 @@ coverage/
 tmp/
 temp/
 *.tmp
+feature/
 
 # Pi Agent
 .pi
