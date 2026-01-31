@@ -27,7 +27,8 @@ pi-issue-runner/
 │   ├── cleanup.sh     # クリーンアップ
 │   ├── improve.sh     # 継続的改善スクリプト
 │   ├── wait-for-sessions.sh  # 複数セッション完了待機
-│   └── watch-session.sh  # セッション監視
+│   ├── watch-session.sh  # セッション監視
+│   └── test.sh        # テスト一括実行
 ├── lib/               # 共通ライブラリ
 │   ├── config.sh      # 設定読み込み
 │   ├── github.sh      # GitHub CLI操作
@@ -61,7 +62,14 @@ pi-issue-runner/
 # スクリプト実行
 ./scripts/run.sh 42
 
-# Batsテスト実行（全テスト）
+# テスト実行（推奨）
+./scripts/test.sh              # 全テスト実行
+./scripts/test.sh -v           # 詳細ログ付き
+./scripts/test.sh -f           # fail-fast モード
+./scripts/test.sh lib          # test/lib/*.bats のみ
+./scripts/test.sh scripts      # test/scripts/*.bats のみ
+
+# Batsテスト直接実行
 bats test/lib/*.bats test/scripts/*.bats
 
 # 特定のテストファイル実行
@@ -140,13 +148,14 @@ teardown() {
 
 ```bash
 # 全テスト実行
-bats test/lib/*.bats test/scripts/*.bats
+./scripts/test.sh
 
-# 特定のファイルを実行
-bats test/lib/config.bats
+# 特定のディレクトリを実行
+./scripts/test.sh lib
+./scripts/test.sh scripts
 
 # 詳細出力
-bats --tap test/lib/*.bats
+./scripts/test.sh -v
 ```
 
 ### モックの使用
