@@ -23,11 +23,15 @@ pi-issue-runner/
 │   ├── status.sh      # 状態確認
 │   ├── attach.sh      # セッションアタッチ
 │   ├── stop.sh        # セッション停止
-│   └── cleanup.sh     # クリーンアップ
+│   ├── cleanup.sh     # クリーンアップ
+│   ├── improve.sh     # 継続的改善スクリプト
+│   └── wait-for-sessions.sh  # 複数セッション完了待機
 ├── lib/               # 共通ライブラリ
 │   ├── config.sh      # 設定読み込み
 │   ├── github.sh      # GitHub CLI操作
 │   ├── log.sh         # ログ出力
+│   ├── notify.sh      # 通知機能
+│   ├── status.sh      # 状態管理
 │   ├── tmux.sh        # tmux操作
 │   ├── workflow.sh    # ワークフローエンジン
 │   └── worktree.sh    # Git worktree操作
@@ -62,6 +66,12 @@ shellcheck scripts/*.sh lib/*.sh
 # 手動テスト
 ./scripts/list.sh -v
 ./scripts/status.sh 42
+
+# 継続的改善
+./scripts/improve.sh --dry-run
+
+# 複数セッション待機
+./scripts/wait-for-sessions.sh 42 43
 ```
 
 ## コーディング規約
