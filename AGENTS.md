@@ -149,9 +149,11 @@ shellcheck -x scripts/*.sh lib/*.sh  # 直接実行
 
 ### Batsテストの書き方
 
+> **Note**: 以下はサンプルコードです。`your-module.bats` は実際には存在しません。
+
 ```bash
 #!/usr/bin/env bats
-# test/lib/example.bats
+# test/lib/your-module.bats（架空の例）
 
 load '../test_helper'
 
