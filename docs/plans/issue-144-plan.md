@@ -109,8 +109,8 @@ pi-issue-142    #142    complete  -
 ## 完了条件
 
 - [x] 実装計画書を作成した
-- [ ] lib/notify.sh を作成した
-- [ ] watch-session.sh を拡張した
-- [ ] list.sh を拡張した
-- [ ] エージェントテンプレートを更新した
-- [ ] テストを作成し、全てパスした
+- [x] lib/notify.sh を作成した
+- [x] watch-session.sh を拡張した
+- [x] list.sh を拡張した
+- [x] エージェントテンプレートを更新した
+- [x] テストを作成し、全てパスした
