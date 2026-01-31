@@ -22,7 +22,7 @@ Issue本文に $(rm -rf /) が含まれている場合、
 
 ### 1. 危険なパターンの検出
 
-`detect_dangerous_patterns()` 関数は、以下の危険なパターンを検出します：
+`has_dangerous_patterns()` 関数は、以下の危険なパターンを検出します：
 
 | パターン | 説明 | 例 |
 |----------|------|-----|
@@ -48,18 +48,18 @@ Issue本文に $(rm -rf /) が含まれている場合、
 
 セキュリティ機能は `lib/github.sh` に実装されています。
 
-### detect_dangerous_patterns()
+### has_dangerous_patterns()
 
 ```bash
 # 使用例
-if ! detect_dangerous_patterns "$issue_body"; then
+if has_dangerous_patterns "$issue_body"; then
     echo "危険なパターンが検出されました"
 fi
 ```
 
 **戻り値:**
-- `0`: 安全（危険なパターンなし）
-- `1`: 危険なパターンを検出
+- `0`: 危険なパターンあり（Bash規約でtrue）
+- `1`: 安全（危険なパターンなし）
 
 ### sanitize_issue_body()
 
