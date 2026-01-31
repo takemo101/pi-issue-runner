@@ -49,7 +49,7 @@ tmux:
   start_in_session: true
 
 # =====================================
-# piコマンド設定
+# piコマンド設定（従来の設定、後方互換性あり）
 # =====================================
 pi:
   # piコマンドのパス
@@ -61,6 +61,24 @@ pi:
   args:
     - --model
     - claude-sonnet-4-20250514
+
+# =====================================
+# エージェント設定（複数エージェント対応）
+# =====================================
+agent:
+  # エージェントプリセット: pi, claude, opencode, custom
+  # デフォルト: pi（agent未設定時はpi.commandを使用）
+  type: pi
+  
+  # カスタムコマンド（type: customの場合に使用）
+  # command: my-agent
+  
+  # 追加引数
+  # args:
+  #   - --verbose
+  
+  # カスタムテンプレート（type: customの場合に使用）
+  # template: '{{command}} {{args}} --file "{{prompt_file}}"'
 
 # =====================================
 # 並列実行設定
@@ -150,6 +168,68 @@ pi:
     - --model
     - claude-sonnet-4-20250514
     - --dangerously-skip-permissions
+```
+
+### agent
+
+> **新機能**: 複数のコーディングエージェントに対応しました。
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `type` | string | (なし) | エージェントプリセット（pi, claude, opencode, custom） |
+| `command` | string | (プリセットによる) | エージェントコマンドのパス |
+| `args` | string[] | (なし) | エージェントに渡す追加引数 |
+| `template` | string | (プリセットによる) | コマンド生成テンプレート |
+
+#### サポートされるプリセット
+
+| プリセット | コマンド | 説明 |
+|-----------|---------|------|
+| `pi` | `pi @"prompt.md"` | Pi coding agent（デフォルト） |
+| `claude` | `claude --print "prompt.md"` | Claude Code |
+| `opencode` | `cat prompt.md \| opencode` | OpenCode (stdin経由) |
+| `custom` | (テンプレートによる) | カスタムエージェント |
+
+#### 使用例
+
+```yaml
+# Claude Codeを使用
+agent:
+  type: claude
+
+# OpenCodeを使用
+agent:
+  type: opencode
+
+# カスタムエージェントを使用
+agent:
+  type: custom
+  command: my-agent
+  template: '{{command}} {{args}} --file "{{prompt_file}}"'
+```
+
+#### テンプレート変数
+
+テンプレートで使用可能な変数：
+
+| 変数 | 説明 |
+|------|------|
+| `{{command}}` | エージェントコマンド |
+| `{{args}}` | 引数（agent.args + --agent-args） |
+| `{{prompt_file}}` | プロンプトファイルのパス |
+
+#### 後方互換性
+
+`agent` セクションが未設定の場合、`pi` セクションの設定が使用されます。
+既存の設定はそのまま動作します。
+
+```yaml
+# 従来の設定（引き続き動作）
+pi:
+  command: pi
+  args:
+    - --model
+    - claude-sonnet-4-20250514
 ```
 
 ### parallel
@@ -256,6 +336,10 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_TMUX_START_IN_SESSION` | `tmux.start_in_session` |
 | `PI_RUNNER_PI_COMMAND` | `pi.command` |
 | `PI_RUNNER_PI_ARGS` | `pi.args` |
+| `PI_RUNNER_AGENT_TYPE` | `agent.type` |
+| `PI_RUNNER_AGENT_COMMAND` | `agent.command` |
+| `PI_RUNNER_AGENT_ARGS` | `agent.args` |
+| `PI_RUNNER_AGENT_TEMPLATE` | `agent.template` |
 | `PI_RUNNER_PARALLEL_MAX_CONCURRENT` | `parallel.max_concurrent` |
 
 ### 例: CI環境での使用
@@ -263,6 +347,13 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 ```bash
 export PI_RUNNER_PI_COMMAND="/opt/pi/bin/pi"
 export PI_RUNNER_PARALLEL_MAX_CONCURRENT=2
+./scripts/run.sh 42
+```
+
+### 例: Claude Codeを使用
+
+```bash
+export PI_RUNNER_AGENT_TYPE="claude"
 ./scripts/run.sh 42
 ```
 
