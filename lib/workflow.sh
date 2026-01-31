@@ -167,6 +167,7 @@ get_workflow_steps() {
 # テンプレート変数展開
 # 対応変数:
 #   {{issue_number}} - Issue番号
+#   {{issue_title}} - Issueタイトル
 #   {{branch_name}} - ブランチ名
 #   {{worktree_path}} - ワークツリーパス
 #   {{step_name}} - 現在のステップ名
@@ -178,11 +179,13 @@ render_template() {
     local worktree_path="${4:-}"
     local step_name="${5:-}"
     local workflow_name="${6:-default}"
+    local issue_title="${7:-}"
     
     local result="$template"
     
     # 変数展開
     result="${result//\{\{issue_number\}\}/$issue_number}"
+    result="${result//\{\{issue_title\}\}/$issue_title}"
     result="${result//\{\{branch_name\}\}/$branch_name}"
     result="${result//\{\{worktree_path\}\}/$worktree_path}"
     result="${result//\{\{step_name\}\}/$step_name}"
@@ -198,6 +201,7 @@ get_agent_prompt() {
     local branch_name="${3:-}"
     local worktree_path="${4:-}"
     local step_name="${5:-}"
+    local issue_title="${6:-}"
     
     local prompt
     
@@ -232,7 +236,7 @@ get_agent_prompt() {
     fi
     
     # テンプレート変数展開
-    render_template "$prompt" "$issue_number" "$branch_name" "$worktree_path" "$step_name"
+    render_template "$prompt" "$issue_number" "$branch_name" "$worktree_path" "$step_name" "default" "$issue_title"
 }
 
 # ===================
@@ -270,6 +274,7 @@ run_step() {
     local branch_name="${3:-}"
     local worktree_path="${4:-}"
     local project_root="${5:-.}"
+    local issue_title="${6:-}"
     
     log_info "Running step: $step_name"
     
@@ -280,7 +285,7 @@ run_step() {
     
     # プロンプト取得
     local prompt
-    prompt=$(get_agent_prompt "$agent_file" "$issue_number" "$branch_name" "$worktree_path" "$step_name")
+    prompt=$(get_agent_prompt "$agent_file" "$issue_number" "$branch_name" "$worktree_path" "$step_name" "$issue_title")
     
     echo "$prompt"
 }
@@ -405,7 +410,7 @@ EOF
         agent_file=$(find_agent_file "$step" "$project_root")
         
         local agent_prompt
-        agent_prompt=$(get_agent_prompt "$agent_file" "$issue_number" "$branch_name" "$worktree_path" "$step")
+        agent_prompt=$(get_agent_prompt "$agent_file" "$issue_number" "$branch_name" "$worktree_path" "$step" "$issue_title")
         
         # ステップ名の最初を大文字に
         local step_name
