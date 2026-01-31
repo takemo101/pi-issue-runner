@@ -25,7 +25,8 @@ pi-issue-runner/
 │   ├── stop.sh        # セッション停止
 │   ├── cleanup.sh     # クリーンアップ
 │   ├── improve.sh     # 継続的改善スクリプト
-│   └── wait-for-sessions.sh  # 複数セッション完了待機
+│   ├── wait-for-sessions.sh  # 複数セッション完了待機
+│   └── test.sh        # テスト一括実行
 ├── lib/               # 共通ライブラリ
 │   ├── config.sh      # 設定読み込み
 │   ├── github.sh      # GitHub CLI操作
@@ -58,7 +59,12 @@ pi-issue-runner/
 ./test/config_test.sh
 
 # 全テスト実行
-for f in test/*_test.sh; do bash "$f"; done
+./scripts/test.sh
+
+# パターン指定でテスト実行
+./scripts/test.sh config          # config_test.sh のみ
+./scripts/test.sh -v workflow     # 詳細ログ付きで workflow_test.sh
+./scripts/test.sh -f              # fail-fast モード
 
 # シェルスクリプトの構文チェック
 shellcheck scripts/*.sh lib/*.sh

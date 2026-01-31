@@ -285,7 +285,8 @@ pi-issue-runner/
 │   ├── watch-session.sh    # セッション監視と自動クリーンアップ
 │   ├── wait-for-sessions.sh # 複数セッション完了待機
 │   ├── improve.sh          # 継続的改善スクリプト
-│   └── init.sh             # プロジェクト初期化
+│   ├── init.sh             # プロジェクト初期化
+│   └── test.sh             # テスト一括実行
 ├── lib/
 │   ├── config.sh           # 設定読み込み
 │   ├── github.sh           # GitHub API操作
@@ -364,6 +365,22 @@ gh auth login
 ## 開発
 
 開発に参加する場合は [AGENTS.md](AGENTS.md) を参照してください。
+
+### テスト実行
+
+```bash
+# 全テスト実行
+./scripts/test.sh
+
+# 特定のテストのみ実行（パターン指定）
+./scripts/test.sh config
+
+# 詳細ログ付きで実行
+./scripts/test.sh -v
+
+# 最初の失敗で停止（fail-fast）
+./scripts/test.sh -f
+```
 
 ## ライセンス
 
