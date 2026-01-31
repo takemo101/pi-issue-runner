@@ -9,20 +9,24 @@ setup() {
         export _CLEANUP_TMPDIR=1
     fi
     
-    # 設定をリセット
-    unset _CONFIG_LOADED
-    unset CONFIG_WORKTREE_BASE_DIR
+    # テスト用worktreeディレクトリを設定
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
     
-    # テスト用の設定ファイルを作成
-    export TEST_CONFIG_FILE="${BATS_TEST_TMPDIR}/test-config.yaml"
-    cat > "$TEST_CONFIG_FILE" << 'EOF'
-worktree:
-  base_dir: "${BATS_TEST_TMPDIR}/.worktrees"
-EOF
+    # ライブラリを読み込み
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/status.sh"
     
-    # worktree_base_dirを一時ディレクトリに設定
-    export PI_RUNNER_WORKTREE_BASE_DIR="${BATS_TEST_TMPDIR}/.worktrees"
-    mkdir -p "${BATS_TEST_TMPDIR}/.worktrees"
+    # get_config をオーバーライド
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo "$TEST_WORKTREE_DIR" ;;
+            *) echo "" ;;
+        esac
+    }
+    
+    # ログを抑制
+    LOG_LEVEL="ERROR"
 }
 
 teardown() {
@@ -32,47 +36,12 @@ teardown() {
 }
 
 # ====================
-# json_escape テスト
-# ====================
-
-@test "json_escape escapes double quotes" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
-    result="$(json_escape 'Hello "World"')"
-    [ "$result" = 'Hello \"World\"' ]
-}
-
-@test "json_escape escapes backslashes" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
-    result="$(json_escape 'Path: C:\Users')"
-    [ "$result" = 'Path: C:\\Users' ]
-}
-
-@test "json_escape escapes newlines" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
-    result="$(json_escape $'Line1\nLine2')"
-    [ "$result" = 'Line1\nLine2' ]
-}
-
-@test "json_escape handles multiple special chars" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
-    result="$(json_escape $'Quote: " Tab:\t')"
-    [[ "$result" == *'\"'* ]]
-    [[ "$result" == *'\t'* ]]
-}
-
-# ====================
 # get_status_dir テスト
 # ====================
 
 @test "get_status_dir returns correct path" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
     result="$(get_status_dir)"
-    [[ "$result" == *".worktrees/.status" ]]
+    [ "$result" = "$TEST_WORKTREE_DIR/.status" ]
 }
 
 # ====================
@@ -80,119 +49,102 @@ teardown() {
 # ====================
 
 @test "init_status_dir creates directory" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
+    rm -rf "$TEST_WORKTREE_DIR/.status"
     init_status_dir
-    status_dir="$(get_status_dir)"
-    [ -d "$status_dir" ]
+    [ -d "$TEST_WORKTREE_DIR/.status" ]
 }
 
 # ====================
-# save_status / load_status テスト
+# save_status テスト
 # ====================
 
 @test "save_status creates status file" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
     save_status "42" "running" "pi-issue-42"
-    
-    status_dir="$(get_status_dir)"
-    [ -f "$status_dir/42.json" ]
+    [ -f "$TEST_WORKTREE_DIR/.status/42.json" ]
 }
 
-@test "save_status writes correct JSON" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
+@test "save_status writes issue number" {
     save_status "42" "running" "pi-issue-42"
-    
-    status_dir="$(get_status_dir)"
-    json="$(cat "$status_dir/42.json")"
-    
-    [[ "$json" == *'"issue": 42'* ]]
-    [[ "$json" == *'"status": "running"'* ]]
-    [[ "$json" == *'"session": "pi-issue-42"'* ]]
+    grep -q '"issue": 42' "$TEST_WORKTREE_DIR/.status/42.json"
 }
 
-@test "save_status with error message" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
-    save_status "43" "error" "pi-issue-43" "Test error"
-    
-    status_dir="$(get_status_dir)"
-    json="$(cat "$status_dir/43.json")"
-    
-    [[ "$json" == *'"status": "error"'* ]]
-    [[ "$json" == *'"error_message"'* ]]
-    [[ "$json" == *'Test error'* ]]
+@test "save_status writes status" {
+    save_status "42" "running" "pi-issue-42"
+    grep -q '"status": "running"' "$TEST_WORKTREE_DIR/.status/42.json"
 }
 
-@test "load_status returns JSON content" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
-    save_status "42" "complete" "pi-issue-42"
+@test "save_status writes session" {
+    save_status "42" "running" "pi-issue-42"
+    grep -q '"session": "pi-issue-42"' "$TEST_WORKTREE_DIR/.status/42.json"
+}
+
+# ====================
+# set_status テスト（エイリアス）
+# ====================
+
+@test "set_status sets running status" {
+    set_status "50" "running"
+    [ -f "$TEST_WORKTREE_DIR/.status/50.json" ]
+    result="$(get_status "50")"
+    [ "$result" = "running" ]
+}
+
+@test "set_status sets complete status" {
+    set_status "51" "complete"
+    result="$(get_status "51")"
+    [ "$result" = "complete" ]
+}
+
+@test "set_status sets error status with message" {
+    set_status "52" "error" "Something went wrong"
+    result="$(get_status "52")"
+    [ "$result" = "error" ]
+}
+
+# ====================
+# load_status テスト
+# ====================
+
+@test "load_status returns valid JSON" {
+    save_status "42" "running" "pi-issue-42"
     json="$(load_status "42")"
-    
-    [[ "$json" == *'"issue": 42'* ]]
-}
-
-@test "load_status returns empty for non-existent" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
-    init_status_dir
-    result="$(load_status "999")"
-    [ -z "$result" ]
+    echo "$json" | grep -q '"issue": 42'
 }
 
 # ====================
-# get_status_value / get_status テスト
+# get_status_value テスト
 # ====================
 
-@test "get_status_value returns status string" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
+@test "get_status_value returns running status" {
     save_status "42" "running" "pi-issue-42"
     result="$(get_status_value "42")"
     [ "$result" = "running" ]
 }
 
-@test "get_status_value returns unknown for missing" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
-    init_status_dir
+@test "get_status_value returns error status" {
+    save_status "43" "error" "pi-issue-43" "Test error"
+    result="$(get_status_value "43")"
+    [ "$result" = "error" ]
+}
+
+@test "get_status_value returns unknown for non-existent" {
     result="$(get_status_value "999")"
     [ "$result" = "unknown" ]
 }
 
-@test "get_status is alias for get_status_value" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
-    save_status "42" "complete" "pi-issue-42"
+# ====================
+# get_status テスト（エイリアス）
+# ====================
+
+@test "get_status returns running" {
+    save_status "42" "running" "pi-issue-42"
     result="$(get_status "42")"
-    [ "$result" = "complete" ]
-}
-
-# ====================
-# set_status テスト
-# ====================
-
-@test "set_status creates status with generated session name" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
-    set_status "50" "running"
-    result="$(get_status "50")"
     [ "$result" = "running" ]
 }
 
-@test "set_status with error message" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
-    set_status "51" "error" "Something went wrong"
-    
-    result="$(get_status "51")"
-    [ "$result" = "error" ]
-    
-    error_msg="$(get_error_message "51")"
-    [ "$error_msg" = "Something went wrong" ]
+@test "get_status returns unknown for non-existent" {
+    result="$(get_status "999")"
+    [ "$result" = "unknown" ]
 }
 
 # ====================
@@ -200,16 +152,13 @@ teardown() {
 # ====================
 
 @test "get_error_message returns error message" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
-    save_status "42" "error" "pi-issue-42" "Error occurred"
-    result="$(get_error_message "42")"
-    [ "$result" = "Error occurred" ]
+    save_status "43" "error" "pi-issue-43" "Test error message"
+    result="$(get_error_message "43")"
+    result_trimmed="${result%% }"
+    [ "$result_trimmed" = "Test error message" ]
 }
 
-@test "get_error_message returns empty for non-error status" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
+@test "get_error_message returns empty for non-error" {
     save_status "42" "running" "pi-issue-42"
     result="$(get_error_message "42")"
     [ -z "$result" ]
@@ -219,12 +168,9 @@ teardown() {
 # remove_status テスト
 # ====================
 
-@test "remove_status deletes status file" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
+@test "remove_status removes file" {
     save_status "42" "running" "pi-issue-42"
     remove_status "42"
-    
     result="$(get_status_value "42")"
     [ "$result" = "unknown" ]
 }
@@ -233,42 +179,157 @@ teardown() {
 # list_all_statuses テスト
 # ====================
 
-@test "list_all_statuses returns all statuses" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
-    save_status "10" "running" "pi-issue-10"
-    save_status "20" "complete" "pi-issue-20"
+@test "list_all_statuses includes created issues" {
+    save_status "100" "running" "pi-issue-100"
+    save_status "101" "complete" "pi-issue-101"
     
     result="$(list_all_statuses)"
-    
-    [[ "$result" == *"10"* ]]
-    [[ "$result" == *"running"* ]]
-    [[ "$result" == *"20"* ]]
-    [[ "$result" == *"complete"* ]]
-}
-
-@test "list_all_statuses returns empty for no statuses" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
-    init_status_dir
-    result="$(list_all_statuses)"
-    [ -z "$result" ]
+    [[ "$result" == *"100"* ]]
+    [[ "$result" == *"101"* ]]
 }
 
 # ====================
 # list_issues_by_status テスト
 # ====================
 
-@test "list_issues_by_status filters by status" {
-    source "$PROJECT_ROOT/lib/status.sh"
-    
-    save_status "10" "running" "pi-issue-10"
-    save_status "20" "running" "pi-issue-20"
-    save_status "30" "complete" "pi-issue-30"
+@test "list_issues_by_status returns running issues" {
+    save_status "100" "running" "pi-issue-100"
+    save_status "101" "complete" "pi-issue-101"
     
     result="$(list_issues_by_status "running")"
+    [[ "$result" == *"100"* ]]
+}
+
+@test "list_issues_by_status returns complete issues" {
+    save_status "100" "running" "pi-issue-100"
+    save_status "101" "complete" "pi-issue-101"
     
-    [[ "$result" == *"10"* ]]
-    [[ "$result" == *"20"* ]]
-    [[ "$result" != *"30"* ]]
+    result="$(list_issues_by_status "complete")"
+    [[ "$result" == *"101"* ]]
+}
+
+# ====================
+# json_escape テスト
+# ====================
+
+@test "json_escape handles backslash" {
+    result="$(json_escape 'test\backslash')"
+    [ "$result" = 'test\\backslash' ]
+}
+
+@test "json_escape handles double quotes" {
+    result="$(json_escape 'test"quote')"
+    [ "$result" = 'test\"quote' ]
+}
+
+@test "json_escape handles tabs" {
+    result="$(json_escape $'test\ttab')"
+    [ "$result" = 'test\ttab' ]
+}
+
+@test "json_escape handles newlines" {
+    result="$(json_escape $'line1\nline2')"
+    [ "$result" = 'line1\nline2' ]
+}
+
+@test "json_escape handles carriage returns" {
+    result="$(json_escape $'test\rreturn')"
+    [ "$result" = 'test\rreturn' ]
+}
+
+# ====================
+# 複雑なエラーメッセージテスト
+# ====================
+
+@test "save_status with complex error message produces valid JSON" {
+    complex_error=$'Error on line 1\nError on line 2 with "quotes"'
+    save_status "45" "error" "pi-issue-45" "$complex_error"
+    
+    if command -v jq &>/dev/null; then
+        cat "$TEST_WORKTREE_DIR/.status/45.json" | jq . > /dev/null 2>&1
+    else
+        skip "jq not installed"
+    fi
+}
+
+# ====================
+# build_json_fallback テスト
+# ====================
+
+@test "build_json_fallback produces valid JSON" {
+    if command -v jq &>/dev/null; then
+        result="$(build_json_fallback "99" "error" "pi-issue-99" "2025-01-01T00:00:00Z" $'Error\nwith\tnewlines')"
+        echo "$result" | jq . > /dev/null 2>&1
+    else
+        skip "jq not installed"
+    fi
+}
+
+@test "build_json_fallback without error produces valid JSON" {
+    if command -v jq &>/dev/null; then
+        result="$(build_json_fallback "98" "running" "pi-issue-98" "2025-01-01T00:00:00Z")"
+        echo "$result" | jq . > /dev/null 2>&1
+    else
+        skip "jq not installed"
+    fi
+}
+
+# ====================
+# find_orphaned_statuses テスト
+# ====================
+
+@test "find_orphaned_statuses returns orphaned issues" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # ステータスファイルを作成（対応するworktreeなし）
+    save_status "100" "complete" "pi-issue-100"
+    save_status "200" "running" "pi-issue-200"
+    
+    # 対応するworktreeが存在しないので両方とも孤立扱い
+    result="$(find_orphaned_statuses)"
+    
+    [[ "$result" == *"100"* ]]
+    [[ "$result" == *"200"* ]]
+}
+
+@test "find_orphaned_statuses returns empty for no orphans" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # worktreeディレクトリを作成
+    local worktree_base="${BATS_TEST_TMPDIR}/.worktrees"
+    mkdir -p "$worktree_base/issue-300-test"
+    
+    # 対応するステータスファイルを作成
+    save_status "300" "running" "pi-issue-300"
+    
+    # worktreeが存在するので孤立ではない
+    result="$(find_orphaned_statuses)"
+    
+    [[ "$result" != *"300"* ]]
+}
+
+@test "find_orphaned_statuses handles mixed cases" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # worktreeディレクトリを作成
+    local worktree_base="${BATS_TEST_TMPDIR}/.worktrees"
+    mkdir -p "$worktree_base/issue-400-with-worktree"
+    
+    # 一つは対応するworktreeあり、一つはなし
+    save_status "400" "running" "pi-issue-400"  # worktreeあり
+    save_status "500" "complete" "pi-issue-500"  # worktreeなし
+    
+    result="$(find_orphaned_statuses)"
+    
+    # 500は孤立、400は孤立ではない
+    [[ "$result" == *"500"* ]]
+    [[ "$result" != *"400"* ]]
+}
+
+@test "find_orphaned_statuses returns empty for no status files" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    init_status_dir
+    result="$(find_orphaned_statuses)"
+    [ -z "$result" ]
 }

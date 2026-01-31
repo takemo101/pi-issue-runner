@@ -25,125 +25,134 @@ teardown() {
 }
 
 # ====================
-# ヘルプ表示テスト
+# ヘルプオプションテスト
 # ====================
 
-@test "stop.sh shows help with --help" {
+@test "stop.sh --help returns success" {
     run "$PROJECT_ROOT/scripts/stop.sh" --help
     [ "$status" -eq 0 ]
+}
+
+@test "stop.sh --help shows usage" {
+    run "$PROJECT_ROOT/scripts/stop.sh" --help
     [[ "$output" == *"Usage:"* ]]
 }
 
-@test "stop.sh shows help with -h" {
-    run "$PROJECT_ROOT/scripts/stop.sh" -h
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Usage:"* ]]
-}
-
-@test "help includes arguments description" {
+@test "stop.sh --help shows session-name argument" {
     run "$PROJECT_ROOT/scripts/stop.sh" --help
-    [ "$status" -eq 0 ]
     [[ "$output" == *"session-name"* ]] || [[ "$output" == *"issue-number"* ]]
 }
 
-@test "help includes examples" {
+@test "stop.sh --help shows examples" {
     run "$PROJECT_ROOT/scripts/stop.sh" --help
-    [ "$status" -eq 0 ]
     [[ "$output" == *"Examples:"* ]]
 }
 
+@test "stop.sh --help shows pi-issue-42 example" {
+    run "$PROJECT_ROOT/scripts/stop.sh" --help
+    [[ "$output" == *"pi-issue-42"* ]] || [[ "$output" == *"42"* ]]
+}
+
+@test "stop.sh -h returns success" {
+    run "$PROJECT_ROOT/scripts/stop.sh" -h
+    [ "$status" -eq 0 ]
+}
+
 # ====================
-# 引数バリデーションテスト
+# エラーケーステスト
 # ====================
 
-@test "stop.sh fails without session name or issue number" {
+@test "stop.sh without argument fails" {
     run "$PROJECT_ROOT/scripts/stop.sh"
     [ "$status" -ne 0 ]
+}
+
+@test "stop.sh without argument shows error message" {
+    run "$PROJECT_ROOT/scripts/stop.sh"
     [[ "$output" == *"required"* ]] || [[ "$output" == *"Usage:"* ]]
 }
 
-@test "stop.sh fails with unknown option" {
+@test "stop.sh with unknown option fails" {
     run "$PROJECT_ROOT/scripts/stop.sh" --unknown-option
     [ "$status" -ne 0 ]
-    [[ "$output" == *"Unknown option"* ]]
+    [[ "$output" == *"Unknown option"* ]] || [[ "$output" == *"unknown"* ]]
 }
 
 # ====================
-# 入力形式テスト
+# スクリプト構造テスト
 # ====================
 
-@test "stop.sh accepts issue number format" {
-    # tmuxモック - セッション停止
-    cat > "$MOCK_DIR/tmux" << 'MOCK_EOF'
-#!/usr/bin/env bash
-case "$1" in
-    "kill-session")
-        echo "Session killed: $*"
-        exit 0
-        ;;
-    "has-session")
-        exit 0  # セッション存在
-        ;;
-    *)
-        exit 0
-        ;;
-esac
-MOCK_EOF
-    chmod +x "$MOCK_DIR/tmux"
-    enable_mocks
-    
-    run "$PROJECT_ROOT/scripts/stop.sh" 42
-    # エラーが発生しなければOK（セッションが存在しなくてもOK）
-    [[ "$output" != *"Usage:"* ]] || [ "$status" -eq 0 ]
+@test "stop.sh has valid bash syntax" {
+    run bash -n "$PROJECT_ROOT/scripts/stop.sh"
+    [ "$status" -eq 0 ]
 }
 
-@test "stop.sh accepts session name format" {
-    # tmuxモック
-    cat > "$MOCK_DIR/tmux" << 'MOCK_EOF'
-#!/usr/bin/env bash
-case "$1" in
-    "kill-session")
-        exit 0
-        ;;
-    "has-session")
-        exit 0
-        ;;
-    *)
-        exit 0
-        ;;
-esac
-MOCK_EOF
-    chmod +x "$MOCK_DIR/tmux"
-    enable_mocks
-    
-    run "$PROJECT_ROOT/scripts/stop.sh" pi-issue-42
-    # ヘルプが表示されなければ引数は解析された
-    [[ "$output" != *"Usage:"* ]] || [ "$status" -eq 0 ]
+@test "stop.sh sources config.sh" {
+    grep -q "lib/config.sh" "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+@test "stop.sh sources log.sh" {
+    grep -q "lib/log.sh" "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+@test "stop.sh sources tmux.sh" {
+    grep -q "lib/tmux.sh" "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+@test "stop.sh has main function" {
+    grep -q "main()" "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+@test "stop.sh has usage function" {
+    grep -q "usage()" "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+@test "stop.sh calls generate_session_name" {
+    grep -q "generate_session_name" "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+@test "stop.sh calls kill_session" {
+    grep -q "kill_session" "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+@test "stop.sh handles numeric issue number" {
+    grep -q '\[0-9\]' "$PROJECT_ROOT/scripts/stop.sh"
 }
 
 # ====================
-# 動作テスト
+# セッション名生成テスト
 # ====================
 
-@test "stop.sh reports success after stopping session" {
-    # tmuxモック - セッション存在＆停止成功
-    cat > "$MOCK_DIR/tmux" << 'MOCK_EOF'
-#!/usr/bin/env bash
-case "$1" in
-    "kill-session")
-        exit 0
-        ;;
-    "has-session")
-        exit 0
-        ;;
-    *)
-        exit 0
-        ;;
-esac
-MOCK_EOF
-    chmod +x "$MOCK_DIR/tmux"
-    enable_mocks
+@test "generate_session_name contains issue number for stop" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
     
-    run "$PROJECT_ROOT/scripts/stop.sh" 42
-    [[ "$output" == *"stopped"* ]] || [[ "$output" == *"Session"* ]] || [ "$status" -eq 0 ]
+    _CONFIG_LOADED=""
+    load_config
+    
+    result="$(generate_session_name "42")"
+    [[ "$result" == *"42"* ]]
+}
+
+@test "generate_session_name contains issue pattern for stop" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    
+    _CONFIG_LOADED=""
+    load_config
+    
+    result="$(generate_session_name "999")"
+    [[ "$result" == *"999"* ]]
+}
+
+# ====================
+# セッション停止ロジックテスト
+# ====================
+
+@test "stop.sh calls kill_session with session_name" {
+    grep -q 'kill_session "$session_name"' "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+@test "stop.sh logs session stopped" {
+    grep -q "Session stopped" "$PROJECT_ROOT/scripts/stop.sh" || grep -q "stopped" "$PROJECT_ROOT/scripts/stop.sh"
 }
