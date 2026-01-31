@@ -39,10 +39,14 @@ git clone https://github.com/takemo101/pi-issue-runner ~/.pi/agent/skills/pi-iss
 
 ```bash
 # Issue #42 からworktreeを作成してpiを起動
+# pi終了後、自動的にworktreeとセッションがクリーンアップされます
 scripts/run.sh 42
 
 # 自動アタッチせずにバックグラウンドで起動
 scripts/run.sh 42 --no-attach
+
+# pi終了後の自動クリーンアップを無効化
+scripts/run.sh 42 --no-cleanup
 
 # カスタムブランチ名で作成
 scripts/run.sh 42 --branch custom-feature
@@ -55,15 +59,6 @@ scripts/run.sh 42 --reattach
 
 # 既存セッション/worktreeを削除して再作成
 scripts/run.sh 42 --force
-
-# セッション終了時に自動クリーンアップ
-scripts/run.sh 42 --auto-cleanup
-
-# バックグラウンド実行 + 自動クリーンアップ
-scripts/run.sh 42 --no-attach --auto-cleanup
-
-# クリーンアッププロンプトを無効化
-scripts/run.sh 42 --no-cleanup
 ```
 
 ### セッション管理

@@ -106,7 +106,7 @@ output=$("$SCRIPT_DIR/../scripts/post-session.sh" --help 2>&1)
 exit_code=$?
 assert_success "post-session.sh --help exits with 0" "$exit_code"
 assert_contains "post-session.sh --help shows usage" "Usage:" "$output"
-assert_contains "post-session.sh --help shows --auto option" "--auto" "$output"
+assert_contains "post-session.sh --help shows --no-cleanup option" "--no-cleanup" "$output"
 assert_contains "post-session.sh --help shows --worktree option" "--worktree" "$output"
 assert_contains "post-session.sh --help shows --session option" "--session" "$output"
 
@@ -115,6 +115,18 @@ output=$("$SCRIPT_DIR/../scripts/post-session.sh" 2>&1)
 exit_code=$?
 assert_failure "post-session.sh without arguments fails" "$exit_code"
 assert_contains "post-session.sh without arguments shows error" "Issue number is required" "$output"
+
+# ===================
+# --no-cleanup オプションテスト
+# ===================
+echo ""
+echo "=== --no-cleanup option tests ==="
+
+# --no-cleanup で実行（クリーンアップをスキップ）
+output=$("$SCRIPT_DIR/../scripts/post-session.sh" 999 --no-cleanup 2>&1)
+exit_code=$?
+assert_success "post-session.sh 999 --no-cleanup exits with 0" "$exit_code"
+assert_contains "post-session.sh --no-cleanup shows skipped message" "Cleanup skipped" "$output"
 
 # ===================
 # オプションパースのテスト
@@ -139,10 +151,10 @@ bash -n "$SCRIPT_DIR/../scripts/run.sh" 2>/dev/null
 exit_code=$?
 assert_success "run.sh has valid syntax" "$exit_code"
 
-# ヘルプに--auto-cleanupが含まれているか
+# ヘルプに--no-cleanupが含まれているか（--auto-cleanupは削除済み）
 output=$("$SCRIPT_DIR/../scripts/run.sh" --help 2>&1)
-assert_contains "run.sh --help shows --auto-cleanup option" "--auto-cleanup" "$output"
 assert_contains "run.sh --help shows --no-cleanup option" "--no-cleanup" "$output"
+assert_contains "run.sh --help shows cleanup description" "自動クリーンアップ" "$output"
 
 # ===================
 # lib/tmux.sh create_session テスト

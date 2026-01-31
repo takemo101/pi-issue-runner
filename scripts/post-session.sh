@@ -17,46 +17,16 @@ Arguments:
     issue-number    GitHub Issue番号
 
 Options:
-    --auto          確認なしで自動クリーンアップ
+    --no-cleanup    クリーンアップを実行しない
     --worktree PATH worktreeパス
     --session NAME  セッション名
     -h, --help      このヘルプを表示
 
-This script is typically called automatically after a pi session ends.
+Description:
+    pi終了後に自動的にworktreeとセッションをクリーンアップします。
+    デフォルトでは確認なしで自動削除を行います。
+    --no-cleanup を指定するとクリーンアップをスキップします。
 EOF
-}
-
-# ユーザーに確認プロンプトを表示
-prompt_cleanup() {
-    local issue_number="$1"
-    local session_name="$2"
-    local worktree_path="$3"
-    
-    echo ""
-    echo "==================================="
-    echo "タスクが完了しました。"
-    echo "Issue: #$issue_number"
-    echo "Session: $session_name"
-    echo "Worktree: $worktree_path"
-    echo "==================================="
-    echo ""
-    
-    # ユーザー入力を待つ
-    local response
-    read -r -p "クリーンアップしますか？ [Y/n]: " response
-    
-    # デフォルトはYes
-    case "$response" in
-        [nN]|[nN][oO])
-            echo ""
-            echo "クリーンアップをスキップしました。"
-            echo "手動でクリーンアップする場合: $SCRIPT_DIR/cleanup.sh $issue_number"
-            return 1
-            ;;
-        *)
-            return 0
-            ;;
-    esac
 }
 
 # クリーンアップを実行
@@ -87,14 +57,14 @@ do_cleanup() {
 
 main() {
     local issue_number=""
-    local auto_cleanup=false
+    local no_cleanup=false
     local worktree_path=""
     local session_name=""
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --auto)
-                auto_cleanup=true
+            --no-cleanup)
+                no_cleanup=true
                 shift
                 ;;
             --worktree)
@@ -141,16 +111,14 @@ main() {
         worktree_path="$(find_worktree_by_issue "$issue_number" 2>/dev/null)" || worktree_path=""
     fi
 
-    if [[ "$auto_cleanup" == "true" ]]; then
-        # 自動クリーンアップモード
-        log_info "Auto-cleanup mode: cleaning up Issue #$issue_number"
-        do_cleanup "$issue_number" "$session_name" "$worktree_path"
-    else
-        # プロンプト表示モード
-        if prompt_cleanup "$issue_number" "$session_name" "$worktree_path"; then
-            do_cleanup "$issue_number" "$session_name" "$worktree_path"
-        fi
+    if [[ "$no_cleanup" == "true" ]]; then
+        log_info "Cleanup skipped (--no-cleanup specified)"
+        exit 0
     fi
+
+    # 自動クリーンアップ実行（デフォルト動作）
+    log_info "Auto-cleanup: cleaning up Issue #$issue_number"
+    do_cleanup "$issue_number" "$session_name" "$worktree_path"
 }
 
 main "$@"

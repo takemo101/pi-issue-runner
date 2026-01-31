@@ -98,8 +98,8 @@ create_session() {
         
         # post-session.shへの引数を構築
         local post_session_args="$issue_number --session \"$session_name\" --worktree \"$working_dir\""
-        if [[ "$cleanup_mode" == "auto" ]]; then
-            post_session_args="$post_session_args --auto"
+        if [[ "$cleanup_mode" == "none" ]]; then
+            post_session_args="$post_session_args --no-cleanup"
         fi
         
         # メインコマンドとpost-session.shを連続実行

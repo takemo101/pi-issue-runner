@@ -47,15 +47,10 @@ Pi Issue RunnerはGitHub Issueを入力として、Git worktreeとtmuxセッシ�
 
 ### 6. クリーンアップ
 
-- Worktreeの削除
-- tmuxセッションの終了
+- **自動クリーンアップ（デフォルト）**: pi終了後、worktreeとセッションを自動削除
+- `--no-cleanup`オプションで自動クリーンアップを無効化
+- 手動クリーンアップ: `cleanup.sh`でworktreeとセッションを削除
 - ブランチの削除（`--delete-branch`オプション）
-
-### 7. 自動クリーンアップ
-
-- piセッション終了後のクリーンアッププロンプト表示（デフォルト）
-- `--auto-cleanup`オプションで確認なしの自動クリーンアップ
-- `--no-cleanup`オプションでクリーンアップを無効化
 - バックグラウンド実行（`--no-attach`）との併用サポート
 
 ## コアコンセプト
@@ -77,7 +72,7 @@ Tmuxセッションを作成（tmux new-session）
     ↓
 セッション内でpiを起動（pi @.pi-prompt.md）
     ↓
-完了後、オプションでクリーンアップ
+pi終了後、自動クリーンアップ実行（--no-cleanup指定時は省略）
 ```
 
 ### ディレクトリ構造
@@ -150,12 +145,14 @@ Options:
     --branch NAME   カスタムブランチ名
     --base BRANCH   ベースブランチ（デフォルト: HEAD）
     --no-attach     セッション作成後にアタッチしない
+    --no-cleanup    pi終了後の自動クリーンアップを無効化
     --reattach      既存セッションがあればアタッチ
     --force         既存セッション/worktreeを削除して再作成
-    --auto-cleanup  セッション終了時に確認なしで自動クリーンアップ
-    --no-cleanup    セッション終了時のクリーンアッププロンプトを無効化
     --pi-args ARGS  piに渡す追加の引数
 ```
+
+デフォルトでは、piが終了すると自動的にworktreeとセッションがクリーンアップされます。
+`--no-cleanup`を指定すると、クリーンアップをスキップしてworktreeとセッションを保持します。
 
 ### post-session.sh - セッション終了後処理
 
@@ -163,12 +160,13 @@ Options:
 ./scripts/post-session.sh <issue-number> [options]
 
 Options:
-    --auto          確認なしで自動クリーンアップ
+    --no-cleanup    クリーンアップを実行しない
     --worktree PATH worktreeパス
     --session NAME  セッション名
 ```
 
 ※ このスクリプトは通常、piセッション終了後に自動的に呼び出されます。
+デフォルトでは確認なしで自動クリーンアップを行います。
 
 ### list.sh - セッション一覧
 
