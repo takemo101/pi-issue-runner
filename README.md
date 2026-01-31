@@ -8,6 +8,7 @@ GitHub Issueを入力として、Git worktreeを作成し、tmuxセッション�
 - **tmux統合**: バックグラウンドでpiを実行、いつでもアタッチ可能
 - **並列作業**: 複数のIssueを同時に処理
 - **簡単なクリーンアップ**: セッションとworktreeを一括削除
+- **自動クリーンアップ**: タスク完了時に `###TASK_COMPLETE_<issue_number>###` マーカーを出力すると、外部プロセスが自動的にworktreeとセッションをクリーンアップします
 
 ## 前提条件
 
@@ -132,8 +133,10 @@ scripts/attach.sh 42
 
 ### 完了後のクリーンアップ
 
+piセッション内で `###TASK_COMPLETE_42###` を出力すると、外部プロセスが自動的にworktreeとセッションをクリーンアップします。
+
 ```bash
-# PR作成後、worktreeをクリーンアップ
+# 手動でクリーンアップする場合
 scripts/cleanup.sh 42
 ```
 
