@@ -185,14 +185,16 @@ GitHub Issue #{{issue_number}} のテストを実行します。
 
 ### テンプレート変数
 
-| 変数 | 説明 |
-|------|------|
-| `{{issue_number}}` | GitHub Issue番号 |
-| `{{issue_title}}` | Issueタイトル |
-| `{{branch_name}}` | ブランチ名 |
-| `{{worktree_path}}` | worktreeのパス |
-| `{{step_name}}` | 現在のステップ名 |
-| `{{workflow_name}}` | ワークフロー名 |
+| 変数 | 説明 | ビルトイン使用 |
+|------|------|----------------|
+| `{{issue_number}}` | GitHub Issue番号 | ✅ |
+| `{{issue_title}}` | Issueタイトル | ✅ |
+| `{{branch_name}}` | ブランチ名 | ✅ |
+| `{{worktree_path}}` | worktreeのパス | ✅ |
+| `{{step_name}}` | 現在のステップ名 | *カスタム用 |
+| `{{workflow_name}}` | ワークフロー名 | *カスタム用 |
+
+> **Note**: 「カスタム用」の変数は `lib/workflow.sh` でサポートされていますが、ビルトインのエージェントテンプレート（`agents/*.md`）では使用していません。カスタムワークフローでロギングやデバッグ用途に活用できます。
 
 ### ワークフロー検索順序
 
