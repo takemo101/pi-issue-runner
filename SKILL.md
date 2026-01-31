@@ -41,6 +41,25 @@ scripts/cleanup.sh <session> # 手動クリーンアップ
 - `pi`
 - `jq` (JSON処理)
 
+## 自動クリーンアップ
+
+タスク完了時にAIが `###TASK_COMPLETE_<issue_number>###` マーカーを出力すると、
+`watch-session.sh` が検出して自動的にクリーンアップを実行します。
+
+### 動作フロー
+
+1. `run.sh` がバックグラウンドで `watch-session.sh` を起動
+2. `watch-session.sh` がtmuxセッションの出力を監視
+3. 完了マーカー（例: `###TASK_COMPLETE_42###`）を検出
+4. 自動的に `cleanup.sh` を実行してworktreeとセッションを削除
+
+### 自動クリーンアップの無効化
+
+```bash
+# 自動クリーンアップを無効化
+scripts/run.sh 42 --no-cleanup
+```
+
 ## 詳細ドキュメント
 
 詳しい使い方、設定、トラブルシューティングは [README.md](README.md) を参照してください。
