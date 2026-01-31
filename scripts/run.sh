@@ -5,57 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# ヘルプを先に処理（依存関係チェック前）
-for arg in "$@"; do
-    case "$arg" in
-        -h|--help)
-            cat << 'HELP_EOF'
-Usage: run.sh <issue-number> [options]
-
-Arguments:
-    issue-number    GitHub Issue番号
-
-Options:
-    -b, --branch NAME   カスタムブランチ名（デフォルト: issue-<num>-<title>）
-    --base BRANCH       ベースブランチ（デフォルト: HEAD）
-    -w, --workflow NAME ワークフロー名（デフォルト: default）
-                        利用可能: default, simple
-    --no-attach         セッション作成後にアタッチしない
-    --no-cleanup        pi終了後の自動クリーンアップを無効化
-    --reattach          既存セッションがあればアタッチ
-    --force             既存セッション/worktreeを削除して再作成
-    --pi-args ARGS      piに渡す追加の引数
-    --list-workflows    利用可能なワークフロー一覧を表示
-    -h, --help          このヘルプを表示
-
-Examples:
-    run.sh 42
-    run.sh 42 -w simple
-    run.sh 42 --no-attach
-    run.sh 42 --no-cleanup
-    run.sh 42 --reattach
-    run.sh 42 --force
-    run.sh 42 -b custom-feature
-    run.sh 42 --base develop
-HELP_EOF
-            exit 0
-            ;;
-    esac
-done
-
-source "$SCRIPT_DIR/../lib/config.sh"
-source "$SCRIPT_DIR/../lib/github.sh"
-source "$SCRIPT_DIR/../lib/worktree.sh"
-source "$SCRIPT_DIR/../lib/tmux.sh"
-source "$SCRIPT_DIR/../lib/log.sh"
-source "$SCRIPT_DIR/../lib/workflow.sh"
-
-# 依存関係チェック
-check_dependencies || exit 1
-
-# エラー時のクリーンアップを設定
-setup_cleanup_trap cleanup_worktree_on_error
-
+# usage関数を先に定義（依存関係なしでヘルプを表示するため）
 usage() {
     cat << EOF
 Usage: $(basename "$0") <issue-number> [options]
@@ -87,6 +37,29 @@ Examples:
     $(basename "$0") 42 --base develop
 EOF
 }
+
+# ヘルプを先に処理（依存関係チェック前）
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+    esac
+done
+
+source "$SCRIPT_DIR/../lib/config.sh"
+source "$SCRIPT_DIR/../lib/github.sh"
+source "$SCRIPT_DIR/../lib/worktree.sh"
+source "$SCRIPT_DIR/../lib/tmux.sh"
+source "$SCRIPT_DIR/../lib/log.sh"
+source "$SCRIPT_DIR/../lib/workflow.sh"
+
+# 依存関係チェック
+check_dependencies || exit 1
+
+# エラー時のクリーンアップを設定
+setup_cleanup_trap cleanup_worktree_on_error
 
 main() {
     local issue_number=""
