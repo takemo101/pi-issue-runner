@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# improve.sh のBatsテスト
+# improve.sh のBatsテスト (2段階方式)
 
 load '../test_helper'
 
@@ -58,6 +58,11 @@ teardown() {
     [[ "$output" == *"--verbose"* ]]
 }
 
+@test "improve.sh --help shows --log-dir option" {
+    run "$PROJECT_ROOT/scripts/improve.sh" --help
+    [[ "$output" == *"--log-dir"* ]]
+}
+
 @test "improve.sh --help shows description" {
     run "$PROJECT_ROOT/scripts/improve.sh" --help
     [[ "$output" == *"Description:"* ]]
@@ -66,6 +71,11 @@ teardown() {
 @test "improve.sh --help shows examples" {
     run "$PROJECT_ROOT/scripts/improve.sh" --help
     [[ "$output" == *"Examples:"* ]]
+}
+
+@test "improve.sh --help shows log file information" {
+    run "$PROJECT_ROOT/scripts/improve.sh" --help
+    [[ "$output" == *"Log files:"* ]]
 }
 
 @test "improve.sh -h returns success" {
@@ -106,6 +116,10 @@ teardown() {
     grep -q "lib/log.sh" "$PROJECT_ROOT/scripts/improve.sh"
 }
 
+@test "improve.sh sources github.sh" {
+    grep -q "lib/github.sh" "$PROJECT_ROOT/scripts/improve.sh"
+}
+
 @test "improve.sh has main function" {
     grep -q "main()" "$PROJECT_ROOT/scripts/improve.sh"
 }
@@ -142,6 +156,10 @@ teardown() {
     grep -q '\-\-iteration)' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
+@test "improve.sh handles --log-dir option" {
+    grep -q '\-\-log-dir)' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
 # ====================
 # デフォルト値テスト
 # ====================
@@ -158,6 +176,10 @@ teardown() {
     grep -q 'DEFAULT_TIMEOUT=' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
+@test "improve.sh has LOG_DIR" {
+    grep -q 'LOG_DIR=' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
 # ====================
 # 依存関係チェックテスト
 # ====================
@@ -166,8 +188,12 @@ teardown() {
     grep -q 'pi_command' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
-@test "improve.sh checks for tmux command" {
-    grep -q 'command -v tmux' "$PROJECT_ROOT/scripts/improve.sh"
+@test "improve.sh checks for gh command" {
+    grep -q 'command -v gh' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh checks for jq command" {
+    grep -q 'command -v jq' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
 @test "improve.sh reports missing dependencies" {
@@ -175,19 +201,27 @@ teardown() {
 }
 
 # ====================
-# ワークフローテスト
+# 2段階方式ワークフローテスト
 # ====================
 
-@test "improve.sh has phase 1 for reviewing" {
+@test "improve.sh has phase 1 for pi --print review" {
     grep -q 'PHASE 1' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
-@test "improve.sh has phase 2 for monitoring" {
+@test "improve.sh has phase 2 for fetching issues" {
     grep -q 'PHASE 2' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
-@test "improve.sh has phase 3 for next iteration" {
+@test "improve.sh has phase 3 for parallel execution" {
     grep -q 'PHASE 3' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh has phase 4 for session monitoring" {
+    grep -q 'PHASE 4' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh has phase 5 for next iteration" {
+    grep -q 'PHASE 5' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
 @test "improve.sh uses project-review skill" {
@@ -211,73 +245,56 @@ teardown() {
 }
 
 # ====================
-# 完了マーカー検出テスト
+# pi --print テスト
 # ====================
 
-@test "improve.sh defines MARKER_COMPLETE constant" {
-    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'MARKER_COMPLETE="###TASK_COMPLETE###"'* ]]
+@test "improve.sh uses pi --print mode" {
+    grep -q -- '--print' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
-@test "improve.sh defines MARKER_NO_ISSUES constant" {
-    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'MARKER_NO_ISSUES="###NO_ISSUES###"'* ]]
+@test "improve.sh uses tee for log output" {
+    grep -q 'tee' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
-# ====================
-# tmux方式テスト (Issue #232)
-# ====================
-
-@test "improve.sh defines IMPROVE_SESSION constant" {
-    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'IMPROVE_SESSION="pi-improve"'* ]]
+@test "improve.sh creates log directory" {
+    grep -q 'mkdir -p "$log_dir"' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
-@test "improve.sh has wait_for_marker function" {
-    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *"wait_for_marker()"* ]]
-}
-
-@test "wait_for_marker uses tmux capture-pane" {
-    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'tmux capture-pane -t "$session"'* ]]
-}
-
-@test "wait_for_marker monitors for MARKER_COMPLETE" {
-    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'grep -qF "$MARKER_COMPLETE"'* ]]
-}
-
-@test "wait_for_marker monitors for MARKER_NO_ISSUES" {
-    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'grep -qF "$MARKER_NO_ISSUES"'* ]]
-}
-
-@test "wait_for_marker kills session after marker detection" {
-    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'tmux kill-session -t "$session"'* ]]
-}
-
-@test "improve.sh creates tmux session for pi" {
-    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'tmux new-session -d -s "$IMPROVE_SESSION"'* ]]
-}
-
-@test "improve.sh kills existing session before starting" {
-    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'tmux kill-session -t "$IMPROVE_SESSION"'* ]]
+@test "improve.sh generates log file name with timestamp" {
+    grep -q 'iteration-.*$(date' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
 # ====================
-# セッション待機テスト
+# GitHub API テスト
 # ====================
 
-@test "improve.sh waits for sessions to start before checking" {
-    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'Waiting for sessions to start'* ]]
+@test "improve.sh uses get_issues_created_after" {
+    grep -q 'get_issues_created_after' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
-@test "improve.sh uses sleep to wait for sessions" {
+@test "improve.sh records start_time for issue filtering" {
+    grep -q 'start_time=' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh uses run.sh with --no-attach" {
+    grep -q 'run.sh.*--no-attach' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+# ====================
+# エラーハンドリングテスト
+# ====================
+
+@test "improve.sh handles no issues created gracefully" {
     source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'sleep 5'* ]]
+    [[ "$source_content" == *'No new Issues created'* ]]
+}
+
+@test "improve.sh handles pi command failure" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'pi command returned non-zero'* ]]
+}
+
+@test "improve.sh handles session start failure" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'Failed to start session'* ]]
 }
