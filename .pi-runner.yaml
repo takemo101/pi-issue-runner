@@ -7,7 +7,7 @@
 worktree:
   # worktreeの作成先ディレクトリ
   base_dir: ".worktrees"
-
+  
   # worktree作成時にコピーするファイル
   copy_files:
     - .env
@@ -20,7 +20,7 @@ worktree:
 tmux:
   # セッション名のプレフィックス（例: pi-issue-42）
   session_prefix: "pi"
-
+  
   # tmuxセッション内で起動するか
   start_in_session: true
 
@@ -30,7 +30,7 @@ tmux:
 pi:
   # piコマンドのパス
   command: "pi"
-
+  
   # piに渡す追加引数（必要に応じてコメント解除）
   # args:
   #   - --model
@@ -49,7 +49,7 @@ parallel:
 workflow:
   # ワークフロー名
   name: default
-
+  
   # 実行するステップ
   steps:
     - plan
@@ -58,20 +58,21 @@ workflow:
     - merge
 
 # =====================================
-# Hook設定（#280実装後に有効）
+# Hook設定
 # =====================================
 hooks:
   # 成功時の通知
   on_success: |
     osascript -e 'display notification "Issue #{{issue_number}} が完了しました" with title "Pi Issue Runner" subtitle "✅ 完了" sound name "Glass"'
-
+  
   # エラー時の通知
   on_error: |
     osascript -e 'display notification "{{error_message}}" with title "Pi Issue Runner" subtitle "❌ Issue #{{issue_number}} エラー" sound name "Basso"'
-
-#
-#   # セッション開始時
-#   # on_start: ./hooks/on-start.sh
-#
-#   # クリーンアップ後
-#   # on_cleanup: ./hooks/on-cleanup.sh
+  
+  # セッション開始時（コメント解除で有効化）
+  # on_start: |
+  #   osascript -e 'display notification "Issue #{{issue_number}} を開始しました" with title "Pi Issue Runner" subtitle "🚀 開始" sound name "Pop"'
+  
+  # クリーンアップ後（コメント解除で有効化）
+  # on_cleanup: |
+  #   echo "Cleanup completed for Issue #{{issue_number}}"
