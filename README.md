@@ -126,6 +126,9 @@ scripts/run.sh 42 --reattach
 
 # 既存セッション/worktreeを削除して再作成
 scripts/run.sh 42 --force
+
+# piに追加の引数を渡す
+scripts/run.sh 42 --pi-args "--verbose"
 ```
 
 ### セッション管理
