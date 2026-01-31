@@ -2,6 +2,13 @@
 
 GitHub Issue #{{issue_number}} の実装を行います。
 
+> **重要: 非対話的実行**
+> このセッションはバックグラウンドで実行されます。
+> **絶対にエディタを開くコマンドを使用しないでください**。
+> - `git commit` は必ず `-m` オプションを使用
+> - `git merge` は `--no-edit` オプションを使用
+> - 対話的なプロンプトが出るコマンドは使用しない
+
 ## コンテキスト
 
 - **Issue番号**: #{{issue_number}}
@@ -28,11 +35,20 @@ GitHub Issue #{{issue_number}} の実装を行います。
 - 手動テストで動作確認を行う
 
 ### 4. コミット
+
+> **必須**: `-m` オプションを使用してコミットメッセージを指定してください。
+> エディタが開くとセッションがハングします。
+
 ```bash
 git add -A
 git commit -m "<type>: <description>
 
 Refs #{{issue_number}}"
+```
+
+複数行のメッセージが必要な場合：
+```bash
+git commit -m "<type>: <description>" -m "Refs #{{issue_number}}"
 ```
 
 ## 完了条件

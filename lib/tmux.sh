@@ -83,6 +83,10 @@ create_session() {
     # デタッチ状態でセッション作成
     tmux new-session -d -s "$session_name" -c "$working_dir"
     
+    # エディタを無効化する環境変数を設定（vimがバックグラウンドで開くのを防ぐ）
+    # GIT_EDITOR=true はgitがエディタを開こうとしても何もしない
+    tmux send-keys -t "$session_name" "export GIT_EDITOR=true EDITOR=true VISUAL=true" Enter
+    
     # コマンドを実行
     tmux send-keys -t "$session_name" "$command" Enter
     
