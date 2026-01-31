@@ -106,7 +106,54 @@ sanitized_body=$(sanitize_issue_body "$raw_body")
 - プロセス置換（`<(...)`, `>(...)`）
 - 算術展開（`$((...))`）
 
+## Hook機能のセキュリティリスク
+
+### evalの使用
+
+hookのインラインコマンドは `eval` を使用して実行されます（`lib/hooks.sh` の `_execute_hook()` 関数）。これは設計上の決定であり、以下のリスクを理解した上で使用してください：
+
+```bash
+# lib/hooks.sh:_execute_hook()
+_execute_hook() {
+    local hook="$1"
+    ...
+    # インラインコマンドとして実行
+    log_debug "Executing inline hook"
+    eval "$hook"
+}
+```
+
+### リスク
+
+1. **任意コード実行**: `.pi-runner.yaml` の `hooks` セクションに定義されたコマンドは、そのまま実行される
+2. **信頼されていない設定ファイル**: 悪意のあるリポジトリに含まれる `.pi-runner.yaml` が自動的に読み込まれる可能性がある
+3. **環境変数の漏洩**: hook内で環境変数が参照される場合、機密情報が外部に送信される可能性がある
+
+### 推奨事項
+
+1. **信頼できる設定ファイルのみ使用**: `.pi-runner.yaml` は信頼できるソースからのみ取得
+2. **hookの内容を確認**: 不明なリポジトリのhook設定は実行前に確認
+3. **最小権限の原則**: hookスクリプトには必要最小限の権限のみ付与
+4. **機密情報を含むhookは環境変数経由で設定**: 直接ハードコードしない
+5. **外部スクリプトファイルを使用する場合はファイルの所有者とパーミッションを確認**
+
+### 例: 安全なhook設定
+
+```yaml
+# .pi-runner.yaml
+hooks:
+  # ✅ 安全: シンプルな通知
+  on_success: "echo 'Task completed: #{{issue_number}}'"
+  
+  # ✅ 安全: 信頼できるスクリプトファイル
+  on_error: "./scripts/notify-error.sh"
+  
+  # ⚠️ 注意: 外部サービスへの送信は機密情報に注意
+  on_start: "curl -X POST https://example.com/webhook -d '{\"issue\": \"{{issue_number}}\"}'"
+```
+
 ## 関連ドキュメント
 
 - [アーキテクチャ](architecture.md) - システム全体の設計
 - [設定リファレンス](configuration.md) - 設定オプション
+- [Hook機能](hooks.md) - hook の詳細仕様
