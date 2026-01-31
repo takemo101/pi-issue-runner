@@ -10,7 +10,7 @@ Pi Issue Runnerの動作は設定ファイルでカスタマイズできます�
 
 1. `--config` オプションで指定されたパス
 2. プロジェクトルート: `./.pi-runner.yaml`
-3. ホームディレクトリ: `~/.pi-runner/config.yml`
+3. ホームディレクトリ: `~/.pi-runner/config.yaml`
 4. デフォルト設定（ファイルなし）
 
 ## 設定フォーマット
@@ -342,7 +342,7 @@ class ConfigManager {
       './.pi-runner.yaml',
       './.pi-runner.yaml',
       './.pi-runner.json',
-      path.join(os.homedir(), '.pi-runner/config.yml'),
+      path.join(os.homedir(), '.pi-runner/config.yaml'),
       path.join(os.homedir(), '.pi-runner/config.yaml'),
       path.join(os.homedir(), '.pi-runner/config.json')
     ];
@@ -479,7 +479,7 @@ class ConfigManager {
 
 ```bash
 # 設定ファイルを指定
-pi-run --config ./custom-config.yml run --issue 42
+pi-run --config ./custom-config.yaml run --issue 42
 
 # 最大同時実行数を上書き
 pi-run run --issues 42,43,44 --max-concurrent 10
@@ -572,7 +572,7 @@ notifications:
 
 ## 設定のベストプラクティス
 
-1. **環境ごとに設定ファイルを分ける**: `.pi-runner.dev.yml`, `.pi-runner.prod.yml`
+1. **環境ごとに設定ファイルを分ける**: `.pi-runner.dev.yaml`, `.pi-runner.prod.yaml`
 2. **機密情報は環境変数で**: GitHubトークン等は設定ファイルに含めない
 3. **リソース制限を適切に設定**: マシンスペックに応じて調整
 4. **ログレベルは環境で変える**: 開発=debug、本番=info
