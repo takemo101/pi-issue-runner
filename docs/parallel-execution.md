@@ -8,657 +8,382 @@
 
 ```
                      ┌────────────────────────────────┐
-                     │      Task Queue Manager        │
+                     │   scripts/run.sh (並列起動)   │
                      │                                │
-                     │  - タスクキュー                │
-                     │  - 実行数制限                  │
-                     │  - 優先順位管理                │
+                     │  - check_concurrent_limit()   │
+                     │  - セッション数制限            │
                      └────────────┬───────────────────┘
                                   │
                     ┌─────────────┴─────────────┐
                     │                           │
           ┌─────────▼─────────┐     ┌──────────▼──────────┐
-          │   Task Runner 1   │     │   Task Runner 2     │
+          │  Tmux Session 1   │     │  Tmux Session 2     │
           │                   │     │                     │
           │ Issue #42         │     │ Issue #43           │
           │ ├─ Worktree       │     │ ├─ Worktree         │
-          │ ├─ Tmux Session   │     │ ├─ Tmux Session     │
           │ └─ Pi Process     │     │ └─ Pi Process       │
           └───────────────────┘     └─────────────────────┘
+                   │                          │
+          ┌────────▼────────┐     ┌───────────▼───────────┐
+          │ watch-session.sh│     │  watch-session.sh    │
+          │  (監視プロセス)  │     │   (監視プロセス)      │
+          └─────────────────┘     └───────────────────────┘
 ```
 
 ## 並列実行の制御
 
 ### 同時実行数の制限
 
-```typescript
-interface ParallelConfig {
-  maxConcurrent: number;  // 最大同時実行数（デフォルト: 5）
-  queueStrategy: 'fifo' | 'priority';  // キュー戦略
-}
+`.pi-runner.yaml` で設定:
 
-class TaskQueueManager {
-  private runningTasks = new Set<string>();
-  private queuedTasks: QueuedTask[] = [];
-  
-  async enqueueTask(task: Task): Promise<void> {
-    // 同時実行数をチェック
-    if (this.canStartNewTask()) {
-      await this.startTask(task);
-    } else {
-      this.queuedTasks.push({
-        task,
-        enqueuedAt: new Date(),
-        priority: this.calculatePriority(task)
-      });
-    }
-  }
-  
-  canStartNewTask(): boolean {
-    return this.runningTasks.size < this.config.maxConcurrent;
-  }
-  
-  async processQueue(): Promise<void> {
-    while (this.canStartNewTask() && this.queuedTasks.length > 0) {
-      const next = this.dequeueTask();
-      if (next) {
-        await this.startTask(next.task);
-      }
-    }
-  }
+```yaml
+parallel:
+  max_concurrent: 5  # 最大同時実行数（0 = 無制限）
+```
+
+**実装** (`lib/tmux.sh`):
+
+```bash
+# 並列実行数の制限をチェック
+check_concurrent_limit() {
+    load_config
+    local max_concurrent
+    max_concurrent="$(get_config parallel_max_concurrent)"
+    
+    # 0または空は無制限
+    if [[ -z "$max_concurrent" || "$max_concurrent" == "0" ]]; then
+        return 0
+    fi
+    
+    local current_count
+    current_count="$(count_active_sessions)"
+    
+    if [[ "$current_count" -ge "$max_concurrent" ]]; then
+        log_error "Maximum concurrent sessions ($max_concurrent) reached."
+        log_info "Currently running ($current_count sessions):"
+        list_sessions | sed 's/^/  - /' >&2
+        log_info "Use --force to override or cleanup existing sessions."
+        return 1
+    fi
+    
+    return 0
 }
 ```
 
-### キュー戦略
+### 使用例
 
-#### FIFO (First In, First Out)
+```bash
+# 通常の並列起動（セッションにアタッチしない）
+./scripts/run.sh 42 --no-attach
+./scripts/run.sh 43 --no-attach
+./scripts/run.sh 44 --no-attach
 
-```typescript
-private dequeueTask(): QueuedTask | null {
-  return this.queuedTasks.shift() ?? null;
+# 制限を超えた場合はエラー
+./scripts/run.sh 45 --no-attach
+# Error: Maximum concurrent sessions (3) reached.
+
+# 強制的に起動
+./scripts/run.sh 45 --force --no-attach
+```
+
+## セッション監視
+
+### watch-session.sh
+
+各タスクの完了を監視するバックグラウンドプロセス:
+
+```bash
+# scripts/run.sh から自動起動
+nohup "$watcher_script" "$session_name" > "$watcher_log" 2>&1 &
+```
+
+**監視内容**:
+1. Tmuxセッションの存在確認
+2. 完了マーカー (`###TASK_COMPLETE_xxx###`) の検出
+3. エラーマーカー (`###TASK_ERROR_xxx###`) の検出
+
+**実装概要**:
+
+```bash
+# scripts/watch-session.sh の主要ロジック
+monitor_session() {
+    local session_name="$1"
+    
+    while true; do
+        # セッションが終了したか確認
+        if ! session_exists "$session_name"; then
+            handle_session_ended "$session_name"
+            break
+        fi
+        
+        # セッション出力を確認
+        local output
+        output="$(get_session_output "$session_name" 100)"
+        
+        # 完了マーカーを検出
+        if echo "$output" | grep -q "###TASK_COMPLETE_"; then
+            handle_task_complete "$session_name"
+            break
+        fi
+        
+        # エラーマーカーを検出
+        if echo "$output" | grep -q "###TASK_ERROR_"; then
+            handle_task_error "$session_name" "$output"
+            break
+        fi
+        
+        sleep 5  # 5秒間隔でポーリング
+    done
 }
 ```
 
-#### 優先順位ベース
+## 複数セッション待機
 
-```typescript
-private calculatePriority(task: Task): number {
-  // Issueのラベルやマイルストーンから優先度を計算
-  let priority = 0;
-  
-  if (task.labels.includes('urgent')) priority += 100;
-  if (task.labels.includes('bug')) priority += 50;
-  if (task.milestone) priority += 20;
-  
-  return priority;
-}
+### wait-for-sessions.sh
 
-private dequeueTask(): QueuedTask | null {
-  if (this.queuedTasks.length === 0) return null;
-  
-  // 優先度が最も高いタスクを取得
-  this.queuedTasks.sort((a, b) => b.priority - a.priority);
-  return this.queuedTasks.shift() ?? null;
+複数のセッションが全て完了するまで待機:
+
+```bash
+# 使用例
+./scripts/wait-for-sessions.sh 42 43 44
+
+# 出力例
+Waiting for 3 sessions to complete...
+  - pi-issue-42: running
+  - pi-issue-43: running
+  - pi-issue-44: running
+
+Session pi-issue-42 completed (success)
+Session pi-issue-43 completed (success)  
+Session pi-issue-44 completed (error)
+
+Summary:
+  Completed: 2
+  Failed: 1
+```
+
+**実装概要**:
+
+```bash
+# scripts/wait-for-sessions.sh
+wait_for_all_sessions() {
+    local -a issue_numbers=("$@")
+    local -A session_status
+    
+    # 初期状態を設定
+    for issue in "${issue_numbers[@]}"; do
+        local session_name
+        session_name="$(generate_session_name "$issue")"
+        session_status["$session_name"]="pending"
+    done
+    
+    # 全セッション完了まで待機
+    while true; do
+        local all_done=true
+        
+        for session_name in "${!session_status[@]}"; do
+            if [[ "${session_status[$session_name]}" == "pending" ]]; then
+                if ! session_exists "$session_name"; then
+                    # セッション終了を検出
+                    local status
+                    status="$(get_status "$(extract_issue_number "$session_name")")"
+                    session_status["$session_name"]="$status"
+                else
+                    all_done=false
+                fi
+            fi
+        done
+        
+        if [[ "$all_done" == "true" ]]; then
+            break
+        fi
+        
+        sleep 5
+    done
+    
+    # 結果を出力
+    print_summary "${!session_status[@]}"
 }
 ```
 
-## タスクライフサイクル管理
+## 状態管理
 
-### タスク状態の追跡
+### ステータスファイル
 
-```typescript
-interface TaskState {
-  id: string;
-  issue: number;
-  status: TaskStatus;
-  startedAt?: Date;
-  completedAt?: Date;
-  duration?: number;
-  exitCode?: number;
-}
+各Issue用のステータスファイル:
 
-class TaskLifecycleManager {
-  private states = new Map<string, TaskState>();
-  
-  async onTaskStarted(taskId: string): Promise<void> {
-    const state = this.states.get(taskId);
-    if (state) {
-      state.status = 'running';
-      state.startedAt = new Date();
-      await this.persistState();
-    }
-  }
-  
-  async onTaskCompleted(taskId: string, exitCode: number): Promise<void> {
-    const state = this.states.get(taskId);
-    if (state) {
-      state.status = exitCode === 0 ? 'completed' : 'failed';
-      state.completedAt = new Date();
-      state.exitCode = exitCode;
-      state.duration = state.completedAt.getTime() - (state.startedAt?.getTime() ?? 0);
-      
-      await this.persistState();
-      await this.processQueue();  // 次のタスクを開始
-    }
-  }
+**場所**: `.worktrees/.status/{issue_number}.json`
+
+**形式**:
+```json
+{
+  "issue": 42,
+  "status": "running",
+  "session": "pi-issue-42",
+  "timestamp": "2024-01-30T09:00:00Z"
 }
 ```
 
-### タスク監視
+**状態一覧**:
+- `running` - 実行中
+- `complete` - 正常完了
+- `error` - エラー終了
 
-各タスクの状態を定期的にチェック：
+### 状態操作
 
-```typescript
-class TaskMonitor {
-  private monitors = new Map<string, TaskMonitorInstance>();
-  
-  startMonitoring(taskId: string): void {
-    const instance: TaskMonitorInstance = {
-      taskId,
-      interval: setInterval(async () => {
-        await this.checkTaskStatus(taskId);
-      }, 1000),  // 1秒ごとにチェック
-      lastCheck: new Date()
-    };
-    
-    this.monitors.set(taskId, instance);
-  }
-  
-  async checkTaskStatus(taskId: string): Promise<void> {
-    const task = await this.taskManager.getTask(taskId);
-    if (!task) return;
-    
-    // Tmuxセッションの状態を確認
-    const isActive = await this.tmuxManager.isSessionActive(task.tmuxSession);
-    
-    if (!isActive && task.status === 'running') {
-      // タスクが終了した
-      const exitCode = await this.tmuxManager.getExitCode(task.tmuxSession);
-      await this.lifecycleManager.onTaskCompleted(taskId, exitCode ?? 1);
-      this.stopMonitoring(taskId);
-    }
-  }
-  
-  stopMonitoring(taskId: string): void {
-    const instance = this.monitors.get(taskId);
-    if (instance) {
-      clearInterval(instance.interval);
-      this.monitors.delete(taskId);
-    }
-  }
-}
-```
+```bash
+# lib/status.sh を使用
 
-## リソース管理
+# 状態を設定
+set_status 42 "running"
+set_status 42 "complete"
+set_status 42 "error" "エラーメッセージ"
 
-### CPU・メモリ制限
+# 状態を取得
+status="$(get_status 42)"
 
-```typescript
-interface ResourceLimits {
-  maxCpu?: number;     // CPU使用率の上限（%）
-  maxMemory?: number;  // メモリ使用量の上限（MB）
-}
+# エラーメッセージを取得
+error_msg="$(get_error_message 42)"
 
-class ResourceManager {
-  async checkResources(): Promise<ResourceStatus> {
-    // システムリソースを取得
-    const cpuUsage = await this.getCpuUsage();
-    const memoryUsage = await this.getMemoryUsage();
-    
-    return {
-      cpu: cpuUsage,
-      memory: memoryUsage,
-      available: cpuUsage < 80 && memoryUsage < 80  // 80%以下なら利用可能
-    };
-  }
-  
-  async canStartNewTask(): Promise<boolean> {
-    const resources = await this.checkResources();
-    return resources.available;
-  }
-}
-```
-
-### ディスク容量の監視
-
-```typescript
-class DiskSpaceMonitor {
-  async checkDiskSpace(): Promise<DiskSpaceInfo> {
-    const worktreeDir = this.config.worktree.baseDir;
-    
-    // ディスク使用状況を取得
-    const output = await exec(['df', '-k', worktreeDir]);
-    const lines = output.split('\n');
-    const stats = lines[1].split(/\s+/);
-    
-    const total = parseInt(stats[1]) * 1024;  // KB to bytes
-    const used = parseInt(stats[2]) * 1024;
-    const available = parseInt(stats[3]) * 1024;
-    
-    return {
-      total,
-      used,
-      available,
-      usagePercent: (used / total) * 100
-    };
-  }
-  
-  async ensureSpace(required: number): Promise<void> {
-    const space = await this.checkDiskSpace();
-    
-    if (space.available < required) {
-      // 古いworktreeをクリーンアップ
-      await this.cleanupOldWorktrees();
-      
-      // 再チェック
-      const newSpace = await this.checkDiskSpace();
-      if (newSpace.available < required) {
-        throw new InsufficientDiskSpaceError(
-          `Required: ${required} bytes, Available: ${newSpace.available} bytes`
-        );
-      }
-    }
-  }
-}
-```
-
-## 依存関係の解決
-
-### Issue間の依存関係
-
-```typescript
-interface IssueDependency {
-  issue: number;
-  dependsOn: number[];  // このIssueが依存する他のIssue番号
-  blockedBy: number[];  // このIssueをブロックしている他のIssue番号
-}
-
-class DependencyResolver {
-  async resolveDependencies(issues: number[]): Promise<number[][]> {
-    // 依存関係グラフを構築
-    const graph = await this.buildDependencyGraph(issues);
-    
-    // トポロジカルソート
-    const sorted = this.topologicalSort(graph);
-    
-    // 並列実行可能なグループに分割
-    return this.groupByLevel(sorted);
-  }
-  
-  private async buildDependencyGraph(
-    issues: number[]
-  ): Promise<Map<number, IssueDependency>> {
-    const graph = new Map<number, IssueDependency>();
-    
-    for (const issue of issues) {
-      const issueData = await this.githubClient.getIssue(issue);
-      const deps = this.extractDependencies(issueData);
-      
-      graph.set(issue, {
-        issue,
-        dependsOn: deps.dependsOn,
-        blockedBy: deps.blockedBy
-      });
-    }
-    
-    return graph;
-  }
-  
-  private extractDependencies(issue: GitHubIssue): {
-    dependsOn: number[];
-    blockedBy: number[];
-  } {
-    // Issue本文から依存関係を抽出
-    // 例: "Depends on #42" or "Blocked by #43"
-    const dependsOn: number[] = [];
-    const blockedBy: number[] = [];
-    
-    const dependsOnMatches = issue.body.matchAll(/depends on #(\d+)/gi);
-    for (const match of dependsOnMatches) {
-      dependsOn.push(parseInt(match[1]));
-    }
-    
-    const blockedByMatches = issue.body.matchAll(/blocked by #(\d+)/gi);
-    for (const match of blockedByMatches) {
-      blockedBy.push(parseInt(match[1]));
-    }
-    
-    return { dependsOn, blockedBy };
-  }
-  
-  private topologicalSort(
-    graph: Map<number, IssueDependency>
-  ): number[] {
-    const sorted: number[] = [];
-    const visited = new Set<number>();
-    const visiting = new Set<number>();
-    
-    const visit = (issue: number) => {
-      if (visited.has(issue)) return;
-      if (visiting.has(issue)) {
-        throw new CircularDependencyError(`Circular dependency detected: ${issue}`);
-      }
-      
-      visiting.add(issue);
-      
-      const deps = graph.get(issue);
-      if (deps) {
-        for (const dep of deps.dependsOn) {
-          visit(dep);
-        }
-      }
-      
-      visiting.delete(issue);
-      visited.add(issue);
-      sorted.push(issue);
-    };
-    
-    for (const issue of graph.keys()) {
-      visit(issue);
-    }
-    
-    return sorted;
-  }
-  
-  private groupByLevel(sorted: number[]): number[][] {
-    // 依存関係のレベルごとにグループ化
-    // 同じレベルのIssueは並列実行可能
-    const groups: number[][] = [];
-    const levels = new Map<number, number>();
-    
-    for (const issue of sorted) {
-      const deps = this.graph.get(issue);
-      const maxDepLevel = Math.max(
-        0,
-        ...deps.dependsOn.map(d => levels.get(d) ?? 0)
-      );
-      const level = maxDepLevel + 1;
-      levels.set(issue, level);
-      
-      if (!groups[level]) {
-        groups[level] = [];
-      }
-      groups[level].push(issue);
-    }
-    
-    return groups.filter(g => g.length > 0);
-  }
-}
-```
-
-### 実行例
-
-```typescript
-// Issue #42, #43, #44, #45 を実行
-// 依存関係: #43 depends on #42, #45 depends on #43
-const issues = [42, 43, 44, 45];
-const groups = await dependencyResolver.resolveDependencies(issues);
-
-// groups = [
-//   [42, 44],  // レベル0: 並列実行可能
-//   [43],      // レベル1: #42完了後に実行
-//   [45]       // レベル2: #43完了後に実行
-// ]
-
-for (const group of groups) {
-  // グループ内のIssueを並列実行
-  await Promise.all(group.map(issue => runner.runTask(issue)));
-}
+# 全ステータスを一覧
+list_all_statuses
+# 出力: 42	running
+#       43	complete
+#       44	error
 ```
 
 ## エラーハンドリング
 
-### タスク失敗時の動作
+### 失敗時の動作
 
-```typescript
-enum FailureStrategy {
-  CONTINUE = 'continue',  // 他のタスクは継続
-  STOP_ALL = 'stop-all',  // 全タスクを停止
-  RETRY = 'retry'         // 失敗したタスクを再試行
-}
+デフォルトでは、1つのタスクが失敗しても他のタスクは継続実行されます。
 
-class FailureHandler {
-  async handleTaskFailure(
-    taskId: string,
-    error: Error
-  ): Promise<void> {
-    const strategy = this.config.failureStrategy;
-    
-    switch (strategy) {
-      case FailureStrategy.CONTINUE:
-        this.logger.error(`Task ${taskId} failed, continuing others`, error);
-        break;
-        
-      case FailureStrategy.STOP_ALL:
-        this.logger.error(`Task ${taskId} failed, stopping all tasks`, error);
-        await this.stopAllTasks();
-        break;
-        
-      case FailureStrategy.RETRY:
-        this.logger.warn(`Task ${taskId} failed, retrying...`, error);
-        await this.retryTask(taskId);
-        break;
-    }
-  }
-  
-  async retryTask(taskId: string, maxRetries: number = 3): Promise<void> {
-    const task = await this.taskManager.getTask(taskId);
-    if (!task) return;
-    
-    const retryCount = task.metadata.retryCount ?? 0;
-    
-    if (retryCount >= maxRetries) {
-      this.logger.error(`Task ${taskId} failed after ${maxRetries} retries`);
-      return;
-    }
-    
-    // リトライカウントをインクリメント
-    task.metadata.retryCount = retryCount + 1;
-    await this.taskManager.updateTask(task);
-    
-    // タスクを再実行
-    await this.runner.runTask(task.issue);
-  }
-}
+```bash
+# 全タスクの結果を確認
+./scripts/wait-for-sessions.sh 42 43 44
+# → 失敗したタスクがあってもサマリーを表示
+
+# 個別に確認
+./scripts/status.sh 42
+# Issue #42: error
+# Error: テストが失敗しました
 ```
 
-### デッドロック検出
+### リトライ
 
-```typescript
-class DeadlockDetector {
-  async detectDeadlock(): Promise<boolean> {
-    const runningTasks = await this.taskManager.listTasks({ status: 'running' });
-    const queuedTasks = await this.taskManager.listTasks({ status: 'queued' });
-    
-    // 全タスクがキュー内にあり、実行中のタスクがない場合、デッドロック
-    if (runningTasks.length === 0 && queuedTasks.length > 0) {
-      // 依存関係をチェック
-      for (const task of queuedTasks) {
-        const deps = await this.getDependencies(task.issue);
-        const allDepsQueued = deps.every(dep => 
-          queuedTasks.some(t => t.issue === dep)
-        );
-        
-        if (allDepsQueued) {
-          return true;  // デッドロック検出
-        }
-      }
-    }
-    
-    return false;
-  }
-  
-  async resolveDeadlock(): Promise<void> {
-    this.logger.error('Deadlock detected, attempting to resolve...');
-    
-    // 循環依存を検出
-    const cycles = await this.findCycles();
-    
-    if (cycles.length > 0) {
-      throw new DeadlockError(
-        `Circular dependencies detected: ${cycles.join(', ')}`
-      );
-    }
-  }
-}
+失敗したタスクを再実行:
+
+```bash
+# 既存セッション/worktreeを削除して再作成
+./scripts/run.sh 42 --force
+```
+
+## リソース管理
+
+### セッション一覧
+
+```bash
+# 実行中セッションを確認
+./scripts/list.sh
+
+# 出力例
+Active sessions (2):
+  pi-issue-42  .worktrees/issue-42-feature  running  5m
+  pi-issue-43  .worktrees/issue-43-bugfix   running  3m
+```
+
+### クリーンアップ
+
+```bash
+# 特定のセッションをクリーンアップ
+./scripts/cleanup.sh 42
+
+# 全ての完了済みセッションをクリーンアップ
+./scripts/cleanup.sh --all --completed
+
+# 孤立したリソースをクリーンアップ
+./scripts/cleanup.sh --orphaned
 ```
 
 ## パフォーマンス最適化
 
-### タスク起動の最適化
+### 推奨設定
 
-```typescript
-class TaskLauncher {
-  async launchTasksParallel(issues: number[]): Promise<void> {
-    // Worktreeを並列作成
-    const worktreePaths = await Promise.all(
-      issues.map(issue => this.worktreeManager.createWorktree(issue))
-    );
-    
-    // Tmuxセッションを並列作成
-    await Promise.all(
-      issues.map((issue, index) => 
-        this.tmuxManager.createSession(
-          `pi-issue-${issue}`,
-          worktreePaths[index]
-        )
-      )
-    );
-    
-    // Piコマンドを並列実行
-    await Promise.all(
-      issues.map(issue => this.executeTask(issue))
-    );
-  }
-}
-```
+| 項目 | 推奨値 | 理由 |
+|------|--------|------|
+| `max_concurrent` | CPUコア数の50-75% | リソースの過負荷を防ぐ |
+| ポーリング間隔 | 5秒 | バランスの取れた監視 |
 
 ### バッチ処理
 
-大量のIssueを処理する場合、バッチで分割：
+大量のIssueを処理する場合:
 
-```typescript
-class BatchProcessor {
-  async processBatch(
-    issues: number[],
-    batchSize: number = 10
-  ): Promise<void> {
-    for (let i = 0; i < issues.length; i += batchSize) {
-      const batch = issues.slice(i, i + batchSize);
-      
-      this.logger.info(`Processing batch ${i / batchSize + 1}/${Math.ceil(issues.length / batchSize)}`);
-      
-      // バッチ内を並列実行
-      await Promise.all(
-        batch.map(issue => this.runner.runTask(issue))
-      );
-      
-      // バッチ間で少し待機（リソース回復）
-      await Bun.sleep(1000);
-    }
-  }
-}
+```bash
+#!/usr/bin/env bash
+# batch-run.sh
+
+issues=(42 43 44 45 46 47 48 49)
+batch_size=3
+
+for ((i=0; i<${#issues[@]}; i+=batch_size)); do
+    batch=("${issues[@]:i:batch_size}")
+    
+    echo "Processing batch: ${batch[*]}"
+    
+    # バッチ内を並列起動
+    for issue in "${batch[@]}"; do
+        ./scripts/run.sh "$issue" --no-attach &
+    done
+    
+    # バッチ完了を待機
+    ./scripts/wait-for-sessions.sh "${batch[@]}"
+    
+    echo "Batch completed"
+    sleep 2  # バッチ間で少し待機
+done
 ```
 
-## モニタリングとレポート
+## モニタリング
 
-### リアルタイム状態表示
+### リアルタイム状態確認
 
-```typescript
-class TaskStatusDashboard {
-  async displayStatus(): Promise<void> {
-    const tasks = await this.taskManager.listTasks();
-    
-    console.clear();
-    console.log('╔═══════════════════════════════════════════════╗');
-    console.log('║          Pi Issue Runner - Status             ║');
-    console.log('╚═══════════════════════════════════════════════╝');
-    console.log('');
-    
-    // 統計
-    const running = tasks.filter(t => t.status === 'running').length;
-    const queued = tasks.filter(t => t.status === 'queued').length;
-    const completed = tasks.filter(t => t.status === 'completed').length;
-    const failed = tasks.filter(t => t.status === 'failed').length;
-    
-    console.log(`Running: ${running} | Queued: ${queued} | Completed: ${completed} | Failed: ${failed}`);
-    console.log('');
-    
-    // タスク詳細
-    console.log('┌─────────┬──────────┬──────────────┬──────────┐');
-    console.log('│ Issue   │ Status   │ Duration     │ Branch   │');
-    console.log('├─────────┼──────────┼──────────────┼──────────┤');
-    
-    for (const task of tasks) {
-      const duration = task.completedAt && task.startedAt
-        ? formatDuration(task.completedAt.getTime() - task.startedAt.getTime())
-        : '-';
-      
-      console.log(
-        `│ #${task.issue.toString().padEnd(6)} │ ` +
-        `${this.formatStatus(task.status).padEnd(8)} │ ` +
-        `${duration.padEnd(12)} │ ` +
-        `${task.branch.substring(0, 8).padEnd(8)} │`
-      );
-    }
-    
-    console.log('└─────────┴──────────┴──────────────┴──────────┘');
-  }
-  
-  async watch(interval: number = 1000): Promise<void> {
-    setInterval(async () => {
-      await this.displayStatus();
-    }, interval);
-  }
-}
+```bash
+# 定期的に状態を表示
+watch -n 5 './scripts/list.sh'
+
+# 特定セッションの出力を確認
+./scripts/attach.sh 42
+# Ctrl+b d でデタッチ
 ```
 
-### パフォーマンスメトリクス
+### ログ確認
 
-```typescript
-interface PerformanceMetrics {
-  totalTasks: number;
-  completedTasks: number;
-  failedTasks: number;
-  averageDuration: number;
-  successRate: number;
-  throughput: number;  // タスク/時間
-}
+```bash
+# 監視プロセスのログ
+tail -f /tmp/pi-watcher-pi-issue-42.log
 
-class MetricsCollector {
-  async collect(): Promise<PerformanceMetrics> {
-    const tasks = await this.taskManager.listTasks();
-    const completed = tasks.filter(t => t.status === 'completed');
-    const failed = tasks.filter(t => t.status === 'failed');
-    
-    const durations = completed
-      .map(t => t.duration ?? 0)
-      .filter(d => d > 0);
-    
-    const averageDuration = durations.length > 0
-      ? durations.reduce((a, b) => a + b, 0) / durations.length
-      : 0;
-    
-    return {
-      totalTasks: tasks.length,
-      completedTasks: completed.length,
-      failedTasks: failed.length,
-      averageDuration,
-      successRate: tasks.length > 0 
-        ? (completed.length / tasks.length) * 100
-        : 0,
-      throughput: this.calculateThroughput(tasks)
-    };
-  }
-}
+# Tmuxセッションの出力をキャプチャ
+tmux capture-pane -t pi-issue-42 -p -S -100
 ```
 
 ## ベストプラクティス
 
-1. **適切な並列数**: マシンスペックに応じて `maxConcurrent` を設定（推奨: CPUコア数の50-75%）
-2. **リソース監視**: CPU・メモリ・ディスク容量を定期的にチェック
-3. **依存関係の明記**: Issue本文に依存関係を明記（例: "Depends on #42"）
-4. **エラーハンドリング**: 適切な失敗戦略を設定
-5. **定期的なクリーンアップ**: 完了したタスクのリソースを速やかに解放
-6. **ログの保存**: 各タスクのログをファイルに保存し、デバッグに活用
-7. **バッチ処理**: 大量のタスクはバッチに分割して処理
+1. **適切な並列数**
+   - マシンスペックに応じて `max_concurrent` を設定
+   - 推奨: CPUコア数の50-75%
+
+2. **バックグラウンド実行**
+   - `--no-attach` オプションで非対話的に起動
+   - `wait-for-sessions.sh` で完了を待機
+
+3. **エラー確認**
+   - 各タスク完了後に `status.sh` で結果確認
+   - エラー時は `--force` で再実行
+
+4. **定期的なクリーンアップ**
+   - 完了したセッションは速やかにクリーンアップ
+   - `cleanup.sh --all --completed` で一括削除
+
+5. **リソース監視**
+   - ディスク容量を定期的にチェック
+   - worktreeが増えすぎないよう管理
