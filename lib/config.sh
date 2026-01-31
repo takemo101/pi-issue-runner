@@ -19,7 +19,7 @@ CONFIG_PARALLEL_MAX_CONCURRENT="${CONFIG_PARALLEL_MAX_CONCURRENT:-0}"  # 0 = unl
 # 設定ファイルを探す
 find_config_file() {
     local start_dir="${1:-.}"
-    local config_name=".pi-runner.yml"
+    local config_name=".pi-runner.yaml"
     local current_dir
     current_dir="$(cd "$start_dir" && pwd)"
 

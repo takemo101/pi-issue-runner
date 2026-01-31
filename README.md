@@ -92,7 +92,7 @@ scripts/cleanup.sh pi-issue-42
 
 ## 設定
 
-プロジェクトルートに `.pi-runner.yml` を作成して動作をカスタマイズできます：
+プロジェクトルートに `.pi-runner.yaml` を作成して動作をカスタマイズできます：
 
 ```yaml
 # Git worktree設定
@@ -221,7 +221,7 @@ your-project/
 │   │   └── ...
 │   └── issue-43/           # Issue #43 のworktree
 │       └── ...
-└── .pi-runner.yml          # 設定ファイル（オプション）
+└── .pi-runner.yaml         # 設定ファイル（オプション）
 ```
 
 ## トラブルシューティング
