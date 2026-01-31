@@ -18,6 +18,8 @@ pi-issue-runner/
 ├── SKILL.md           # スキル定義（必須）
 ├── AGENTS.md          # 開発ガイド（このファイル）
 ├── README.md          # プロジェクト説明
+├── install.sh         # グローバルインストール
+├── uninstall.sh       # アンインストール
 ├── scripts/           # 実行スクリプト
 │   ├── run.sh         # メインエントリーポイント
 │   ├── init.sh        # プロジェクト初期化
