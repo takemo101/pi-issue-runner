@@ -455,6 +455,7 @@ test/
 │   ├── run.bats                 # run.sh のテスト
 │   ├── status.bats              # status.sh のテスト
 │   ├── stop.bats                # stop.sh のテスト
+│   ├── test.bats                # test.sh のテスト
 │   ├── wait-for-sessions.bats   # wait-for-sessions.sh のテスト
 │   └── watch-session.bats       # watch-session.sh のテスト
 ├── regression/                  # 回帰テスト
