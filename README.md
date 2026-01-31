@@ -361,6 +361,8 @@ pi-issue-runner/
 │   └── test.sh             # テスト一括実行
 ├── lib/
 │   ├── agent.sh            # マルチエージェント対応
+│   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
+│   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh           # 設定読み込み
 │   ├── github.sh           # GitHub API操作
 │   ├── hooks.sh            # イベントhook機能
