@@ -19,6 +19,7 @@ Options:
     --timeout <sec>   タイムアウト秒数（デフォルト: 3600 = 1時間）
     --interval <sec>  チェック間隔（デフォルト: 5秒）
     --fail-fast       1つでもエラーになったら即座に終了
+    --cleanup         完了したセッションのworktreeを自動クリーンアップ
     --quiet           進捗表示を抑制
     -h, --help        このヘルプを表示
 
@@ -31,6 +32,7 @@ Examples:
     $(basename "$0") 140 141 144
     $(basename "$0") 140 141 --timeout 1800
     $(basename "$0") 140 141 --fail-fast
+    $(basename "$0") 140 141 --cleanup
 
 Exit codes:
     0 - 全セッションが正常完了
@@ -45,6 +47,7 @@ main() {
     local timeout=3600
     local interval=5
     local fail_fast=false
+    local cleanup=false
     local quiet=false
 
     # 引数のパース
@@ -60,6 +63,10 @@ main() {
                 ;;
             --fail-fast)
                 fail_fast=true
+                shift
+                ;;
+            --cleanup)
+                cleanup=true
                 shift
                 ;;
             --quiet|-q)
@@ -99,6 +106,9 @@ main() {
     if [[ "$quiet" != "true" ]]; then
         log_info "Waiting for ${#issues[@]} session(s): ${issues[*]}"
         log_info "Timeout: ${timeout}s, Check interval: ${interval}s"
+        if [[ "$cleanup" == "true" ]]; then
+            log_info "Auto-cleanup enabled"
+        fi
     fi
 
     wait_for_sessions "${issues[@]}"
@@ -138,6 +148,13 @@ wait_for_sessions() {
                     if [[ "$quiet" != "true" ]]; then
                         echo "[✓] Issue #$issue 完了"
                     fi
+                    # 自動クリーンアップ
+                    if [[ "$cleanup" == "true" ]]; then
+                        if [[ "$quiet" != "true" ]]; then
+                            echo "    Cleaning up worktree for Issue #$issue..."
+                        fi
+                        "$SCRIPT_DIR/cleanup.sh" "pi-issue-$issue" --force 2>/dev/null || true
+                    fi
                     ;;
                 error)
                     errored_list="$errored_list $issue"
@@ -146,6 +163,13 @@ wait_for_sessions() {
                     error_msg="$(get_error_message "$issue")"
                     if [[ "$quiet" != "true" ]]; then
                         echo "[✗] Issue #$issue エラー: $error_msg"
+                    fi
+                    # 自動クリーンアップ（エラー時も実行）
+                    if [[ "$cleanup" == "true" ]]; then
+                        if [[ "$quiet" != "true" ]]; then
+                            echo "    Cleaning up worktree for Issue #$issue..."
+                        fi
+                        "$SCRIPT_DIR/cleanup.sh" "pi-issue-$issue" --force 2>/dev/null || true
                     fi
                     if [[ "$fail_fast" == "true" ]]; then
                         log_error "Fail-fast enabled. Exiting due to error in issue #$issue"
@@ -166,6 +190,13 @@ wait_for_sessions() {
                         completed_list="$completed_list $issue"
                         if [[ "$quiet" != "true" ]]; then
                             echo "[✓] Issue #$issue 完了（セッション終了済み）"
+                        fi
+                        # 自動クリーンアップ
+                        if [[ "$cleanup" == "true" ]]; then
+                            if [[ "$quiet" != "true" ]]; then
+                                echo "    Cleaning up worktree for Issue #$issue..."
+                            fi
+                            "$SCRIPT_DIR/cleanup.sh" "pi-issue-$issue" --force 2>/dev/null || true
                         fi
                     fi
                     ;;
