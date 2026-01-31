@@ -11,6 +11,8 @@ source "$SCRIPT_DIR/../lib/log.sh"
 DEFAULT_MAX_ITERATIONS=3
 DEFAULT_MAX_ISSUES=5
 DEFAULT_TIMEOUT=3600
+DEFAULT_SESSION_WAIT_RETRIES=10
+DEFAULT_SESSION_WAIT_INTERVAL=2
 
 # Completion markers
 MARKER_COMPLETE="###TASK_COMPLETE###"
@@ -192,12 +194,24 @@ IMPORTANT: The marker must be output as a single line. This is required for auto
     echo ""
     echo "[PHASE 2] Monitoring session completion..."
     
-    # Get running sessions
-    local sessions
-    sessions=$("$SCRIPT_DIR/list.sh" 2>/dev/null | grep -oE "pi-issue-[0-9]+" || true)
+    # Wait for sessions to appear with retry
+    # Sessions may take a few seconds to start after run.sh --no-attach
+    local retry_count=0
+    local sessions=""
+    
+    echo "Waiting for sessions to start..."
+    while [[ $retry_count -lt $DEFAULT_SESSION_WAIT_RETRIES ]]; do
+        sessions=$("$SCRIPT_DIR/list.sh" 2>/dev/null | grep -oE "pi-issue-[0-9]+" || true)
+        if [[ -n "$sessions" ]]; then
+            break
+        fi
+        log_debug "Waiting for sessions to start... (attempt $((retry_count + 1))/$DEFAULT_SESSION_WAIT_RETRIES)"
+        sleep "$DEFAULT_SESSION_WAIT_INTERVAL"
+        ((retry_count++))
+    done
     
     if [[ -z "$sessions" ]]; then
-        echo "No running sessions found"
+        echo "No running sessions found after waiting $((DEFAULT_SESSION_WAIT_RETRIES * DEFAULT_SESSION_WAIT_INTERVAL)) seconds"
         echo ""
         echo "Improvement complete! No issues found."
         exit 0

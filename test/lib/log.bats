@@ -65,14 +65,14 @@ teardown() {
     [ -z "$output" ] || [[ "$output" != *"Debug message"* ]]
 }
 
-@test "log_debug outputs message when DEBUG=1" {
-    export DEBUG=1
+@test "log_debug outputs message when LOG_LEVEL=DEBUG" {
+    export LOG_LEVEL="DEBUG"
     source "$PROJECT_ROOT/lib/log.sh"
     
     run log_debug "Debug message"
     [[ "$output" == *"Debug message"* ]]
     
-    unset DEBUG
+    unset LOG_LEVEL
 }
 
 # ====================
