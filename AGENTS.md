@@ -50,6 +50,7 @@ pi-issue-runner/
 ├── test/              # Batsテスト（*.bats形式）
 │   ├── lib/           # ライブラリのユニットテスト
 │   ├── scripts/       # スクリプトの統合テスト
+│   ├── regression/    # 回帰テスト
 │   ├── helpers/       # テストヘルパー・モック
 │   ├── fixtures/      # テスト用フィクスチャ
 │   └── test_helper.bash  # Bats共通ヘルパー
@@ -70,13 +71,10 @@ pi-issue-runner/
 ./scripts/test.sh scripts      # test/scripts/*.bats のみ
 
 # Batsテスト直接実行
-bats test/lib/*.bats test/scripts/*.bats
+bats test/**/*.bats
 
 # 特定のテストファイル実行
 bats test/lib/config.bats
-
-# 旧形式テスト実行（互換性のため残存）
-./test/config_test.sh
 
 # シェルスクリプトの構文チェック
 shellcheck scripts/*.sh lib/*.sh
@@ -86,7 +84,7 @@ shellcheck scripts/*.sh lib/*.sh
 ./scripts/status.sh 42
 
 # 継続的改善
-./scripts/improve.sh --dry-run
+./scripts/improve.sh --max-iterations 1
 
 # 複数セッション待機
 ./scripts/wait-for-sessions.sh 42 43

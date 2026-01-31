@@ -8,10 +8,12 @@ source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/tmux.sh"
 source "$SCRIPT_DIR/../lib/worktree.sh"
+source "$SCRIPT_DIR/../lib/status.sh"
 
 usage() {
     cat << EOF
 Usage: $(basename "$0") <session-name|issue-number> [options]
+       $(basename "$0") --orphans [--dry-run]
 
 Arguments:
     session-name    tmuxセッション名（例: pi-issue-42）
@@ -22,6 +24,8 @@ Options:
     --delete-branch   対応するGitブランチも削除
     --keep-session    セッションを維持（worktreeのみ削除）
     --keep-worktree   worktreeを維持（セッションのみ削除）
+    --orphans         孤立したステータスファイルをクリーンアップ
+    --dry-run         削除せずに対象を表示（--orphansと使用）
     -h, --help        このヘルプを表示
 
 Examples:
@@ -29,7 +33,42 @@ Examples:
     $(basename "$0") 42
     $(basename "$0") 42 --force
     $(basename "$0") 42 --delete-branch
+    $(basename "$0") --orphans
+    $(basename "$0") --orphans --dry-run
 EOF
+}
+
+# 孤立したステータスファイルをクリーンアップ
+# 引数:
+#   $1 - dry_run: "true"の場合は削除せずに表示のみ
+cleanup_orphaned_statuses() {
+    local dry_run="${1:-false}"
+    local orphans
+    orphans="$(find_orphaned_statuses)"
+    
+    if [[ -z "$orphans" ]]; then
+        log_info "No orphaned status files found."
+        return 0
+    fi
+    
+    local count=0
+    while IFS= read -r issue_number; do
+        [[ -z "$issue_number" ]] && continue
+        count=$((count + 1))
+        
+        if [[ "$dry_run" == "true" ]]; then
+            log_info "[DRY-RUN] Would remove status file for Issue #$issue_number"
+        else
+            log_info "Removing orphaned status file for Issue #$issue_number"
+            remove_status "$issue_number"
+        fi
+    done <<< "$orphans"
+    
+    if [[ "$dry_run" == "true" ]]; then
+        log_info "[DRY-RUN] Would remove $count orphaned status file(s)"
+    else
+        log_info "Removed $count orphaned status file(s)"
+    fi
 }
 
 main() {
@@ -38,6 +77,8 @@ main() {
     local delete_branch=false
     local keep_session=false
     local keep_worktree=false
+    local orphans=false
+    local dry_run=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -57,6 +98,14 @@ main() {
                 keep_worktree=true
                 shift
                 ;;
+            --orphans)
+                orphans=true
+                shift
+                ;;
+            --dry-run)
+                dry_run=true
+                shift
+                ;;
             -h|--help)
                 usage
                 exit 0
@@ -73,13 +122,19 @@ main() {
         esac
     done
 
+    load_config
+
+    # --orphans モード: 孤立したステータスファイルのクリーンアップ
+    if [[ "$orphans" == "true" ]]; then
+        cleanup_orphaned_statuses "$dry_run"
+        exit 0
+    fi
+
     if [[ -z "$target" ]]; then
         log_error "Session name or issue number is required"
         usage >&2
         exit 1
     fi
-
-    load_config
 
     # Issue番号かセッション名か判定
     local session_name
@@ -118,6 +173,10 @@ main() {
             
             log_info "Removing worktree: $worktree"
             remove_worktree "$worktree" "$force"
+            
+            # ステータスファイルも削除
+            log_debug "Removing status file for Issue #$issue_number"
+            remove_status "$issue_number"
             
             # ブランチ削除
             if [[ "$delete_branch" == "true" && -n "$branch_name" ]]; then

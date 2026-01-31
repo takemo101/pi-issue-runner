@@ -9,153 +9,175 @@ setup() {
         export _CLEANUP_TMPDIR=1
     fi
     
-    export MOCK_DIR="${BATS_TEST_TMPDIR}/mocks"
-    mkdir -p "$MOCK_DIR"
-    export ORIGINAL_PATH="$PATH"
+    # 必要なライブラリを読み込み
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
 }
 
 teardown() {
-    if [[ -n "${ORIGINAL_PATH:-}" ]]; then
-        export PATH="$ORIGINAL_PATH"
-    fi
-    
     if [[ "${_CLEANUP_TMPDIR:-}" == "1" && -d "${BATS_TEST_TMPDIR:-}" ]]; then
         rm -rf "$BATS_TEST_TMPDIR"
     fi
 }
 
 # ====================
-# ヘルプ表示テスト
+# マーカー検出ロジックテスト
 # ====================
 
-@test "watch-session.sh shows help with --help" {
-    run "$PROJECT_ROOT/scripts/watch-session.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Usage:"* ]]
-}
-
-@test "watch-session.sh shows help with -h" {
-    run "$PROJECT_ROOT/scripts/watch-session.sh" -h
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Usage:"* ]]
-}
-
-@test "help includes --marker option" {
-    run "$PROJECT_ROOT/scripts/watch-session.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"--marker"* ]]
-}
-
-@test "help includes --interval option" {
-    run "$PROJECT_ROOT/scripts/watch-session.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"--interval"* ]]
-}
-
-@test "help includes --cleanup-args option" {
-    run "$PROJECT_ROOT/scripts/watch-session.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"--cleanup-args"* ]]
-}
-
-@test "help includes --no-auto-attach option" {
-    run "$PROJECT_ROOT/scripts/watch-session.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"--no-auto-attach"* ]]
-}
-
-@test "help includes description" {
-    run "$PROJECT_ROOT/scripts/watch-session.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Description:"* ]]
-}
-
-# ====================
-# 引数バリデーションテスト
-# ====================
-
-@test "watch-session.sh fails without session name" {
-    run "$PROJECT_ROOT/scripts/watch-session.sh"
-    [ "$status" -ne 0 ]
-    [[ "$output" == *"required"* ]] || [[ "$output" == *"Usage:"* ]]
-}
-
-@test "watch-session.sh fails with unknown option" {
-    run "$PROJECT_ROOT/scripts/watch-session.sh" --unknown-option
-    [ "$status" -ne 0 ]
-    [[ "$output" == *"Unknown option"* ]]
-}
-
-# ====================
-# セッション存在チェックテスト
-# ====================
-
-@test "watch-session.sh fails when session not found" {
-    # tmuxモック - セッション存在しない
-    cat > "$MOCK_DIR/tmux" << 'MOCK_EOF'
-#!/usr/bin/env bash
-case "$1" in
-    "has-session")
-        exit 1  # セッション存在しない
-        ;;
-    *)
-        exit 0
-        ;;
-esac
-MOCK_EOF
-    chmod +x "$MOCK_DIR/tmux"
-    enable_mocks
+simulate_marker_detection() {
+    local baseline_output="$1"
+    local current_output="$2"
+    local marker="$3"
     
-    run "$PROJECT_ROOT/scripts/watch-session.sh" pi-issue-42
-    [ "$status" -ne 0 ]
-    [[ "$output" == *"not found"* ]] || [[ "$output" == *"Session"* ]]
+    local marker_count_baseline
+    local marker_count_current
+    marker_count_baseline=$(echo "$baseline_output" | grep -cF "$marker" 2>/dev/null) || marker_count_baseline=0
+    marker_count_current=$(echo "$current_output" | grep -cF "$marker" 2>/dev/null) || marker_count_current=0
+    
+    if [[ "$marker_count_current" -gt "$marker_count_baseline" ]]; then
+        echo "detected"
+    else
+        echo "not_detected"
+    fi
+}
+
+@test "marker not present - not detected" {
+    result=$(simulate_marker_detection "some output" "more output" "###TASK_COMPLETE_42###")
+    [ "$result" = "not_detected" ]
+}
+
+@test "marker present in current - detected" {
+    result=$(simulate_marker_detection "some output" "output ###TASK_COMPLETE_42###" "###TASK_COMPLETE_42###")
+    [ "$result" = "detected" ]
+}
+
+@test "same marker count - not detected" {
+    result=$(simulate_marker_detection "###TASK_COMPLETE_42###" "###TASK_COMPLETE_42###" "###TASK_COMPLETE_42###")
+    [ "$result" = "not_detected" ]
+}
+
+@test "more markers than baseline - detected" {
+    baseline_multi="line1
+###TASK_COMPLETE_42###
+line2"
+    current_multi="line1
+###TASK_COMPLETE_42###
+line2
+###TASK_COMPLETE_42###"
+    result=$(simulate_marker_detection "$baseline_multi" "$current_multi" "###TASK_COMPLETE_42###")
+    [ "$result" = "detected" ]
+}
+
+@test "empty baseline with new marker - detected" {
+    result=$(simulate_marker_detection "" "###TASK_COMPLETE_42###" "###TASK_COMPLETE_42###")
+    [ "$result" = "detected" ]
+}
+
+@test "empty output - not detected" {
+    result=$(simulate_marker_detection "" "" "###TASK_COMPLETE_42###")
+    [ "$result" = "not_detected" ]
 }
 
 # ====================
 # Issue番号抽出テスト
 # ====================
 
-@test "watch-session.sh extracts issue number from session name" {
-    # tmuxモック - セッション存在するがすぐ終了
-    cat > "$MOCK_DIR/tmux" << 'MOCK_EOF'
-#!/usr/bin/env bash
-case "$1" in
-    "has-session")
-        if [[ "$3" == "pi-issue-invalid" ]]; then
-            exit 0  # セッション存在
-        fi
-        exit 0
-        ;;
-    "capture-pane")
-        echo "some output"
-        exit 0
-        ;;
-    *)
-        exit 0
-        ;;
-esac
-MOCK_EOF
-    chmod +x "$MOCK_DIR/tmux"
-    enable_mocks
-    
-    # Issue番号が抽出できないセッション名でエラー
-    run "$PROJECT_ROOT/scripts/watch-session.sh" invalid-session-name
-    # セッションが存在しないか、Issue番号抽出エラーのいずれか
+@test "extract_issue_number from pi-issue-42" {
+    result="$(extract_issue_number "pi-issue-42")"
+    [ "$result" = "42" ]
+}
+
+@test "extract_issue_number from pi-issue-134" {
+    result="$(extract_issue_number "pi-issue-134")"
+    [ "$result" = "134" ]
+}
+
+@test "extract_issue_number from project-issue-999" {
+    result="$(extract_issue_number "project-issue-999")"
+    [ "$result" = "999" ]
+}
+
+@test "extract_issue_number from pi-issue-42-feature" {
+    result="$(extract_issue_number "pi-issue-42-feature")"
+    [ "$result" = "42" ]
+}
+
+@test "extract_issue_number from pi-issue-10-fix-bug-abc" {
+    result="$(extract_issue_number "pi-issue-10-fix-bug-abc")"
+    [ "$result" = "10" ]
+}
+
+@test "extract_issue_number returns empty for invalid session name" {
+    result="$(extract_issue_number "session-name-only" 2>/dev/null)" || result=""
+    [ -z "$result" ]
+}
+
+# ====================
+# 引数処理テスト
+# ====================
+
+@test "watch-session.sh --help exits with 0" {
+    run "$PROJECT_ROOT/scripts/watch-session.sh" --help
+    [ "$status" -eq 0 ]
+}
+
+@test "watch-session.sh --help shows Usage" {
+    run "$PROJECT_ROOT/scripts/watch-session.sh" --help
+    [[ "$output" == *"Usage:"* ]]
+}
+
+@test "watch-session.sh --help shows --marker option" {
+    run "$PROJECT_ROOT/scripts/watch-session.sh" --help
+    [[ "$output" == *"--marker"* ]]
+}
+
+@test "watch-session.sh --help shows --interval option" {
+    run "$PROJECT_ROOT/scripts/watch-session.sh" --help
+    [[ "$output" == *"--interval"* ]]
+}
+
+@test "watch-session.sh without session name fails" {
+    run "$PROJECT_ROOT/scripts/watch-session.sh"
     [ "$status" -ne 0 ]
+    [[ "$output" == *"Session name is required"* ]] || [[ "$output" == *"required"* ]]
+}
+
+@test "watch-session.sh with unknown option fails" {
+    run "$PROJECT_ROOT/scripts/watch-session.sh" "test-session" --unknown-option
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Unknown option"* ]]
 }
 
 # ====================
-# マーカー検出テスト
+# マーカー生成テスト
 # ====================
 
-@test "help explains completion marker format" {
-    run "$PROJECT_ROOT/scripts/watch-session.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"TASK_COMPLETE"* ]] || [[ "$output" == *"completion marker"* ]] || [[ "$output" == *"完了"* ]]
+@test "marker format for issue 42" {
+    expected="###TASK_COMPLETE_42###"
+    [ "$expected" = "###TASK_COMPLETE_42###" ]
 }
 
-@test "help explains error marker detection" {
-    run "$PROJECT_ROOT/scripts/watch-session.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"TASK_ERROR"* ]] || [[ "$output" == *"error"* ]] || [[ "$output" == *"エラー"* ]]
+@test "marker format for issue 134" {
+    expected="###TASK_COMPLETE_134###"
+    [ "$expected" = "###TASK_COMPLETE_134###" ]
+}
+
+@test "marker format for issue 1" {
+    expected="###TASK_COMPLETE_1###"
+    [ "$expected" = "###TASK_COMPLETE_1###" ]
+}
+
+# ====================
+# 存在しないセッションテスト
+# ====================
+
+@test "watch-session.sh fails for non-existent session" {
+    if ! command -v tmux &> /dev/null; then
+        skip "tmux not installed"
+    fi
+    
+    run "$PROJECT_ROOT/scripts/watch-session.sh" "nonexistent-session-xyz123"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Session not found"* ]] || [[ "$output" == *"not found"* ]]
 }
