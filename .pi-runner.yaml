@@ -30,7 +30,7 @@ tmux:
 agent:
   # エージェントタイプ: pi | claude | opencode | custom
   # 空の場合は pi セクションの設定を使用（後方互換性）
-  type: "opencode"
+  type: "pi"
 
   # カスタムコマンド（type: custom の場合に使用）
   # command: "my-agent"
@@ -42,7 +42,7 @@ agent:
   # エージェントに渡す追加引数
   # args:
   #   - --model
-  #   - anthropic/claude-sonnet-4-20250514
+  #   - claude-sonnet-4-20250514
 
 # =====================================
 # piコマンド設定（後方互換性のため残存）
@@ -93,7 +93,7 @@ workflow:
 plans:
   # 保持する計画書の件数（0 = 全て保持）
   keep_recent: 10
-  
+
   # 計画書ディレクトリ
   dir: "docs/plans"
 
