@@ -305,9 +305,11 @@ pi-issue-runner/
 │   ├── log.sh              # ログ出力
 │   ├── notify.sh           # 通知機能
 │   ├── status.sh           # ステータスファイル管理
+│   ├── template.sh         # テンプレート処理
 │   ├── tmux.sh             # tmux操作
 │   ├── workflow.sh         # ワークフローエンジン
-│   └── worktree.sh         # Git worktree操作
+│   ├── worktree.sh         # Git worktree操作
+│   └── yaml.sh             # YAMLパーサー
 ├── workflows/               # ビルトインワークフロー定義
 │   ├── default.yaml        # 完全ワークフロー
 │   └── simple.yaml         # 簡易ワークフロー
@@ -369,9 +371,11 @@ test/
 │   ├── log.bats                 # log.sh のテスト
 │   ├── notify.bats              # notify.sh のテスト
 │   ├── status.bats              # status.sh のテスト
+│   ├── template.bats            # template.sh のテスト
 │   ├── tmux.bats                # tmux.sh のテスト
 │   ├── workflow.bats            # workflow.sh のテスト
-│   └── worktree.bats            # worktree.sh のテスト
+│   ├── worktree.bats            # worktree.sh のテスト
+│   └── yaml.bats                # yaml.sh のテスト
 ├── scripts/                     # スクリプトの統合テスト
 │   ├── attach.bats              # attach.sh のテスト
 │   ├── cleanup.bats             # cleanup.sh のテスト
