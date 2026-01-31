@@ -30,7 +30,7 @@ tmux:
 agent:
   # エージェントタイプ: pi | claude | opencode | custom
   # 空の場合は pi セクションの設定を使用（後方互換性）
-  type: "pi"
+  type: "opencode"
 
   # カスタムコマンド（type: custom の場合に使用）
   # command: "my-agent"
@@ -42,7 +42,7 @@ agent:
   # エージェントに渡す追加引数
   # args:
   #   - --model
-  #   - claude-sonnet-4-20250514
+  #   - anthropic/claude-sonnet-4-20250514
 
 # =====================================
 # piコマンド設定（後方互換性のため残存）
