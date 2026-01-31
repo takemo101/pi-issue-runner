@@ -9,6 +9,7 @@
 - **言語**: Bash 4.0以上
 - **依存ツール**: `gh` (GitHub CLI), `tmux`, `git`, `jq`, `yq` (YAMLパーサー、オプション)
 - **テストフレームワーク**: Bats (Bash Automated Testing System)
+- **静的解析**: ShellCheck
 
 ## ディレクトリ構造
 
@@ -76,8 +77,10 @@ bats test/**/*.bats
 # 特定のテストファイル実行
 bats test/lib/config.bats
 
-# シェルスクリプトの構文チェック
-shellcheck scripts/*.sh lib/*.sh
+# ShellCheck（静的解析）
+./scripts/test.sh --shellcheck    # ShellCheckのみ実行
+./scripts/test.sh --all           # Bats + ShellCheck
+shellcheck -x scripts/*.sh lib/*.sh  # 直接実行
 
 # 手動テスト
 ./scripts/list.sh -v
@@ -244,9 +247,54 @@ GitHub Issue #{{issue_number}} のテストを実行します。
 2. プロジェクトルートの `.pi/workflow.yaml`
 3. ビルトイン（`workflows/` ディレクトリ）
 
+## ShellCheck
+
+### インストール
+
+```bash
+# macOS
+brew install shellcheck
+
+# Ubuntu/Debian
+sudo apt-get install shellcheck
+
+# その他
+# https://github.com/koalaman/shellcheck#installing
+```
+
+### 実行方法
+
+```bash
+# test.shから実行（推奨）
+./scripts/test.sh --shellcheck    # ShellCheckのみ
+./scripts/test.sh --all           # Bats + ShellCheck
+
+# 直接実行
+shellcheck -x scripts/*.sh lib/*.sh
+```
+
+### 設定ファイル
+
+プロジェクトルートの `.shellcheckrc` で設定を管理しています：
+
+```bash
+# ソースファイルを追跡
+external-sources=true
+
+# 無効化している警告
+# SC1091: ソースファイルが見つからない（-x オプションで対応）
+# SC2016: シングルクォート内で変数展開されない（正規表現で意図的に使用）
+```
+
+### CI統合
+
+GitHub Actions で自動的にShellCheckが実行されます。
+PRをマージする前に警告が解消されている必要があります。
+
 ## 注意事項
 
 - すべてのスクリプトは `set -euo pipefail` で始める
 - 外部コマンドの存在確認を行う
 - エラーメッセージは stderr に出力
 - 終了コードを適切に設定する
+- ShellCheck警告は意図的な場合を除き修正する

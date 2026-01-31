@@ -3,8 +3,6 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 # ヘルプを先に処理
 for arg in "$@"; do
     case "$arg" in
@@ -239,12 +237,8 @@ main() {
     echo "🚀 pi-issue-runner プロジェクト初期化"
     echo ""
 
-    local has_error=false
-
     # 1. .pi-runner.yaml
-    if ! create_file ".pi-runner.yaml" "$(generate_config_content)" "$force"; then
-        has_error=true
-    fi
+    create_file ".pi-runner.yaml" "$(generate_config_content)" "$force" || true
 
     # minimal モードの場合はここで終了
     if [[ "$mode" == "minimal" ]]; then

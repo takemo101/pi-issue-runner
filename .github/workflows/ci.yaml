@@ -19,7 +19,10 @@ jobs:
         uses: ludeeus/action-shellcheck@master
         with:
           scandir: "./scripts ./lib"
-          severity: error
+          severity: warning
+          additional_files: "install.sh uninstall.sh"
+        env:
+          SHELLCHECK_OPTS: "-x"
 
   unit-tests:
     name: Unit Tests
