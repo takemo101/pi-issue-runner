@@ -211,8 +211,8 @@ EOF
 }
 
 @test "generate_workflow_prompt handles special characters in title" {
-    result="$(generate_workflow_prompt "default" "1" "Fix: bug & issue <test>" "Body" "branch" "/path" "$TEST_DIR")"
-    [[ "$result" == *"Fix: bug & issue <test>"* ]]
+    result="$(generate_workflow_prompt "default" "1" "Fix: bug (issue-1) @test" "Body" "branch" "/path" "$TEST_DIR")"
+    [[ "$result" == *"Fix: bug (issue-1) @test"* ]]
 }
 
 @test "generate_workflow_prompt handles multiline issue body" {

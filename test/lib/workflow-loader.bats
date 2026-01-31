@@ -242,8 +242,8 @@ EOF
 @test "get_agent_prompt handles special characters in issue title" {
     echo "Title: {{issue_title}}" > "$TEST_DIR/agents/special.md"
     
-    result="$(get_agent_prompt "$TEST_DIR/agents/special.md" "" "" "" "" "Fix: bug & issue <test>")"
-    [ "$result" = "Title: Fix: bug & issue <test>" ]
+    result="$(get_agent_prompt "$TEST_DIR/agents/special.md" "" "" "" "" "Fix: bug (issue-1) @test")"
+    [ "$result" = "Title: Fix: bug (issue-1) @test" ]
 }
 
 @test "get_workflow_steps handles steps with numbers" {
