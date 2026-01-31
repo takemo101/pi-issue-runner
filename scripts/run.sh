@@ -236,6 +236,19 @@ main() {
     # セッション作成成功 - クリーンアップ対象から除外
     unregister_worktree_for_cleanup
 
+    # 自動クリーンアップが有効な場合、監視プロセスを起動
+    if [[ "$cleanup_mode" != "none" ]]; then
+        log_info "Starting completion watcher..."
+        local watcher_log="/tmp/pi-watcher-${session_name}.log"
+        local watcher_script
+        watcher_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/watch-session.sh"
+        nohup "$watcher_script" "$session_name" \
+            > "$watcher_log" 2>&1 &
+        local watcher_pid=$!
+        disown "$watcher_pid" 2>/dev/null || true
+        log_debug "Watcher PID: $watcher_pid, Log: $watcher_log"
+    fi
+
     log_info "=== Summary ==="
     log_info "Issue:     #$issue_number - $issue_title"
     log_info "Worktree:  $worktree_path"
@@ -244,7 +257,7 @@ main() {
     if [[ "$cleanup_mode" == "none" ]]; then
         log_info "Cleanup:   disabled (--no-cleanup)"
     else
-        log_info "Cleanup:   auto (on pi exit)"
+        log_info "Cleanup:   auto (on completion marker)"
     fi
 
     # アタッチ

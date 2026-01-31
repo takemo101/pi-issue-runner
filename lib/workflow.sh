@@ -437,7 +437,7 @@ EOF
     done
     
     # フッター（コミット情報）
-    cat << 'EOF'
+    cat << EOF
 ---
 
 ### Commit Types
@@ -453,12 +453,17 @@ EOF
 - If PR merge fails, report the error
 
 ### On Completion
-**CRITICAL**: After completing all workflow steps (including PR merge):
-1. Do NOT just print a message about /exit
-2. You MUST actually type and send the command: /exit
-3. This is a pi internal command, not a bash command
-4. Simply respond with exactly: /exit
-5. This triggers automatic cleanup of the worktree and tmux session
+**CRITICAL**: After completing all workflow steps (including PR merge), you MUST output the completion marker.
+
+The marker format combines these parts (no spaces):
+- Prefix: \`###TASK\`
+- Middle: \`_COMPLETE_\`
+- Issue number: \`${issue_number}\`
+- Suffix: \`###\`
+
+Combine them and output as a single line. This marker is monitored by an external process that will automatically clean up the worktree and terminate this tmux session.
+
+Do NOT skip this step.
 EOF
 }
 
