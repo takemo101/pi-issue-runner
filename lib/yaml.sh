@@ -108,13 +108,16 @@ _yq_get() {
     local default="${3:-}"
     
     local value
-    value=$(yq -r "$path // \"\"" "$file" 2>/dev/null || echo "")
-    
-    if [[ -n "$value" && "$value" != "null" ]]; then
-        echo "$value"
-    else
-        echo "$default"
+    # パスが存在するか確認してから値を取得（falseも正しく取得するため）
+    if yq -e "$path != null" "$file" &>/dev/null; then
+        value=$(yq -r "$path" "$file" 2>/dev/null || echo "")
+        if [[ "$value" != "null" ]]; then
+            echo "$value"
+            return 0
+        fi
     fi
+    
+    echo "$default"
 }
 
 # yq で配列を取得

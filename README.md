@@ -175,6 +175,11 @@ pi:
   command: "pi"
   args: []
 
+# GitHub設定
+github:
+  include_comments: true  # Issueコメントを含める（デフォルト: true）
+  max_comments: 10        # 最大コメント数（0 = 無制限）
+
 # エージェント設定（複数エージェント対応）
 agent:
   type: pi  # pi, claude, opencode, custom

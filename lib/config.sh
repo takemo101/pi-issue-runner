@@ -21,6 +21,8 @@ CONFIG_PI_ARGS="${CONFIG_PI_ARGS:-}"
 CONFIG_PARALLEL_MAX_CONCURRENT="${CONFIG_PARALLEL_MAX_CONCURRENT:-0}"  # 0 = unlimited
 CONFIG_PLANS_KEEP_RECENT="${CONFIG_PLANS_KEEP_RECENT:-10}"  # 直近N件の計画書を保持（0=全て保持）
 CONFIG_PLANS_DIR="${CONFIG_PLANS_DIR:-docs/plans}"  # 計画書ディレクトリ
+CONFIG_GITHUB_INCLUDE_COMMENTS="${CONFIG_GITHUB_INCLUDE_COMMENTS:-true}"  # Issueコメントを含める
+CONFIG_GITHUB_MAX_COMMENTS="${CONFIG_GITHUB_MAX_COMMENTS:-10}"  # 最大コメント数（0 = 無制限）
 
 # エージェント設定（マルチエージェント対応）
 CONFIG_AGENT_TYPE="${CONFIG_AGENT_TYPE:-}"       # pi | claude | opencode | custom (空 = pi.commandを使用)
@@ -113,6 +115,16 @@ _parse_config_file() {
     value="$(yaml_get "$config_file" ".plans.dir" "")"
     if [[ -n "$value" ]]; then
         CONFIG_PLANS_DIR="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".github.include_comments" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_GITHUB_INCLUDE_COMMENTS="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".github.max_comments" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_GITHUB_MAX_COMMENTS="$value"
     fi
     
     # agent セクションのパース
@@ -217,6 +229,12 @@ _apply_env_overrides() {
     if [[ -n "${PI_RUNNER_PLANS_DIR:-}" ]]; then
         CONFIG_PLANS_DIR="$PI_RUNNER_PLANS_DIR"
     fi
+    if [[ -n "${PI_RUNNER_GITHUB_INCLUDE_COMMENTS:-}" ]]; then
+        CONFIG_GITHUB_INCLUDE_COMMENTS="$PI_RUNNER_GITHUB_INCLUDE_COMMENTS"
+    fi
+    if [[ -n "${PI_RUNNER_GITHUB_MAX_COMMENTS:-}" ]]; then
+        CONFIG_GITHUB_MAX_COMMENTS="$PI_RUNNER_GITHUB_MAX_COMMENTS"
+    fi
     # エージェント設定の環境変数オーバーライド
     if [[ -n "${PI_RUNNER_AGENT_TYPE:-}" ]]; then
         CONFIG_AGENT_TYPE="$PI_RUNNER_AGENT_TYPE"
@@ -263,6 +281,12 @@ get_config() {
         plans_dir)
             echo "$CONFIG_PLANS_DIR"
             ;;
+        github_include_comments)
+            echo "$CONFIG_GITHUB_INCLUDE_COMMENTS"
+            ;;
+        github_max_comments)
+            echo "$CONFIG_GITHUB_MAX_COMMENTS"
+            ;;
         agent_type)
             echo "$CONFIG_AGENT_TYPE"
             ;;
@@ -296,6 +320,8 @@ show_config() {
     echo "tmux_start_in_session: $CONFIG_TMUX_START_IN_SESSION"
     echo "pi_command: $CONFIG_PI_COMMAND"
     echo "pi_args: $CONFIG_PI_ARGS"
+    echo "github_include_comments: $CONFIG_GITHUB_INCLUDE_COMMENTS"
+    echo "github_max_comments: $CONFIG_GITHUB_MAX_COMMENTS"
     echo "agent_type: $CONFIG_AGENT_TYPE"
     echo "agent_command: $CONFIG_AGENT_COMMAND"
     echo "agent_args: $CONFIG_AGENT_ARGS"
