@@ -181,3 +181,55 @@ line2
     [ "$status" -ne 0 ]
     [[ "$output" == *"Session not found"* ]] || [[ "$output" == *"not found"* ]]
 }
+
+# ====================
+# Issue #281: 初期化時マーカー検出テスト
+# ====================
+
+# ベースラインに既にマーカーがある場合の検出シミュレーション
+simulate_startup_marker_detection() {
+    local baseline_output="$1"
+    local marker="$2"
+    
+    if echo "$baseline_output" | grep -qF "$marker" 2>/dev/null; then
+        echo "detected_at_startup"
+    else
+        echo "not_detected"
+    fi
+}
+
+@test "Issue #281: marker present in baseline - detected at startup" {
+    baseline="some output
+###TASK_COMPLETE_42###
+more output"
+    result=$(simulate_startup_marker_detection "$baseline" "###TASK_COMPLETE_42###")
+    [ "$result" = "detected_at_startup" ]
+}
+
+@test "Issue #281: marker not in baseline - not detected at startup" {
+    baseline="some output
+more output"
+    result=$(simulate_startup_marker_detection "$baseline" "###TASK_COMPLETE_42###")
+    [ "$result" = "not_detected" ]
+}
+
+@test "Issue #281: empty baseline - not detected at startup" {
+    result=$(simulate_startup_marker_detection "" "###TASK_COMPLETE_42###")
+    [ "$result" = "not_detected" ]
+}
+
+@test "Issue #281: error marker in baseline - detected at startup" {
+    baseline="some output
+###TASK_ERROR_42###
+Error message here"
+    result=$(simulate_startup_marker_detection "$baseline" "###TASK_ERROR_42###")
+    [ "$result" = "detected_at_startup" ]
+}
+
+@test "Issue #281: partial marker in baseline - not detected" {
+    baseline="some output
+###TASK_COMPLETE
+more output"
+    result=$(simulate_startup_marker_detection "$baseline" "###TASK_COMPLETE_42###")
+    [ "$result" = "not_detected" ]
+}

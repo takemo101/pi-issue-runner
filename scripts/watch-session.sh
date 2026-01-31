@@ -121,6 +121,36 @@ main() {
     local baseline_output
     baseline_output=$(tmux capture-pane -t "$session_name" -p -S -1000 2>/dev/null) || baseline_output=""
     
+    # 初期化時点でマーカーが既にあるか確認（高速完了タスク対応）
+    # Issue #281: 初期化中（10秒待機中）にマーカーが出力された場合の検出
+    if echo "$baseline_output" | grep -qF "$error_marker" 2>/dev/null; then
+        log_warn "Error marker already present at startup"
+        
+        # エラーメッセージを抽出
+        local error_message
+        error_message=$(echo "$baseline_output" | grep -A 1 "$error_marker" | tail -n 1 | head -c 200) || error_message="Unknown error"
+        
+        handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach"
+        log_warn "Error notification sent. Session is still running for manual intervention."
+        # エラーの場合は監視を続行（ユーザーが修正する可能性があるため）
+    elif echo "$baseline_output" | grep -qF "$marker" 2>/dev/null; then
+        log_info "Completion marker already present at startup"
+        
+        handle_complete "$session_name" "$issue_number"
+        
+        log_info "Running cleanup..."
+        sleep 2
+        
+        # shellcheck disable=SC2086
+        "$WATCHER_SCRIPT_DIR/cleanup.sh" "$session_name" $cleanup_args || {
+            log_error "Cleanup failed"
+            exit 1
+        }
+        
+        log_info "Cleanup completed successfully"
+        exit 0
+    fi
+    
     log_info "Starting marker detection..."
 
     # 監視ループ
