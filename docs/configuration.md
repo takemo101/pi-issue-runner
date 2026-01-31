@@ -97,7 +97,8 @@ workflow:
   name: default
   
   # 実行するステップ
-  # 利用可能: plan, implement, review, merge, test, security-check
+  # ビルトイン: plan, implement, review, merge
+  # カスタムステップも定義可能（対応するエージェントテンプレートが必要）
   steps:
     - plan
     - implement
@@ -276,15 +277,15 @@ workflow:
     - implement
     - merge
 
-# 徹底ワークフロー
+# カスタムワークフロー例
+# 注: カスタムステップ（test等）を使用する場合は、
+# 対応するエージェントテンプレート（agents/test.md）の作成が必要です
 workflow:
-  name: thorough
+  name: custom
   steps:
     - plan
     - implement
-    - test
     - review
-    - security-check
     - merge
 ```
 
