@@ -1,0 +1,289 @@
+#!/usr/bin/env bash
+# init.sh - プロジェクト初期化
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ヘルプを先に処理
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help)
+            cat << 'HELP_EOF'
+Usage: init.sh [options]
+
+Options:
+    --full          完全セットアップ（agents/, workflows/ も作成）
+    --minimal       最小セットアップ（.pi-runner.yaml のみ）
+    --force         既存ファイルを上書き
+    -h, --help      このヘルプを表示
+
+Examples:
+    init.sh              # 標準セットアップ
+    init.sh --full       # 完全セットアップ
+    init.sh --minimal    # 最小セットアップ
+    init.sh --force      # 既存ファイルを上書き
+HELP_EOF
+            exit 0
+            ;;
+    esac
+done
+
+# 色付き出力
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+log_success() {
+    echo -e "  ${GREEN}✓${NC} $1"
+}
+
+log_warning() {
+    echo -e "  ${YELLOW}⚠${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}Error:${NC} $1" >&2
+}
+
+# .pi-runner.yaml のテンプレート
+generate_config_content() {
+    cat << 'EOF'
+# pi-issue-runner 設定ファイル
+# 詳細: https://github.com/takemo101/pi-issue-runner/blob/main/docs/configuration.md
+
+worktree:
+  base_dir: ".worktrees"
+  # copy_files: ".env .env.local"  # worktreeにコピーするファイル
+
+tmux:
+  session_prefix: "pi"
+  # start_in_session: true
+
+pi:
+  command: "pi"
+  # args: ""
+
+# parallel:
+#   max_concurrent: 0  # 0 = 無制限
+EOF
+}
+
+# .worktrees/.gitkeep のテンプレート
+generate_gitkeep_content() {
+    cat << 'EOF'
+# このディレクトリはpi-issue-runnerのworktree用です
+# .gitignoreで除外されています
+EOF
+}
+
+# agents/custom.md のテンプレート
+generate_custom_agent_content() {
+    cat << 'EOF'
+# Custom Agent
+
+GitHub Issue #{{issue_number}} を処理します。
+
+## コンテキスト
+- **Issue番号**: #{{issue_number}}
+- **タイトル**: {{issue_title}}
+- **ブランチ**: {{branch_name}}
+- **作業ディレクトリ**: {{worktree_path}}
+
+## タスク
+1. Issueの内容を確認
+2. 必要な変更を実装
+3. テストを実行
+4. コミット＆プッシュ
+EOF
+}
+
+# workflows/custom.yaml のテンプレート
+generate_custom_workflow_content() {
+    cat << 'EOF'
+name: custom
+description: カスタムワークフロー
+steps:
+  - plan
+  - implement
+  - review
+  - merge
+EOF
+}
+
+# .gitignore に追加する内容
+GITIGNORE_ENTRIES="
+# pi-issue-runner
+.worktrees/
+.pi-runner.yaml.local
+*.swp
+"
+
+# ファイルを作成（上書きチェック付き）
+create_file() {
+    local file="$1"
+    local content="$2"
+    local force="$3"
+    
+    if [[ -f "$file" ]]; then
+        if [[ "$force" == "true" ]]; then
+            echo "$content" > "$file"
+            log_success "$file を上書き"
+        else
+            log_warning "$file は既に存在します（--force で上書き可能）"
+            return 1
+        fi
+    else
+        local dir
+        dir="$(dirname "$file")"
+        [[ ! -d "$dir" ]] && mkdir -p "$dir"
+        echo "$content" > "$file"
+        log_success "$file を作成"
+    fi
+    return 0
+}
+
+# ディレクトリを作成
+create_directory() {
+    local dir="$1"
+    
+    if [[ -d "$dir" ]]; then
+        log_warning "$dir ディレクトリは既に存在します"
+        return 1
+    else
+        mkdir -p "$dir"
+        log_success "$dir/ ディレクトリを作成"
+        return 0
+    fi
+}
+
+# .gitignore を更新
+update_gitignore() {
+    local force="$1"
+    local gitignore=".gitignore"
+    local added=false
+    
+    # 各エントリをチェックして追加
+    while IFS= read -r entry; do
+        # 空行とコメント行はスキップしない（そのまま処理）
+        [[ -z "$entry" ]] && continue
+        
+        # コメント行は特別に処理
+        if [[ "$entry" == \#* ]]; then
+            if [[ ! -f "$gitignore" ]] || ! grep -qF "$entry" "$gitignore" 2>/dev/null; then
+                echo "$entry" >> "$gitignore"
+            fi
+            continue
+        fi
+        
+        # 既に存在するかチェック
+        if [[ -f "$gitignore" ]] && grep -qF "$entry" "$gitignore" 2>/dev/null; then
+            continue
+        fi
+        
+        # 追加
+        echo "$entry" >> "$gitignore"
+        added=true
+    done <<< "$GITIGNORE_ENTRIES"
+    
+    if [[ "$added" == "true" ]]; then
+        log_success ".gitignore を更新"
+    else
+        log_warning ".gitignore は更新不要（エントリ済み）"
+    fi
+}
+
+main() {
+    local mode="standard"
+    local force=false
+
+    # 引数のパース
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --full)
+                mode="full"
+                shift
+                ;;
+            --minimal)
+                mode="minimal"
+                shift
+                ;;
+            --force)
+                force=true
+                shift
+                ;;
+            -h|--help)
+                # 上で処理済み
+                exit 0
+                ;;
+            -*)
+                log_error "Unknown option: $1"
+                echo "Use -h or --help for usage information." >&2
+                exit 1
+                ;;
+            *)
+                log_error "Unexpected argument: $1"
+                echo "Use -h or --help for usage information." >&2
+                exit 1
+                ;;
+        esac
+    done
+
+    # Git リポジトリかチェック
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        log_error "Git リポジトリではありません。git init を先に実行してください。"
+        exit 1
+    fi
+
+    echo "🚀 pi-issue-runner プロジェクト初期化"
+    echo ""
+
+    local has_error=false
+
+    # 1. .pi-runner.yaml
+    if ! create_file ".pi-runner.yaml" "$(generate_config_content)" "$force"; then
+        has_error=true
+    fi
+
+    # minimal モードの場合はここで終了
+    if [[ "$mode" == "minimal" ]]; then
+        echo ""
+        echo "✅ 最小初期化完了！"
+        echo ""
+        echo "次のステップ:"
+        echo "  1. .pi-runner.yaml を編集してカスタマイズ"
+        echo "  2. pi-run <issue-number> でIssueを実行"
+        return 0
+    fi
+
+    # 2. .worktrees/ ディレクトリ
+    if create_directory ".worktrees"; then
+        # .gitkeep を作成
+        create_file ".worktrees/.gitkeep" "$(generate_gitkeep_content)" "$force" || true
+    fi
+
+    # 3. .gitignore 更新
+    update_gitignore "$force"
+
+    # full モードの場合は追加ファイルを作成
+    if [[ "$mode" == "full" ]]; then
+        echo ""
+        echo "  [完全モード: 追加ファイル作成]"
+        
+        # 4. agents/custom.md
+        create_file "agents/custom.md" "$(generate_custom_agent_content)" "$force" || true
+        
+        # 5. workflows/custom.yaml
+        create_file "workflows/custom.yaml" "$(generate_custom_workflow_content)" "$force" || true
+    fi
+
+    echo ""
+    echo "✅ 初期化完了！"
+    echo ""
+    echo "次のステップ:"
+    echo "  1. .pi-runner.yaml を編集してカスタマイズ"
+    echo "  2. pi-run <issue-number> でIssueを実行"
+}
+
+main "$@"

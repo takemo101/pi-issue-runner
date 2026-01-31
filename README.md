@@ -61,6 +61,7 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | `pi-improve` | 継続的改善 |
 | `pi-wait` | 完了待機 |
 | `pi-watch` | セッション監視 |
+| `pi-init` | プロジェクト初期化 |
 
 カスタムインストール先を指定する場合:
 
@@ -75,6 +76,24 @@ INSTALL_DIR=/usr/local/bin ./install.sh
 ```
 
 ## 使い方
+
+### プロジェクト初期化
+
+新しいプロジェクトでpi-issue-runnerを使い始める場合：
+
+```bash
+# 標準セットアップ（.pi-runner.yaml、.worktrees/、.gitignore更新）
+pi-init
+
+# 完全セットアップ（上記 + agents/custom.md、workflows/custom.yaml）
+pi-init --full
+
+# 最小セットアップ（.pi-runner.yamlのみ）
+pi-init --minimal
+
+# 既存ファイルを上書き
+pi-init --force
+```
 
 ### Issue実行
 
@@ -265,7 +284,8 @@ pi-issue-runner/
 │   ├── cleanup.sh          # クリーンアップ
 │   ├── watch-session.sh    # セッション監視と自動クリーンアップ
 │   ├── wait-for-sessions.sh # 複数セッション完了待機
-│   └── improve.sh          # 継続的改善スクリプト
+│   ├── improve.sh          # 継続的改善スクリプト
+│   └── init.sh             # プロジェクト初期化
 ├── lib/
 │   ├── config.sh           # 設定読み込み
 │   ├── github.sh           # GitHub API操作
