@@ -192,7 +192,8 @@ pi-issue-runner/
 │   ├── attach.sh           # セッションアタッチ
 │   ├── stop.sh             # セッション停止
 │   ├── cleanup.sh          # クリーンアップ
-│   └── post-session.sh     # セッション終了後処理
+│   ├── post-session.sh     # セッション終了後処理
+│   └── watch-session.sh    # セッション監視と自動クリーンアップ
 ├── lib/
 │   ├── config.sh           # 設定読み込み
 │   ├── github.sh           # GitHub API操作

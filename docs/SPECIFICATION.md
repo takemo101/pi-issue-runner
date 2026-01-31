@@ -109,7 +109,8 @@ project-root/
     ├── attach.sh            # セッションアタッチ
     ├── stop.sh              # セッション停止
     ├── cleanup.sh           # クリーンアップ
-    └── post-session.sh      # セッション終了後処理
+    ├── post-session.sh      # セッション終了後処理
+    └── watch-session.sh     # セッション監視と自動クリーンアップ
 ```
 
 ## 設定
@@ -249,6 +250,44 @@ Options:
     --keep-session    セッションを維持
     --keep-worktree   worktreeを維持
 ```
+
+### watch-session.sh - セッション監視と自動クリーンアップ
+
+```bash
+./scripts/watch-session.sh <session-name> [options]
+
+Arguments:
+    session-name    監視するtmuxセッション名
+
+Options:
+    --marker <text>   完了マーカー（デフォルト: ###TASK_COMPLETE_<issue>###）
+    --interval <sec>  監視間隔（デフォルト: 2秒）
+    --cleanup-args    cleanup.shに渡す追加引数
+    -h, --help        このヘルプを表示
+```
+
+#### 動作概要
+
+1. tmuxセッションの出力を定期的にキャプチャ
+2. 完了マーカー（`###TASK_COMPLETE_<issue_number>###`）を検出
+3. マーカー検出時に `cleanup.sh` を自動実行
+4. セッションが終了した場合は監視を停止
+
+#### 使用例
+
+```bash
+# run.shから自動的に起動される（通常は直接呼び出さない）
+./scripts/watch-session.sh pi-issue-42
+
+# カスタムマーカーを指定
+./scripts/watch-session.sh pi-issue-42 --marker "###DONE###"
+
+# 監視間隔を変更
+./scripts/watch-session.sh pi-issue-42 --interval 5
+```
+
+※ このスクリプトは通常、`run.sh` がバックグラウンドで自動的に起動します。
+直接呼び出す必要はありません。
 
 ## 依存関係
 
