@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: "./scripts ./lib"
+          severity: error
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq tmux
+
+          # Install yq (YAML parser)
+          YQ_VERSION="v4.40.5"
+          sudo wget -qO /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Run unit tests
+        run: |
+          echo "=== Running unit tests ==="
+          FAILED=0
+          for f in test/*_test.sh; do
+            echo ""
+            echo "========================================"
+            echo "Running: $f"
+            echo "========================================"
+            if ! bash "$f"; then
+              echo "FAILED: $f"
+              FAILED=1
+            fi
+          done
+          exit $FAILED
