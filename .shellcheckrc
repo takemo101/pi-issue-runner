@@ -1,0 +1,17 @@
+# ShellCheck configuration for pi-issue-runner
+# https://github.com/koalaman/shellcheck/wiki/Ignore
+
+# Follow sourced files (requires shellcheck -x)
+external-sources=true
+
+# Disable info about source file not found (handled by -x option)
+# SC1091: Not following sourced file
+disable=SC1091
+
+# SC2016: Expressions don't expand in single quotes
+# Used intentionally for regex patterns in grep/sed
+disable=SC2016
+
+# SC2001: Use ${var//pat/rep} instead of sed
+# Complex escaping patterns are clearer with sed
+disable=SC2001

@@ -255,11 +255,11 @@ get_agent_prompt() {
 # ステップ実行
 # ===================
 
-# ステップ結果の定数
-STEP_RESULT_DONE="DONE"
-STEP_RESULT_BLOCKED="BLOCKED"
-STEP_RESULT_FIX_NEEDED="FIX_NEEDED"
-STEP_RESULT_UNKNOWN="UNKNOWN"
+# ステップ結果の定数（外部から参照される可能性があるためexport）
+export STEP_RESULT_DONE="DONE"
+export STEP_RESULT_BLOCKED="BLOCKED"
+export STEP_RESULT_FIX_NEEDED="FIX_NEEDED"
+export STEP_RESULT_UNKNOWN="UNKNOWN"  # 将来の拡張用
 
 # エージェント出力から結果を判定
 parse_step_result() {

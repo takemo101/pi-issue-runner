@@ -125,7 +125,7 @@ main() {
                 shift 2
                 ;;
             -v|--verbose)
-                LOG_LEVEL="DEBUG"
+                export LOG_LEVEL="DEBUG"
                 shift
                 ;;
             -h|--help)

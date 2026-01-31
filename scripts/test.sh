@@ -4,6 +4,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$SCRIPT_DIR/.."
 TEST_DIR="$SCRIPT_DIR/../test"
 
 usage() {
@@ -11,20 +12,24 @@ usage() {
 Usage: $(basename "$0") [options] [target]
 
 Options:
-    -v, --verbose   詳細ログを表示
-    -f, --fail-fast 最初の失敗で終了
-    -h, --help      このヘルプを表示
+    -v, --verbose     詳細ログを表示
+    -f, --fail-fast   最初の失敗で終了
+    -s, --shellcheck  ShellCheckを実行
+    -a, --all         全てのチェック（bats + shellcheck）を実行
+    -h, --help        このヘルプを表示
 
 Target:
-    lib             test/lib/*.bats のみ実行
-    scripts         test/scripts/*.bats のみ実行
-    (default)       全Batsテストを実行
+    lib               test/lib/*.bats のみ実行
+    scripts           test/scripts/*.bats のみ実行
+    (default)         全Batsテストを実行
 
 Examples:
     $(basename "$0")             # 全Batsテスト実行
     $(basename "$0") lib         # test/lib/*.bats のみ
     $(basename "$0") -v          # 詳細ログ付き
     $(basename "$0") -f          # fail-fast モード
+    $(basename "$0") -s          # ShellCheckのみ実行
+    $(basename "$0") -a          # Batsテスト + ShellCheck
 EOF
 }
 
@@ -32,6 +37,65 @@ check_bats() {
     if ! command -v bats &> /dev/null; then
         echo "Error: bats is not installed" >&2
         echo "Install with: brew install bats-core" >&2
+        return 1
+    fi
+}
+
+check_shellcheck() {
+    if ! command -v shellcheck &> /dev/null; then
+        echo "Warning: shellcheck is not installed" >&2
+        echo "Install with: brew install shellcheck" >&2
+        return 1
+    fi
+}
+
+run_shellcheck() {
+    local verbose="$1"
+    
+    echo "=== Running ShellCheck ==="
+    echo ""
+    
+    if ! check_shellcheck; then
+        echo "Skipping ShellCheck (not installed)"
+        return 1
+    fi
+    
+    local script_files=()
+    local lib_files=()
+    
+    # Collect script files
+    for f in "$PROJECT_ROOT"/scripts/*.sh; do
+        [[ -f "$f" ]] && script_files+=("$f")
+    done
+    
+    # Collect lib files
+    for f in "$PROJECT_ROOT"/lib/*.sh; do
+        [[ -f "$f" ]] && lib_files+=("$f")
+    done
+    
+    local all_files=("${script_files[@]}" "${lib_files[@]}")
+    
+    if [[ ${#all_files[@]} -eq 0 ]]; then
+        echo "No shell scripts found"
+        return 0
+    fi
+    
+    echo "Checking ${#all_files[@]} files..."
+    echo ""
+    
+    local shellcheck_args=(-x)  # Follow sourced files
+    
+    if [[ "$verbose" == "true" ]]; then
+        shellcheck_args+=(-f gcc)  # GCC-style output for verbose
+    fi
+    
+    if shellcheck "${shellcheck_args[@]}" "${all_files[@]}"; then
+        echo ""
+        echo "✓ ShellCheck passed: ${#all_files[@]} files checked"
+        return 0
+    else
+        echo ""
+        echo "✗ ShellCheck found issues"
         return 1
     fi
 }
@@ -105,6 +169,8 @@ run_bats_tests() {
 main() {
     local fail_fast=false
     local verbose=false
+    local shellcheck_only=false
+    local run_all=false
     local target=""
     
     # 引数パース
@@ -116,6 +182,14 @@ main() {
                 ;;
             -f|--fail-fast)
                 fail_fast=true
+                shift
+                ;;
+            -s|--shellcheck)
+                shellcheck_only=true
+                shift
+                ;;
+            -a|--all)
+                run_all=true
                 shift
                 ;;
             -h|--help)
@@ -135,6 +209,26 @@ main() {
     done
     
     local exit_code=0
+    
+    # ShellCheck only mode
+    if [[ "$shellcheck_only" == "true" ]]; then
+        if ! run_shellcheck "$verbose"; then
+            exit 1
+        fi
+        exit 0
+    fi
+    
+    # Run all checks mode
+    if [[ "$run_all" == "true" ]]; then
+        # Run ShellCheck first
+        if ! run_shellcheck "$verbose"; then
+            exit_code=1
+            if [[ "$fail_fast" == "true" ]]; then
+                exit "$exit_code"
+            fi
+        fi
+        echo ""
+    fi
     
     # Run Bats tests
     if check_bats; then
