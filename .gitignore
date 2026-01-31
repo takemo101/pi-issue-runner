@@ -14,6 +14,7 @@ orch
 # Pi Runner data
 .pi-runner/
 .worktrees/
+.improve-logs/
 
 # Environment
 .env
