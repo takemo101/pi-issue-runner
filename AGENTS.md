@@ -75,9 +75,6 @@ bats test/lib/*.bats test/scripts/*.bats
 # 特定のテストファイル実行
 bats test/lib/config.bats
 
-# 旧形式テスト実行（互換性のため残存）
-./test/config_test.sh
-
 # シェルスクリプトの構文チェック
 shellcheck scripts/*.sh lib/*.sh
 
