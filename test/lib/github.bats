@@ -192,7 +192,8 @@ MOCK_EOF
     source "$PROJECT_ROOT/lib/github.sh"
     
     func_def=$(declare -f get_issues_created_after)
-    [[ "$func_def" == *"gh issue list"* ]]
+    # Function now uses gh_args array with "issue list" command
+    [[ "$func_def" == *"issue list"* ]]
 }
 
 @test "get_issues_created_after filters by author @me" {
@@ -200,6 +201,68 @@ MOCK_EOF
     
     func_def=$(declare -f get_issues_created_after)
     [[ "$func_def" == *'@me'* ]]
+}
+
+@test "get_issues_created_after accepts optional label parameter" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    func_def=$(declare -f get_issues_created_after)
+    # Check that the function accepts a third parameter for label
+    [[ "$func_def" == *'label="${3:-}"'* ]]
+}
+
+@test "get_issues_created_after adds --label option when label is provided" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    func_def=$(declare -f get_issues_created_after)
+    [[ "$func_def" == *'--label "$label"'* ]]
+}
+
+# ====================
+# generate_session_label テスト
+# ====================
+
+@test "generate_session_label function exists" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    declare -f generate_session_label > /dev/null
+}
+
+@test "generate_session_label returns label with pi-runner prefix" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    result="$(generate_session_label)"
+    [[ "$result" == pi-runner-* ]]
+}
+
+@test "generate_session_label returns label in correct format" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    result="$(generate_session_label)"
+    # Format: pi-runner-YYYYMMDD-HHMMSS
+    [[ "$result" =~ ^pi-runner-[0-9]{8}-[0-9]{6}$ ]]
+}
+
+# ====================
+# create_label_if_not_exists テスト
+# ====================
+
+@test "create_label_if_not_exists function exists" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    declare -f create_label_if_not_exists > /dev/null
+}
+
+@test "create_label_if_not_exists uses gh label create" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    func_def=$(declare -f create_label_if_not_exists)
+    [[ "$func_def" == *'gh label create'* ]]
+}
+
+@test "create_label_if_not_exists uses gh label list to check existence" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    func_def=$(declare -f create_label_if_not_exists)
+    [[ "$func_def" == *'gh label list'* ]]
 }
 
 # ====================

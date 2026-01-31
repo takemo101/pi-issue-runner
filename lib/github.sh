@@ -250,16 +250,61 @@ sanitize_issue_body() {
 # ===================
 
 # 指定時刻以降に作成されたIssueを取得
-# Usage: get_issues_created_after <start_time_iso8601> [max_issues]
+# Usage: get_issues_created_after <start_time_iso8601> [max_issues] [label]
 # Returns: Issue番号を1行ずつ出力
 get_issues_created_after() {
     local start_time="$1"
     local max_issues="${2:-20}"
+    local label="${3:-}"
     
     check_gh_cli || return 1
     check_jq || return 1
     
     # 自分が作成したopenなIssueを取得し、開始時刻以降のものをフィルタ
-    gh issue list --state open --author "@me" --limit "$max_issues" --json number,createdAt 2>/dev/null \
+    # shellcheck disable=SC2054  # number,createdAt is a gh CLI JSON fields parameter, not array elements
+    local gh_args=(issue list --state open --author "@me" --limit "$max_issues" --json number,createdAt)
+    
+    # ラベルが指定された場合はフィルタに追加
+    if [[ -n "$label" ]]; then
+        gh_args+=(--label "$label")
+    fi
+    
+    gh "${gh_args[@]}" 2>/dev/null \
         | jq -r --arg start "$start_time" '.[] | select(.createdAt >= $start) | .number'
+}
+
+# ===================
+# セッションラベル管理
+# ===================
+
+# セッションラベルを生成
+# Usage: generate_session_label
+# Returns: ラベル名（例: pi-runner-20260201-082900）
+generate_session_label() {
+    echo "pi-runner-$(date +%Y%m%d-%H%M%S)"
+}
+
+# ラベルを作成（存在しない場合のみ）
+# Usage: create_label_if_not_exists <label> [description]
+# Returns: 0=成功, 1=失敗
+create_label_if_not_exists() {
+    local label="$1"
+    local description="${2:-Created by pi-issue-runner session}"
+    
+    check_gh_cli || return 1
+    
+    # ラベルが存在するかチェック（エラー出力を抑制）
+    if gh label list --search "$label" --json name 2>/dev/null | jq -e --arg name "$label" '.[] | select(.name == $name)' > /dev/null 2>&1; then
+        log_debug "Label '$label' already exists"
+        return 0
+    fi
+    
+    # ラベルを作成
+    if gh label create "$label" --description "$description" --color "0E8A16" 2>/dev/null; then
+        log_info "Created label: $label"
+        return 0
+    else
+        log_warn "Failed to create label: $label (may already exist or insufficient permissions)"
+        return 0  # ラベル作成失敗は致命的ではないので続行
+    fi
 }
