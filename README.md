@@ -360,6 +360,7 @@ test/
 │   ├── list.bats           # list.sh のテスト
 │   └── cleanup.bats        # cleanup.sh のテスト
 ├── regression/             # 回帰テスト
+│   └── critical-fixes.bats
 ├── fixtures/               # テスト用フィクスチャ
 │   └── sample-config.yaml
 └── test_helper.bash        # Bats共通ヘルパー（モック関数含む）
@@ -400,9 +401,11 @@ gh auth login
 ## ドキュメント
 
 - [アーキテクチャ](docs/architecture.md) - システム設計
+- [仕様書](docs/SPECIFICATION.md) - 詳細仕様
 - [Git Worktree管理](docs/worktree-management.md) - worktree運用
 - [tmux統合](docs/tmux-integration.md) - tmuxセッション管理
 - [並列実行](docs/parallel-execution.md) - 複数タスクの並列処理
+- [状態管理](docs/state-management.md) - ステータスファイル管理
 - [設定リファレンス](docs/configuration.md) - 設定オプション
 - [セキュリティ](docs/security.md) - 入力サニタイズとセキュリティ対策
 
