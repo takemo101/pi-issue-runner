@@ -192,7 +192,6 @@ pi-issue-runner/
 │   ├── attach.sh           # セッションアタッチ
 │   ├── stop.sh             # セッション停止
 │   ├── cleanup.sh          # クリーンアップ
-│   ├── post-session.sh     # セッション終了後処理
 │   └── watch-session.sh    # セッション監視と自動クリーンアップ
 ├── lib/
 │   ├── config.sh           # 設定読み込み
@@ -211,7 +210,6 @@ pi-issue-runner/
 │   └── merge.md            # マージエージェント
 ├── docs/                    # ドキュメント
 ├── test/                    # 単体テスト
-├── tests/                   # Batsテスト
 └── .worktrees/              # worktree作成先（実行時に生成）
 ```
 
