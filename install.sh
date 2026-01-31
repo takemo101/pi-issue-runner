@@ -16,8 +16,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 必須依存パッケージ
 REQUIRED_DEPS="gh tmux jq yq"
-# オプション依存パッケージ
-OPTIONAL_DEPS=""
 
 # 依存パッケージをインストール
 install_dependencies() {
