@@ -84,7 +84,7 @@ shellcheck scripts/*.sh lib/*.sh
 ./scripts/status.sh 42
 
 # 継続的改善
-./scripts/improve.sh --dry-run
+./scripts/improve.sh --max-iterations 1
 
 # 複数セッション待機
 ./scripts/wait-for-sessions.sh 42 43
