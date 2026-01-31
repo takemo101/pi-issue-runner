@@ -15,14 +15,12 @@ INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 必須依存パッケージ
-REQUIRED_DEPS="gh tmux jq"
+REQUIRED_DEPS="gh tmux jq yq"
 # オプション依存パッケージ
-OPTIONAL_DEPS="yq"
+OPTIONAL_DEPS=""
 
 # 依存パッケージをインストール
 install_dependencies() {
-    local install_optional="${1:-false}"
-    
     # brewの確認
     if ! command -v brew &> /dev/null; then
         echo "❌ Homebrew が見つかりません"
@@ -31,55 +29,31 @@ install_dependencies() {
         echo "  /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
         echo ""
         echo "または手動で依存パッケージをインストールしてください:"
-        echo "  必須: $REQUIRED_DEPS"
-        echo "  推奨: $OPTIONAL_DEPS"
+        echo "  $REQUIRED_DEPS"
         return 1
     fi
     
     echo "📦 依存パッケージを確認中..."
     echo ""
     
-    local missing_required=()
-    local missing_optional=()
+    local missing=()
     
-    # 必須パッケージの確認
+    # パッケージの確認
     for pkg in $REQUIRED_DEPS; do
         if command -v "$pkg" &> /dev/null; then
             echo "  ✓ $pkg (インストール済み)"
         else
             echo "  ○ $pkg (未インストール)"
-            missing_required+=("$pkg")
-        fi
-    done
-    
-    # オプションパッケージの確認
-    for pkg in $OPTIONAL_DEPS; do
-        if command -v "$pkg" &> /dev/null; then
-            echo "  ✓ $pkg (インストール済み、オプション)"
-        else
-            echo "  ○ $pkg (未インストール、オプション)"
-            if [[ "$install_optional" == "true" ]]; then
-                missing_optional+=("$pkg")
-            fi
+            missing+=("$pkg")
         fi
     done
     
     echo ""
     
-    # 必須パッケージのインストール
-    if [[ ${#missing_required[@]} -gt 0 ]]; then
-        echo "📥 必須パッケージをインストール中..."
-        for pkg in "${missing_required[@]}"; do
-            echo "  brew install $pkg"
-            brew install "$pkg"
-        done
-        echo ""
-    fi
-    
-    # オプションパッケージのインストール
-    if [[ ${#missing_optional[@]} -gt 0 ]]; then
-        echo "📥 オプションパッケージをインストール中..."
-        for pkg in "${missing_optional[@]}"; do
+    # 未インストールパッケージのインストール
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo "📥 パッケージをインストール中..."
+        for pkg in "${missing[@]}"; do
             echo "  brew install $pkg"
             brew install "$pkg"
         done
@@ -104,9 +78,8 @@ show_help() {
 Usage: $(basename "$0") [options]
 
 Options:
-    --with-deps     依存パッケージも含めてインストール
+    --with-deps     依存パッケージも含めてインストール (gh, tmux, jq, yq)
     --deps-only     依存パッケージのみインストール（ラッパー作成しない）
-    --all-deps      オプション依存（yq）も含めてインストール
     -h, --help      このヘルプを表示
 
 Environment Variables:
@@ -116,7 +89,6 @@ Examples:
     $(basename "$0")                          # ラッパーのみ
     $(basename "$0") --with-deps              # ラッパー + 依存パッケージ
     $(basename "$0") --deps-only              # 依存パッケージのみ
-    $(basename "$0") --with-deps --all-deps   # 全てインストール
     INSTALL_DIR=/usr/local/bin $(basename "$0")
 EOF
 }
@@ -124,7 +96,6 @@ EOF
 # オプション解析
 with_deps=false
 deps_only=false
-all_deps=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -134,10 +105,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --deps-only)
             deps_only=true
-            shift
-            ;;
-        --all-deps)
-            all_deps=true
             shift
             ;;
         -h|--help)
@@ -154,7 +121,7 @@ done
 
 # 依存パッケージのインストール
 if [[ "$with_deps" == "true" || "$deps_only" == "true" ]]; then
-    install_dependencies "$all_deps"
+    install_dependencies
     echo ""
     
     if [[ "$deps_only" == "true" ]]; then

@@ -25,7 +25,7 @@ which pi
 # jq (JSON処理)
 which jq
 
-# yq (YAML処理、オプション - ワークフローのカスタマイズに必要)
+# yq (YAML処理)
 which yq
 ```
 
