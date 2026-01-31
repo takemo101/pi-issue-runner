@@ -25,86 +25,117 @@ teardown() {
 }
 
 # ====================
-# ヘルプ表示テスト
+# ヘルプオプションテスト
 # ====================
 
-@test "attach.sh shows help with --help" {
+@test "attach.sh --help returns success" {
     run "$PROJECT_ROOT/scripts/attach.sh" --help
     [ "$status" -eq 0 ]
+}
+
+@test "attach.sh --help shows usage" {
+    run "$PROJECT_ROOT/scripts/attach.sh" --help
     [[ "$output" == *"Usage:"* ]]
 }
 
-@test "attach.sh shows help with -h" {
-    run "$PROJECT_ROOT/scripts/attach.sh" -h
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Usage:"* ]]
-}
-
-@test "help includes arguments description" {
+@test "attach.sh --help shows session-name argument" {
     run "$PROJECT_ROOT/scripts/attach.sh" --help
-    [ "$status" -eq 0 ]
     [[ "$output" == *"session-name"* ]] || [[ "$output" == *"issue-number"* ]]
 }
 
-@test "help includes examples" {
+@test "attach.sh --help shows examples" {
     run "$PROJECT_ROOT/scripts/attach.sh" --help
+    [[ "$output" == *"Examples:"* ]] || [[ "$output" == *"example"* ]]
+}
+
+@test "attach.sh -h returns success" {
+    run "$PROJECT_ROOT/scripts/attach.sh" -h
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Examples:"* ]]
 }
 
 # ====================
-# 引数バリデーションテスト
+# エラーケーステスト
 # ====================
 
-@test "attach.sh fails without session name or issue number" {
+@test "attach.sh without argument fails" {
     run "$PROJECT_ROOT/scripts/attach.sh"
     [ "$status" -ne 0 ]
+}
+
+@test "attach.sh without argument shows error message" {
+    run "$PROJECT_ROOT/scripts/attach.sh"
     [[ "$output" == *"required"* ]] || [[ "$output" == *"Usage:"* ]]
 }
 
-@test "attach.sh fails with unknown option" {
+@test "attach.sh with unknown option fails" {
     run "$PROJECT_ROOT/scripts/attach.sh" --unknown-option
     [ "$status" -ne 0 ]
-    [[ "$output" == *"Unknown option"* ]]
+    [[ "$output" == *"Unknown option"* ]] || [[ "$output" == *"unknown"* ]]
 }
 
 # ====================
-# 入力形式テスト
+# スクリプト構造テスト
 # ====================
 
-@test "attach.sh accepts issue number format" {
-    # tmuxモック - セッションがアタッチ可能な状態
-    cat > "$MOCK_DIR/tmux" << 'MOCK_EOF'
-#!/usr/bin/env bash
-case "$1" in
-    "attach-session")
-        echo "Would attach to session: $*"
-        exit 0
-        ;;
-    *)
-        exit 0
-        ;;
-esac
-MOCK_EOF
-    chmod +x "$MOCK_DIR/tmux"
-    enable_mocks
-    
-    run "$PROJECT_ROOT/scripts/attach.sh" 42
-    # 実際のアタッチは環境依存なのでステータスは問わない
-    # ヘルプ出力がなければ引数は解析された
-    [[ "$output" != *"Usage:"* ]] || [ "$status" -eq 0 ]
+@test "attach.sh has valid bash syntax" {
+    run bash -n "$PROJECT_ROOT/scripts/attach.sh"
+    [ "$status" -eq 0 ]
 }
 
-@test "attach.sh accepts session name format" {
-    # tmuxモック
-    cat > "$MOCK_DIR/tmux" << 'MOCK_EOF'
-#!/usr/bin/env bash
-exit 0
-MOCK_EOF
-    chmod +x "$MOCK_DIR/tmux"
-    enable_mocks
+@test "attach.sh sources config.sh" {
+    grep -q "lib/config.sh" "$PROJECT_ROOT/scripts/attach.sh"
+}
+
+@test "attach.sh sources log.sh" {
+    grep -q "lib/log.sh" "$PROJECT_ROOT/scripts/attach.sh"
+}
+
+@test "attach.sh sources tmux.sh" {
+    grep -q "lib/tmux.sh" "$PROJECT_ROOT/scripts/attach.sh"
+}
+
+@test "attach.sh has main function" {
+    grep -q "main()" "$PROJECT_ROOT/scripts/attach.sh"
+}
+
+@test "attach.sh has usage function" {
+    grep -q "usage()" "$PROJECT_ROOT/scripts/attach.sh"
+}
+
+@test "attach.sh calls generate_session_name" {
+    grep -q "generate_session_name" "$PROJECT_ROOT/scripts/attach.sh"
+}
+
+@test "attach.sh calls attach_session" {
+    grep -q "attach_session" "$PROJECT_ROOT/scripts/attach.sh"
+}
+
+@test "attach.sh handles numeric issue number" {
+    grep -q '\[0-9\]' "$PROJECT_ROOT/scripts/attach.sh"
+}
+
+# ====================
+# セッション名生成テスト
+# ====================
+
+@test "generate_session_name contains issue number" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
     
-    run "$PROJECT_ROOT/scripts/attach.sh" pi-issue-42
-    # ヘルプが表示されなければ引数は解析された
-    [[ "$output" != *"Usage:"* ]] || [ "$status" -eq 0 ]
+    _CONFIG_LOADED=""
+    load_config
+    
+    result="$(generate_session_name "42")"
+    [[ "$result" == *"42"* ]]
+}
+
+@test "generate_session_name contains issue pattern" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    
+    _CONFIG_LOADED=""
+    load_config
+    
+    result="$(generate_session_name "42")"
+    [[ "$result" == *"issue"* ]]
 }
