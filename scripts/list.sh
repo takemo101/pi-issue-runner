@@ -8,6 +8,7 @@ source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/tmux.sh"
 source "$SCRIPT_DIR/../lib/worktree.sh"
+source "$SCRIPT_DIR/../lib/notify.sh"
 
 usage() {
     cat << EOF
@@ -54,6 +55,12 @@ main() {
         exit 0
     fi
 
+    # ヘッダー表示
+    if [[ "$verbose" != "true" ]]; then
+        printf "%-20s %-8s %-10s %s\n" "SESSION" "ISSUE" "STATUS" "ERROR"
+        printf "%-20s %-8s %-10s %s\n" "-------" "-----" "------" "-----"
+    fi
+
     # セッションごとに情報表示
     while IFS= read -r session; do
         [[ -z "$session" ]] && continue
@@ -62,9 +69,27 @@ main() {
         local issue_num
         issue_num="${session##*-}"
         
+        # ステータス情報を取得
+        local status
+        status="$(get_status_value "$issue_num")"
+        
+        # エラーメッセージを取得
+        local error_msg
+        error_msg="$(get_error_message "$issue_num")"
+        [[ -z "$error_msg" ]] && error_msg="-"
+        # エラーメッセージを短縮
+        if [[ ${#error_msg} -gt 30 ]]; then
+            error_msg="${error_msg:0:27}..."
+        fi
+        
         if [[ "$verbose" == "true" ]]; then
             echo "Session: $session"
             echo "  Issue: #$issue_num"
+            echo "  Status: $status"
+            
+            if [[ "$error_msg" != "-" ]]; then
+                echo "  Error: $error_msg"
+            fi
             
             # worktree情報
             local worktree
@@ -79,7 +104,7 @@ main() {
             get_session_info "$session" 2>/dev/null | sed 's/^/  /' || true
             echo ""
         else
-            printf "%-20s Issue #%-6s\n" "$session" "$issue_num"
+            printf "%-20s #%-7s %-10s %s\n" "$session" "$issue_num" "$status" "$error_msg"
         fi
     done <<< "$sessions"
 }
