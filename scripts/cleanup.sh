@@ -15,6 +15,7 @@ usage() {
     cat << EOF
 Usage: $(basename "$0") <session-name|issue-number> [options]
        $(basename "$0") --orphans [--dry-run]
+       $(basename "$0") --all [--dry-run]
 
 Arguments:
     session-name    tmuxセッション名（例: pi-issue-42）
@@ -27,7 +28,9 @@ Options:
     --keep-worktree   worktreeを維持（セッションのみ削除）
     --orphans         孤立したステータスファイルをクリーンアップ
     --delete-plans    クローズ済みIssueの計画書を削除
-    --dry-run         削除せずに対象を表示（--orphans/--delete-plansと使用）
+    --all             全てのクリーンアップを実行（--orphans + --delete-plans）
+    --age <days>      指定日数より古いステータスファイルを削除（--orphansと併用）
+    --dry-run         削除せずに対象を表示（--orphans/--delete-plans/--allと使用）
     -h, --help        このヘルプを表示
 
 Examples:
@@ -37,8 +40,11 @@ Examples:
     $(basename "$0") 42 --delete-branch
     $(basename "$0") --orphans
     $(basename "$0") --orphans --dry-run
+    $(basename "$0") --orphans --age 7      # 孤立かつ7日以上前のファイルを削除
     $(basename "$0") --delete-plans
     $(basename "$0") --delete-plans --dry-run
+    $(basename "$0") --all                  # 全てのクリーンアップを実行
+    $(basename "$0") --all --dry-run        # 削除対象を確認
 EOF
 }
 
@@ -113,13 +119,24 @@ cleanup_closed_issue_plans() {
 # 孤立したステータスファイルをクリーンアップ
 # 引数:
 #   $1 - dry_run: "true"の場合は削除せずに表示のみ
+#   $2 - age_days: 日数制限（オプション、指定時は古いファイルのみ対象）
 cleanup_orphaned_statuses() {
     local dry_run="${1:-false}"
+    local age_days="${2:-}"
     local orphans
-    orphans="$(find_orphaned_statuses)"
+    
+    if [[ -n "$age_days" ]]; then
+        orphans="$(find_stale_statuses "$age_days")"
+    else
+        orphans="$(find_orphaned_statuses)"
+    fi
     
     if [[ -z "$orphans" ]]; then
-        log_info "No orphaned status files found."
+        if [[ -n "$age_days" ]]; then
+            log_info "No orphaned status files older than $age_days days found."
+        else
+            log_info "No orphaned status files found."
+        fi
         return 0
     fi
     
@@ -151,6 +168,8 @@ main() {
     local keep_worktree=false
     local orphans=false
     local delete_plans=false
+    local all_cleanup=false
+    local age_days=""
     local dry_run=false
 
     while [[ $# -gt 0 ]]; do
@@ -179,6 +198,19 @@ main() {
                 delete_plans=true
                 shift
                 ;;
+            --all)
+                all_cleanup=true
+                shift
+                ;;
+            --age)
+                if [[ -z "${2:-}" || "$2" =~ ^- ]]; then
+                    log_error "--age requires a number of days"
+                    usage >&2
+                    exit 1
+                fi
+                age_days="$2"
+                shift 2
+                ;;
             --dry-run)
                 dry_run=true
                 shift
@@ -201,9 +233,20 @@ main() {
 
     load_config
 
+    # --all モード: 全てのクリーンアップを実行
+    if [[ "$all_cleanup" == "true" ]]; then
+        log_info "=== Full Cleanup ==="
+        log_info "Cleaning up orphaned status files..."
+        cleanup_orphaned_statuses "$dry_run" "$age_days"
+        log_info ""
+        log_info "Cleaning up closed issue plans..."
+        cleanup_closed_issue_plans "$dry_run"
+        exit 0
+    fi
+
     # --orphans モード: 孤立したステータスファイルのクリーンアップ
     if [[ "$orphans" == "true" ]]; then
-        cleanup_orphaned_statuses "$dry_run"
+        cleanup_orphaned_statuses "$dry_run" "$age_days"
         exit 0
     fi
 

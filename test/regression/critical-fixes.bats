@@ -133,3 +133,19 @@ teardown() {
 @test "Issue #21: run.sh uses @ to reference prompt file" {
     grep -q '@.*prompt_file' "$PROJECT_ROOT/scripts/run.sh"
 }
+
+# ====================
+# Issue #289: 計画書削除テスト
+# ====================
+
+@test "Issue #289: merge.md does not contain plan deletion step in worktree" {
+    # merge.md にworktree内で計画書を削除するコードが含まれていないことを確認
+    # 計画書削除はホスト環境（handle_complete）で行うべき
+    ! grep -q 'rm -f docs/plans/issue-{{issue_number}}-plan.md' "$PROJECT_ROOT/agents/merge.md"
+}
+
+@test "Issue #289: handle_complete deletes plan file in host environment" {
+    # notify.sh の handle_complete が計画書を削除することを確認
+    grep -q 'docs/plans/issue-.*-plan.md' "$PROJECT_ROOT/lib/notify.sh"
+    grep -q 'rm -f "$plan_file"' "$PROJECT_ROOT/lib/notify.sh"
+}

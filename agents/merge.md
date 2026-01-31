@@ -41,20 +41,12 @@ gh pr checks
 gh pr merge --merge --delete-branch
 ```
 
-### 4. 計画書の削除
+### 4. クリーンアップ
 
-マージ完了後、計画書を削除します：
-
-```bash
-rm -f docs/plans/issue-{{issue_number}}-plan.md
-git add -A
-git commit -m "chore: remove plan for issue #{{issue_number}}" || true
-git push origin main || true
-```
-
-### 5. クリーンアップ
-
-> **Note**: Worktreeのクリーンアップは自動的に行われます。
+> **Note**: 以下のクリーンアップは `watch-session.sh` により自動的に行われます：
+> - Worktree の削除
+> - 計画書（`docs/plans/issue-{{issue_number}}-plan.md`）の削除
+> 
 > 手動でクリーンアップが必要な場合は `scripts/cleanup.sh` を使用してください。
 
 ## コミットタイプ
@@ -76,12 +68,14 @@ git push origin main || true
 
 ## 完了報告
 
-全てのタスクが正常に完了した場合は、以下のマーカーを出力してください：
+全てのタスクが正常に完了した場合は、以下の形式で完了マーカーを出力してください：
 
-```
-###TASK_COMPLETE_{{issue_number}}###
-```
+- プレフィックス: `###TASK`
+- 中間部: `_COMPLETE_`
+- Issue番号: `{{issue_number}}`
+- サフィックス: `###`
 
+上記を連結して1行で出力してください。
 これにより、worktreeとセッションが自動的にクリーンアップされます。
 
 > **重要**: このマーカーは外部プロセス（`watch-session.sh`）によって監視されています。
@@ -89,12 +83,15 @@ git push origin main || true
 
 ## エラー報告
 
-回復不能なエラーが発生した場合は、以下のマーカーを出力してください：
+回復不能なエラーが発生した場合は、以下の形式でエラーマーカーを出力してください：
 
-```
-###TASK_ERROR_{{issue_number}}###
-エラーの説明（例: PRマージに失敗しました。CIが失敗しています。）
-```
+- プレフィックス: `###TASK`
+- 中間部: `_ERROR_`
+- Issue番号: `{{issue_number}}`
+- サフィックス: `###`
+
+上記を連結して1行で出力し、次の行にエラーの説明を記載してください。
+（例: PRマージに失敗しました。CIが失敗しています。）
 
 これにより、ユーザーに通知が送信され、手動での対応が可能になります。
 
