@@ -2,7 +2,9 @@
 # install.sh - pi-issue-runner をグローバルにインストール
 #
 # 使用方法:
-#   ./install.sh
+#   ./install.sh                    # ラッパースクリプトのみ
+#   ./install.sh --with-deps        # 依存パッケージも含めてインストール
+#   ./install.sh --deps-only        # 依存パッケージのみインストール
 #   INSTALL_DIR=/usr/local/bin ./install.sh
 #
 # ラッパースクリプトを INSTALL_DIR に作成します。
@@ -11,6 +13,154 @@ set -euo pipefail
 
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 必須依存パッケージ
+REQUIRED_DEPS="gh tmux jq"
+# オプション依存パッケージ
+OPTIONAL_DEPS="yq"
+
+# 依存パッケージをインストール
+install_dependencies() {
+    local install_optional="${1:-false}"
+    
+    # brewの確認
+    if ! command -v brew &> /dev/null; then
+        echo "❌ Homebrew が見つかりません"
+        echo ""
+        echo "インストール方法:"
+        echo "  /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+        echo ""
+        echo "または手動で依存パッケージをインストールしてください:"
+        echo "  必須: $REQUIRED_DEPS"
+        echo "  推奨: $OPTIONAL_DEPS"
+        return 1
+    fi
+    
+    echo "📦 依存パッケージを確認中..."
+    echo ""
+    
+    local missing_required=()
+    local missing_optional=()
+    
+    # 必須パッケージの確認
+    for pkg in $REQUIRED_DEPS; do
+        if command -v "$pkg" &> /dev/null; then
+            echo "  ✓ $pkg (インストール済み)"
+        else
+            echo "  ○ $pkg (未インストール)"
+            missing_required+=("$pkg")
+        fi
+    done
+    
+    # オプションパッケージの確認
+    for pkg in $OPTIONAL_DEPS; do
+        if command -v "$pkg" &> /dev/null; then
+            echo "  ✓ $pkg (インストール済み、オプション)"
+        else
+            echo "  ○ $pkg (未インストール、オプション)"
+            if [[ "$install_optional" == "true" ]]; then
+                missing_optional+=("$pkg")
+            fi
+        fi
+    done
+    
+    echo ""
+    
+    # 必須パッケージのインストール
+    if [[ ${#missing_required[@]} -gt 0 ]]; then
+        echo "📥 必須パッケージをインストール中..."
+        for pkg in "${missing_required[@]}"; do
+            echo "  brew install $pkg"
+            brew install "$pkg"
+        done
+        echo ""
+    fi
+    
+    # オプションパッケージのインストール
+    if [[ ${#missing_optional[@]} -gt 0 ]]; then
+        echo "📥 オプションパッケージをインストール中..."
+        for pkg in "${missing_optional[@]}"; do
+            echo "  brew install $pkg"
+            brew install "$pkg"
+        done
+        echo ""
+    fi
+    
+    # piの確認（brewではインストールできない）
+    if ! command -v pi &> /dev/null; then
+        echo "⚠️  pi がインストールされていません"
+        echo "   https://github.com/badlogic/pi を参照してインストールしてください"
+        echo ""
+    else
+        echo "  ✓ pi (インストール済み)"
+    fi
+    
+    echo "✅ 依存パッケージの確認完了"
+}
+
+# ヘルプ表示
+show_help() {
+    cat << EOF
+Usage: $(basename "$0") [options]
+
+Options:
+    --with-deps     依存パッケージも含めてインストール
+    --deps-only     依存パッケージのみインストール（ラッパー作成しない）
+    --all-deps      オプション依存（yq）も含めてインストール
+    -h, --help      このヘルプを表示
+
+Environment Variables:
+    INSTALL_DIR     インストール先ディレクトリ (default: ~/.local/bin)
+
+Examples:
+    $(basename "$0")                          # ラッパーのみ
+    $(basename "$0") --with-deps              # ラッパー + 依存パッケージ
+    $(basename "$0") --deps-only              # 依存パッケージのみ
+    $(basename "$0") --with-deps --all-deps   # 全てインストール
+    INSTALL_DIR=/usr/local/bin $(basename "$0")
+EOF
+}
+
+# オプション解析
+with_deps=false
+deps_only=false
+all_deps=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --with-deps)
+            with_deps=true
+            shift
+            ;;
+        --deps-only)
+            deps_only=true
+            shift
+            ;;
+        --all-deps)
+            all_deps=true
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            show_help
+            exit 1
+            ;;
+    esac
+done
+
+# 依存パッケージのインストール
+if [[ "$with_deps" == "true" || "$deps_only" == "true" ]]; then
+    install_dependencies "$all_deps"
+    echo ""
+    
+    if [[ "$deps_only" == "true" ]]; then
+        exit 0
+    fi
+fi
 
 # コマンドマッピング（command:script 形式）
 COMMANDS="
