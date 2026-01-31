@@ -3,10 +3,10 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/config.sh"
-source "$SCRIPT_DIR/log.sh"
-source "$SCRIPT_DIR/status.sh"
+_NOTIFY_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$_NOTIFY_LIB_DIR/config.sh"
+source "$_NOTIFY_LIB_DIR/log.sh"
+source "$_NOTIFY_LIB_DIR/status.sh"
 
 # 後方互換性のために以下の関数はstatus.shで定義済み:
 # - get_status_dir()
@@ -103,7 +103,7 @@ open_terminal_and_attach() {
     fi
     
     # 現在のスクリプトディレクトリからattach.shのパスを計算
-    local attach_script="${SCRIPT_DIR}/../scripts/attach.sh"
+    local attach_script="${_NOTIFY_LIB_DIR}/../scripts/attach.sh"
     
     if [[ ! -x "$attach_script" ]]; then
         log_error "attach.sh not found or not executable: $attach_script"
