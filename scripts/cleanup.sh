@@ -28,9 +28,10 @@ Options:
     --keep-worktree   worktreeを維持（セッションのみ削除）
     --orphans         孤立したステータスファイルをクリーンアップ
     --delete-plans    クローズ済みIssueの計画書を削除
-    --all             全てのクリーンアップを実行（--orphans + --delete-plans）
+    --rotate-plans    古い計画書を削除（直近N件を保持、設定: plans.keep_recent）
+    --all             全てのクリーンアップを実行（--orphans + --rotate-plans）
     --age <days>      指定日数より古いステータスファイルを削除（--orphansと併用）
-    --dry-run         削除せずに対象を表示（--orphans/--delete-plans/--allと使用）
+    --dry-run         削除せずに対象を表示（--orphans/--delete-plans/--rotate-plans/--allと使用）
     -h, --help        このヘルプを表示
 
 Examples:
@@ -43,9 +44,94 @@ Examples:
     $(basename "$0") --orphans --age 7      # 孤立かつ7日以上前のファイルを削除
     $(basename "$0") --delete-plans
     $(basename "$0") --delete-plans --dry-run
+    $(basename "$0") --rotate-plans         # 古い計画書を削除（直近N件を保持）
+    $(basename "$0") --rotate-plans --dry-run
     $(basename "$0") --all                  # 全てのクリーンアップを実行
     $(basename "$0") --all --dry-run        # 削除対象を確認
 EOF
+}
+
+# 古い計画書をクリーンアップ（直近N件を保持）
+# 引数:
+#   $1 - dry_run: "true"の場合は削除せずに表示のみ
+#   $2 - keep_count: 保持する件数（省略時は設定から取得）
+cleanup_old_plans() {
+    local dry_run="${1:-false}"
+    local keep_count="${2:-}"
+    
+    load_config
+    
+    # 保持件数を取得
+    if [[ -z "$keep_count" ]]; then
+        keep_count="$(get_config plans_keep_recent)"
+    fi
+    
+    # 0の場合は全て保持（何もしない）
+    if [[ "$keep_count" == "0" ]]; then
+        log_info "plans.keep_recent is 0, keeping all plans"
+        return 0
+    fi
+    
+    local plans_dir
+    plans_dir="$(get_config plans_dir)"
+    
+    if [[ ! -d "$plans_dir" ]]; then
+        log_debug "No plans directory found: $plans_dir"
+        return 0
+    fi
+    
+    # 計画書ファイルを更新日時の降順でソート
+    # macOS/BSD互換: stat -f '%m %N' を使用
+    local plan_files
+    plan_files=$(find "$plans_dir" -name "issue-*-plan.md" -type f -exec stat -f '%m %N' {} \; 2>/dev/null | sort -rn | awk '{print $2}')
+    
+    # Linux/GNU互換: -printf を使用
+    if [[ -z "$plan_files" ]]; then
+        plan_files=$(find "$plans_dir" -name "issue-*-plan.md" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | cut -d' ' -f2-)
+    fi
+    
+    if [[ -z "$plan_files" ]]; then
+        log_info "No plan files found in $plans_dir"
+        return 0
+    fi
+    
+    local total_count
+    total_count=$(echo "$plan_files" | wc -l | tr -d ' ')
+    
+    if [[ "$total_count" -le "$keep_count" ]]; then
+        log_info "Found $total_count plan(s), keeping all (limit: $keep_count)"
+        return 0
+    fi
+    
+    local delete_count=$((total_count - keep_count))
+    local deleted=0
+    
+    # 古いファイルを削除（keep_count件より後のファイル）
+    local line_num=0
+    while IFS= read -r plan_file; do
+        [[ -z "$plan_file" ]] && continue
+        line_num=$((line_num + 1))
+        
+        # 直近keep_count件は保持
+        if [[ "$line_num" -le "$keep_count" ]]; then
+            log_debug "Keeping: $plan_file"
+            continue
+        fi
+        
+        deleted=$((deleted + 1))
+        if [[ "$dry_run" == "true" ]]; then
+            log_info "[DRY-RUN] Would delete: $plan_file"
+        else
+            log_info "Deleting old plan: $plan_file"
+            rm -f "$plan_file"
+        fi
+    done <<< "$plan_files"
+    
+    if [[ "$dry_run" == "true" ]]; then
+        log_info "[DRY-RUN] Would delete $deleted old plan(s), keeping $keep_count recent"
+    else
+        log_info "Deleted $deleted old plan(s), kept $keep_count recent"
+    fi
 }
 
 # クローズ済みIssueの計画書をクリーンアップ
@@ -168,6 +254,7 @@ main() {
     local keep_worktree=false
     local orphans=false
     local delete_plans=false
+    local rotate_plans=false
     local all_cleanup=false
     local age_days=""
     local dry_run=false
@@ -196,6 +283,10 @@ main() {
                 ;;
             --delete-plans)
                 delete_plans=true
+                shift
+                ;;
+            --rotate-plans)
+                rotate_plans=true
                 shift
                 ;;
             --all)
@@ -239,8 +330,8 @@ main() {
         log_info "Cleaning up orphaned status files..."
         cleanup_orphaned_statuses "$dry_run" "$age_days"
         log_info ""
-        log_info "Cleaning up closed issue plans..."
-        cleanup_closed_issue_plans "$dry_run"
+        log_info "Rotating old plans (keeping recent)..."
+        cleanup_old_plans "$dry_run"
         exit 0
     fi
 
@@ -253,6 +344,12 @@ main() {
     # --delete-plans モード: クローズ済みIssueの計画書のクリーンアップ
     if [[ "$delete_plans" == "true" ]]; then
         cleanup_closed_issue_plans "$dry_run"
+        exit 0
+    fi
+
+    # --rotate-plans モード: 古い計画書のクリーンアップ（直近N件を保持）
+    if [[ "$rotate_plans" == "true" ]]; then
+        cleanup_old_plans "$dry_run"
         exit 0
     fi
 

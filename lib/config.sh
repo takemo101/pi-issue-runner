@@ -19,6 +19,8 @@ CONFIG_TMUX_START_IN_SESSION="${CONFIG_TMUX_START_IN_SESSION:-true}"
 CONFIG_PI_COMMAND="${CONFIG_PI_COMMAND:-pi}"
 CONFIG_PI_ARGS="${CONFIG_PI_ARGS:-}"
 CONFIG_PARALLEL_MAX_CONCURRENT="${CONFIG_PARALLEL_MAX_CONCURRENT:-0}"  # 0 = unlimited
+CONFIG_PLANS_KEEP_RECENT="${CONFIG_PLANS_KEEP_RECENT:-10}"  # 直近N件の計画書を保持（0=全て保持）
+CONFIG_PLANS_DIR="${CONFIG_PLANS_DIR:-docs/plans}"  # 計画書ディレクトリ
 
 # 設定ファイルを探す
 find_config_file() {
@@ -97,6 +99,16 @@ _parse_config_file() {
         CONFIG_PARALLEL_MAX_CONCURRENT="$value"
     fi
     
+    value="$(yaml_get "$config_file" ".plans.keep_recent" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_PLANS_KEEP_RECENT="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".plans.dir" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_PLANS_DIR="$value"
+    fi
+    
     # 配列値の取得
     _parse_array_configs "$config_file"
 }
@@ -161,6 +173,12 @@ _apply_env_overrides() {
     if [[ -n "${PI_RUNNER_PARALLEL_MAX_CONCURRENT:-}" ]]; then
         CONFIG_PARALLEL_MAX_CONCURRENT="$PI_RUNNER_PARALLEL_MAX_CONCURRENT"
     fi
+    if [[ -n "${PI_RUNNER_PLANS_KEEP_RECENT:-}" ]]; then
+        CONFIG_PLANS_KEEP_RECENT="$PI_RUNNER_PLANS_KEEP_RECENT"
+    fi
+    if [[ -n "${PI_RUNNER_PLANS_DIR:-}" ]]; then
+        CONFIG_PLANS_DIR="$PI_RUNNER_PLANS_DIR"
+    fi
 }
 
 # 設定値を取得
@@ -187,6 +205,12 @@ get_config() {
             ;;
         parallel_max_concurrent)
             echo "$CONFIG_PARALLEL_MAX_CONCURRENT"
+            ;;
+        plans_keep_recent)
+            echo "$CONFIG_PLANS_KEEP_RECENT"
+            ;;
+        plans_dir)
+            echo "$CONFIG_PLANS_DIR"
             ;;
         *)
             echo ""

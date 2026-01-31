@@ -149,6 +149,12 @@ main() {
             exit 1
         }
         
+        # 古い計画書をローテーション
+        log_info "Rotating old plans..."
+        "$WATCHER_SCRIPT_DIR/cleanup.sh" --rotate-plans || {
+            log_warn "Plan rotation failed (non-critical)"
+        }
+        
         log_info "Cleanup completed successfully"
         exit 0
     fi
@@ -240,6 +246,12 @@ main() {
             "$WATCHER_SCRIPT_DIR/cleanup.sh" "$session_name" $cleanup_args || {
                 log_error "Cleanup failed"
                 exit 1
+            }
+            
+            # 古い計画書をローテーション
+            log_info "Rotating old plans..."
+            "$WATCHER_SCRIPT_DIR/cleanup.sh" --rotate-plans || {
+                log_warn "Plan rotation failed (non-critical)"
             }
             
             log_info "Cleanup completed successfully"
