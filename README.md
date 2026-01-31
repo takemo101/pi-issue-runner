@@ -387,6 +387,7 @@ test/
 ├── lib/                         # ライブラリのユニットテスト
 │   ├── config.bats              # config.sh のテスト
 │   ├── github.bats              # github.sh のテスト
+│   ├── hooks.bats               # hooks.sh のテスト
 │   ├── log.bats                 # log.sh のテスト
 │   ├── notify.bats              # notify.sh のテスト
 │   ├── status.bats              # status.sh のテスト
