@@ -133,8 +133,10 @@ scripts/attach.sh 42
 
 ### 完了後のクリーンアップ
 
+piセッション内で `###TASK_COMPLETE_42###` を出力すると、外部プロセスが自動的にworktreeとセッションをクリーンアップします。
+
 ```bash
-# PR作成後、worktreeをクリーンアップ
+# 手動でクリーンアップする場合
 scripts/cleanup.sh 42
 ```
 
