@@ -140,6 +140,40 @@ piセッション内で `###TASK_COMPLETE_42###` を出力すると、外部プ�
 scripts/cleanup.sh 42
 ```
 
+### 継続的改善（improve.sh）
+
+プロジェクトのレビュー→Issue作成→並列実行→完了待ちを自動化:
+
+```bash
+# 基本的な使い方（最大3イテレーション）
+scripts/improve.sh
+
+# オプション指定
+scripts/improve.sh --max-iterations 2 --max-issues 3
+
+# ドライラン（レビューのみ、Issue作成・実行しない）
+scripts/improve.sh --dry-run
+
+# 自動継続（承認ゲートをスキップ）
+scripts/improve.sh --auto-continue
+
+# レビューのみ表示
+scripts/improve.sh --review-only
+```
+
+### 複数セッションの完了待機
+
+```bash
+# 複数のIssueセッションが完了するまで待機
+scripts/wait-for-sessions.sh 140 141 144
+
+# タイムアウト指定
+scripts/wait-for-sessions.sh 140 141 --timeout 1800
+
+# エラー発生時に即座に終了
+scripts/wait-for-sessions.sh 140 141 --fail-fast
+```
+
 ## ワークフロー
 
 ### ビルトインワークフロー
@@ -192,11 +226,15 @@ pi-issue-runner/
 │   ├── attach.sh           # セッションアタッチ
 │   ├── stop.sh             # セッション停止
 │   ├── cleanup.sh          # クリーンアップ
-│   └── watch-session.sh    # セッション監視と自動クリーンアップ
+│   ├── watch-session.sh    # セッション監視と自動クリーンアップ
+│   ├── wait-for-sessions.sh # 複数セッション完了待機
+│   └── improve.sh          # 継続的改善スクリプト
 ├── lib/
 │   ├── config.sh           # 設定読み込み
 │   ├── github.sh           # GitHub API操作
 │   ├── log.sh              # ログ出力
+│   ├── notify.sh           # 通知機能
+│   ├── status.sh           # ステータスファイル管理
 │   ├── tmux.sh             # tmux操作
 │   ├── workflow.sh         # ワークフローエンジン
 │   └── worktree.sh         # Git worktree操作
