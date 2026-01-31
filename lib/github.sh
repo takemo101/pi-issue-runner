@@ -101,3 +101,73 @@ get_issue_state() {
 get_repo_info() {
     gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null
 }
+
+# ===================
+# Issue本文サニタイズ
+# ===================
+
+# 危険なパターンの定義
+# shellcheck disable=SC2034
+_DANGEROUS_PATTERNS=(
+    '\$\([^)]+\)'           # コマンド置換 $(...)
+    '`[^`]+`'               # バッククォート `...`
+    '\$\{[^}]+\}'           # 変数展開 ${...}
+)
+
+# 危険なパターンを検出
+# 戻り値: 0=安全, 1=危険なパターン検出
+detect_dangerous_patterns() {
+    local text="$1"
+    local found=0
+    
+    # コマンド置換 $(...) - grepを使用して安全に検出
+    if echo "$text" | grep -qE '\$\([^)]+\)'; then
+        log_warn "Dangerous pattern detected: command substitution \$(...)  "
+        found=1
+    fi
+    
+    # バッククォート `...`
+    if echo "$text" | grep -qE '\`[^\`]+\`'; then
+        log_warn "Dangerous pattern detected: backtick command \`...\`"
+        found=1
+    fi
+    
+    # 変数展開 ${...}
+    if echo "$text" | grep -qE '\$\{[^}]+\}'; then
+        log_warn "Dangerous pattern detected: variable expansion \${...}"
+        found=1
+    fi
+    
+    return $found
+}
+
+# Issue本文のサニタイズ
+# 危険なパターンをエスケープして安全な形式に変換
+# Usage: sanitize_issue_body <body>
+sanitize_issue_body() {
+    local body="$1"
+    local sanitized="$body"
+    
+    # 空の場合はそのまま返す
+    if [[ -z "$body" ]]; then
+        echo ""
+        return 0
+    fi
+    
+    # 危険なパターンを検出して警告
+    if ! detect_dangerous_patterns "$body" 2>/dev/null; then
+        log_info "Issue body contains potentially dangerous patterns, sanitizing..."
+    fi
+    
+    # サニタイズ処理
+    # 1. $( を \$( にエスケープ（コマンド置換を無効化）
+    sanitized="${sanitized//\$(/\\\$(}"
+    
+    # 2. バッククォートをエスケープ
+    sanitized="${sanitized//\`/\\\`}"
+    
+    # 3. ${ を \${ にエスケープ（変数展開を無効化）
+    sanitized="${sanitized//\$\{/\\\$\{}"
+    
+    echo "$sanitized"
+}

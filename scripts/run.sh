@@ -179,6 +179,8 @@ main() {
     
     local issue_body
     issue_body="$(get_issue_body "$issue_number" 2>/dev/null)" || issue_body=""
+    # サニタイズ処理を適用（セキュリティ対策）
+    issue_body="$(sanitize_issue_body "$issue_body")"
 
     # ブランチ名決定
     local branch_name
