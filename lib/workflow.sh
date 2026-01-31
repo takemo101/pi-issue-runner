@@ -4,6 +4,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/yaml.sh"
 source "$SCRIPT_DIR/config.sh"
 source "$SCRIPT_DIR/log.sh"
 
@@ -26,32 +27,6 @@ _BUILTIN_AGENT_MERGE='Create a PR and merge for issue #{{issue_number}}.
 Push changes and create a pull request.'
 
 # ===================
-# 依存チェック
-# ===================
-
-# yq チェック結果のキャッシュ（空: 未チェック、"1": 存在、"0": 不在）
-_YQ_CHECK_RESULT=""
-
-# yq の存在確認（結果をキャッシュ）
-check_yq() {
-    # キャッシュがある場合はそれを返す
-    if [[ -n "$_YQ_CHECK_RESULT" ]]; then
-        [[ "$_YQ_CHECK_RESULT" == "1" ]]
-        return
-    fi
-    
-    # 初回のみ実際にチェック
-    if command -v yq &> /dev/null; then
-        _YQ_CHECK_RESULT="1"
-        return 0
-    else
-        _YQ_CHECK_RESULT="0"
-        log_debug "yq not found, using builtin workflow"
-        return 1
-    fi
-}
-
-# ===================
 # ファイル検索
 # ===================
 
@@ -67,7 +42,7 @@ find_workflow_file() {
     
     # 1. .pi-runner.yaml の存在確認
     if [[ -f "$project_root/.pi-runner.yaml" ]]; then
-        if check_yq && yq -e '.workflow' "$project_root/.pi-runner.yaml" &>/dev/null; then
+        if yaml_exists "$project_root/.pi-runner.yaml" ".workflow"; then
             echo "$project_root/.pi-runner.yaml"
             return 0
         fi
@@ -144,24 +119,27 @@ get_workflow_steps() {
         return 1
     fi
     
-    # yq が利用可能か確認
-    if ! check_yq; then
-        log_warn "yq not available, using builtin workflow"
-        echo "$_BUILTIN_WORKFLOW_DEFAULT"
-        return 0
-    fi
+    # YAMLからstepsを読み込む（yaml.shを使用）
+    local steps=""
+    local yaml_path
     
-    # YAMLからstepsを読み込む
     # .pi-runner.yaml の場合は .workflow.steps を参照
-    local steps
     if [[ "$workflow_file" == *".pi-runner.yaml" ]]; then
-        steps=$(yq -r '.workflow.steps[]' "$workflow_file" 2>/dev/null | tr '\n' ' ' || echo "")
+        yaml_path=".workflow.steps"
     else
-        steps=$(yq -r '.steps[]' "$workflow_file" 2>/dev/null | tr '\n' ' ' || echo "")
+        yaml_path=".steps"
     fi
     
-    # 末尾のスペースを削除
-    steps="${steps% }"
+    # 配列を取得してスペース区切りに変換
+    while IFS= read -r step; do
+        if [[ -n "$step" ]]; then
+            if [[ -z "$steps" ]]; then
+                steps="$step"
+            else
+                steps="$steps $step"
+            fi
+        fi
+    done < <(yaml_get_array "$workflow_file" "$yaml_path")
     
     if [[ -z "$steps" ]]; then
         log_warn "No steps found in workflow, using builtin"

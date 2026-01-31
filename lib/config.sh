@@ -4,6 +4,10 @@
 # Note: set -euo pipefail はsource先の環境に影響するため、
 # このファイルでは設定しない（呼び出し元で設定）
 
+# 共通YAMLパーサーを読み込み
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/yaml.sh"
+
 # 設定読み込みフラグ（重複呼び出し防止）
 _CONFIG_LOADED=""
 
@@ -34,7 +38,7 @@ find_config_file() {
     return 1
 }
 
-# YAML設定を読み込む（簡易パーサー）
+# YAML設定を読み込む
 load_config() {
     # 重複呼び出し防止
     if [[ "$_CONFIG_LOADED" == "true" ]]; then
@@ -61,113 +65,74 @@ load_config() {
     _CONFIG_LOADED="true"
 }
 
-# 設定ファイルをパース
+# 設定ファイルをパース（yaml.shを使用）
 _parse_config_file() {
     local config_file="$1"
-    local section=""
-    local in_copy_files=false
-    local in_pi_args=false
+    
+    # 単一値の取得
+    local value
+    
+    value="$(yaml_get "$config_file" ".worktree.base_dir" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_WORKTREE_BASE_DIR="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".tmux.session_prefix" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_TMUX_SESSION_PREFIX="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".tmux.start_in_session" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_TMUX_START_IN_SESSION="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".pi.command" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_PI_COMMAND="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".parallel.max_concurrent" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_PARALLEL_MAX_CONCURRENT="$value"
+    fi
+    
+    # 配列値の取得
+    _parse_array_configs "$config_file"
+}
+
+# 配列設定をパース
+_parse_array_configs() {
+    local config_file="$1"
+    
+    # worktree.copy_files
     local copy_files_list=""
-    local pi_args_list=""
-    
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        # コメントと空行をスキップ
-        [[ "$line" =~ ^[[:space:]]*# ]] && continue
-        [[ -z "${line// /}" ]] && continue
-
-        # セクションの検出
-        if [[ "$line" =~ ^([a-z_]+):[[:space:]]*$ ]]; then
-            section="${BASH_REMATCH[1]}"
-            in_copy_files=false
-            in_pi_args=false
-            continue
-        fi
-
-        # キーと値の解析
-        if [[ "$line" =~ ^[[:space:]]+([a-z_]+):[[:space:]]*(.*) ]]; then
-            local key="${BASH_REMATCH[1]}"
-            local value="${BASH_REMATCH[2]}"
-            
-            # クォートを除去
-            value="${value#\"}"
-            value="${value%\"}"
-            value="${value#\'}"
-            value="${value%\'}"
-            
-            # 配列開始の検出
-            if [[ -z "$value" ]]; then
-                case "${section}_${key}" in
-                    worktree_copy_files)
-                        in_copy_files=true
-                        in_pi_args=false
-                        ;;
-                    pi_args)
-                        in_pi_args=true
-                        in_copy_files=false
-                        ;;
-                esac
-                continue
-            fi
-            
-            in_copy_files=false
-            in_pi_args=false
-            
-            case "${section}_${key}" in
-                worktree_base_dir)
-                    CONFIG_WORKTREE_BASE_DIR="$value"
-                    ;;
-                worktree_copy_files)
-                    # スペース区切りの単一行形式
-                    CONFIG_WORKTREE_COPY_FILES="$value"
-                    ;;
-                tmux_session_prefix)
-                    CONFIG_TMUX_SESSION_PREFIX="$value"
-                    ;;
-                tmux_start_in_session)
-                    CONFIG_TMUX_START_IN_SESSION="$value"
-                    ;;
-                pi_command)
-                    CONFIG_PI_COMMAND="$value"
-                    ;;
-                pi_args)
-                    # スペース区切りの単一行形式
-                    CONFIG_PI_ARGS="$value"
-                    ;;
-                parallel_max_concurrent)
-                    CONFIG_PARALLEL_MAX_CONCURRENT="$value"
-                    ;;
-            esac
-            continue
-        fi
-
-        # 配列項目の解析
-        if [[ "$line" =~ ^[[:space:]]+-[[:space:]]+(.*) ]]; then
-            local item="${BASH_REMATCH[1]}"
-            item="${item#\"}"
-            item="${item%\"}"
-            item="${item#\'}"
-            item="${item%\'}"
-            
-            if [[ "$in_copy_files" == "true" ]]; then
-                if [[ -z "$copy_files_list" ]]; then
-                    copy_files_list="$item"
-                else
-                    copy_files_list="$copy_files_list $item"
-                fi
-            elif [[ "$in_pi_args" == "true" ]]; then
-                if [[ -z "$pi_args_list" ]]; then
-                    pi_args_list="$item"
-                else
-                    pi_args_list="$pi_args_list $item"
-                fi
+    while IFS= read -r item; do
+        if [[ -n "$item" ]]; then
+            if [[ -z "$copy_files_list" ]]; then
+                copy_files_list="$item"
+            else
+                copy_files_list="$copy_files_list $item"
             fi
         fi
-    done < "$config_file"
+    done < <(yaml_get_array "$config_file" ".worktree.copy_files")
     
-    # 配列を設定（先頭スペースなし）
     if [[ -n "$copy_files_list" ]]; then
         CONFIG_WORKTREE_COPY_FILES="$copy_files_list"
     fi
+    
+    # pi.args
+    local pi_args_list=""
+    while IFS= read -r item; do
+        if [[ -n "$item" ]]; then
+            if [[ -z "$pi_args_list" ]]; then
+                pi_args_list="$item"
+            else
+                pi_args_list="$pi_args_list $item"
+            fi
+        fi
+    done < <(yaml_get_array "$config_file" ".pi.args")
+    
     if [[ -n "$pi_args_list" ]]; then
         CONFIG_PI_ARGS="$pi_args_list"
     fi
