@@ -103,7 +103,6 @@ cleanup_old_plans() {
         return 0
     fi
     
-    local delete_count=$((total_count - keep_count))
     local deleted=0
     
     # 古いファイルを削除（keep_count件より後のファイル）
