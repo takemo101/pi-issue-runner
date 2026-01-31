@@ -19,398 +19,359 @@ Git worktreeは、1つのGitリポジトリから複数の作業ディレクト�
 ## Worktree作成フロー
 
 ```
-1. Issue番号を受け取る
+1. Issue番号とタイトルを取得
    ↓
-2. ブランチ名を生成（issue-{番号}）
+2. ブランチ名を生成（issue-{番号}-{sanitized-title}）
    ↓
-3. ベースブランチを確認（デフォルト: main）
+3. ベースブランチを確認（デフォルト: HEAD）
    ↓
 4. Worktreeを作成
-   git worktree add {path} -b {branch} {base}
+   git worktree add {path} -b feature/{branch} {base}
    ↓
-5. 必要なファイルをコピー
-   - .env
-   - .env.local
-   - その他設定ファイル
+5. 設定ファイルをコピー
+   - .env, .env.local, .envrc
    ↓
 6. Worktreeパスを返す
 ```
 
-## コマンド詳細
+## lib/worktree.sh API
 
 ### Worktree作成
 
 ```bash
-# 基本的な作成
-git worktree add .worktrees/issue-42 -b issue-42
+# ブランチ名とベースブランチを指定して作成
+worktree_path="$(create_worktree "issue-42-add-feature" "main")"
+# → ".worktrees/issue-42-add-feature"
 
-# ベースブランチを指定
-git worktree add .worktrees/issue-42 -b issue-42 origin/develop
-
-# 既存ブランチをチェックアウト
-git worktree add .worktrees/issue-42 issue-42
+# HEADをベースに作成（デフォルト）
+worktree_path="$(create_worktree "issue-42-add-feature")"
 ```
 
 **実装**:
-```typescript
-async createWorktree(
-  issueNumber: number,
-  branch: string,
-  base: string = 'main'
-): Promise<string> {
-  const worktreePath = path.join(
-    this.config.worktree.baseDir,
-    `issue-${issueNumber}`
-  );
 
-  // Worktreeが既に存在するか確認
-  if (await this.exists(worktreePath)) {
-    throw new WorktreeExistsError(`Worktree already exists: ${worktreePath}`);
-  }
-
-  // Worktreeを作成
-  await this.exec(
-    `git worktree add ${worktreePath} -b ${branch} ${base}`
-  );
-
-  // 必要なファイルをコピー
-  await this.copyFiles(worktreePath, this.config.worktree.copyFiles);
-
-  return worktreePath;
+```bash
+create_worktree() {
+    local branch_name="$1"
+    local base_branch="${2:-HEAD}"
+    local worktree_dir
+    
+    load_config
+    worktree_dir="$(get_config worktree_base_dir)/$branch_name"
+    
+    # 既存のworktreeチェック
+    if [[ -d "$worktree_dir" ]]; then
+        log_error "Worktree already exists: $worktree_dir"
+        return 1
+    fi
+    
+    # ベースディレクトリ作成
+    mkdir -p "$(get_config worktree_base_dir)"
+    
+    # worktree作成
+    log_info "Creating worktree: $worktree_dir (branch: feature/$branch_name)"
+    
+    if git rev-parse --verify "feature/$branch_name" &> /dev/null; then
+        # ブランチが既に存在する場合
+        git worktree add "$worktree_dir" "feature/$branch_name" >&2
+    else
+        # 新規ブランチ作成
+        git worktree add -b "feature/$branch_name" "$worktree_dir" "$base_branch" >&2
+    fi
+    
+    # ファイルのコピー
+    copy_files_to_worktree "$worktree_dir"
+    
+    echo "$worktree_dir"
 }
 ```
 
 ### ファイルコピー
 
-設定ファイルで指定されたファイルをメインリポジトリからworktreeにコピーします。
+環境設定ファイルをworktreeにコピー:
 
-**設定例**:
+```bash
+copy_files_to_worktree "$worktree_path"
+```
+
+**設定** (`.pi-runner.yaml`):
 ```yaml
 worktree:
   copy_files:
     - ".env"
     - ".env.local"
-    - "config/local.json"
+    - ".envrc"
 ```
 
 **実装**:
-```typescript
-async copyFiles(worktreePath: string, files: string[]): Promise<void> {
-  const repoRoot = await this.getRepoRoot();
 
-  for (const file of files) {
-    const src = path.join(repoRoot, file);
-    const dest = path.join(worktreePath, file);
-
-    // ファイルが存在するか確認
-    if (!await Bun.file(src).exists()) {
-      this.logger.warn(`File not found, skipping: ${src}`);
-      continue;
-    }
-
-    // ディレクトリを作成
-    await Bun.write(dest, await Bun.file(src).arrayBuffer());
+```bash
+copy_files_to_worktree() {
+    local worktree_dir="$1"
+    local files
     
-    this.logger.info(`Copied ${file} to ${worktreePath}`);
-  }
+    load_config
+    files="$(get_config worktree_copy_files)"
+    
+    for file in $files; do
+        if [[ -f "$file" ]]; then
+            log_debug "Copying $file to worktree"
+            cp "$file" "$worktree_dir/"
+        fi
+    done
 }
 ```
 
 ### Worktree削除
 
 ```bash
-# 通常の削除
-git worktree remove .worktrees/issue-42
+# 通常削除
+remove_worktree ".worktrees/issue-42-add-feature"
 
-# 強制削除（変更がある場合）
-git worktree remove --force .worktrees/issue-42
+# 強制削除（未コミットの変更があっても削除）
+remove_worktree ".worktrees/issue-42-add-feature" true
 ```
 
 **実装**:
-```typescript
-async removeWorktree(
-  worktreePath: string,
-  force: boolean = false
-): Promise<void> {
-  // Worktreeが存在するか確認
-  if (!await this.exists(worktreePath)) {
-    this.logger.warn(`Worktree not found: ${worktreePath}`);
-    return;
-  }
-
-  // 削除コマンドを実行
-  const forceFlag = force ? '--force' : '';
-  await this.exec(`git worktree remove ${forceFlag} ${worktreePath}`);
-
-  this.logger.info(`Removed worktree: ${worktreePath}`);
-}
-```
-
-### Worktree一覧取得
 
 ```bash
-# Worktree一覧を表示
-git worktree list
+remove_worktree() {
+    local worktree_path="$1"
+    local force="${2:-false}"
+    
+    if [[ ! -d "$worktree_path" ]]; then
+        log_error "Worktree not found: $worktree_path"
+        return 1
+    fi
+    
+    log_info "Removing worktree: $worktree_path"
+    
+    if [[ "$force" == "true" ]]; then
+        git worktree remove --force "$worktree_path"
+    else
+        git worktree remove "$worktree_path"
+    fi
+}
 ```
 
-**出力例**:
-```
-/path/to/repo              abc123 [main]
-/path/to/.worktrees/issue-42  def456 [issue-42]
-/path/to/.worktrees/issue-43  ghi789 [issue-43]
+### Worktree一覧
+
+```bash
+list_worktrees
+# 出力:
+# .worktrees/issue-42-add-feature
+# .worktrees/issue-43-fix-bug
 ```
 
 **実装**:
-```typescript
-interface WorktreeInfo {
-  path: string;
-  branch: string;
-  commit: string;
-}
 
-async listWorktrees(): Promise<WorktreeInfo[]> {
-  const output = await this.exec('git worktree list --porcelain');
-  
-  // 出力をパース
-  const worktrees: WorktreeInfo[] = [];
-  const lines = output.split('\n');
-  
-  let current: Partial<WorktreeInfo> = {};
-  
-  for (const line of lines) {
-    if (line.startsWith('worktree ')) {
-      current.path = line.substring(9);
-    } else if (line.startsWith('branch ')) {
-      current.branch = line.substring(7);
-    } else if (line.startsWith('HEAD ')) {
-      current.commit = line.substring(5);
-    } else if (line === '') {
-      if (current.path) {
-        worktrees.push(current as WorktreeInfo);
-      }
-      current = {};
-    }
-  }
-  
-  return worktrees;
-}
-```
-
-## エッジケース処理
-
-### 1. Worktreeが既に存在する場合
-
-**シナリオ**: 同じIssue番号で複数回実行
-
-**対処**:
-```typescript
-if (await this.exists(worktreePath)) {
-  // オプション1: エラーを投げる（デフォルト）
-  throw new WorktreeExistsError();
-  
-  // オプション2: 既存を削除して再作成（--force フラグ時）
-  if (options.force) {
-    await this.removeWorktree(worktreePath, true);
-    // 作成処理を続行
-  }
-}
-```
-
-### 2. ブランチが既に存在する場合
-
-**シナリオ**: 以前作成したブランチが残っている
-
-**対処**:
-```typescript
-try {
-  await this.exec(`git worktree add ${path} -b ${branch} ${base}`);
-} catch (error) {
-  if (error.message.includes('already exists')) {
-    // 既存ブランチをチェックアウト
-    await this.exec(`git worktree add ${path} ${branch}`);
-  } else {
-    throw error;
-  }
-}
-```
-
-### 3. ディスク容量不足
-
-**対処**:
-```typescript
-async createWorktree(...): Promise<string> {
-  // 利用可能なディスク容量を確認
-  const available = await this.getAvailableDiskSpace();
-  const required = await this.estimateWorktreeSize();
-  
-  if (available < required * 1.2) { // 20%のバッファ
-    throw new InsufficientDiskSpaceError();
-  }
-  
-  // Worktree作成処理
-}
-```
-
-### 4. 孤立したWorktree
-
-**シナリオ**: プロセスクラッシュ等で削除されなかったworktree
-
-**検出**:
-```typescript
-async findOrphanedWorktrees(): Promise<string[]> {
-  const worktrees = await this.listWorktrees();
-  const tasks = await this.taskManager.listTasks();
-  
-  const orphaned: string[] = [];
-  
-  for (const wt of worktrees) {
-    // メインリポジトリはスキップ
-    if (!wt.path.includes(this.config.worktree.baseDir)) {
-      continue;
-    }
+```bash
+list_worktrees() {
+    load_config
+    local base_dir
+    base_dir="$(get_config worktree_base_dir)"
     
-    // 対応するタスクがあるか確認
-    const hasTask = tasks.some(t => t.worktreePath === wt.path);
+    while read -r line; do
+        if [[ "$line" =~ ^worktree ]]; then
+            local path="${line#worktree }"
+            if [[ "$path" == *"$base_dir"* ]]; then
+                echo "$path"
+            fi
+        fi
+    done < <(git worktree list --porcelain)
+}
+```
+
+### Worktreeのブランチ取得
+
+```bash
+branch="$(get_worktree_branch ".worktrees/issue-42-add-feature")"
+# → "feature/issue-42-add-feature"
+```
+
+### Issue番号からWorktree検索
+
+```bash
+worktree="$(find_worktree_by_issue 42)"
+# → ".worktrees/issue-42-add-feature"
+```
+
+**実装**:
+
+```bash
+find_worktree_by_issue() {
+    local issue_number="$1"
     
-    if (!hasTask) {
-      orphaned.push(wt.path);
-    }
-  }
-  
-  return orphaned;
-}
-```
-
-**クリーンアップ**:
-```typescript
-async cleanupOrphaned(): Promise<void> {
-  const orphaned = await this.findOrphanedWorktrees();
-  
-  for (const path of orphaned) {
-    this.logger.warn(`Removing orphaned worktree: ${path}`);
-    await this.removeWorktree(path, true);
-  }
-}
-```
-
-## パフォーマンス最適化
-
-### 並列作成
-
-複数のworktreeを並列で作成する場合：
-
-```typescript
-async createWorktreesParallel(
-  issues: number[]
-): Promise<Map<number, string>> {
-  const results = new Map<number, string>();
-  
-  // Promise.allで並列実行
-  const promises = issues.map(async (issue) => {
-    try {
-      const path = await this.createWorktree(
-        issue,
-        `issue-${issue}`
-      );
-      results.set(issue, path);
-    } catch (error) {
-      this.logger.error(`Failed to create worktree for issue ${issue}`, error);
-    }
-  });
-  
-  await Promise.all(promises);
-  
-  return results;
-}
-```
-
-**注意**: Git 2.15以降では並列worktree作成が安全です。
-
-### シンボリックリンクの活用
-
-大きなファイル（node_modules等）は共有可能：
-
-```typescript
-async createWorktree(...): Promise<string> {
-  // Worktree作成
-  const path = await this.createWorktreeBase(...);
-  
-  // node_modulesをシンボリックリンク（オプション）
-  if (this.config.worktree.symlinkNodeModules) {
-    const repoRoot = await this.getRepoRoot();
-    const src = path.join(repoRoot, 'node_modules');
-    const dest = path.join(path, 'node_modules');
+    load_config
+    local base_dir
+    base_dir="$(get_config worktree_base_dir)"
     
-    await Bun.spawn(['ln', '-s', src, dest]);
-  }
-  
-  return path;
+    # issue-XXX-* パターンで検索
+    local pattern="issue-${issue_number}"
+    
+    for dir in "$base_dir"/*; do
+        if [[ -d "$dir" && "$(basename "$dir")" == $pattern* ]]; then
+            echo "$dir"
+            return 0
+        fi
+    done
+    
+    return 1
 }
 ```
 
-## ディレクトリ構造例
+## ブランチ命名規則
+
+### 自動生成
+
+`lib/github.sh` の `issue_to_branch_name()` で生成:
+
+```bash
+# Issue #42: "Add new feature for users"
+branch_name="$(issue_to_branch_name 42)"
+# → "issue-42-add-new-feature-for-users"
+```
+
+**命名ルール**:
+- プレフィックス: `feature/`
+- フォーマット: `issue-{番号}-{sanitized-title}`
+- タイトルは小文字化、特殊文字はハイフンに置換
+- 最大長制限あり
+
+### カスタムブランチ名
+
+`run.sh` の `--branch` オプションで指定:
+
+```bash
+./scripts/run.sh 42 --branch custom-feature-name
+```
+
+## ディレクトリ構造
 
 ```
 project-root/
 ├── .git/                           # メインのGitディレクトリ
 ├── .worktrees/                     # Worktree作業ディレクトリ
-│   ├── issue-42/                   # Issue #42のworktree
-│   │   ├── .git                    # Gitリンク（実体は親の.git/worktrees/）
+│   ├── .status/                    # ステータスファイル
+│   │   ├── 42.json
+│   │   └── 43.json
+│   ├── issue-42-add-feature/       # Issue #42のworktree
+│   │   ├── .git                    # Gitリンク（親の.git/worktrees/へ）
 │   │   ├── .env                    # コピーされた設定ファイル
+│   │   ├── .pi-prompt.md           # 生成されたプロンプト
 │   │   ├── src/
-│   │   ├── package.json
-│   │   └── node_modules/           # （オプション）シンボリックリンク
-│   └── issue-43/                   # Issue #43のworktree
+│   │   └── package.json
+│   └── issue-43-fix-bug/           # Issue #43のworktree
 │       └── ...
 ├── src/                            # メインリポジトリのソース
 ├── package.json
 └── .pi-runner.yaml
 ```
 
-## セキュリティ考慮事項
+## エッジケース処理
 
-### ファイルコピー時の権限
+### Worktreeが既に存在する場合
 
-```typescript
-async copyFiles(worktreePath: string, files: string[]): Promise<void> {
-  for (const file of files) {
-    const src = path.join(repoRoot, file);
-    const dest = path.join(worktreePath, file);
-    
-    // ファイルをコピー
-    await Bun.write(dest, await Bun.file(src).arrayBuffer());
-    
-    // パーミッションを保持
-    const stats = await Bun.file(src).stat();
-    if (stats) {
-      await Bun.spawn(['chmod', stats.mode.toString(8), dest]);
-    }
-  }
-}
+`run.sh` での処理:
+
+```bash
+if existing_worktree="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
+    if [[ "$force" == "true" ]]; then
+        log_info "Removing existing worktree: $existing_worktree"
+        remove_worktree "$existing_worktree" true || true
+    else
+        log_error "Worktree already exists: $existing_worktree"
+        log_info "Options:"
+        log_info "  --force     Remove and recreate worktree"
+        exit 1
+    fi
+fi
 ```
 
-### 機密ファイルの扱い
+### ブランチが既に存在する場合
 
-- `.env` ファイルはログに記録しない
-- コピー時にバックアップを作成しない
-- クリーンアップ時に確実に削除
+`create_worktree()` で自動処理:
 
-```typescript
-async removeWorktree(worktreePath: string, force: boolean = false): Promise<void> {
-  // 機密ファイルを先に削除
-  const sensitiveFiles = ['.env', '.env.local'];
-  for (const file of sensitiveFiles) {
-    const filePath = path.join(worktreePath, file);
-    try {
-      await Bun.spawn(['rm', '-f', filePath]);
-    } catch (error) {
-      // 既に削除されている場合は無視
-    }
-  }
-  
-  // Worktree本体を削除
-  await this.exec(`git worktree remove ${force ? '--force' : ''} ${worktreePath}`);
-}
+```bash
+if git rev-parse --verify "feature/$branch_name" &> /dev/null; then
+    # 既存ブランチをチェックアウト
+    git worktree add "$worktree_dir" "feature/$branch_name" >&2
+else
+    # 新規ブランチ作成
+    git worktree add -b "feature/$branch_name" "$worktree_dir" "$base_branch" >&2
+fi
+```
+
+### エラー時のクリーンアップ
+
+`run.sh` でのトラップ設定:
+
+```bash
+# エラー時のクリーンアップを設定
+setup_cleanup_trap cleanup_worktree_on_error
+
+# worktreeを登録（エラー時に削除される）
+register_worktree_for_cleanup "$full_worktree_path"
+
+# 成功時はトラップ解除
+unregister_worktree_for_cleanup
+```
+
+## 設定
+
+### .pi-runner.yaml
+
+```yaml
+worktree:
+  base_dir: ".worktrees"      # worktree作成先ディレクトリ
+  copy_files:                 # worktreeにコピーするファイル
+    - ".env"
+    - ".env.local"
+    - ".envrc"
+```
+
+### 環境変数
+
+```bash
+PI_RUNNER_WORKTREE_BASE_DIR=".worktrees"
+PI_RUNNER_WORKTREE_COPY_FILES=".env .env.local .envrc"
+```
+
+## Gitコマンドリファレンス
+
+### よく使うコマンド
+
+```bash
+# Worktree一覧
+git worktree list
+
+# Worktree作成（新規ブランチ）
+git worktree add .worktrees/issue-42 -b feature/issue-42 main
+
+# Worktree作成（既存ブランチ）
+git worktree add .worktrees/issue-42 feature/issue-42
+
+# Worktree削除
+git worktree remove .worktrees/issue-42
+
+# 強制削除
+git worktree remove --force .worktrees/issue-42
+
+# 孤立したworktree情報を修復
+git worktree repair
+```
+
+### Worktree一覧の詳細表示
+
+```bash
+git worktree list --porcelain
+# 出力:
+# worktree /path/to/repo
+# HEAD abc1234
+# branch refs/heads/main
+#
+# worktree /path/to/.worktrees/issue-42
+# HEAD def5678
+# branch refs/heads/feature/issue-42
 ```
 
 ## トラブルシューティング
@@ -427,15 +388,15 @@ git worktree repair
 
 ### 問題: Worktreeが削除できない
 
-**原因**: ファイルが使用中
+**原因**: ファイルが使用中（tmuxセッション等）
 
 **解決**:
 ```bash
 # Tmuxセッションを先に終了
-tmux kill-session -t pi-issue-42
+./scripts/stop.sh 42
 
 # 強制削除
-git worktree remove --force .worktrees/issue-42
+git worktree remove --force .worktrees/issue-42-*
 ```
 
 ### 問題: ブランチの追跡が壊れている
@@ -444,14 +405,51 @@ git worktree remove --force .worktrees/issue-42
 
 **解決**:
 ```bash
-cd .worktrees/issue-42
-git branch --set-upstream-to=origin/issue-42
+cd .worktrees/issue-42-*
+git branch --set-upstream-to=origin/feature/issue-42
 ```
+
+### 問題: 孤立したWorktreeがある
+
+**検出と削除**:
+```bash
+# 孤立したworktreeを検出
+./scripts/cleanup.sh --orphaned --dry-run
+
+# 削除
+./scripts/cleanup.sh --orphaned
+```
+
+## セキュリティ考慮事項
+
+### 機密ファイルの取り扱い
+
+- `.env` ファイルはログに記録しない
+- クリーンアップ時に確実に削除
+
+### ファイル権限
+
+- Worktreeは親リポジトリと同じ権限
+- コピーされたファイルは元のパーミッションを維持
 
 ## ベストプラクティス
 
-1. **定期的なクリーンアップ**: 完了したタスクのworktreeは速やかに削除
-2. **ディスク容量の監視**: worktreeはディスク容量を消費するため、定期的にチェック
-3. **共有リソースの最小化**: node_modules等はシンボリックリンクで共有
-4. **並列作成の制限**: 一度に大量のworktreeを作成しない（最大10個程度）
-5. **孤立したworktreeの監視**: 定期的に `findOrphanedWorktrees()` を実行
+1. **定期的なクリーンアップ**
+   - 完了したタスクのworktreeは速やかに削除
+   - `cleanup.sh --all --completed` で一括削除
+
+2. **ディスク容量の監視**
+   - worktreeはディスク容量を消費
+   - 定期的に `du -sh .worktrees/` でチェック
+
+3. **並列作成の制限**
+   - 一度に大量のworktreeを作成しない
+   - `parallel_max_concurrent` で制限
+
+4. **ブランチ名の一貫性**
+   - 自動生成のブランチ名を使用
+   - カスタム名は特別な理由がある場合のみ
+
+5. **エラー時のリカバリー**
+   - `--force` オプションで既存リソースを削除して再作成
+   - `git worktree repair` で整合性を修復
