@@ -31,10 +31,47 @@ which yq
 
 ## インストール
 
+### スキルとしてインストール（piから使用）
+
 piのスキルディレクトリにクローン:
 
 ```bash
 git clone https://github.com/takemo101/pi-issue-runner ~/.pi/agent/skills/pi-issue-runner
+```
+
+### グローバルインストール（コマンドラインから使用）
+
+任意のディレクトリで `pi-run 42` のようにコマンドを実行できるようにします:
+
+```bash
+cd ~/.pi/agent/skills/pi-issue-runner
+./install.sh
+```
+
+インストールされるコマンド:
+
+| コマンド | 説明 |
+|----------|------|
+| `pi-run` | Issue実行 |
+| `pi-list` | セッション一覧 |
+| `pi-attach` | セッションアタッチ |
+| `pi-status` | 状態確認 |
+| `pi-stop` | セッション停止 |
+| `pi-cleanup` | クリーンアップ |
+| `pi-improve` | 継続的改善 |
+| `pi-wait` | 完了待機 |
+| `pi-watch` | セッション監視 |
+
+カスタムインストール先を指定する場合:
+
+```bash
+INSTALL_DIR=/usr/local/bin ./install.sh
+```
+
+アンインストール:
+
+```bash
+./uninstall.sh
 ```
 
 ## 使い方
