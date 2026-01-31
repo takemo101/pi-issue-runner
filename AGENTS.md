@@ -36,9 +36,11 @@ pi-issue-runner/
 │   ├── log.sh         # ログ出力
 │   ├── notify.sh      # 通知機能
 │   ├── status.sh      # 状態管理
+│   ├── template.sh    # テンプレート処理
 │   ├── tmux.sh        # tmux操作
 │   ├── workflow.sh    # ワークフローエンジン
-│   └── worktree.sh    # Git worktree操作
+│   ├── worktree.sh    # Git worktree操作
+│   └── yaml.sh        # YAMLパーサー
 ├── workflows/         # ビルトインワークフロー定義
 │   ├── default.yaml   # 完全ワークフロー
 │   └── simple.yaml    # 簡易ワークフロー
@@ -55,9 +57,11 @@ pi-issue-runner/
 │   │   ├── log.bats
 │   │   ├── notify.bats
 │   │   ├── status.bats
+│   │   ├── template.bats
 │   │   ├── tmux.bats
 │   │   ├── workflow.bats
-│   │   └── worktree.bats
+│   │   ├── worktree.bats
+│   │   └── yaml.bats
 │   ├── scripts/       # スクリプトの統合テスト
 │   │   ├── attach.bats
 │   │   ├── cleanup.bats
