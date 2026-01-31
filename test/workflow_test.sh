@@ -98,6 +98,27 @@ else
     assert_equals "check_yq returns 1 when yq is not available" "0" "$?"
 fi
 
+# キャッシュのテスト
+# キャッシュをリセット
+_YQ_CHECK_RESULT=""
+
+# 1回目の呼び出し
+check_yq || true
+cache_after_first="$_YQ_CHECK_RESULT"
+assert_not_empty "Cache is set after first check_yq call" "$cache_after_first"
+
+# 2回目の呼び出し（キャッシュから返るはず）
+check_yq || true
+cache_after_second="$_YQ_CHECK_RESULT"
+assert_equals "Cache remains same after second call" "$cache_after_first" "$cache_after_second"
+
+# キャッシュ値の検証
+if command -v yq &>/dev/null; then
+    assert_equals "Cache value is '1' when yq exists" "1" "$_YQ_CHECK_RESULT"
+else
+    assert_equals "Cache value is '0' when yq not found" "0" "$_YQ_CHECK_RESULT"
+fi
+
 # ===================
 # find_workflow_file テスト
 # ===================

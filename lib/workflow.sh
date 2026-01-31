@@ -29,11 +29,23 @@ Push changes and create a pull request.'
 # 依存チェック
 # ===================
 
-# yq の存在確認
+# yq チェック結果のキャッシュ（空: 未チェック、"1": 存在、"0": 不在）
+_YQ_CHECK_RESULT=""
+
+# yq の存在確認（結果をキャッシュ）
 check_yq() {
+    # キャッシュがある場合はそれを返す
+    if [[ -n "$_YQ_CHECK_RESULT" ]]; then
+        [[ "$_YQ_CHECK_RESULT" == "1" ]]
+        return
+    fi
+    
+    # 初回のみ実際にチェック
     if command -v yq &> /dev/null; then
+        _YQ_CHECK_RESULT="1"
         return 0
     else
+        _YQ_CHECK_RESULT="0"
         log_debug "yq not found, using builtin workflow"
         return 1
     fi
