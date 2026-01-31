@@ -50,9 +50,29 @@ pi-issue-runner/
 ├── docs/              # ドキュメント
 ├── test/              # Batsテスト（*.bats形式）
 │   ├── lib/           # ライブラリのユニットテスト
+│   │   ├── config.bats
+│   │   ├── github.bats
+│   │   ├── log.bats
+│   │   ├── notify.bats
+│   │   ├── status.bats
+│   │   ├── tmux.bats
+│   │   ├── workflow.bats
+│   │   └── worktree.bats
 │   ├── scripts/       # スクリプトの統合テスト
+│   │   ├── attach.bats
+│   │   ├── cleanup.bats
+│   │   ├── improve.bats
+│   │   ├── init.bats
+│   │   ├── list.bats
+│   │   ├── run.bats
+│   │   ├── status.bats
+│   │   ├── stop.bats
+│   │   ├── wait-for-sessions.bats
+│   │   └── watch-session.bats
 │   ├── regression/    # 回帰テスト
+│   │   └── critical-fixes.bats
 │   ├── fixtures/      # テスト用フィクスチャ
+│   │   └── sample-config.yaml
 │   └── test_helper.bash  # Bats共通ヘルパー
 └── .worktrees/        # 実行時に作成されるworktreeディレクトリ
 ```
