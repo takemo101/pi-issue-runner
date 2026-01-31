@@ -26,8 +26,8 @@ which pi
 # jq (JSON処理)
 which jq
 
-# yq (YAML処理)
-which yq
+# yq (YAML処理、オプション - なくてもフォールバックで動作)
+which yq  # オプション
 ```
 
 ## インストール
