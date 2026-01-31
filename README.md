@@ -359,11 +359,10 @@ test/
 │   ├── run.bats            # run.sh のテスト
 │   ├── list.bats           # list.sh のテスト
 │   └── cleanup.bats        # cleanup.sh のテスト
-├── helpers/                # テストヘルパー
-│   └── mocks.sh            # モック関数
+├── regression/             # 回帰テスト
 ├── fixtures/               # テスト用フィクスチャ
 │   └── sample-config.yaml
-└── test_helper.bash        # Bats共通ヘルパー
+└── test_helper.bash        # Bats共通ヘルパー（モック関数含む）
 ```
 
 ## トラブルシューティング
