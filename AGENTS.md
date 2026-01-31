@@ -8,7 +8,7 @@
 
 - **言語**: Bash 4.0以上
 - **依存ツール**: `gh` (GitHub CLI), `tmux`, `git`, `jq`, `yq` (YAMLパーサー、オプション)
-- **テストフレームワーク**: シェルスクリプト形式（`*_test.sh`）
+- **テストフレームワーク**: Bats (Bash Automated Testing System)
 
 ## ディレクトリ構造
 
@@ -44,7 +44,12 @@ pi-issue-runner/
 │   ├── review.md      # レビューエージェント
 │   └── merge.md       # マージエージェント
 ├── docs/              # ドキュメント
-├── test/              # 単体テスト（*_test.sh形式、fixtures/helpers含む）
+├── test/              # Batsテスト（*.bats形式）
+│   ├── lib/           # ライブラリのユニットテスト
+│   ├── scripts/       # スクリプトの統合テスト
+│   ├── helpers/       # テストヘルパー・モック
+│   ├── fixtures/      # テスト用フィクスチャ
+│   └── test_helper.bash  # Bats共通ヘルパー
 └── .worktrees/        # 実行時に作成されるworktreeディレクトリ
 ```
 
@@ -54,11 +59,14 @@ pi-issue-runner/
 # スクリプト実行
 ./scripts/run.sh 42
 
-# 単体テスト実行
-./test/config_test.sh
+# Batsテスト実行（全テスト）
+bats test/lib/*.bats test/scripts/*.bats
 
-# 全テスト実行
-for f in test/*_test.sh; do bash "$f"; done
+# 特定のテストファイル実行
+bats test/lib/config.bats
+
+# 旧形式テスト実行（互換性のため残存）
+./test/config_test.sh
 
 # シェルスクリプトの構文チェック
 shellcheck scripts/*.sh lib/*.sh
@@ -92,39 +100,64 @@ shellcheck scripts/*.sh lib/*.sh
 
 ## テスト
 
-### テストの書き方
+### Batsテストの書き方
 
 ```bash
-#!/usr/bin/env bash
-# example_test.sh
+#!/usr/bin/env bats
+# test/lib/example.bats
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../lib/config.sh"
+load '../test_helper'
 
-TESTS_PASSED=0
-TESTS_FAILED=0
-
-assert_equals() {
-    local description="$1" expected="$2" actual="$3"
-    if [[ "$actual" == "$expected" ]]; then
-        echo "✓ $description"
-        ((TESTS_PASSED++)) || true
-    else
-        echo "✗ $description"
-        echo "  Expected: '$expected'"
-        echo "  Actual:   '$actual'"
-        ((TESTS_FAILED++)) || true
+setup() {
+    # テストごとのセットアップ
+    if [[ -z "${BATS_TEST_TMPDIR:-}" ]]; then
+        export BATS_TEST_TMPDIR="$(mktemp -d)"
     fi
 }
 
-# テスト実行
-echo "=== Example tests ==="
-assert_equals "1+1=2" "2" "$((1+1))"
+teardown() {
+    # テストごとのクリーンアップ
+    rm -rf "$BATS_TEST_TMPDIR"
+}
 
-# 結果表示
-echo ""
-echo "Results: $TESTS_PASSED passed, $TESTS_FAILED failed"
-exit $TESTS_FAILED
+@test "get_config returns default value" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config worktree_base_dir)"
+    [ "$result" = ".worktrees" ]
+}
+
+@test "run.sh shows help with --help" {
+    run "$PROJECT_ROOT/scripts/run.sh" --help
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Usage:"* ]]
+}
+```
+
+### テスト実行
+
+```bash
+# 全テスト実行
+bats test/lib/*.bats test/scripts/*.bats
+
+# 特定のファイルを実行
+bats test/lib/config.bats
+
+# 詳細出力
+bats --tap test/lib/*.bats
+```
+
+### モックの使用
+
+```bash
+# test_helper.bash のモック関数を使用
+@test "example with mocks" {
+    mock_gh      # ghコマンドをモック
+    mock_tmux    # tmuxコマンドをモック
+    enable_mocks # モックをPATHに追加
+    
+    # テストコード
+}
 ```
 
 ### 手動テスト
