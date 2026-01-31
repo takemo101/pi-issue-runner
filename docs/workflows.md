@@ -8,6 +8,13 @@ pi-issue-runnerは、GitHub Issueの処理をワークフローとして定義�
 
 計画・実装・レビュー・マージの4ステップを実行します。
 
+| ステップ | 説明 |
+|----------|------|
+| `plan` | Issue分析と実装計画の作成 |
+| `implement` | コード実装とテスト |
+| `review` | セルフレビューと品質確認 |
+| `merge` | PR作成とマージ |
+
 ```yaml
 # workflows/default.yaml
 name: default
@@ -22,6 +29,11 @@ steps:
 ### simple - 簡易ワークフロー
 
 小規模な変更向けに、実装とマージのみを実行します。
+
+| ステップ | 説明 |
+|----------|------|
+| `implement` | コード実装とテスト |
+| `merge` | PR作成とマージ |
 
 ```yaml
 # workflows/simple.yaml
@@ -96,7 +108,17 @@ GitHub Issue #{{issue_number}} のテストを実行します。
 3. `workflows/{name}.yaml`
 4. ビルトイン定義
 
-## テンプレート変数
+## エージェントテンプレート
+
+各ステップには対応するエージェントテンプレート（`agents/{step}.md`）が使用されます。
+
+### エージェント検索順序
+
+1. `agents/{step}.md`
+2. `.pi/agents/{step}.md`
+3. ビルトインエージェント
+
+### テンプレート変数
 
 ワークフローとエージェントテンプレートで使用可能な変数：
 
@@ -117,6 +139,22 @@ GitHub Issue #{{issue_number}} のテストを実行します。
 | implement | `agents/implement.md` | コードを実装 |
 | review | `agents/review.md` | セルフレビューを実施 |
 | merge | `agents/merge.md` | PRを作成してマージ |
+
+## プロジェクト設定でのワークフロー定義
+
+`.pi-runner.yaml` でワークフローを直接定義することもできます：
+
+```yaml
+# .pi-runner.yaml
+workflow:
+  name: custom
+  description: プロジェクト固有のワークフロー
+  steps:
+    - plan
+    - implement
+    - review
+    - merge
+```
 
 ## 関連ドキュメント
 
