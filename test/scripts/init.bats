@@ -198,3 +198,30 @@ teardown() {
     count=$(grep -c "^\.worktrees/$" ".gitignore" || echo "0")
     [ "$count" -eq 1 ]
 }
+
+# ====================
+# 孤立ステータスファイル警告テスト
+# ====================
+
+@test "init.sh warns about orphaned status files" {
+    # 孤立したステータスファイルを作成
+    mkdir -p ".worktrees/.status"
+    echo '{"issue": 999, "status": "complete"}' > ".worktrees/.status/999.json"
+    
+    run "$PROJECT_ROOT/scripts/init.sh"
+    [ "$status" -eq 0 ]
+    # 警告メッセージが表示されること
+    [[ "$output" == *"孤立した"* ]] || [[ "$output" == *"orphan"* ]] || [[ "$output" == *"cleanup.sh --orphans"* ]]
+}
+
+@test "init.sh does not warn when no orphaned status files" {
+    # worktreeとステータスファイルが対応している場合
+    mkdir -p ".worktrees/.status"
+    mkdir -p ".worktrees/issue-100-test"
+    echo '{"issue": 100, "status": "running"}' > ".worktrees/.status/100.json"
+    
+    run "$PROJECT_ROOT/scripts/init.sh"
+    [ "$status" -eq 0 ]
+    # 孤立ファイルの警告が表示されないこと
+    [[ "$output" != *"孤立した"* ]] || [[ "$output" != *"cleanup.sh --orphans"* ]]
+}

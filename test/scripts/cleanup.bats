@@ -87,6 +87,16 @@ teardown() {
     [[ "$output" == *"--delete-plans"* ]]
 }
 
+@test "cleanup.sh accepts --all option" {
+    run "$PROJECT_ROOT/scripts/cleanup.sh" --help
+    [[ "$output" == *"--all"* ]]
+}
+
+@test "cleanup.sh accepts --age option" {
+    run "$PROJECT_ROOT/scripts/cleanup.sh" --help
+    [[ "$output" == *"--age"* ]]
+}
+
 # ====================
 # --orphans オプションテスト
 # ====================
@@ -168,4 +178,70 @@ teardown() {
     run "$PROJECT_ROOT/scripts/cleanup.sh" --delete-plans
     [ "$status" -eq 0 ]
     [[ "$output" == *"No plan files found"* ]]
+}
+
+# ====================
+# --all オプションテスト
+# ====================
+
+@test "cleanup.sh --all runs both orphans and delete-plans cleanup" {
+    # 一時ディレクトリでテスト
+    export PI_RUNNER_WORKTREE_BASE_DIR="${BATS_TEST_TMPDIR}/.worktrees"
+    mkdir -p "${BATS_TEST_TMPDIR}/.worktrees/.status"
+    mkdir -p "${BATS_TEST_TMPDIR}/docs/plans"
+    
+    # 孤立したステータスファイルを作成
+    echo '{"issue": 777, "status": "complete"}' > "${BATS_TEST_TMPDIR}/.worktrees/.status/777.json"
+    
+    cd "$BATS_TEST_TMPDIR"
+    git init &>/dev/null
+    
+    run "$PROJECT_ROOT/scripts/cleanup.sh" --all --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Full Cleanup"* ]]
+    [[ "$output" == *"orphaned status files"* ]]
+    [[ "$output" == *"plans"* ]]
+}
+
+@test "cleanup.sh --all --dry-run does not delete files" {
+    export PI_RUNNER_WORKTREE_BASE_DIR="${BATS_TEST_TMPDIR}/.worktrees"
+    mkdir -p "${BATS_TEST_TMPDIR}/.worktrees/.status"
+    
+    echo '{"issue": 666, "status": "complete"}' > "${BATS_TEST_TMPDIR}/.worktrees/.status/666.json"
+    
+    cd "$BATS_TEST_TMPDIR"
+    git init &>/dev/null
+    
+    run "$PROJECT_ROOT/scripts/cleanup.sh" --all --dry-run
+    [ "$status" -eq 0 ]
+    
+    # ファイルが削除されていないことを確認
+    [ -f "${BATS_TEST_TMPDIR}/.worktrees/.status/666.json" ]
+}
+
+# ====================
+# --age オプションテスト
+# ====================
+
+@test "cleanup.sh --age requires a number" {
+    run "$PROJECT_ROOT/scripts/cleanup.sh" --orphans --age
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"requires"* ]]
+}
+
+@test "cleanup.sh --orphans --age filters by file age" {
+    export PI_RUNNER_WORKTREE_BASE_DIR="${BATS_TEST_TMPDIR}/.worktrees"
+    mkdir -p "${BATS_TEST_TMPDIR}/.worktrees/.status"
+    
+    # 新しいファイルを作成
+    echo '{"issue": 555, "status": "complete"}' > "${BATS_TEST_TMPDIR}/.worktrees/.status/555.json"
+    
+    cd "$BATS_TEST_TMPDIR"
+    git init &>/dev/null
+    
+    # --age 0 は "0日より古い" = 今日作成されたファイルは対象外
+    run "$PROJECT_ROOT/scripts/cleanup.sh" --orphans --age 0 --dry-run
+    [ "$status" -eq 0 ]
+    # 新しいファイルなので対象外
+    [[ "$output" != *"555"* ]] || [[ "$output" == *"No orphaned status files"* ]]
 }

@@ -338,3 +338,55 @@ find_orphaned_statuses() {
         fi
     done
 }
+
+# 指定日数より古いステータスファイルを検出
+# 引数:
+#   $1 - days: 日数（この日数より古いファイルを検出）
+# 出力: 古いIssue番号（1行に1つ）
+find_old_statuses() {
+    local days="${1:-7}"
+    local status_dir
+    status_dir="$(get_status_dir)"
+    
+    if [[ ! -d "$status_dir" ]]; then
+        return 0
+    fi
+    
+    # findを使って指定日数より古いファイルを検索
+    while IFS= read -r status_file; do
+        [[ -z "$status_file" ]] && continue
+        local issue_number
+        issue_number="$(basename "$status_file" .json)"
+        echo "$issue_number"
+    done < <(find "$status_dir" -name "*.json" -type f -mtime +"$days" 2>/dev/null || true)
+}
+
+# 孤立かつ古いステータスファイルを検出
+# 引数:
+#   $1 - days: 日数（オプション、指定時は日数制限を追加）
+# 出力: Issue番号（1行に1つ）
+find_stale_statuses() {
+    local days="${1:-}"
+    
+    if [[ -n "$days" ]]; then
+        # 孤立 AND 指定日数より古いファイル
+        local orphans old_statuses
+        orphans=$(find_orphaned_statuses | sort)
+        old_statuses=$(find_old_statuses "$days" | sort)
+        # 両方に含まれるものを抽出
+        comm -12 <(echo "$orphans") <(echo "$old_statuses")
+    else
+        # 孤立ファイルのみ
+        find_orphaned_statuses
+    fi
+}
+
+# 孤立したステータスファイルの数を取得
+# 出力: 孤立ファイル数
+count_orphaned_statuses() {
+    local count=0
+    while IFS= read -r _; do
+        count=$((count + 1))
+    done < <(find_orphaned_statuses)
+    echo "$count"
+}
