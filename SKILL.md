@@ -32,6 +32,11 @@ scripts/attach.sh <session>  # セッションにアタッチ
 scripts/status.sh <session>  # 状態確認
 scripts/stop.sh <session>    # セッション停止
 scripts/cleanup.sh <session> # 手動クリーンアップ
+
+# 継続的改善
+scripts/improve.sh                    # レビュー→Issue作成→実行→待機のループ
+scripts/improve.sh --dry-run          # レビューのみ
+scripts/wait-for-sessions.sh 42 43    # 複数セッション完了待機
 ```
 
 ## 前提条件
