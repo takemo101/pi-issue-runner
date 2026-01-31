@@ -27,20 +27,18 @@ Options:
     --branch NAME   カスタムブランチ名（デフォルト: issue-<num>-<title>）
     --base BRANCH   ベースブランチ（デフォルト: HEAD）
     --no-attach     セッション作成後にアタッチしない
+    --no-cleanup    pi終了後の自動クリーンアップを無効化
     --reattach      既存セッションがあればアタッチ
     --force         既存セッション/worktreeを削除して再作成
-    --auto-cleanup  セッション終了時に確認なしで自動クリーンアップ
-    --no-cleanup    セッション終了時のクリーンアッププロンプトを無効化
     --pi-args ARGS  piに渡す追加の引数
     -h, --help      このヘルプを表示
 
 Examples:
     $(basename "$0") 42
     $(basename "$0") 42 --no-attach
+    $(basename "$0") 42 --no-cleanup
     $(basename "$0") 42 --reattach
     $(basename "$0") 42 --force
-    $(basename "$0") 42 --auto-cleanup
-    $(basename "$0") 42 --no-attach --auto-cleanup
     $(basename "$0") 42 --branch custom-feature
     $(basename "$0") 42 --base develop
 EOF
@@ -54,7 +52,7 @@ main() {
     local reattach=false
     local force=false
     local extra_pi_args=""
-    local cleanup_mode="prompt"  # デフォルト: プロンプト表示
+    local cleanup_mode="auto"  # デフォルト: 自動クリーンアップ
 
     # 引数のパース
     while [[ $# -gt 0 ]]; do
@@ -81,10 +79,6 @@ main() {
                 ;;
             --force)
                 force=true
-                shift
-                ;;
-            --auto-cleanup)
-                cleanup_mode="auto"
                 shift
                 ;;
             --no-cleanup)
@@ -385,7 +379,11 @@ EOF
     log_info "Worktree:  $worktree_path"
     log_info "Branch:    feature/$branch_name"
     log_info "Session:   $session_name"
-    log_info "Cleanup:   $cleanup_mode"
+    if [[ "$cleanup_mode" == "none" ]]; then
+        log_info "Cleanup:   disabled (--no-cleanup)"
+    else
+        log_info "Cleanup:   auto (on pi exit)"
+    fi
 
     # アタッチ
     if [[ "$no_attach" == "false" ]]; then
