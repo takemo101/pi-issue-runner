@@ -127,7 +127,7 @@ detect_dangerous_patterns() {
     fi
     
     # バッククォート `...`
-    if echo "$text" | grep -qE '\`[^\`]+\`'; then
+    if echo "$text" | grep -q '`[^`]*`'; then
         log_warn "Dangerous pattern detected: backtick command \`...\`"
         found=1
     fi
