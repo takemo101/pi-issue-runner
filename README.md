@@ -83,8 +83,8 @@ INSTALL_DIR=/usr/local/bin ./install.sh
 # pi終了後、自動的にworktreeとセッションがクリーンアップされます
 scripts/run.sh 42
 
-# ワークフローを指定して起動
-scripts/run.sh 42 --workflow simple    # 簡易ワークフロー（実装・マージのみ）
+# ワークフローを指定して起動（-w は --workflow の短縮形）
+scripts/run.sh 42 -w simple            # 簡易ワークフロー（実装・マージのみ）
 scripts/run.sh 42 --workflow default   # 完全ワークフロー（デフォルト）
 
 # 利用可能なワークフロー一覧を表示
@@ -96,8 +96,8 @@ scripts/run.sh 42 --no-attach
 # pi終了後の自動クリーンアップを無効化
 scripts/run.sh 42 --no-cleanup
 
-# カスタムブランチ名で作成
-scripts/run.sh 42 --branch custom-feature
+# カスタムブランチ名で作成（-b は --branch の短縮形）
+scripts/run.sh 42 -b custom-feature
 
 # 特定のベースブランチから作成
 scripts/run.sh 42 --base develop

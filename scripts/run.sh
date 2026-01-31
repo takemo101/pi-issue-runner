@@ -16,26 +16,26 @@ Arguments:
     issue-number    GitHub Issue番号
 
 Options:
-    --branch NAME     カスタムブランチ名（デフォルト: issue-<num>-<title>）
-    --base BRANCH     ベースブランチ（デフォルト: HEAD）
-    --workflow NAME   ワークフロー名（デフォルト: default）
-                      利用可能: default, simple
-    --no-attach       セッション作成後にアタッチしない
-    --no-cleanup      pi終了後の自動クリーンアップを無効化
-    --reattach        既存セッションがあればアタッチ
-    --force           既存セッション/worktreeを削除して再作成
-    --pi-args ARGS    piに渡す追加の引数
-    --list-workflows  利用可能なワークフロー一覧を表示
-    -h, --help        このヘルプを表示
+    -b, --branch NAME   カスタムブランチ名（デフォルト: issue-<num>-<title>）
+    --base BRANCH       ベースブランチ（デフォルト: HEAD）
+    -w, --workflow NAME ワークフロー名（デフォルト: default）
+                        利用可能: default, simple
+    --no-attach         セッション作成後にアタッチしない
+    --no-cleanup        pi終了後の自動クリーンアップを無効化
+    --reattach          既存セッションがあればアタッチ
+    --force             既存セッション/worktreeを削除して再作成
+    --pi-args ARGS      piに渡す追加の引数
+    --list-workflows    利用可能なワークフロー一覧を表示
+    -h, --help          このヘルプを表示
 
 Examples:
     run.sh 42
-    run.sh 42 --workflow simple
+    run.sh 42 -w simple
     run.sh 42 --no-attach
     run.sh 42 --no-cleanup
     run.sh 42 --reattach
     run.sh 42 --force
-    run.sh 42 --branch custom-feature
+    run.sh 42 -b custom-feature
     run.sh 42 --base develop
 HELP_EOF
             exit 0
@@ -64,26 +64,26 @@ Arguments:
     issue-number    GitHub Issue番号
 
 Options:
-    --branch NAME     カスタムブランチ名（デフォルト: issue-<num>-<title>）
-    --base BRANCH     ベースブランチ（デフォルト: HEAD）
-    --workflow NAME   ワークフロー名（デフォルト: default）
-                      利用可能: default, simple
-    --no-attach       セッション作成後にアタッチしない
-    --no-cleanup      pi終了後の自動クリーンアップを無効化
-    --reattach        既存セッションがあればアタッチ
-    --force           既存セッション/worktreeを削除して再作成
-    --pi-args ARGS    piに渡す追加の引数
-    --list-workflows  利用可能なワークフロー一覧を表示
-    -h, --help        このヘルプを表示
+    -b, --branch NAME   カスタムブランチ名（デフォルト: issue-<num>-<title>）
+    --base BRANCH       ベースブランチ（デフォルト: HEAD）
+    -w, --workflow NAME ワークフロー名（デフォルト: default）
+                        利用可能: default, simple
+    --no-attach         セッション作成後にアタッチしない
+    --no-cleanup        pi終了後の自動クリーンアップを無効化
+    --reattach          既存セッションがあればアタッチ
+    --force             既存セッション/worktreeを削除して再作成
+    --pi-args ARGS      piに渡す追加の引数
+    --list-workflows    利用可能なワークフロー一覧を表示
+    -h, --help          このヘルプを表示
 
 Examples:
     $(basename "$0") 42
-    $(basename "$0") 42 --workflow simple
+    $(basename "$0") 42 -w simple
     $(basename "$0") 42 --no-attach
     $(basename "$0") 42 --no-cleanup
     $(basename "$0") 42 --reattach
     $(basename "$0") 42 --force
-    $(basename "$0") 42 --branch custom-feature
+    $(basename "$0") 42 -b custom-feature
     $(basename "$0") 42 --base develop
 EOF
 }
