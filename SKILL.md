@@ -34,7 +34,10 @@ scripts/cleanup.sh <session> # 手動クリーンアップ
 
 # 継続的改善
 scripts/improve.sh                    # レビュー→Issue作成→実行→待機のループ
-scripts/improve.sh --dry-run          # レビューのみ
+scripts/improve.sh --dry-run          # レビューのみ（Issue作成しない）
+scripts/improve.sh --review-only      # 問題表示のみ
+scripts/improve.sh --max-iterations 2 # 最大2回繰り返す
+scripts/improve.sh --auto-continue    # 自動継続（承認スキップ）
 scripts/wait-for-sessions.sh 42 43    # 複数セッション完了待機
 ```
 
