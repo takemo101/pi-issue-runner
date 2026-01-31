@@ -114,6 +114,51 @@ pi:
 | `PI_RUNNER_PI_COMMAND` | piコマンドのパス | `pi` |
 | `PI_RUNNER_PI_ARGS` | piコマンドの引数（スペース区切り） | `--verbose` |
 | `PI_RUNNER_PARALLEL_MAX_CONCURRENT` | 最大同時実行数 | `5` |
+| `LOG_LEVEL` | ログレベル（DEBUG, INFO, WARN, ERROR, QUIET） | `DEBUG` |
+
+## ログレベル
+
+`LOG_LEVEL` 環境変数でログの出力レベルを制御できます。
+
+### 利用可能なログレベル
+
+| レベル | 説明 |
+|--------|------|
+| `DEBUG` | デバッグ情報を含む全てのログを表示 |
+| `INFO` | 一般的な情報ログを表示（デフォルト） |
+| `WARN` | 警告とエラーのみ表示 |
+| `ERROR` | エラーのみ表示 |
+| `QUIET` | ログを出力しない |
+
+ログレベルの優先順位: `DEBUG` < `INFO` < `WARN` < `ERROR` < `QUIET`
+
+### 使用例
+
+```bash
+# デバッグログを表示（トラブルシューティング時）
+LOG_LEVEL=DEBUG ./scripts/run.sh 42
+
+# エラーのみ表示（静かに実行）
+LOG_LEVEL=ERROR ./scripts/run.sh 42
+
+# ログを完全に抑制
+LOG_LEVEL=QUIET ./scripts/run.sh 42
+```
+
+### 関連する関数
+
+`lib/log.sh` で以下の関数が利用可能です：
+
+```bash
+# ログレベルを設定
+set_log_level "DEBUG"
+
+# DEBUGモードを有効化
+enable_verbose
+
+# QUIETモードを有効化（エラーのみ表示）
+enable_quiet
+```
 
 ## 設定の優先順位
 
