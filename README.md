@@ -266,7 +266,16 @@ steps:
   - merge
 ```
 
-エージェントテンプレートは `{{issue_number}}`, `{{branch_name}}`, `{{worktree_path}}` の変数を使用できます。
+エージェントテンプレートは以下の変数を使用できます:
+
+| 変数 | 説明 |
+|------|------|
+| `{{issue_number}}` | GitHub Issue番号 |
+| `{{issue_title}}` | Issueタイトル |
+| `{{branch_name}}` | ブランチ名 |
+| `{{worktree_path}}` | worktreeのパス |
+| `{{step_name}}` | 現在のステップ名（カスタム用） |
+| `{{workflow_name}}` | ワークフロー名（カスタム用） |
 
 ## ディレクトリ構造
 
