@@ -47,7 +47,7 @@ mock_gh() {
 #!/usr/bin/env bash
 case "$*" in
     "issue view 42 --json"*|"issue view 42 -R"*"--json"*)
-        echo '{"number":42,"title":"Test Issue","body":"Test body","labels":[],"state":"OPEN"}'
+        echo '{"number":42,"title":"Test Issue","body":"Test body","labels":[],"state":"OPEN","comments":[]}'
         ;;
     "issue view 999 --json"*|"issue view 999 -R"*"--json"*)
         echo "issue not found" >&2

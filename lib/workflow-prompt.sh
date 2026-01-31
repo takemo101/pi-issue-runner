@@ -14,7 +14,7 @@ source "$_WORKFLOW_PROMPT_LIB_DIR/log.sh"
 # ===================
 
 # ワークフロープロンプトを生成する
-# Usage: generate_workflow_prompt <workflow_name> <issue_number> <issue_title> <issue_body> <branch_name> <worktree_path> [project_root]
+# Usage: generate_workflow_prompt <workflow_name> <issue_number> <issue_title> <issue_body> <branch_name> <worktree_path> [project_root] [issue_comments]
 generate_workflow_prompt() {
     local workflow_name="${1:-default}"
     local issue_number="$2"
@@ -23,6 +23,7 @@ generate_workflow_prompt() {
     local branch_name="$5"
     local worktree_path="$6"
     local project_root="${7:-.}"
+    local issue_comments="${8:-}"
     
     # ワークフローファイル検索
     local workflow_file
@@ -41,6 +42,19 @@ $issue_title
 
 ## Description
 $issue_body
+EOF
+    
+    # コメントセクションを追加（コメントがある場合のみ）
+    if [[ -n "$issue_comments" ]]; then
+        cat << EOF
+
+## Comments
+
+$issue_comments
+EOF
+    fi
+    
+    cat << EOF
 
 ---
 
@@ -111,7 +125,7 @@ EOF
 }
 
 # ワークフロープロンプトをファイルに書き出す
-# Usage: write_workflow_prompt <output_file> <workflow_name> <issue_number> <issue_title> <issue_body> <branch_name> <worktree_path> [project_root]
+# Usage: write_workflow_prompt <output_file> <workflow_name> <issue_number> <issue_title> <issue_body> <branch_name> <worktree_path> [project_root] [issue_comments]
 write_workflow_prompt() {
     local output_file="$1"
     local workflow_name="$2"
@@ -121,8 +135,9 @@ write_workflow_prompt() {
     local branch_name="$6"
     local worktree_path="$7"
     local project_root="${8:-.}"
+    local issue_comments="${9:-}"
     
-    generate_workflow_prompt "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$worktree_path" "$project_root" > "$output_file"
+    generate_workflow_prompt "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$worktree_path" "$project_root" "$issue_comments" > "$output_file"
     
     log_debug "Workflow prompt written to: $output_file"
 }

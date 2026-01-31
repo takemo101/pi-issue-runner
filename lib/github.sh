@@ -42,7 +42,7 @@ get_issue() {
     
     check_gh_cli || return 1
     
-    gh issue view "$issue_number" --json number,title,body,labels,state 2>/dev/null
+    gh issue view "$issue_number" --json number,title,body,labels,state,comments 2>/dev/null
 }
 
 # Issue番号からブランチ名を生成
@@ -86,6 +86,79 @@ get_issue_body() {
     check_jq || return 1
     
     get_issue "$issue_number" | jq -r '.body // empty'
+}
+
+# Issueのコメントを取得してMarkdown形式でフォーマット
+# Usage: get_issue_comments <issue_number> [max_comments]
+# max_comments: 最大コメント数（0 = 無制限、デフォルト: 0）
+get_issue_comments() {
+    local issue_number="$1"
+    local max_comments="${2:-0}"
+    
+    check_jq || return 1
+    
+    local comments_json
+    comments_json="$(get_issue "$issue_number" | jq -r '.comments // []')"
+    
+    # コメントが空の場合は空文字を返す
+    local comment_count
+    comment_count="$(echo "$comments_json" | jq 'length')"
+    if [[ "$comment_count" -eq 0 ]]; then
+        echo ""
+        return 0
+    fi
+    
+    # max_commentsが0より大きい場合、最新N件に制限
+    if [[ "$max_comments" -gt 0 && "$comment_count" -gt "$max_comments" ]]; then
+        # 最新N件を取得（配列の後ろからN件）
+        comments_json="$(echo "$comments_json" | jq ".[-${max_comments}:]")"
+    fi
+    
+    format_comments_section "$comments_json"
+}
+
+# コメントJSONをMarkdown形式にフォーマット
+# Usage: format_comments_section <comments_json>
+format_comments_section() {
+    local comments_json="$1"
+    
+    # コメントが空の場合は空文字を返す
+    if [[ -z "$comments_json" || "$comments_json" == "[]" || "$comments_json" == "null" ]]; then
+        echo ""
+        return 0
+    fi
+    
+    local result=""
+    local comment_count
+    comment_count="$(echo "$comments_json" | jq 'length')"
+    
+    for ((i=0; i<comment_count; i++)); do
+        local author body created_at formatted_date
+        author="$(echo "$comments_json" | jq -r ".[$i].author.login // \"unknown\"")"
+        body="$(echo "$comments_json" | jq -r ".[$i].body // \"\"")"
+        created_at="$(echo "$comments_json" | jq -r ".[$i].createdAt // \"\"")"
+        
+        # ISO8601形式から日付部分を抽出（YYYY-MM-DD）
+        if [[ -n "$created_at" ]]; then
+            formatted_date="${created_at%%T*}"
+        else
+            formatted_date="unknown"
+        fi
+        
+        # コメント本文をサニタイズ
+        body="$(sanitize_issue_body "$body")"
+        
+        # Markdown形式で出力
+        if [[ -n "$result" ]]; then
+            result="${result}
+
+"
+        fi
+        result="${result}### @${author} (${formatted_date})
+${body}"
+    done
+    
+    echo "$result"
 }
 
 # Issueの状態を取得

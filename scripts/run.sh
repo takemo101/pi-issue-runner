@@ -203,6 +203,19 @@ main() {
     issue_body="$(get_issue_body "$issue_number" 2>/dev/null)" || issue_body=""
     # サニタイズ処理を適用（セキュリティ対策）
     issue_body="$(sanitize_issue_body "$issue_body")"
+    
+    # コメント取得（設定に応じて）
+    local issue_comments=""
+    local include_comments
+    include_comments="$(get_config github_include_comments)"
+    if [[ "$include_comments" == "true" ]]; then
+        local max_comments
+        max_comments="$(get_config github_max_comments)"
+        issue_comments="$(get_issue_comments "$issue_number" "$max_comments" 2>/dev/null)" || issue_comments=""
+        if [[ -n "$issue_comments" ]]; then
+            log_debug "Fetched comments for Issue #$issue_number"
+        fi
+    fi
 
     # ブランチ名決定
     local branch_name
@@ -246,7 +259,7 @@ main() {
     # ワークフローからプロンプトファイルを生成
     local prompt_file="$full_worktree_path/.pi-prompt.md"
     log_info "Workflow: $workflow_name"
-    write_workflow_prompt "$prompt_file" "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path"
+    write_workflow_prompt "$prompt_file" "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path" "." "$issue_comments"
     
     # piにプロンプトファイルを渡す（@でファイル参照）
     local full_command="$pi_command $pi_args $extra_pi_args @\"$prompt_file\""

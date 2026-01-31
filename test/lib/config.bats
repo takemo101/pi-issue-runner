@@ -181,3 +181,52 @@ EOF
     result="$(get_config unknown_key)"
     [ -z "$result" ]
 }
+
+# ====================
+# GitHub設定テスト
+# ====================
+
+@test "get_config returns default github_include_comments" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config github_include_comments)"
+    [ "$result" = "true" ]
+}
+
+@test "get_config returns default github_max_comments" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config github_max_comments)"
+    [ "$result" = "10" ]
+}
+
+@test "environment variable overrides github_include_comments" {
+    export PI_RUNNER_GITHUB_INCLUDE_COMMENTS="false"
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config github_include_comments)"
+    [ "$result" = "false" ]
+}
+
+@test "environment variable overrides github_max_comments" {
+    export PI_RUNNER_GITHUB_MAX_COMMENTS="20"
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config github_max_comments)"
+    [ "$result" = "20" ]
+}
+
+@test "load_config parses github settings from YAML" {
+    local test_config="${BATS_TEST_TMPDIR}/github-config.yaml"
+    cat > "$test_config" << 'EOF'
+github:
+  include_comments: false
+  max_comments: 5
+EOF
+
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$test_config"
+    
+    [ "$(get_config github_include_comments)" = "false" ]
+    [ "$(get_config github_max_comments)" = "5" ]
+}

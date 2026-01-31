@@ -233,3 +233,139 @@ MOCK_EOF
     run has_dangerous_patterns 'Dangerous ${PATH}'
     [ "$status" -eq 0 ]
 }
+
+# ====================
+# get_issue_comments テスト
+# ====================
+
+@test "get_issue_comments function exists" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    declare -f get_issue_comments > /dev/null
+}
+
+@test "get_issue_comments returns empty for issue without comments" {
+    # カスタムモック: コメントなし
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo '{"number":42,"title":"Test Issue","body":"Test body","labels":[],"state":"OPEN","comments":[]}'
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    result="$(get_issue_comments 42)"
+    [ -z "$result" ]
+}
+
+@test "get_issue_comments returns formatted comments" {
+    # カスタムモック: コメントあり
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo '{"number":42,"title":"Test Issue","body":"Test body","labels":[],"state":"OPEN","comments":[{"author":{"login":"user1"},"body":"First comment","createdAt":"2024-01-31T10:00:00Z"},{"author":{"login":"user2"},"body":"Second comment","createdAt":"2024-01-31T11:00:00Z"}]}'
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    result="$(get_issue_comments 42)"
+    
+    # コメントが含まれていることを確認
+    [[ "$result" == *"@user1"* ]]
+    [[ "$result" == *"First comment"* ]]
+    [[ "$result" == *"@user2"* ]]
+    [[ "$result" == *"Second comment"* ]]
+    [[ "$result" == *"2024-01-31"* ]]
+}
+
+@test "get_issue_comments respects max_comments limit" {
+    # カスタムモック: 5件のコメント
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo '{"number":42,"title":"Test","body":"","labels":[],"state":"OPEN","comments":[{"author":{"login":"u1"},"body":"c1","createdAt":"2024-01-01T00:00:00Z"},{"author":{"login":"u2"},"body":"c2","createdAt":"2024-01-02T00:00:00Z"},{"author":{"login":"u3"},"body":"c3","createdAt":"2024-01-03T00:00:00Z"},{"author":{"login":"u4"},"body":"c4","createdAt":"2024-01-04T00:00:00Z"},{"author":{"login":"u5"},"body":"c5","createdAt":"2024-01-05T00:00:00Z"}]}'
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    # max_comments=2の場合、最新2件のみ
+    result="$(get_issue_comments 42 2)"
+    
+    # 古いコメント(c1, c2, c3)は含まれない
+    [[ "$result" != *"@u1"* ]]
+    [[ "$result" != *"@u2"* ]]
+    [[ "$result" != *"@u3"* ]]
+    # 最新2件(c4, c5)は含まれる
+    [[ "$result" == *"@u4"* ]]
+    [[ "$result" == *"@u5"* ]]
+}
+
+@test "get_issue_comments returns all comments when max_comments is 0" {
+    # カスタムモック: 3件のコメント
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo '{"number":42,"title":"Test","body":"","labels":[],"state":"OPEN","comments":[{"author":{"login":"u1"},"body":"c1","createdAt":"2024-01-01T00:00:00Z"},{"author":{"login":"u2"},"body":"c2","createdAt":"2024-01-02T00:00:00Z"},{"author":{"login":"u3"},"body":"c3","createdAt":"2024-01-03T00:00:00Z"}]}'
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    # max_comments=0の場合、全件取得
+    result="$(get_issue_comments 42 0)"
+    
+    [[ "$result" == *"@u1"* ]]
+    [[ "$result" == *"@u2"* ]]
+    [[ "$result" == *"@u3"* ]]
+}
+
+@test "get_issue_comments sanitizes dangerous patterns in comments" {
+    # カスタムモック: 危険なパターンを含むコメント
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo '{"number":42,"title":"Test","body":"","labels":[],"state":"OPEN","comments":[{"author":{"login":"attacker"},"body":"Run this: $(rm -rf /)","createdAt":"2024-01-01T00:00:00Z"}]}'
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    result="$(get_issue_comments 42)"
+    
+    # コマンド置換がエスケープされていることを確認
+    [[ "$result" == *'\$('* ]]
+}
+
+# ====================
+# format_comments_section テスト
+# ====================
+
+@test "format_comments_section function exists" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    declare -f format_comments_section > /dev/null
+}
+
+@test "format_comments_section returns empty for empty input" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    result="$(format_comments_section "")"
+    [ -z "$result" ]
+    
+    result="$(format_comments_section "[]")"
+    [ -z "$result" ]
+    
+    result="$(format_comments_section "null")"
+    [ -z "$result" ]
+}
+
+@test "format_comments_section formats single comment correctly" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    comments_json='[{"author":{"login":"testuser"},"body":"Test comment body","createdAt":"2024-03-15T09:30:00Z"}]'
+    result="$(format_comments_section "$comments_json")"
+    
+    [[ "$result" == *"### @testuser (2024-03-15)"* ]]
+    [[ "$result" == *"Test comment body"* ]]
+}

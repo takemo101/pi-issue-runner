@@ -12,3 +12,7 @@ tmux:
 pi:
   command: "echo"
   args: "--test"
+
+github:
+  include_comments: true
+  max_comments: 10
