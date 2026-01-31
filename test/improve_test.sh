@@ -487,6 +487,28 @@ test_mixed_ansi_and_cr
 test_complex_ansi
 
 # ===================
+# バッファリング対策のテスト
+# ===================
+echo ""
+echo "=== Buffering fix tests ==="
+
+# stdbufの使用確認
+assert_contains "script checks for stdbuf availability" 'command -v stdbuf' "$improve_source"
+assert_contains "script uses stdbuf -oL for pi command" 'stdbuf -oL "$pi_command"' "$improve_source"
+assert_contains "script uses stdbuf -oL for tee" 'stdbuf -oL tee' "$improve_source"
+
+# sync の使用確認
+assert_contains "script calls sync after tee" 'sync 2>/dev/null' "$improve_source"
+
+# sleep の使用確認
+assert_contains "script waits after tee" 'sleep 0.5' "$improve_source"
+
+# デバッグログの確認
+assert_contains "script logs output file path" 'log_debug "Output file:' "$improve_source"
+assert_contains "script logs file size" 'log_debug "File size:' "$improve_source"
+assert_contains "script logs file lines" 'log_debug "File lines:' "$improve_source"
+
+# ===================
 # 結果サマリー
 # ===================
 echo ""
