@@ -163,37 +163,8 @@ MOCK_EOF
     [ "$result" = "$input" ]
 }
 
-# ====================
-# 危険パターン検出テスト
-# ====================
-
-@test "detect_dangerous_patterns detects command substitution" {
-    source "$PROJECT_ROOT/lib/github.sh"
-    
-    run detect_dangerous_patterns '$(whoami)'
-    [ "$status" -eq 1 ]
-}
-
-@test "detect_dangerous_patterns detects backticks" {
-    source "$PROJECT_ROOT/lib/github.sh"
-    
-    run detect_dangerous_patterns '`id`'
-    [ "$status" -eq 1 ]
-}
-
-@test "detect_dangerous_patterns detects variable expansion" {
-    source "$PROJECT_ROOT/lib/github.sh"
-    
-    run detect_dangerous_patterns '${HOME}'
-    [ "$status" -eq 1 ]
-}
-
-@test "detect_dangerous_patterns returns 0 for safe text" {
-    source "$PROJECT_ROOT/lib/github.sh"
-    
-    run detect_dangerous_patterns "This is safe text"
-    [ "$status" -eq 0 ]
-}
+# Note: detect_dangerous_patterns does not exist in lib/github.sh
+# Tests for has_dangerous_patterns are already below
 
 # ====================
 # 依存関係チェックテスト
@@ -209,4 +180,59 @@ MOCK_EOF
     else
         skip "jq not installed"
     fi
+}
+
+# ====================
+# get_issues_created_after テスト
+# ====================
+
+@test "get_issues_created_after function exists" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    declare -f get_issues_created_after > /dev/null
+}
+
+@test "get_issues_created_after uses gh issue list" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    func_def=$(declare -f get_issues_created_after)
+    [[ "$func_def" == *"gh issue list"* ]]
+}
+
+@test "get_issues_created_after filters by author @me" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    func_def=$(declare -f get_issues_created_after)
+    [[ "$func_def" == *'@me'* ]]
+}
+
+# ====================
+# has_dangerous_patterns テスト
+# ====================
+
+@test "has_dangerous_patterns returns false for safe text" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    run has_dangerous_patterns "Safe text without any special patterns"
+    [ "$status" -eq 1 ]
+}
+
+@test "has_dangerous_patterns detects command substitution" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    run has_dangerous_patterns 'Dangerous $(rm -rf /)'
+    [ "$status" -eq 0 ]
+}
+
+@test "has_dangerous_patterns detects backticks" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    run has_dangerous_patterns 'Dangerous `rm -rf /`'
+    [ "$status" -eq 0 ]
+}
+
+@test "has_dangerous_patterns detects variable expansion" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    run has_dangerous_patterns 'Dangerous ${PATH}'
+    [ "$status" -eq 0 ]
 }
