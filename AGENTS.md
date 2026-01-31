@@ -32,6 +32,14 @@ pi-issue-runner/
 │   ├── tmux.sh        # tmux操作
 │   ├── workflow.sh    # ワークフローエンジン
 │   └── worktree.sh    # Git worktree操作
+├── workflows/         # ビルトインワークフロー定義
+│   ├── default.yaml   # 完全ワークフロー
+│   └── simple.yaml    # 簡易ワークフロー
+├── agents/            # エージェントテンプレート
+│   ├── plan.md        # 計画エージェント
+│   ├── implement.md   # 実装エージェント
+│   ├── review.md      # レビューエージェント
+│   └── merge.md       # マージエージェント
 ├── docs/              # ドキュメント
 ├── test/              # 単体テスト（*_test.sh形式）
 ├── tests/             # Batsテスト（fixtures, helpers含む）
@@ -105,6 +113,58 @@ bash -x ./scripts/run.sh 42
 # 詳細ログ
 DEBUG=1 ./scripts/run.sh 42
 ```
+
+## ワークフローカスタマイズ
+
+### 新しいワークフローの追加
+
+1. `workflows/` ディレクトリに新しいYAMLファイルを作成:
+
+```yaml
+# workflows/thorough.yaml
+name: thorough
+description: 徹底ワークフロー（計画・実装・テスト・レビュー・マージ）
+steps:
+  - plan
+  - implement
+  - test
+  - review
+  - merge
+```
+
+2. 必要に応じて `agents/` ディレクトリにエージェントテンプレートを追加
+
+### エージェントテンプレートの作成
+
+```markdown
+# agents/test.md
+# Test Agent
+
+GitHub Issue #{{issue_number}} のテストを実行します。
+
+## コンテキスト
+- **Issue番号**: #{{issue_number}}
+- **ブランチ**: {{branch_name}}
+
+## タスク
+1. 単体テストを実行
+2. 結合テストを実行
+3. カバレッジレポートを確認
+```
+
+### テンプレート変数
+
+| 変数 | 説明 |
+|------|------|
+| `{{issue_number}}` | GitHub Issue番号 |
+| `{{branch_name}}` | ブランチ名 |
+| `{{worktree_path}}` | worktreeのパス |
+
+### ワークフロー検索順序
+
+1. プロジェクトルートの `.pi-runner.yaml`
+2. プロジェクトルートの `.pi/workflow.yaml`
+3. ビルトイン（`workflows/` ディレクトリ）
 
 ## 注意事項
 
