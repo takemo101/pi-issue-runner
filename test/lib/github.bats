@@ -167,32 +167,32 @@ MOCK_EOF
 # 危険パターン検出テスト
 # ====================
 
-@test "detect_dangerous_patterns detects command substitution" {
+@test "has_dangerous_patterns detects command substitution" {
     source "$PROJECT_ROOT/lib/github.sh"
     
-    run detect_dangerous_patterns '$(whoami)'
-    [ "$status" -eq 1 ]
-}
-
-@test "detect_dangerous_patterns detects backticks" {
-    source "$PROJECT_ROOT/lib/github.sh"
-    
-    run detect_dangerous_patterns '`id`'
-    [ "$status" -eq 1 ]
-}
-
-@test "detect_dangerous_patterns detects variable expansion" {
-    source "$PROJECT_ROOT/lib/github.sh"
-    
-    run detect_dangerous_patterns '${HOME}'
-    [ "$status" -eq 1 ]
-}
-
-@test "detect_dangerous_patterns returns 0 for safe text" {
-    source "$PROJECT_ROOT/lib/github.sh"
-    
-    run detect_dangerous_patterns "This is safe text"
+    run has_dangerous_patterns '$(whoami)'
     [ "$status" -eq 0 ]
+}
+
+@test "has_dangerous_patterns detects backticks" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    run has_dangerous_patterns '`id`'
+    [ "$status" -eq 0 ]
+}
+
+@test "has_dangerous_patterns detects variable expansion" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    run has_dangerous_patterns '${HOME}'
+    [ "$status" -eq 0 ]
+}
+
+@test "has_dangerous_patterns returns 1 for safe text" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    run has_dangerous_patterns "This is safe text"
+    [ "$status" -eq 1 ]
 }
 
 # ====================
