@@ -253,3 +253,35 @@ teardown() {
     source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
     [[ "$source_content" == *'run_pi_with_completion_detection "$prompt" "$pi_command"'* ]]
 }
+
+# ====================
+# セッション待機リトライテスト (Issue #230)
+# ====================
+
+@test "improve.sh has DEFAULT_SESSION_WAIT_RETRIES" {
+    grep -q 'DEFAULT_SESSION_WAIT_RETRIES=' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh has DEFAULT_SESSION_WAIT_INTERVAL" {
+    grep -q 'DEFAULT_SESSION_WAIT_INTERVAL=' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh has retry loop for session wait" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'retry_count -lt $DEFAULT_SESSION_WAIT_RETRIES'* ]]
+}
+
+@test "improve.sh waits for sessions to start before checking" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'Waiting for sessions to start'* ]]
+}
+
+@test "improve.sh logs debug message during session wait" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'log_debug "Waiting for sessions to start'* ]]
+}
+
+@test "improve.sh shows wait time in no sessions message" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'No running sessions found after waiting'* ]]
+}
