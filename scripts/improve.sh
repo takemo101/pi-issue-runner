@@ -282,15 +282,19 @@ review_and_create_issues() {
 
     echo "[pi] レビュー実行中..."
     
+    # ターミナル幅を取得（パイプ使用時にpiがTTY幅を取得できないため）
+    local cols
+    cols=$(tput cols 2>/dev/null || echo 120)
+    
     # piを実行（teeのバッファリング問題対策）
     # stdbufが利用可能な場合はラインバッファリングを有効化
     local pi_exit_code=0
     if command -v stdbuf &>/dev/null; then
         log_debug "Using stdbuf for line buffering"
-        stdbuf -oL "$pi_command" --message "$review_prompt" 2>&1 | stdbuf -oL tee "$output_file" || pi_exit_code=$?
+        COLUMNS="$cols" stdbuf -oL "$pi_command" --message "$review_prompt" 2>&1 | stdbuf -oL tee "$output_file" || pi_exit_code=$?
     else
         log_debug "stdbuf not available, using standard tee"
-        "$pi_command" --message "$review_prompt" 2>&1 | tee "$output_file" || pi_exit_code=$?
+        COLUMNS="$cols" "$pi_command" --message "$review_prompt" 2>&1 | tee "$output_file" || pi_exit_code=$?
     fi
     
     # ファイルシステムを同期（バッファフラッシュ）
