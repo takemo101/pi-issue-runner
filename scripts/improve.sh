@@ -49,6 +49,7 @@ Options:
     --timeout N          Session completion timeout in seconds (default: $DEFAULT_TIMEOUT)
     --iteration N        Current iteration number (internal use)
     --log-dir DIR        Log directory (default: $LOG_DIR)
+    --label LABEL        Session label for Issue filtering (auto-generated if not specified)
     --dry-run            Review only, do not create Issues
     --review-only        Show problems only (no Issue creation or execution)
     --auto-continue      Auto-continue without approval (skip confirmation)
@@ -58,10 +59,13 @@ Options:
 Description:
     Runs continuous improvement using 2-phase approach:
     1. Runs pi --print for project review and Issue creation (auto-exits)
-    2. Fetches created Issues via GitHub API
+    2. Fetches created Issues via GitHub API (filtered by session label)
     3. Starts parallel execution via run.sh --no-attach
     4. Monitors completion via wait-for-sessions.sh
     5. Recursively starts next iteration
+
+    Issues are tagged with a session-specific label (e.g., pi-runner-20260201-082900)
+    to ensure only Issues from this session are processed, enabling safe parallel runs.
 
 Log files:
     Pi output is saved to: $LOG_DIR/iteration-N-YYYYMMDD-HHMMSS.log
@@ -71,6 +75,7 @@ Examples:
     $(basename "$0") --max-iterations 2 --max-issues 3
     $(basename "$0") --timeout 1800
     $(basename "$0") --log-dir /tmp/improve-logs
+    $(basename "$0") --label my-custom-session
     $(basename "$0") --dry-run
     $(basename "$0") --review-only
     $(basename "$0") --auto-continue
@@ -87,6 +92,7 @@ main() {
     local timeout=$DEFAULT_TIMEOUT
     local iteration=1
     local log_dir="$LOG_DIR"
+    local session_label=""
     local dry_run=false
     local review_only=false
     local auto_continue=false
@@ -111,6 +117,10 @@ main() {
                 ;;
             --log-dir)
                 log_dir="$2"
+                shift 2
+                ;;
+            --label)
+                session_label="$2"
                 shift 2
                 ;;
             --dry-run)
@@ -158,6 +168,17 @@ main() {
         exit 0
     fi
 
+    # Generate session label if not provided (only on first iteration)
+    if [[ -z "$session_label" ]]; then
+        session_label="$(generate_session_label)"
+        log_debug "Generated session label: $session_label"
+    fi
+
+    # Create session label in GitHub (skip for dry-run/review-only modes)
+    if [[ "$dry_run" != "true" && "$review_only" != "true" ]]; then
+        create_label_if_not_exists "$session_label" "pi-issue-runner session: $session_label" || true
+    fi
+
     # Create log directory
     mkdir -p "$log_dir"
     local log_file
@@ -168,6 +189,7 @@ main() {
     echo "║  🔧 Continuous Improvement - Iteration $iteration/$max_iterations"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
+    echo "Session label: $session_label"
     echo "Log file: $log_file"
     echo ""
 
@@ -190,6 +212,8 @@ main() {
     else
         prompt="project-reviewスキルを読み込んで実行し、プロジェクト全体をレビューしてください。
 発見した問題からGitHub Issueを作成してください（最大${max_issues}件）。
+【重要】Issueを作成する際は、必ず '--label ${session_label}' オプションを使用してラベル '${session_label}' を付けてください。
+例: gh issue create --title \"...\" --body \"...\" --label \"${session_label}\"
 Issueを作成しない場合は「問題は見つかりませんでした」と報告してください。"
         echo "[PHASE 1] Running project review via pi --print..."
     fi
@@ -220,10 +244,10 @@ Issueを作成しない場合は「問題は見つかりませんでした」と
 
     # Phase 2: Fetch Issues via GitHub API
     echo ""
-    echo "[PHASE 2] Fetching Issues created after $start_time..."
+    echo "[PHASE 2] Fetching Issues created after $start_time with label '$session_label'..."
     
     local issues
-    issues=$(get_issues_created_after "$start_time" "$max_issues") || true
+    issues=$(get_issues_created_after "$start_time" "$max_issues" "$session_label") || true
     
     if [[ -z "$issues" ]]; then
         echo "No new Issues created"
@@ -292,6 +316,7 @@ Issueを作成しない場合は「問題は見つかりませんでした」と
         --timeout "$timeout"
         --log-dir "$log_dir"
         --iteration "$((iteration + 1))"
+        --label "$session_label"
     )
     
     # Preserve --auto-continue flag

@@ -78,6 +78,11 @@ teardown() {
     [[ "$output" == *"--auto-continue"* ]]
 }
 
+@test "improve.sh --help shows --label option" {
+    run "$PROJECT_ROOT/scripts/improve.sh" --help
+    [[ "$output" == *"--label"* ]]
+}
+
 @test "improve.sh --help shows description" {
     run "$PROJECT_ROOT/scripts/improve.sh" --help
     [[ "$output" == *"Description:"* ]]
@@ -187,6 +192,10 @@ teardown() {
     grep -q '\-\-auto-continue)' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
+@test "improve.sh handles --label option" {
+    grep -q '\-\-label)' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
 # ====================
 # デフォルト値テスト
 # ====================
@@ -221,6 +230,10 @@ teardown() {
 
 @test "improve.sh has auto_continue variable" {
     grep -q 'auto_continue=' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh has session_label variable" {
+    grep -q 'session_label=' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
 # ====================
@@ -416,4 +429,47 @@ teardown() {
 @test "improve.sh preserves --auto-continue flag in recursive call" {
     source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
     [[ "$source_content" == *'args+=(--auto-continue)'* ]]
+}
+
+# ====================
+# セッションラベル機能テスト
+# ====================
+
+@test "improve.sh generates session label using generate_session_label" {
+    grep -q 'generate_session_label' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh creates label using create_label_if_not_exists" {
+    grep -q 'create_label_if_not_exists' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh passes session_label to get_issues_created_after" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'get_issues_created_after "$start_time" "$max_issues" "$session_label"'* ]]
+}
+
+@test "improve.sh passes --label in recursive call" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'--label "$session_label"'* ]]
+}
+
+@test "improve.sh instructs to add label when creating issues" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'--label'* ]]
+    [[ "$source_content" == *'session_label'* ]]
+}
+
+@test "improve.sh displays session label in output" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'Session label:'* ]]
+}
+
+@test "improve.sh skips label creation in dry-run mode" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'dry_run" != "true"'* ]]
+}
+
+@test "improve.sh skips label creation in review-only mode" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'review_only" != "true"'* ]]
 }
