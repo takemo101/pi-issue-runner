@@ -156,8 +156,18 @@ wait_for_sessions() {
                     all_done=false
                     ;;
                 unknown)
-                    # セッションがまだ開始されていないか、既にクリーンアップ済み
-                    all_done=false
+                    # tmuxセッションが存在するか確認
+                    local session_name="pi-issue-$issue"
+                    if tmux has-session -t "$session_name" 2>/dev/null; then
+                        # セッションはあるがステータス不明 → まだ開始中
+                        all_done=false
+                    else
+                        # セッションがない → 完了済みとして扱う
+                        completed_list="$completed_list $issue"
+                        if [[ "$quiet" != "true" ]]; then
+                            echo "[✓] Issue #$issue 完了（セッション終了済み）"
+                        fi
+                    fi
                     ;;
             esac
         done

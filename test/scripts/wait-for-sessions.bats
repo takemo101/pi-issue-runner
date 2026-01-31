@@ -168,3 +168,32 @@ EOF
     run "$PROJECT_ROOT/scripts/wait-for-sessions.sh" 600 601 --interval 1 --timeout 5 --quiet
     [ "$status" -eq 1 ]
 }
+
+# ====================
+# unknownステータステスト（Issue #238）
+# ====================
+
+@test "wait-for-sessions.sh treats unknown status without tmux session as complete" {
+    # ステータスファイルがない（unknown状態）
+    # かつ tmux セッションも存在しない場合は完了として扱う
+    # Issue番号 700 はステータスファイルもtmuxセッションもない
+    
+    run "$PROJECT_ROOT/scripts/wait-for-sessions.sh" 700 --interval 1 --timeout 3 --quiet
+    [ "$status" -eq 0 ]
+}
+
+@test "wait-for-sessions.sh treats mixed unknown (no session) + complete as success" {
+    # 1つは完了、もう1つはunknown（セッションなし）
+    cat > "$TEST_WORKTREE_DIR/.status/800.json" << 'EOF'
+{
+  "issue": 800,
+  "status": "complete",
+  "session": "pi-issue-800",
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+EOF
+    # 801 はステータスファイルがない（unknown）かつtmuxセッションもない
+    
+    run "$PROJECT_ROOT/scripts/wait-for-sessions.sh" 800 801 --interval 1 --timeout 3 --quiet
+    [ "$status" -eq 0 ]
+}
