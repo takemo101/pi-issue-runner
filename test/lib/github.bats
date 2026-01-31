@@ -163,9 +163,6 @@ MOCK_EOF
     [ "$result" = "$input" ]
 }
 
-# Note: detect_dangerous_patterns does not exist in lib/github.sh
-# Tests for has_dangerous_patterns are already below
-
 # ====================
 # 依存関係チェックテスト
 # ====================
