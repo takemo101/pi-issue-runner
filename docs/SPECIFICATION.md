@@ -99,6 +99,8 @@ project-root/
 │   ├── config.sh            # 設定管理
 │   ├── github.sh            # GitHub CLI操作
 │   ├── log.sh               # ログ出力
+│   ├── notify.sh            # 通知機能
+│   ├── status.sh            # ステータスファイル管理
 │   ├── tmux.sh              # tmux操作
 │   ├── workflow.sh          # ワークフローエンジン
 │   └── worktree.sh          # Git worktree操作
@@ -109,7 +111,8 @@ project-root/
     ├── attach.sh            # セッションアタッチ
     ├── stop.sh              # セッション停止
     ├── cleanup.sh           # クリーンアップ
-    ├── post-session.sh      # セッション終了後処理
+    ├── improve.sh           # 継続的改善スクリプト
+    ├── wait-for-sessions.sh # 複数セッション完了待機
     └── watch-session.sh     # セッション監視と自動クリーンアップ
 ```
 
@@ -166,20 +169,6 @@ Options:
 
 デフォルトでは、piが終了すると自動的にworktreeとセッションがクリーンアップされます。
 `--no-cleanup`を指定すると、クリーンアップをスキップしてworktreeとセッションを保持します。
-
-### post-session.sh - セッション終了後処理
-
-```bash
-./scripts/post-session.sh <issue-number> [options]
-
-Options:
-    --no-cleanup    クリーンアップを実行しない
-    --worktree PATH worktreeパス
-    --session NAME  セッション名
-```
-
-※ このスクリプトは通常、piセッション終了後に自動的に呼び出されます。
-デフォルトでは確認なしで自動クリーンアップを行います。
 
 ### list.sh - セッション一覧
 
@@ -288,6 +277,80 @@ Options:
 
 ※ このスクリプトは通常、`run.sh` がバックグラウンドで自動的に起動します。
 直接呼び出す必要はありません。
+
+### improve.sh - 継続的改善
+
+```bash
+./scripts/improve.sh [options]
+
+Options:
+    --max-iterations N   最大イテレーション数（デフォルト: 3）
+    --max-issues N       1回あたりの最大Issue数（デフォルト: 5）
+    --auto-continue      承認ゲートをスキップ（自動継続）
+    --dry-run            レビューのみ実行（Issue作成・実行しない）
+    --timeout <sec>      各イテレーションのタイムアウト（デフォルト: 3600）
+    --review-only        project-reviewスキルで問題を表示するのみ
+    -v, --verbose        詳細ログを表示
+    -h, --help           このヘルプを表示
+```
+
+#### 動作概要
+
+プロジェクトの継続的改善を自動化します：
+
+1. プロジェクトをレビューして問題を発見
+2. 発見した問題からGitHub Issueを作成
+3. 各Issueに対してpi-issue-runnerを並列実行
+4. すべての実行が完了するまで待機
+5. 問題がなくなるか最大回数に達するまで繰り返し
+
+#### 使用例
+
+```bash
+./scripts/improve.sh
+./scripts/improve.sh --max-iterations 2 --max-issues 3
+./scripts/improve.sh --dry-run
+./scripts/improve.sh --auto-continue
+```
+
+### wait-for-sessions.sh - 複数セッション完了待機
+
+```bash
+./scripts/wait-for-sessions.sh <issue-number>... [options]
+
+Arguments:
+    issue-number...   待機するIssue番号（複数指定可）
+
+Options:
+    --timeout <sec>   タイムアウト秒数（デフォルト: 3600 = 1時間）
+    --interval <sec>  チェック間隔（デフォルト: 5秒）
+    --fail-fast       1つでもエラーになったら即座に終了
+    --quiet           進捗表示を抑制
+    -h, --help        このヘルプを表示
+```
+
+#### 動作概要
+
+指定したIssue番号のセッションがすべて完了するまで待機します。
+ステータスファイル（`.worktrees/.status/<issue>.json`）を監視し、
+全セッションが完了したら正常終了します。
+
+#### 使用例
+
+```bash
+./scripts/wait-for-sessions.sh 140 141 144
+./scripts/wait-for-sessions.sh 140 141 --timeout 1800
+./scripts/wait-for-sessions.sh 140 141 --fail-fast
+```
+
+#### 終了コード
+
+| コード | 意味 |
+|--------|------|
+| 0 | 全セッションが正常完了 |
+| 1 | 1つ以上のセッションがエラー |
+| 2 | タイムアウト |
+| 3 | 引数エラー |
 
 ## 依存関係
 
