@@ -1,120 +1,270 @@
-# 設定
+# 設定ファイルリファレンス
 
-## 概要
-
-Pi Issue Runnerの動作は設定ファイルでカスタマイズできます。設定ファイルはプロジェクトルートに配置します。
+Pi Issue Runnerは `.pi-runner.yaml` ファイルで設定をカスタマイズできます。
 
 ## 設定ファイルの場所
 
-設定ファイルは以下の順序で検索され、最初に見つかったものが使用されます：
+プロジェクトルートに `.pi-runner.yaml` を配置します。
 
-1. プロジェクトルート: `./.pi-runner.yaml`
-2. 親ディレクトリを再帰的に検索
-3. デフォルト設定（ファイルなし）
+```
+my-project/
+├── .pi-runner.yaml    # 設定ファイル
+├── src/
+└── ...
+```
 
-> **Note**: 現在、コマンドラインオプションで設定ファイルを指定する機能は未実装です。
-
-## 設定フォーマット
-
-### YAML形式
+## 完全な設定例
 
 ```yaml
 # .pi-runner.yaml
 
-# Git Worktree設定
+# =====================================
+# Worktree設定
+# =====================================
 worktree:
-  base_dir: ".worktrees"        # Worktreeの作成先ディレクトリ
-  copy_files:                   # Worktreeに自動コピーするファイル
-    - ".env"
-    - ".env.local"
-    - ".envrc"
+  # worktreeの作成先ディレクトリ
+  # デフォルト: .worktrees
+  base_dir: .worktrees
+  
+  # worktree作成時にコピーするファイル
+  # デフォルト: .env .env.local .envrc
+  copy_files:
+    - .env
+    - .env.local
+    - .envrc
+    - config/database.yml
+    - config/secrets.yml
 
-# Tmux設定
+# =====================================
+# tmux設定
+# =====================================
 tmux:
-  session_prefix: "pi"          # セッション名のプレフィックス
-  start_in_session: true        # 作成後に自動アタッチ
+  # セッション名のプレフィックス
+  # 実際のセッション名: {prefix}-issue-{number}
+  # デフォルト: pi
+  session_prefix: pi
+  
+  # tmuxセッション内で起動するか
+  # デフォルト: true
+  start_in_session: true
 
-# Pi設定
+# =====================================
+# piコマンド設定
+# =====================================
 pi:
-  command: "pi"                 # piコマンドのパス
-  args:                         # デフォルトで渡す引数
-    - "--verbose"
+  # piコマンドのパス
+  # デフォルト: pi
+  command: pi
+  
+  # piに渡す追加引数
+  # デフォルト: (なし)
+  args:
+    - --model
+    - claude-sonnet-4-20250514
 
+# =====================================
 # 並列実行設定
+# =====================================
 parallel:
-  max_concurrent: 5             # 最大同時実行数（0=無制限）
+  # 同時実行数の上限
+  # 0 = 無制限
+  # デフォルト: 0
+  max_concurrent: 3
+
+# =====================================
+# ワークフロー設定
+# =====================================
+workflow:
+  # ワークフロー名
+  name: default
+  
+  # 実行するステップ
+  # 利用可能: plan, implement, review, merge, test, security-check
+  steps:
+    - plan
+    - implement
+    - review
+    - merge
+
+# =====================================
+# エージェント設定（オプション）
+# =====================================
+agents:
+  # 各ステップのエージェントテンプレートファイル
+  plan: agents/plan.md
+  implement: agents/implement.md
+  review: agents/review.md
+  merge: agents/merge.md
 ```
 
-## 設定項目の詳細
+## 設定項目詳細
 
 ### worktree
 
-#### base_dir
-- **型**: `string`
-- **デフォルト**: `.worktrees`
-- **説明**: Git worktreeを作成するディレクトリ
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `base_dir` | string | `.worktrees` | worktreeの作成先ディレクトリ |
+| `copy_files` | string[] | `.env .env.local .envrc` | worktree作成時にコピーするファイル |
 
-#### copy_files
-- **型**: `string[]`
-- **デフォルト**: `.env .env.local .envrc`
-- **説明**: Worktree作成時にコピーするファイルのリスト（プロジェクトルートからの相対パス）
+#### copy_filesの使い方
+
+環境固有の設定ファイル（.env等）はGit管理外のため、worktree作成時にコピーが必要です。
+
+```yaml
+worktree:
+  copy_files:
+    - .env                    # 環境変数
+    - .env.local              # ローカル環境変数
+    - config/master.key       # Railsマスターキー
+    - .npmrc                  # npm認証情報
+```
 
 ### tmux
 
-#### session_prefix
-- **型**: `string`
-- **デフォルト**: `pi`
-- **説明**: Tmuxセッション名のプレフィックス（実際のセッション名: `{prefix}-{issue番号}`）
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `session_prefix` | string | `pi` | セッション名のプレフィックス |
+| `start_in_session` | boolean | `true` | tmuxセッション内で起動するか |
 
-#### start_in_session
-- **型**: `boolean`
-- **デフォルト**: `true`
-- **説明**: タスク作成後、自動的にセッションにアタッチ
+#### セッション名の形式
+
+```
+{session_prefix}-issue-{issue_number}
+```
+
+例: `pi-issue-42`
 
 ### pi
 
-#### command
-- **型**: `string`
-- **デフォルト**: `pi`
-- **説明**: piコマンドのパス（フルパスまたはPATH内のコマンド名）
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `command` | string | `pi` | piコマンドのパス |
+| `args` | string[] | (なし) | piに渡す追加引数 |
 
-#### args
-- **型**: `string[]`
-- **デフォルト**: `[]`（空）
-- **説明**: piコマンドに常に渡す追加引数
+#### argsの使い方
 
-**例**:
 ```yaml
 pi:
+  command: /usr/local/bin/pi
   args:
-    - "--verbose"
-    - "--model"
-    - "claude-sonnet-4"
+    - --model
+    - claude-sonnet-4-20250514
+    - --dangerously-skip-permissions
 ```
 
 ### parallel
 
-#### max_concurrent
-- **型**: `number`
-- **デフォルト**: `0`（無制限）
-- **説明**: 同時に実行できるタスクの最大数
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `max_concurrent` | integer | `0` | 同時実行数の上限（0=無制限） |
 
-**推奨値**: CPUコア数の50-75%
+#### 並列実行の制御
 
-## 環境変数
+```yaml
+# CPUコア数に合わせて制限
+parallel:
+  max_concurrent: 4
 
-設定ファイルの代わりに、またはオーバーライドとして環境変数を使用できます：
+# 無制限（デフォルト）
+parallel:
+  max_concurrent: 0
+```
 
-| 環境変数 | 説明 | 例 |
-|---------|------|-----|
-| `PI_RUNNER_WORKTREE_BASE_DIR` | Worktreeのベースディレクトリ | `.worktrees` |
-| `PI_RUNNER_WORKTREE_COPY_FILES` | コピーするファイル（スペース区切り） | `.env .env.local` |
-| `PI_RUNNER_TMUX_SESSION_PREFIX` | Tmuxセッションプレフィックス | `pi` |
-| `PI_RUNNER_TMUX_START_IN_SESSION` | 自動アタッチ | `true` |
-| `PI_RUNNER_PI_COMMAND` | piコマンドのパス | `pi` |
-| `PI_RUNNER_PI_ARGS` | piコマンドの引数（スペース区切り） | `--verbose` |
-| `PI_RUNNER_PARALLEL_MAX_CONCURRENT` | 最大同時実行数 | `5` |
-| `LOG_LEVEL` | ログレベル（DEBUG, INFO, WARN, ERROR, QUIET） | `DEBUG` |
+### workflow
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `name` | string | `default` | ワークフロー名 |
+| `steps` | string[] | `plan implement review merge` | 実行するステップ |
+
+#### ビルトインステップ
+
+| ステップ | 説明 |
+|---------|------|
+| `plan` | 実装計画を作成 |
+| `implement` | コードを実装 |
+| `review` | コードレビュー |
+| `merge` | PRを作成してマージ |
+
+#### カスタムワークフロー例
+
+```yaml
+# 簡易ワークフロー
+workflow:
+  name: simple
+  steps:
+    - implement
+    - merge
+
+# 徹底ワークフロー
+workflow:
+  name: thorough
+  steps:
+    - plan
+    - implement
+    - test
+    - review
+    - security-check
+    - merge
+```
+
+### agents
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `{step}` | string | (ビルトイン) | ステップのエージェントテンプレートファイル |
+
+#### エージェントテンプレートの作成
+
+```markdown
+<!-- agents/plan.md -->
+# Plan Agent
+
+GitHub Issue #{{issue_number}} の実装計画を作成します。
+
+## コンテキスト
+- **Issue**: #{{issue_number}} - {{issue_title}}
+- **ブランチ**: {{branch_name}}
+- **Worktree**: {{worktree_path}}
+
+## タスク
+1. Issue内容を分析
+2. 実装方針を決定
+3. 作業項目をリスト化
+```
+
+#### テンプレート変数
+
+| 変数 | 説明 |
+|------|------|
+| `{{issue_number}}` | GitHub Issue番号 |
+| `{{issue_title}}` | Issueタイトル |
+| `{{branch_name}}` | ブランチ名 |
+| `{{worktree_path}}` | worktreeのパス |
+| `{{step_name}}` | 現在のステップ名 |
+| `{{workflow_name}}` | ワークフロー名 |
+
+## 環境変数による上書き
+
+すべての設定は環境変数で上書き可能です。
+
+| 環境変数 | 設定項目 |
+|---------|---------|
+| `PI_RUNNER_WORKTREE_BASE_DIR` | `worktree.base_dir` |
+| `PI_RUNNER_WORKTREE_COPY_FILES` | `worktree.copy_files` |
+| `PI_RUNNER_TMUX_SESSION_PREFIX` | `tmux.session_prefix` |
+| `PI_RUNNER_TMUX_START_IN_SESSION` | `tmux.start_in_session` |
+| `PI_RUNNER_PI_COMMAND` | `pi.command` |
+| `PI_RUNNER_PI_ARGS` | `pi.args` |
+| `PI_RUNNER_PARALLEL_MAX_CONCURRENT` | `parallel.max_concurrent` |
+
+### 例: CI環境での使用
+
+```bash
+export PI_RUNNER_PI_COMMAND="/opt/pi/bin/pi"
+export PI_RUNNER_PARALLEL_MAX_CONCURRENT=2
+./scripts/run.sh 42
+```
 
 ## ログレベル
 
@@ -145,26 +295,30 @@ LOG_LEVEL=ERROR ./scripts/run.sh 42
 LOG_LEVEL=QUIET ./scripts/run.sh 42
 ```
 
-### 関連する関数
-
-`lib/log.sh` で以下の関数が利用可能です：
-
-```bash
-# ログレベルを設定
-set_log_level "DEBUG"
-
-# DEBUGモードを有効化
-enable_verbose
-
-# QUIETモードを有効化（エラーのみ表示）
-enable_quiet
-```
-
 ## 設定の優先順位
 
 1. **環境変数** (最優先)
 2. **設定ファイル**
 3. **デフォルト値** (最低優先)
+
+## 設定ファイルの検索順序
+
+1. カレントディレクトリの `.pi-runner.yaml`
+2. 親ディレクトリを順に検索
+3. 見つからない場合はデフォルト値を使用
+
+## ワークフローファイルの検索順序
+
+1. `.pi-runner.yaml` の `workflow` セクション
+2. `.pi/workflow.yaml`
+3. `workflows/{name}.yaml`
+4. ビルトイン（default/simple）
+
+## エージェントファイルの検索順序
+
+1. `agents/{step}.md`
+2. `.pi/agents/{step}.md`
+3. ビルトインプロンプト
 
 ## 設定例
 
@@ -217,14 +371,15 @@ worktree:
 
 parallel:
   max_concurrent: 5
+
+workflow:
+  name: default
+  steps:
+    - plan
+    - implement
+    - review
+    - merge
 ```
-
-## 設定のベストプラクティス
-
-1. **環境ごとに設定ファイルを分ける**: 開発/本番で異なる設定を使用
-2. **機密情報は環境変数で**: `.env`ファイル等は設定ファイルに含めずコピー対象として指定
-3. **リソース制限を適切に設定**: マシンスペックに応じて`max_concurrent`を調整
-4. **設定のバージョン管理**: `.pi-runner.yaml`はGitで管理
 
 ## 設定の実装詳細
 
@@ -267,6 +422,18 @@ show_config
 
 ## トラブルシューティング
 
+### 設定が反映されない
+
+```bash
+# デバッグモードで確認
+DEBUG=1 ./scripts/run.sh 42
+
+# または show_config で確認
+source lib/config.sh
+load_config
+show_config
+```
+
 ### 設定ファイルが読み込まれない
 
 ```bash
@@ -278,6 +445,20 @@ source lib/config.sh
 load_config
 show_config
 ```
+
+### yqがインストールされていない
+
+workflow設定でyqが必要です。インストール:
+
+```bash
+# macOS
+brew install yq
+
+# Ubuntu
+sudo snap install yq
+```
+
+yqがない場合はビルトインワークフローにフォールバックします。
 
 ### デフォルト設定に戻す
 
