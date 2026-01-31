@@ -42,6 +42,9 @@ pi-issue-runner/
 │   ├── template.sh    # テンプレート処理
 │   ├── tmux.sh        # tmux操作
 │   ├── workflow.sh    # ワークフローエンジン
+│   ├── workflow-finder.sh   # ワークフロー検索
+│   ├── workflow-loader.sh   # ワークフロー読み込み
+│   ├── workflow-prompt.sh   # プロンプト処理
 │   ├── worktree.sh    # Git worktree操作
 │   └── yaml.sh        # YAMLパーサー
 ├── workflows/         # ビルトインワークフロー定義
@@ -75,6 +78,7 @@ pi-issue-runner/
 │   │   ├── run.bats
 │   │   ├── status.bats
 │   │   ├── stop.bats
+│   │   ├── test.bats
 │   │   ├── wait-for-sessions.bats
 │   │   └── watch-session.bats
 │   ├── regression/    # 回帰テスト
