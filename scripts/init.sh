@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # ヘルプを先に処理
 for arg in "$@"; do
     case "$arg" in
@@ -275,9 +277,65 @@ main() {
     echo ""
     echo "✅ 初期化完了！"
     echo ""
+    
+    # 孤立したステータスファイルをチェック
+    check_orphaned_statuses
+    
     echo "次のステップ:"
     echo "  1. .pi-runner.yaml を編集してカスタマイズ"
     echo "  2. pi-run <issue-number> でIssueを実行"
+}
+
+# 孤立したステータスファイルをチェックして警告
+check_orphaned_statuses() {
+    local status_dir=".worktrees/.status"
+    
+    # ステータスディレクトリが存在しない場合はスキップ
+    [[ ! -d "$status_dir" ]] && return 0
+    
+    # lib/status.sh をロード可能な場合は使用
+    if [[ -f "$SCRIPT_DIR/../lib/status.sh" ]]; then
+        source "$SCRIPT_DIR/../lib/config.sh" 2>/dev/null || true
+        source "$SCRIPT_DIR/../lib/status.sh" 2>/dev/null || true
+        
+        if declare -f count_orphaned_statuses &>/dev/null; then
+            local count
+            count="$(count_orphaned_statuses)"
+            if [[ "$count" -gt 0 ]]; then
+                echo -e "  ${YELLOW}⚠${NC} $count 個の孤立したステータスファイルがあります"
+                echo -e "    クリーンアップするには: ${GREEN}./scripts/cleanup.sh --orphans${NC}"
+                echo ""
+            fi
+            return 0
+        fi
+    fi
+    
+    # フォールバック: 単純なファイルカウント
+    local worktree_base=".worktrees"
+    local orphan_count=0
+    
+    for status_file in "$status_dir"/*.json; do
+        [[ -f "$status_file" ]] || continue
+        local issue_number
+        issue_number="$(basename "$status_file" .json)"
+        
+        # 対応するworktreeが存在するか確認
+        local has_worktree=false
+        for dir in "$worktree_base"/issue-"${issue_number}"-*; do
+            if [[ -d "$dir" ]]; then
+                has_worktree=true
+                break
+            fi
+        done
+        
+        [[ "$has_worktree" == "false" ]] && orphan_count=$((orphan_count + 1))
+    done
+    
+    if [[ "$orphan_count" -gt 0 ]]; then
+        echo -e "  ${YELLOW}⚠${NC} $orphan_count 個の孤立したステータスファイルがあります"
+        echo -e "    クリーンアップするには: ${GREEN}./scripts/cleanup.sh --orphans${NC}"
+        echo ""
+    fi
 }
 
 main "$@"

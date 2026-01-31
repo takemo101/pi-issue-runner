@@ -333,3 +333,94 @@ teardown() {
     result="$(find_orphaned_statuses)"
     [ -z "$result" ]
 }
+
+# ====================
+# count_orphaned_statuses テスト
+# ====================
+
+@test "count_orphaned_statuses returns correct count" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # 孤立したステータスファイルを作成
+    save_status "600" "complete" "pi-issue-600"
+    save_status "601" "complete" "pi-issue-601"
+    save_status "602" "running" "pi-issue-602"
+    
+    result="$(count_orphaned_statuses)"
+    [ "$result" -eq 3 ]
+}
+
+@test "count_orphaned_statuses returns 0 for no orphans" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    init_status_dir
+    result="$(count_orphaned_statuses)"
+    [ "$result" -eq 0 ]
+}
+
+@test "count_orphaned_statuses excludes non-orphans" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # worktreeディレクトリを作成
+    local worktree_base="${BATS_TEST_TMPDIR}/.worktrees"
+    mkdir -p "$worktree_base/issue-700-test"
+    
+    # 一つは対応するworktreeあり、一つはなし
+    save_status "700" "running" "pi-issue-700"  # worktreeあり
+    save_status "800" "complete" "pi-issue-800"  # worktreeなし
+    
+    result="$(count_orphaned_statuses)"
+    [ "$result" -eq 1 ]
+}
+
+# ====================
+# find_old_statuses テスト
+# ====================
+
+@test "find_old_statuses returns empty for new files" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # 新しいファイルを作成
+    save_status "900" "complete" "pi-issue-900"
+    
+    # 0日より古いファイルを検索（今日作成したファイルは対象外）
+    result="$(find_old_statuses 0)"
+    [ -z "$result" ]
+}
+
+@test "find_old_statuses finds old files" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # ステータスファイルを作成して日付を過去に変更
+    save_status "901" "complete" "pi-issue-901"
+    touch -t 202001010000 "$TEST_WORKTREE_DIR/.status/901.json"
+    
+    # 1日より古いファイルを検索
+    result="$(find_old_statuses 1)"
+    [[ "$result" == *"901"* ]]
+}
+
+# ====================
+# find_stale_statuses テスト
+# ====================
+
+@test "find_stale_statuses returns orphaned files when no age specified" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # 孤立したステータスファイルを作成
+    save_status "950" "complete" "pi-issue-950"
+    
+    result="$(find_stale_statuses)"
+    [[ "$result" == *"950"* ]]
+}
+
+@test "find_stale_statuses filters by age when specified" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # 新しい孤立ファイル
+    save_status "960" "complete" "pi-issue-960"
+    
+    # 0日より古いものを検索（新しいファイルは対象外）
+    result="$(find_stale_statuses 0)"
+    [[ "$result" != *"960"* ]] || [ -z "$result" ]
+}
