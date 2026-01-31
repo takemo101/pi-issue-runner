@@ -111,3 +111,121 @@ Line 2"
     run log_info "Special: \$PATH and 'quotes'"
     [ "$status" -eq 0 ]
 }
+
+# ====================
+# ログレベルテスト
+# ====================
+
+@test "log_debug hidden when LOG_LEVEL is INFO" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    LOG_LEVEL="INFO"
+    
+    run log_debug "Debug message"
+    [ -z "$output" ]
+}
+
+@test "log_debug shown when LOG_LEVEL is DEBUG" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    LOG_LEVEL="DEBUG"
+    
+    run log_debug "Debug message"
+    [[ "$output" == *"DEBUG"* ]] || [[ "$output" == *"Debug message"* ]]
+}
+
+@test "log_info hidden when LOG_LEVEL is ERROR" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    LOG_LEVEL="ERROR"
+    
+    run log_info "Info message"
+    [ -z "$output" ]
+}
+
+@test "log_error shown when LOG_LEVEL is ERROR" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    LOG_LEVEL="ERROR"
+    
+    run log_error "Error message"
+    [[ "$output" == *"Error message"* ]]
+}
+
+# ====================
+# set_log_level テスト
+# ====================
+
+@test "set_log_level sets DEBUG level" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    set_log_level "DEBUG"
+    [ "$LOG_LEVEL" = "DEBUG" ]
+}
+
+@test "set_log_level sets WARN level" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    set_log_level "WARN"
+    [ "$LOG_LEVEL" = "WARN" ]
+}
+
+@test "set_log_level defaults to INFO for invalid level" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    set_log_level "INVALID" 2>/dev/null
+    [ "$LOG_LEVEL" = "INFO" ]
+}
+
+# ====================
+# enable_verbose/quiet テスト
+# ====================
+
+@test "enable_verbose sets LOG_LEVEL to DEBUG" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    enable_verbose
+    [ "$LOG_LEVEL" = "DEBUG" ]
+}
+
+@test "enable_quiet sets LOG_LEVEL to ERROR" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    enable_quiet
+    [ "$LOG_LEVEL" = "ERROR" ]
+}
+
+# ====================
+# 関数存在テスト
+# ====================
+
+@test "log function exists" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    declare -f log > /dev/null
+}
+
+@test "log_debug function exists" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    declare -f log_debug > /dev/null
+}
+
+@test "log_info function exists" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    declare -f log_info > /dev/null
+}
+
+@test "log_warn function exists" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    declare -f log_warn > /dev/null
+}
+
+@test "log_error function exists" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    declare -f log_error > /dev/null
+}
+
+@test "set_log_level function exists" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    declare -f set_log_level > /dev/null
+}
+
+@test "enable_verbose function exists" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    declare -f enable_verbose > /dev/null
+}
+
+@test "enable_quiet function exists" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    declare -f enable_quiet > /dev/null
+}
