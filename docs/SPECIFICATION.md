@@ -90,6 +90,7 @@ project-root/
 │   ├── github.sh            # GitHub CLI操作
 │   ├── log.sh               # ログ出力
 │   ├── tmux.sh              # tmux操作
+│   ├── workflow.sh          # ワークフローエンジン
 │   └── worktree.sh          # Git worktree操作
 └── scripts/                 # 実行スクリプト
     ├── run.sh               # タスク起動
@@ -230,7 +231,7 @@ Options:
 
 ### オプション
 
-- **yq** (YAML設定ファイルの高度な処理)
+- **yq** (YAMLパーサー、ワークフローカスタマイズに必要)
 
 ## 非機能要件
 
