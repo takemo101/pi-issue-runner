@@ -51,7 +51,6 @@ pi-issue-runner/
 │   ├── lib/           # ライブラリのユニットテスト
 │   ├── scripts/       # スクリプトの統合テスト
 │   ├── regression/    # 回帰テスト
-│   ├── helpers/       # テストヘルパー・モック
 │   ├── fixtures/      # テスト用フィクスチャ
 │   └── test_helper.bash  # Bats共通ヘルパー
 └── .worktrees/        # 実行時に作成されるworktreeディレクトリ
