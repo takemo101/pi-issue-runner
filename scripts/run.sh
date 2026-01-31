@@ -38,11 +38,20 @@ Examples:
 EOF
 }
 
-# ヘルプを先に処理（依存関係チェック前）
+# ヘルプと--list-workflowsを先に処理（依存関係チェック前）
 for arg in "$@"; do
     case "$arg" in
         -h|--help)
             usage
+            exit 0
+            ;;
+        --list-workflows)
+            # workflow.sh をロードして一覧表示（依存関係チェック不要）
+            source "$SCRIPT_DIR/../lib/config.sh"
+            source "$SCRIPT_DIR/../lib/log.sh"
+            source "$SCRIPT_DIR/../lib/workflow.sh"
+            log_info "Available workflows:"
+            list_available_workflows
             exit 0
             ;;
     esac
