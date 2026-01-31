@@ -302,3 +302,39 @@ list_issues_by_status() {
         fi
     done
 }
+
+# 孤立したステータスファイルを検出
+# （対応するworktreeが存在しないステータスファイル）
+# 出力: 孤立したIssue番号（1行に1つ）
+find_orphaned_statuses() {
+    local status_dir
+    status_dir="$(get_status_dir)"
+    
+    if [[ ! -d "$status_dir" ]]; then
+        return 0
+    fi
+    
+    load_config
+    local worktree_base
+    worktree_base="$(get_config worktree_base_dir)"
+    
+    for status_file in "$status_dir"/*.json; do
+        [[ -f "$status_file" ]] || continue
+        local issue_number
+        issue_number="$(basename "$status_file" .json)"
+        
+        # 対応するworktreeが存在するか確認
+        local has_worktree=false
+        for dir in "$worktree_base"/issue-"${issue_number}"-*; do
+            if [[ -d "$dir" ]]; then
+                has_worktree=true
+                break
+            fi
+        done
+        
+        # worktreeが存在しない場合は孤立
+        if [[ "$has_worktree" == "false" ]]; then
+            echo "$issue_number"
+        fi
+    done
+}

@@ -272,3 +272,63 @@ teardown() {
     [[ "$result" == *"20"* ]]
     [[ "$result" != *"30"* ]]
 }
+
+# ====================
+# find_orphaned_statuses テスト
+# ====================
+
+@test "find_orphaned_statuses returns orphaned issues" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # ステータスファイルを作成（対応するworktreeなし）
+    save_status "100" "complete" "pi-issue-100"
+    save_status "200" "running" "pi-issue-200"
+    
+    # 対応するworktreeが存在しないので両方とも孤立扱い
+    result="$(find_orphaned_statuses)"
+    
+    [[ "$result" == *"100"* ]]
+    [[ "$result" == *"200"* ]]
+}
+
+@test "find_orphaned_statuses returns empty for no orphans" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # worktreeディレクトリを作成
+    local worktree_base="${BATS_TEST_TMPDIR}/.worktrees"
+    mkdir -p "$worktree_base/issue-300-test"
+    
+    # 対応するステータスファイルを作成
+    save_status "300" "running" "pi-issue-300"
+    
+    # worktreeが存在するので孤立ではない
+    result="$(find_orphaned_statuses)"
+    
+    [[ "$result" != *"300"* ]]
+}
+
+@test "find_orphaned_statuses handles mixed cases" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # worktreeディレクトリを作成
+    local worktree_base="${BATS_TEST_TMPDIR}/.worktrees"
+    mkdir -p "$worktree_base/issue-400-with-worktree"
+    
+    # 一つは対応するworktreeあり、一つはなし
+    save_status "400" "running" "pi-issue-400"  # worktreeあり
+    save_status "500" "complete" "pi-issue-500"  # worktreeなし
+    
+    result="$(find_orphaned_statuses)"
+    
+    # 500は孤立、400は孤立ではない
+    [[ "$result" == *"500"* ]]
+    [[ "$result" != *"400"* ]]
+}
+
+@test "find_orphaned_statuses returns empty for no status files" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    init_status_dir
+    result="$(find_orphaned_statuses)"
+    [ -z "$result" ]
+}
