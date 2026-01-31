@@ -282,8 +282,12 @@ review_and_create_issues() {
 
     echo "[pi] レビュー実行中..."
     
-    # piを実行
-    if ! "$pi_command" --message "$review_prompt" 2>&1 | tee "$output_file"; then
+    # ターミナル幅を取得（パイプ使用時にpiがTTY幅を取得できないため）
+    local cols
+    cols=$(tput cols 2>/dev/null || echo 120)
+    
+    # piを実行（COLUMNS環境変数でターミナル幅を明示的に設定）
+    if ! COLUMNS="$cols" "$pi_command" --message "$review_prompt" 2>&1 | tee "$output_file"; then
         log_error "pi command failed"
         return 1
     fi
