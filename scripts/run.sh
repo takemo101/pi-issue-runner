@@ -4,6 +4,45 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ヘルプを先に処理（依存関係チェック前）
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help)
+            cat << 'HELP_EOF'
+Usage: run.sh <issue-number> [options]
+
+Arguments:
+    issue-number    GitHub Issue番号
+
+Options:
+    --branch NAME     カスタムブランチ名（デフォルト: issue-<num>-<title>）
+    --base BRANCH     ベースブランチ（デフォルト: HEAD）
+    --workflow NAME   ワークフロー名（デフォルト: default）
+                      利用可能: default, simple
+    --no-attach       セッション作成後にアタッチしない
+    --no-cleanup      pi終了後の自動クリーンアップを無効化
+    --reattach        既存セッションがあればアタッチ
+    --force           既存セッション/worktreeを削除して再作成
+    --pi-args ARGS    piに渡す追加の引数
+    --list-workflows  利用可能なワークフロー一覧を表示
+    -h, --help        このヘルプを表示
+
+Examples:
+    run.sh 42
+    run.sh 42 --workflow simple
+    run.sh 42 --no-attach
+    run.sh 42 --no-cleanup
+    run.sh 42 --reattach
+    run.sh 42 --force
+    run.sh 42 --branch custom-feature
+    run.sh 42 --base develop
+HELP_EOF
+            exit 0
+            ;;
+    esac
+done
+
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/github.sh"
 source "$SCRIPT_DIR/../lib/worktree.sh"

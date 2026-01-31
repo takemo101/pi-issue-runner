@@ -126,32 +126,52 @@ assert_contains "-h shows usage" "Usage:" "$result"
 echo ""
 echo "=== Error cases tests ==="
 
-# issue番号なしで実行
-if result=$("$RUN_SCRIPT" 2>&1); then
-    exit_code=0
+# ghが認証されているか確認（CIでは認証されていない場合がある）
+if gh auth status &>/dev/null; then
+    GH_AUTHENTICATED=true
 else
-    exit_code=1
+    GH_AUTHENTICATED=false
+    echo "⊘ Skipping some tests (gh not authenticated)"
 fi
-assert_failure "run.sh without issue number fails" "$exit_code"
-assert_contains "error message mentions issue number required" "Issue number is required" "$result"
+
+# issue番号なしで実行
+if [[ "$GH_AUTHENTICATED" == "true" ]]; then
+    if result=$("$RUN_SCRIPT" 2>&1); then
+        exit_code=0
+    else
+        exit_code=1
+    fi
+    assert_failure "run.sh without issue number fails" "$exit_code"
+    assert_contains "error message mentions issue number required" "Issue number is required" "$result"
+else
+    echo "⊘ Skipping: error message mentions issue number required (gh not authenticated)"
+fi
 
 # 不明なオプション
-if result=$("$RUN_SCRIPT" --unknown-option 2>&1); then
-    exit_code=0
+if [[ "$GH_AUTHENTICATED" == "true" ]]; then
+    if result=$("$RUN_SCRIPT" --unknown-option 2>&1); then
+        exit_code=0
+    else
+        exit_code=1
+    fi
+    assert_failure "run.sh with unknown option fails" "$exit_code"
+    assert_contains "error message mentions unknown option" "Unknown option" "$result"
 else
-    exit_code=1
+    echo "⊘ Skipping: error message mentions unknown option (gh not authenticated)"
 fi
-assert_failure "run.sh with unknown option fails" "$exit_code"
-assert_contains "error message mentions unknown option" "Unknown option" "$result"
 
 # 複数の位置引数（2つ目の引数はエラー）
-if result=$("$RUN_SCRIPT" 42 extra-arg 2>&1); then
-    exit_code=0
+if [[ "$GH_AUTHENTICATED" == "true" ]]; then
+    if result=$("$RUN_SCRIPT" 42 extra-arg 2>&1); then
+        exit_code=0
+    else
+        exit_code=1
+    fi
+    assert_failure "run.sh with extra positional argument fails" "$exit_code"
+    assert_contains "error message mentions unexpected argument" "Unexpected argument" "$result"
 else
-    exit_code=1
+    echo "⊘ Skipping: error message mentions unexpected argument (gh not authenticated)"
 fi
-assert_failure "run.sh with extra positional argument fails" "$exit_code"
-assert_contains "error message mentions unexpected argument" "Unexpected argument" "$result"
 
 # ===================
 # オプションの組み合わせテスト

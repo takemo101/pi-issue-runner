@@ -177,13 +177,13 @@ if declare -f sanitize_issue_body > /dev/null 2>&1; then
     
     # 変数展開 ${...} のエスケープ
     result=$(sanitize_issue_body 'Test ${HOME} variable')
-    assert_contains_escaped "sanitize_issue_body escapes variable expansion" '\$\{' "$result"
+    assert_contains_escaped "sanitize_issue_body escapes variable expansion" '\${' "$result"
     
     # 複合パターン
     result=$(sanitize_issue_body 'Mixed $(cmd) and `cmd2` and ${VAR}')
     assert_contains_escaped "sanitize_issue_body escapes all patterns (cmd subst)" '\$(' "$result"
     assert_contains_escaped "sanitize_issue_body escapes all patterns (backtick)" '\`' "$result"
-    assert_contains_escaped "sanitize_issue_body escapes all patterns (var expand)" '\$\{' "$result"
+    assert_contains_escaped "sanitize_issue_body escapes all patterns (var expand)" '\${' "$result"
 else
     echo "✗ sanitize_issue_body function does not exist"
     ((TESTS_FAILED++)) || true
