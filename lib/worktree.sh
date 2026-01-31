@@ -87,31 +87,43 @@ list_worktrees() {
     local base_dir
     base_dir="$(get_config worktree_base_dir)"
     
-    git worktree list --porcelain | while read -r line; do
+    # プロセス置換を使用してサブシェルを回避
+    while read -r line; do
         if [[ "$line" =~ ^worktree ]]; then
             local path="${line#worktree }"
             if [[ "$path" == *"$base_dir"* ]]; then
                 echo "$path"
             fi
         fi
-    done
+    done < <(git worktree list --porcelain)
 }
 
 # worktreeのブランチを取得
 get_worktree_branch() {
     local worktree_path="$1"
+    local found_worktree=false
+    local branch=""
     
-    git worktree list --porcelain | while read -r line; do
-        if [[ "$line" == "worktree $worktree_path" ]]; then
-            while read -r subline; do
-                if [[ "$subline" =~ ^branch ]]; then
-                    echo "${subline#branch refs/heads/}"
-                    return
-                fi
-                [[ -z "$subline" ]] && break
-            done
+    # パスを正規化（macOSでの/var -> /private/var シンボリックリンク対応）
+    if [[ -d "$worktree_path" ]]; then
+        worktree_path="$(cd "$worktree_path" && pwd -P)"
+    fi
+    
+    # プロセス置換を使用してサブシェルを回避
+    while read -r line; do
+        if [[ "$found_worktree" == "true" ]]; then
+            if [[ "$line" =~ ^branch ]]; then
+                branch="${line#branch refs/heads/}"
+                break
+            fi
+            # 空行でworktreeエントリ終了
+            [[ -z "$line" ]] && break
+        elif [[ "$line" == "worktree $worktree_path" ]]; then
+            found_worktree=true
         fi
-    done
+    done < <(git worktree list --porcelain)
+    
+    [[ -n "$branch" ]] && echo "$branch"
 }
 
 # Issue番号からworktreeパスを検索

@@ -298,6 +298,38 @@ else
 fi
 
 # ===================
+# get_worktree_branch テスト（サブシェル問題の修正確認）
+# ===================
+echo ""
+echo "=== get_worktree_branch tests (subshell fix) ==="
+
+# 作成済みworktreeのブランチを取得
+if [[ -n "${worktree_path:-}" && -d "$worktree_path" ]]; then
+    branch=$(get_worktree_branch "$worktree_path" 2>/dev/null)
+    
+    if [[ -n "$branch" ]]; then
+        echo "✓ get_worktree_branch returns branch name"
+        ((TESTS_PASSED++)) || true
+        assert_contains "get_worktree_branch returns correct branch" "feature/$TEST_BRANCH_NAME" "feature/$branch"
+    else
+        echo "✗ get_worktree_branch returned empty (subshell issue?)"
+        ((TESTS_FAILED++)) || true
+    fi
+else
+    echo "⚠ Skipping get_worktree_branch test (no worktree available)"
+fi
+
+# 存在しないworktreeパスでの動作確認
+branch=$(get_worktree_branch "/nonexistent/worktree/path" 2>/dev/null)
+if [[ -z "$branch" ]]; then
+    echo "✓ get_worktree_branch returns empty for nonexistent path"
+    ((TESTS_PASSED++)) || true
+else
+    echo "✗ get_worktree_branch should return empty for nonexistent path"
+    ((TESTS_FAILED++)) || true
+fi
+
+# ===================
 # remove_worktree テスト
 # ===================
 echo ""
