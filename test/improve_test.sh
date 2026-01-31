@@ -167,6 +167,33 @@ assert_contains "calls list.sh" 'list.sh' "$improve_source"
 assert_contains "calls wait-for-sessions.sh" 'wait-for-sessions.sh' "$improve_source"
 
 # ===================
+# Completion marker detection tests
+# ===================
+echo ""
+echo "=== Completion marker detection tests ==="
+
+# Marker constants
+assert_contains "defines MARKER_COMPLETE" 'MARKER_COMPLETE=' "$improve_source"
+assert_contains "defines MARKER_NO_ISSUES" 'MARKER_NO_ISSUES=' "$improve_source"
+assert_contains "MARKER_COMPLETE is ###TASK_COMPLETE###" '###TASK_COMPLETE###' "$improve_source"
+assert_contains "MARKER_NO_ISSUES is ###NO_ISSUES###" '###NO_ISSUES###' "$improve_source"
+
+# run_pi_with_completion_detection function
+assert_contains "has run_pi_with_completion_detection function" 'run_pi_with_completion_detection()' "$improve_source"
+assert_contains "function uses tee for output" 'tee' "$improve_source"
+assert_contains "function monitors pi_pid" 'pi_pid' "$improve_source"
+assert_contains "function creates temp file" 'mktemp' "$improve_source"
+assert_contains "function checks MARKER_COMPLETE" 'grep -q "$MARKER_COMPLETE"' "$improve_source"
+assert_contains "function checks MARKER_NO_ISSUES" 'grep -q "$MARKER_NO_ISSUES"' "$improve_source"
+assert_contains "function cleans up temp file" 'rm -f "$output_file"' "$improve_source"
+
+# Phase 1 uses the new function
+assert_contains "Phase 1 uses run_pi_with_completion_detection" 'run_pi_with_completion_detection "$prompt" "$pi_command"' "$improve_source"
+
+# Return value handling
+assert_contains "handles no issues return" 'Improvement complete! No issues found.' "$improve_source"
+
+# ===================
 # Removed features tests
 # ===================
 echo ""

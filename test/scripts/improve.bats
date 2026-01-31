@@ -52,23 +52,7 @@ teardown() {
     [[ "$output" == *"--max-issues"* ]]
 }
 
-@test "help includes --auto-continue option" {
-    run "$PROJECT_ROOT/scripts/improve.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"--auto-continue"* ]]
-}
 
-@test "help includes --dry-run option" {
-    run "$PROJECT_ROOT/scripts/improve.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"--dry-run"* ]]
-}
-
-@test "help includes --review-only option" {
-    run "$PROJECT_ROOT/scripts/improve.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"--review-only"* ]]
-}
 
 @test "help includes --timeout option" {
     run "$PROJECT_ROOT/scripts/improve.sh" --help
@@ -126,4 +110,48 @@ teardown() {
     # オプションの組み合わせはヘルプ出力で確認
     [[ "$output" == *"--max-iterations"* ]]
     [[ "$output" == *"--max-issues"* ]]
+}
+
+# ====================
+# 完了マーカー検出テスト
+# ====================
+
+@test "improve.sh defines MARKER_COMPLETE constant" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'MARKER_COMPLETE="###TASK_COMPLETE###"'* ]]
+}
+
+@test "improve.sh defines MARKER_NO_ISSUES constant" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'MARKER_NO_ISSUES="###NO_ISSUES###"'* ]]
+}
+
+@test "improve.sh has run_pi_with_completion_detection function" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *"run_pi_with_completion_detection()"* ]]
+}
+
+@test "run_pi_with_completion_detection uses tee for output" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'tee "$output_file"'* ]]
+}
+
+@test "run_pi_with_completion_detection monitors for MARKER_COMPLETE" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'grep -q "$MARKER_COMPLETE"'* ]]
+}
+
+@test "run_pi_with_completion_detection monitors for MARKER_NO_ISSUES" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'grep -q "$MARKER_NO_ISSUES"'* ]]
+}
+
+@test "run_pi_with_completion_detection cleans up temp file" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'rm -f "$output_file"'* ]]
+}
+
+@test "Phase 1 uses run_pi_with_completion_detection" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'run_pi_with_completion_detection "$prompt" "$pi_command"'* ]]
 }

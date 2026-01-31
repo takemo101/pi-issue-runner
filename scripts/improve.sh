@@ -12,6 +12,64 @@ DEFAULT_MAX_ITERATIONS=3
 DEFAULT_MAX_ISSUES=5
 DEFAULT_TIMEOUT=3600
 
+# Completion markers
+MARKER_COMPLETE="###TASK_COMPLETE###"
+MARKER_NO_ISSUES="###NO_ISSUES###"
+
+# Run pi with completion marker detection
+# Arguments:
+#   $1 - prompt to send to pi
+#   $2 - pi command path
+# Returns:
+#   0 - Issue created (TASK_COMPLETE marker detected)
+#   1 - No issues found (NO_ISSUES marker detected)
+#   0 - pi exited normally without marker
+run_pi_with_completion_detection() {
+    local prompt="$1"
+    local pi_command="$2"
+    local output_file
+    output_file=$(mktemp)
+    local pi_pid
+    
+    # Trap for cleanup on interrupt
+    trap 'rm -f "$output_file"; kill "$pi_pid" 2>/dev/null || true' INT TERM
+    
+    # Run pi in background, output to both terminal and file
+    # Use stdbuf to disable buffering for real-time output
+    if command -v stdbuf &>/dev/null; then
+        stdbuf -oL "$pi_command" --message "$prompt" 2>&1 | tee "$output_file" &
+    else
+        "$pi_command" --message "$prompt" 2>&1 | tee "$output_file" &
+    fi
+    pi_pid=$!
+    
+    # Monitor for completion markers
+    while kill -0 "$pi_pid" 2>/dev/null; do
+        if grep -q "$MARKER_COMPLETE" "$output_file" 2>/dev/null; then
+            log_info "Completion marker detected. Terminating pi..."
+            kill "$pi_pid" 2>/dev/null || true
+            wait "$pi_pid" 2>/dev/null || true
+            rm -f "$output_file"
+            trap - INT TERM
+            return 0  # Issues created
+        fi
+        if grep -q "$MARKER_NO_ISSUES" "$output_file" 2>/dev/null; then
+            log_info "No issues marker detected. Terminating pi..."
+            kill "$pi_pid" 2>/dev/null || true
+            wait "$pi_pid" 2>/dev/null || true
+            rm -f "$output_file"
+            trap - INT TERM
+            return 1  # No issues
+        fi
+        sleep 1
+    done
+    
+    # pi exited without marker
+    rm -f "$output_file"
+    trap - INT TERM
+    return 0
+}
+
 usage() {
     cat << EOF
 Usage: $(basename "$0") [options]
@@ -116,14 +174,19 @@ main() {
 2. Create GitHub Issues for discovered problems (max ${max_issues})
 3. Start parallel execution for each Issue via Pi Issue Runner:
    scripts/run.sh <issue-number> --no-attach
-4. After starting all Issues, output ###TASK_COMPLETE### and exit
 
-Note: If no problems are found, report 'no issues' and output ###TASK_COMPLETE###."
+After completing all steps, output EXACTLY ONE of the following markers:
+- If you created Issues and started run.sh: $MARKER_COMPLETE
+- If no problems were found: $MARKER_NO_ISSUES
+
+IMPORTANT: The marker must be output as a single line. This is required for automatic detection."
 
     echo "[PHASE 1] Reviewing and creating Issues via pi..."
-    "$pi_command" --message "$prompt" || {
-        log_warn "pi command exited with non-zero status"
-    }
+    if ! run_pi_with_completion_detection "$prompt" "$pi_command"; then
+        echo ""
+        echo "✅ Improvement complete! No issues found."
+        exit 0
+    fi
 
     # Phase 2: Monitor session completion
     echo ""
