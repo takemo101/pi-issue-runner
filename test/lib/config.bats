@@ -16,8 +16,16 @@ setup() {
     unset CONFIG_TMUX_SESSION_PREFIX
     unset CONFIG_WORKTREE_COPY_FILES
     unset CONFIG_PI_ARGS
+    unset CONFIG_AGENT_TYPE
+    unset CONFIG_AGENT_COMMAND
+    unset CONFIG_AGENT_ARGS
+    unset CONFIG_AGENT_TEMPLATE
     unset PI_RUNNER_WORKTREE_BASE_DIR
     unset PI_RUNNER_TMUX_SESSION_PREFIX
+    unset PI_RUNNER_AGENT_TYPE
+    unset PI_RUNNER_AGENT_COMMAND
+    unset PI_RUNNER_AGENT_ARGS
+    unset PI_RUNNER_AGENT_TEMPLATE
     
     # テスト用の空の設定ファイルパスを作成（find_config_fileをスキップするため）
     export TEST_CONFIG_FILE="${BATS_TEST_TMPDIR}/empty-config.yaml"
@@ -180,4 +188,74 @@ EOF
     load_config "$TEST_CONFIG_FILE"
     result="$(get_config unknown_key)"
     [ -z "$result" ]
+}
+
+# ====================
+# エージェント設定テスト
+# ====================
+
+@test "get_config returns empty agent_type by default" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config agent_type)"
+    [ -z "$result" ]
+}
+
+@test "load_config parses agent section" {
+    local test_config="${BATS_TEST_TMPDIR}/agent-config.yaml"
+    cat > "$test_config" << 'EOF'
+agent:
+  type: claude
+  command: /usr/bin/claude
+  template: '{{command}} {{args}} --prompt {{prompt_file}}'
+EOF
+
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$test_config"
+    
+    [ "$(get_config agent_type)" = "claude" ]
+    [ "$(get_config agent_command)" = "/usr/bin/claude" ]
+    [[ "$(get_config agent_template)" == *'--prompt'* ]]
+}
+
+@test "load_config parses agent.args array" {
+    local test_config="${BATS_TEST_TMPDIR}/agent-args-config.yaml"
+    cat > "$test_config" << 'EOF'
+agent:
+  type: pi
+  args:
+    - "--verbose"
+    - "--model"
+    - "gpt-4"
+EOF
+
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$test_config"
+    
+    agent_args="$(get_config agent_args)"
+    [ "$agent_args" = "--verbose --model gpt-4" ]
+}
+
+@test "environment variable overrides agent_type" {
+    export PI_RUNNER_AGENT_TYPE="opencode"
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config agent_type)"
+    [ "$result" = "opencode" ]
+}
+
+@test "environment variable overrides agent_command" {
+    export PI_RUNNER_AGENT_COMMAND="/custom/agent"
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config agent_command)"
+    [ "$result" = "/custom/agent" ]
+}
+
+@test "environment variable overrides agent_template" {
+    export PI_RUNNER_AGENT_TEMPLATE='{{command}} --custom {{prompt_file}}'
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config agent_template)"
+    [[ "$result" == *'--custom'* ]]
 }

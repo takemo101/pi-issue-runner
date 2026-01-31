@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# run.sh - GitHub Issueからworktreeを作成してpiを起動
+# run.sh - GitHub Issueからworktreeを作成してコーディングエージェントを起動
+# 対応エージェント: pi, Claude Code, OpenCode, カスタム
 
 set -euo pipefail
 
@@ -19,10 +20,11 @@ Options:
     -w, --workflow NAME ワークフロー名（デフォルト: default）
                         利用可能: default, simple
     --no-attach         セッション作成後にアタッチしない
-    --no-cleanup        pi終了後の自動クリーンアップを無効化
+    --no-cleanup        エージェント終了後の自動クリーンアップを無効化
     --reattach          既存セッションがあればアタッチ
     --force             既存セッション/worktreeを削除して再作成
-    --pi-args ARGS      piに渡す追加の引数
+    --agent-args ARGS   エージェントに渡す追加の引数
+    --pi-args ARGS      --agent-args のエイリアス（後方互換性）
     --list-workflows    利用可能なワークフロー一覧を表示
     -h, --help          このヘルプを表示
 
@@ -64,6 +66,7 @@ source "$SCRIPT_DIR/../lib/tmux.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/workflow.sh"
 source "$SCRIPT_DIR/../lib/hooks.sh"
+source "$SCRIPT_DIR/../lib/agent.sh"
 
 # 依存関係チェック
 check_dependencies || exit 1
@@ -79,7 +82,7 @@ main() {
     local no_attach=false
     local reattach=false
     local force=false
-    local extra_pi_args=""
+    local extra_agent_args=""
     local cleanup_mode="auto"  # デフォルト: 自動クリーンアップ
     local list_workflows=false
 
@@ -122,8 +125,8 @@ main() {
                 cleanup_mode="none"
                 shift
                 ;;
-            --pi-args)
-                extra_pi_args="$2"
+            --agent-args|--pi-args)
+                extra_agent_args="$2"
                 shift 2
                 ;;
             -h|--help)
@@ -237,22 +240,18 @@ main() {
     # エラー時クリーンアップ用にworktreeを登録
     register_worktree_for_cleanup "$full_worktree_path"
 
-    # piコマンド構築
-    local pi_command
-    pi_command="$(get_config pi_command)"
-    local pi_args
-    pi_args="$(get_config pi_args)"
-    
     # ワークフローからプロンプトファイルを生成
     local prompt_file="$full_worktree_path/.pi-prompt.md"
     log_info "Workflow: $workflow_name"
     write_workflow_prompt "$prompt_file" "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path"
     
-    # piにプロンプトファイルを渡す（@でファイル参照）
-    local full_command="$pi_command $pi_args $extra_pi_args @\"$prompt_file\""
+    # エージェントコマンド構築（agent.shを使用）
+    local full_command
+    full_command="$(build_agent_command "$prompt_file" "$extra_agent_args")"
 
     # tmuxセッション作成
-    log_info "=== Starting Pi Session ==="
+    log_info "=== Starting Agent Session ==="
+    log_info "Agent: $(get_agent_type)"
     create_session "$session_name" "$full_worktree_path" "$full_command"
     
     # セッション作成成功 - クリーンアップ対象から除外
@@ -276,6 +275,7 @@ main() {
 
     log_info "=== Summary ==="
     log_info "Issue:     #$issue_number - $issue_title"
+    log_info "Agent:     $(get_agent_type) ($(get_agent_command))"
     log_info "Worktree:  $worktree_path"
     log_info "Branch:    feature/$branch_name"
     log_info "Session:   $session_name"
