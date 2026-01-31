@@ -351,19 +351,31 @@ bats --tap test/lib/*.bats
 
 ```
 test/
-├── lib/                    # ライブラリのユニットテスト
-│   ├── config.bats         # config.sh のテスト
-│   ├── github.bats         # github.sh のテスト
-│   └── log.bats            # log.sh のテスト
-├── scripts/                # スクリプトの統合テスト
-│   ├── run.bats            # run.sh のテスト
-│   ├── list.bats           # list.sh のテスト
-│   └── cleanup.bats        # cleanup.sh のテスト
-├── regression/             # 回帰テスト
+├── lib/                         # ライブラリのユニットテスト
+│   ├── config.bats              # config.sh のテスト
+│   ├── github.bats              # github.sh のテスト
+│   ├── log.bats                 # log.sh のテスト
+│   ├── notify.bats              # notify.sh のテスト
+│   ├── status.bats              # status.sh のテスト
+│   ├── tmux.bats                # tmux.sh のテスト
+│   ├── workflow.bats            # workflow.sh のテスト
+│   └── worktree.bats            # worktree.sh のテスト
+├── scripts/                     # スクリプトの統合テスト
+│   ├── attach.bats              # attach.sh のテスト
+│   ├── cleanup.bats             # cleanup.sh のテスト
+│   ├── improve.bats             # improve.sh のテスト
+│   ├── init.bats                # init.sh のテスト
+│   ├── list.bats                # list.sh のテスト
+│   ├── run.bats                 # run.sh のテスト
+│   ├── status.bats              # status.sh のテスト
+│   ├── stop.bats                # stop.sh のテスト
+│   ├── wait-for-sessions.bats   # wait-for-sessions.sh のテスト
+│   └── watch-session.bats       # watch-session.sh のテスト
+├── regression/                  # 回帰テスト
 │   └── critical-fixes.bats
-├── fixtures/               # テスト用フィクスチャ
+├── fixtures/                    # テスト用フィクスチャ
 │   └── sample-config.yaml
-└── test_helper.bash        # Bats共通ヘルパー（モック関数含む）
+└── test_helper.bash             # Bats共通ヘルパー（モック関数含む）
 ```
 
 ## トラブルシューティング
