@@ -546,14 +546,18 @@ gh auth login
 
 ## ドキュメント
 
+- [概要](docs/overview.md) - システム全体の概要
 - [アーキテクチャ](docs/architecture.md) - システム設計
 - [仕様書](docs/SPECIFICATION.md) - 詳細仕様
+- [ワークフロー](docs/workflows.md) - ワークフロー定義の詳細
+- [Hook機能](docs/hooks.md) - イベントフック詳細
 - [Git Worktree管理](docs/worktree-management.md) - worktree運用
 - [tmux統合](docs/tmux-integration.md) - tmuxセッション管理
 - [並列実行](docs/parallel-execution.md) - 複数タスクの並列処理
 - [状態管理](docs/state-management.md) - ステータスファイル管理
 - [設定リファレンス](docs/configuration.md) - 設定オプション
 - [セキュリティ](docs/security.md) - 入力サニタイズとセキュリティ対策
+- [変更履歴](docs/CHANGELOG.md) - バージョン履歴
 
 ## 開発
 
