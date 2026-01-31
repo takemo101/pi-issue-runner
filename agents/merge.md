@@ -41,17 +41,10 @@ gh pr checks
 gh pr merge --merge --delete-branch
 ```
 
-### 4. クリーンアップ（オプション）
-マージ後、ローカル環境をクリーンアップします：
+### 4. クリーンアップ
 
-```bash
-# メインブランチに戻る
-git checkout main
-git pull
-
-# ローカルブランチを削除
-git branch -d {{branch_name}}
-```
+> **Note**: Worktreeのクリーンアップは自動的に行われます。
+> 手動でクリーンアップが必要な場合は `scripts/cleanup.sh` を使用してください。
 
 ## コミットタイプ
 
