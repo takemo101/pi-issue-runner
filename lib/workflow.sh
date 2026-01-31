@@ -3,11 +3,11 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/yaml.sh"
-source "$SCRIPT_DIR/config.sh"
-source "$SCRIPT_DIR/log.sh"
-source "$SCRIPT_DIR/template.sh"
+_WORKFLOW_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$_WORKFLOW_LIB_DIR/yaml.sh"
+source "$_WORKFLOW_LIB_DIR/config.sh"
+source "$_WORKFLOW_LIB_DIR/log.sh"
+source "$_WORKFLOW_LIB_DIR/template.sh"
 
 # ビルトインワークフロー定義
 # workflows/ ディレクトリが存在しない場合に使用

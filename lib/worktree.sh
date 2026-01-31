@@ -4,11 +4,11 @@
 set -euo pipefail
 
 # 現在のディレクトリを取得
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_WORKTREE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # configとlogを読み込み
-source "$SCRIPT_DIR/config.sh"
-source "$SCRIPT_DIR/log.sh"
+source "$_WORKTREE_LIB_DIR/config.sh"
+source "$_WORKTREE_LIB_DIR/log.sh"
 
 # worktreeを作成
 create_worktree() {

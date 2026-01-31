@@ -5,8 +5,8 @@
 # このファイルでは設定しない（呼び出し元で設定）
 
 # 共通YAMLパーサーを読み込み
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/yaml.sh"
+_CONFIG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$_CONFIG_LIB_DIR/yaml.sh"
 
 # 設定読み込みフラグ（重複呼び出し防止）
 _CONFIG_LOADED=""

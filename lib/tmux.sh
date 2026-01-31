@@ -3,9 +3,9 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/config.sh"
-source "$SCRIPT_DIR/log.sh"
+_TMUX_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$_TMUX_LIB_DIR/config.sh"
+source "$_TMUX_LIB_DIR/log.sh"
 
 # tmuxがインストールされているか確認
 check_tmux() {
