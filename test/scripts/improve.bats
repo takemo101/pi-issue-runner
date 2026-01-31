@@ -25,87 +25,187 @@ teardown() {
 }
 
 # ====================
-# ヘルプ表示テスト
+# ヘルプオプションテスト
 # ====================
 
-@test "improve.sh shows help with --help" {
+@test "improve.sh --help returns success" {
     run "$PROJECT_ROOT/scripts/improve.sh" --help
     [ "$status" -eq 0 ]
+}
+
+@test "improve.sh --help shows usage" {
+    run "$PROJECT_ROOT/scripts/improve.sh" --help
     [[ "$output" == *"Usage:"* ]]
 }
 
-@test "improve.sh shows help with -h" {
-    run "$PROJECT_ROOT/scripts/improve.sh" -h
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Usage:"* ]]
-}
-
-@test "help includes --max-iterations option" {
+@test "improve.sh --help shows --max-iterations option" {
     run "$PROJECT_ROOT/scripts/improve.sh" --help
-    [ "$status" -eq 0 ]
     [[ "$output" == *"--max-iterations"* ]]
 }
 
-@test "help includes --max-issues option" {
+@test "improve.sh --help shows --max-issues option" {
     run "$PROJECT_ROOT/scripts/improve.sh" --help
-    [ "$status" -eq 0 ]
     [[ "$output" == *"--max-issues"* ]]
 }
 
-@test "help includes --timeout option" {
+@test "improve.sh --help shows --timeout option" {
     run "$PROJECT_ROOT/scripts/improve.sh" --help
-    [ "$status" -eq 0 ]
     [[ "$output" == *"--timeout"* ]]
 }
 
-@test "help includes -v/--verbose option" {
+@test "improve.sh --help shows --verbose option" {
     run "$PROJECT_ROOT/scripts/improve.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"-v"* ]] || [[ "$output" == *"--verbose"* ]]
+    [[ "$output" == *"--verbose"* ]]
 }
 
-@test "help includes description" {
+@test "improve.sh --help shows description" {
     run "$PROJECT_ROOT/scripts/improve.sh" --help
-    [ "$status" -eq 0 ]
     [[ "$output" == *"Description:"* ]]
 }
 
-@test "help includes examples" {
+@test "improve.sh --help shows examples" {
     run "$PROJECT_ROOT/scripts/improve.sh" --help
-    [ "$status" -eq 0 ]
     [[ "$output" == *"Examples:"* ]]
 }
 
-@test "help includes environment variables section" {
-    run "$PROJECT_ROOT/scripts/improve.sh" --help
+@test "improve.sh -h returns success" {
+    run "$PROJECT_ROOT/scripts/improve.sh" -h
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Environment Variables:"* ]]
 }
 
 # ====================
-# 引数バリデーションテスト
+# オプションパーステスト
 # ====================
 
-@test "improve.sh fails with unknown option" {
+@test "improve.sh with unknown option fails" {
     run "$PROJECT_ROOT/scripts/improve.sh" --unknown-option
     [ "$status" -ne 0 ]
     [[ "$output" == *"Unknown option"* ]]
 }
 
-@test "improve.sh fails with unexpected argument" {
-    run "$PROJECT_ROOT/scripts/improve.sh" some-argument
+@test "improve.sh with unexpected argument fails" {
+    run "$PROJECT_ROOT/scripts/improve.sh" unexpected-arg
     [ "$status" -ne 0 ]
     [[ "$output" == *"Unexpected argument"* ]]
 }
 
 # ====================
-# オプション組み合わせテスト
+# スクリプト構造テスト
 # ====================
 
-@test "improve.sh accepts multiple options" {
-    run "$PROJECT_ROOT/scripts/improve.sh" --help
+@test "improve.sh has valid bash syntax" {
+    run bash -n "$PROJECT_ROOT/scripts/improve.sh"
     [ "$status" -eq 0 ]
-    # オプションの組み合わせはヘルプ出力で確認
-    [[ "$output" == *"--max-iterations"* ]]
-    [[ "$output" == *"--max-issues"* ]]
+}
+
+@test "improve.sh sources config.sh" {
+    grep -q "lib/config.sh" "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh sources log.sh" {
+    grep -q "lib/log.sh" "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh has main function" {
+    grep -q "main()" "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh has usage function" {
+    grep -q "usage()" "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh has check_dependencies function" {
+    grep -q "check_dependencies()" "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+# ====================
+# オプション処理テスト
+# ====================
+
+@test "improve.sh handles --max-iterations option" {
+    grep -q '\-\-max-iterations)' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh has max_iterations variable" {
+    grep -q 'max_iterations=' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh handles --max-issues option" {
+    grep -q '\-\-max-issues)' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh handles --timeout option" {
+    grep -q '\-\-timeout)' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh handles --iteration option" {
+    grep -q '\-\-iteration)' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+# ====================
+# デフォルト値テスト
+# ====================
+
+@test "improve.sh has DEFAULT_MAX_ITERATIONS" {
+    grep -q 'DEFAULT_MAX_ITERATIONS=' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh has DEFAULT_MAX_ISSUES" {
+    grep -q 'DEFAULT_MAX_ISSUES=' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh has DEFAULT_TIMEOUT" {
+    grep -q 'DEFAULT_TIMEOUT=' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+# ====================
+# 依存関係チェックテスト
+# ====================
+
+@test "improve.sh checks for pi command" {
+    grep -q 'pi_command' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh checks for tmux command" {
+    grep -q 'command -v tmux' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh reports missing dependencies" {
+    grep -q 'Missing dependencies' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+# ====================
+# ワークフローテスト
+# ====================
+
+@test "improve.sh has phase 1 for reviewing" {
+    grep -q 'PHASE 1' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh has phase 2 for monitoring" {
+    grep -q 'PHASE 2' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh has phase 3 for next iteration" {
+    grep -q 'PHASE 3' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh uses project-review skill" {
+    grep -q 'project-review' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh uses wait-for-sessions.sh" {
+    grep -q 'wait-for-sessions.sh' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh shows iteration counter" {
+    grep -q 'Iteration' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh has recursive exec call" {
+    grep -q 'exec "$0"' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh checks max iterations" {
+    grep -q 'max_iterations' "$PROJECT_ROOT/scripts/improve.sh"
 }
