@@ -4,8 +4,9 @@ GitHub Issueを入力として、Git worktreeを作成し、tmuxセッション�
 
 ## 特徴
 
+- **マルチエージェント対応**: Pi、Claude Code、OpenCode、カスタムエージェントに対応
 - **自動worktree作成**: Issue番号からブランチ名を自動生成
-- **tmux統合**: バックグラウンドでpiを実行、いつでもアタッチ可能
+- **tmux統合**: バックグラウンドでエージェントを実行、いつでもアタッチ可能
 - **並列作業**: 複数のIssueを同時に処理
 - **簡単なクリーンアップ**: セッションとworktreeを一括削除
 - **自動クリーンアップ**: タスク完了時に `###TASK_COMPLETE_<issue_number>###` マーカーを出力すると、外部プロセスが自動的にworktreeとセッションをクリーンアップします
@@ -127,7 +128,9 @@ scripts/run.sh 42 --reattach
 # 既存セッション/worktreeを削除して再作成
 scripts/run.sh 42 --force
 
-# piに追加の引数を渡す
+# エージェントに追加の引数を渡す
+scripts/run.sh 42 --agent-args "--verbose"
+# または従来のオプション（後方互換性）
 scripts/run.sh 42 --pi-args "--verbose"
 ```
 
@@ -167,7 +170,7 @@ tmux:
   session_prefix: "pi"
   start_in_session: true
 
-# pi設定
+# pi設定（後方互換性あり）
 pi:
   command: "pi"
   args: []
@@ -176,6 +179,40 @@ pi:
 github:
   include_comments: true  # Issueコメントを含める（デフォルト: true）
   max_comments: 10        # 最大コメント数（0 = 無制限）
+
+# エージェント設定（複数エージェント対応）
+agent:
+  type: pi  # pi, claude, opencode, custom
+  # command: /custom/path/pi
+  # args:
+  #   - --verbose
+```
+
+### 複数エージェント対応
+
+Pi以外のコーディングエージェントを使用できます：
+
+```yaml
+# Claude Codeを使用
+agent:
+  type: claude
+
+# OpenCodeを使用
+agent:
+  type: opencode
+
+# カスタムエージェント
+agent:
+  type: custom
+  command: my-agent
+  template: '{{command}} {{args}} --file "{{prompt_file}}"'
+```
+
+環境変数でも設定可能：
+
+```bash
+# Claude Codeを一時的に使用
+PI_RUNNER_AGENT_TYPE=claude scripts/run.sh 42
 ```
 
 ## ワークフロー例

@@ -24,6 +24,12 @@ CONFIG_PLANS_DIR="${CONFIG_PLANS_DIR:-docs/plans}"  # 計画書ディレクト�
 CONFIG_GITHUB_INCLUDE_COMMENTS="${CONFIG_GITHUB_INCLUDE_COMMENTS:-true}"  # Issueコメントを含める
 CONFIG_GITHUB_MAX_COMMENTS="${CONFIG_GITHUB_MAX_COMMENTS:-10}"  # 最大コメント数（0 = 無制限）
 
+# エージェント設定（マルチエージェント対応）
+CONFIG_AGENT_TYPE="${CONFIG_AGENT_TYPE:-}"       # pi | claude | opencode | custom (空 = pi.commandを使用)
+CONFIG_AGENT_COMMAND="${CONFIG_AGENT_COMMAND:-}" # カスタムコマンド（空 = プリセットまたはpi.commandを使用）
+CONFIG_AGENT_ARGS="${CONFIG_AGENT_ARGS:-}"       # 追加引数（空 = pi.argsを使用）
+CONFIG_AGENT_TEMPLATE="${CONFIG_AGENT_TEMPLATE:-}" # カスタムテンプレート（空 = プリセットを使用）
+
 # 設定ファイルを探す
 find_config_file() {
     local start_dir="${1:-.}"
@@ -121,6 +127,22 @@ _parse_config_file() {
         CONFIG_GITHUB_MAX_COMMENTS="$value"
     fi
     
+    # agent セクションのパース
+    value="$(yaml_get "$config_file" ".agent.type" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_AGENT_TYPE="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".agent.command" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_AGENT_COMMAND="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".agent.template" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_AGENT_TEMPLATE="$value"
+    fi
+    
     # 配列値の取得
     _parse_array_configs "$config_file"
 }
@@ -160,6 +182,22 @@ _parse_array_configs() {
     if [[ -n "$pi_args_list" ]]; then
         CONFIG_PI_ARGS="$pi_args_list"
     fi
+    
+    # agent.args
+    local agent_args_list=""
+    while IFS= read -r item; do
+        if [[ -n "$item" ]]; then
+            if [[ -z "$agent_args_list" ]]; then
+                agent_args_list="$item"
+            else
+                agent_args_list="$agent_args_list $item"
+            fi
+        fi
+    done < <(yaml_get_array "$config_file" ".agent.args")
+    
+    if [[ -n "$agent_args_list" ]]; then
+        CONFIG_AGENT_ARGS="$agent_args_list"
+    fi
 }
 
 # 環境変数による上書き
@@ -196,6 +234,19 @@ _apply_env_overrides() {
     fi
     if [[ -n "${PI_RUNNER_GITHUB_MAX_COMMENTS:-}" ]]; then
         CONFIG_GITHUB_MAX_COMMENTS="$PI_RUNNER_GITHUB_MAX_COMMENTS"
+    fi
+    # エージェント設定の環境変数オーバーライド
+    if [[ -n "${PI_RUNNER_AGENT_TYPE:-}" ]]; then
+        CONFIG_AGENT_TYPE="$PI_RUNNER_AGENT_TYPE"
+    fi
+    if [[ -n "${PI_RUNNER_AGENT_COMMAND:-}" ]]; then
+        CONFIG_AGENT_COMMAND="$PI_RUNNER_AGENT_COMMAND"
+    fi
+    if [[ -n "${PI_RUNNER_AGENT_ARGS:-}" ]]; then
+        CONFIG_AGENT_ARGS="$PI_RUNNER_AGENT_ARGS"
+    fi
+    if [[ -n "${PI_RUNNER_AGENT_TEMPLATE:-}" ]]; then
+        CONFIG_AGENT_TEMPLATE="$PI_RUNNER_AGENT_TEMPLATE"
     fi
 }
 
@@ -236,6 +287,18 @@ get_config() {
         github_max_comments)
             echo "$CONFIG_GITHUB_MAX_COMMENTS"
             ;;
+        agent_type)
+            echo "$CONFIG_AGENT_TYPE"
+            ;;
+        agent_command)
+            echo "$CONFIG_AGENT_COMMAND"
+            ;;
+        agent_args)
+            echo "$CONFIG_AGENT_ARGS"
+            ;;
+        agent_template)
+            echo "$CONFIG_AGENT_TEMPLATE"
+            ;;
         *)
             echo ""
             ;;
@@ -259,4 +322,8 @@ show_config() {
     echo "pi_args: $CONFIG_PI_ARGS"
     echo "github_include_comments: $CONFIG_GITHUB_INCLUDE_COMMENTS"
     echo "github_max_comments: $CONFIG_GITHUB_MAX_COMMENTS"
+    echo "agent_type: $CONFIG_AGENT_TYPE"
+    echo "agent_command: $CONFIG_AGENT_COMMAND"
+    echo "agent_args: $CONFIG_AGENT_ARGS"
+    echo "agent_template: $CONFIG_AGENT_TEMPLATE"
 }
