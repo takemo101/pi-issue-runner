@@ -8,6 +8,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RUN_SCRIPT="$PROJECT_ROOT/scripts/run.sh"
 
+# モックライブラリを読み込み
+source "$SCRIPT_DIR/helpers/mocks.sh"
+
 # テストカウンター
 TESTS_PASSED=0
 TESTS_FAILED=0
@@ -20,6 +23,9 @@ CLEANUP_SESSIONS=()
 CLEANUP_DIRS=()
 
 cleanup_test_env() {
+    # ghモックのクリーンアップ
+    unmock_gh_function 2>/dev/null || true
+    
     # tmuxセッションのクリーンアップ
     for session in "${CLEANUP_SESSIONS[@]:-}"; do
         if [[ -n "$session" ]]; then
@@ -126,52 +132,38 @@ assert_contains "-h shows usage" "Usage:" "$result"
 echo ""
 echo "=== Error cases tests ==="
 
-# ghが認証されているか確認（CIでは認証されていない場合がある）
-if gh auth status &>/dev/null; then
-    GH_AUTHENTICATED=true
-else
-    GH_AUTHENTICATED=false
-    echo "⊘ Skipping some tests (gh not authenticated)"
+# ghモックを自動設定（認証なし環境ではモックを使用）
+auto_mock_gh
+if is_gh_mocked; then
+    echo "ℹ Using mocked gh (gh not authenticated or USE_MOCK_GH=true)"
 fi
 
 # issue番号なしで実行
-if [[ "$GH_AUTHENTICATED" == "true" ]]; then
-    if result=$("$RUN_SCRIPT" 2>&1); then
-        exit_code=0
-    else
-        exit_code=1
-    fi
-    assert_failure "run.sh without issue number fails" "$exit_code"
-    assert_contains "error message mentions issue number required" "Issue number is required" "$result"
+if result=$("$RUN_SCRIPT" 2>&1); then
+    exit_code=0
 else
-    echo "⊘ Skipping: error message mentions issue number required (gh not authenticated)"
+    exit_code=1
 fi
+assert_failure "run.sh without issue number fails" "$exit_code"
+assert_contains "error message mentions issue number required" "Issue number is required" "$result"
 
 # 不明なオプション
-if [[ "$GH_AUTHENTICATED" == "true" ]]; then
-    if result=$("$RUN_SCRIPT" --unknown-option 2>&1); then
-        exit_code=0
-    else
-        exit_code=1
-    fi
-    assert_failure "run.sh with unknown option fails" "$exit_code"
-    assert_contains "error message mentions unknown option" "Unknown option" "$result"
+if result=$("$RUN_SCRIPT" --unknown-option 2>&1); then
+    exit_code=0
 else
-    echo "⊘ Skipping: error message mentions unknown option (gh not authenticated)"
+    exit_code=1
 fi
+assert_failure "run.sh with unknown option fails" "$exit_code"
+assert_contains "error message mentions unknown option" "Unknown option" "$result"
 
 # 複数の位置引数（2つ目の引数はエラー）
-if [[ "$GH_AUTHENTICATED" == "true" ]]; then
-    if result=$("$RUN_SCRIPT" 42 extra-arg 2>&1); then
-        exit_code=0
-    else
-        exit_code=1
-    fi
-    assert_failure "run.sh with extra positional argument fails" "$exit_code"
-    assert_contains "error message mentions unexpected argument" "Unexpected argument" "$result"
+if result=$("$RUN_SCRIPT" 42 extra-arg 2>&1); then
+    exit_code=0
 else
-    echo "⊘ Skipping: error message mentions unexpected argument (gh not authenticated)"
+    exit_code=1
 fi
+assert_failure "run.sh with extra positional argument fails" "$exit_code"
+assert_contains "error message mentions unexpected argument" "Unexpected argument" "$result"
 
 # ===================
 # オプションの組み合わせテスト
