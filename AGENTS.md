@@ -75,9 +75,6 @@ bats test/lib/*.bats test/scripts/*.bats
 # 特定のテストファイル実行
 bats test/lib/config.bats
 
-# 旧形式テスト実行（互換性のため残存）
-./test/config_test.sh
-
 # シェルスクリプトの構文チェック
 shellcheck scripts/*.sh lib/*.sh
 
@@ -86,7 +83,7 @@ shellcheck scripts/*.sh lib/*.sh
 ./scripts/status.sh 42
 
 # 継続的改善
-./scripts/improve.sh --dry-run
+./scripts/improve.sh --max-iterations 1
 
 # 複数セッション待機
 ./scripts/wait-for-sessions.sh 42 43

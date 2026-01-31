@@ -13,7 +13,6 @@ Usage: $(basename "$0") [options] [target]
 Options:
     -v, --verbose   詳細ログを表示
     -f, --fail-fast 最初の失敗で終了
-    -l, --legacy    旧形式テスト（*_test.sh）も実行
     -h, --help      このヘルプを表示
 
 Target:
@@ -26,7 +25,6 @@ Examples:
     $(basename "$0") lib         # test/lib/*.bats のみ
     $(basename "$0") -v          # 詳細ログ付き
     $(basename "$0") -f          # fail-fast モード
-    $(basename "$0") -l          # 旧形式テストも含む
 EOF
 }
 
@@ -104,88 +102,9 @@ run_bats_tests() {
     fi
 }
 
-run_legacy_tests() {
-    local verbose="$1"
-    local fail_fast="$2"
-    
-    local total=0
-    local passed=0
-    local failed=0
-    local failed_tests=()
-    
-    echo ""
-    echo "=== Running Legacy Tests ==="
-    echo ""
-    
-    for test_file in "$TEST_DIR"/*_test.sh; do
-        [[ -f "$test_file" ]] || continue
-        
-        local test_name
-        test_name="$(basename "$test_file")"
-        ((total++))
-        
-        echo "Running: $test_name..."
-        
-        if [[ "$verbose" == "true" ]]; then
-            if bash "$test_file"; then
-                ((passed++))
-                echo "✓ $test_name passed"
-            else
-                ((failed++))
-                failed_tests+=("$test_name")
-                echo "✗ $test_name failed"
-                if [[ "$fail_fast" == "true" ]]; then
-                    echo ""
-                    echo "Stopping due to --fail-fast"
-                    break
-                fi
-            fi
-            echo ""
-        else
-            if bash "$test_file" > /dev/null 2>&1; then
-                ((passed++))
-                echo "✓ $test_name passed"
-            else
-                ((failed++))
-                failed_tests+=("$test_name")
-                echo "✗ $test_name failed"
-                if [[ "$fail_fast" == "true" ]]; then
-                    echo ""
-                    echo "Stopping due to --fail-fast"
-                    break
-                fi
-            fi
-        fi
-    done
-    
-    if [[ $total -eq 0 ]]; then
-        echo "No legacy test files found"
-        return 0
-    fi
-    
-    echo ""
-    echo "Legacy Test Results:"
-    echo "==================="
-    echo "Total:  $total"
-    echo "Passed: $passed"
-    echo "Failed: $failed"
-    echo "==================="
-    
-    if [[ ${#failed_tests[@]} -gt 0 ]]; then
-        echo ""
-        echo "Failed tests:"
-        for test_name in "${failed_tests[@]}"; do
-            echo "  - $test_name"
-        done
-    fi
-    
-    return "$failed"
-}
-
 main() {
     local fail_fast=false
     local verbose=false
-    local legacy=false
     local target=""
     
     # 引数パース
@@ -197,10 +116,6 @@ main() {
                 ;;
             -f|--fail-fast)
                 fail_fast=true
-                shift
-                ;;
-            -l|--legacy)
-                legacy=true
                 shift
                 ;;
             -h|--help)
@@ -225,22 +140,10 @@ main() {
     if check_bats; then
         if ! run_bats_tests "$verbose" "$fail_fast" "$target"; then
             exit_code=1
-            if [[ "$fail_fast" == "true" ]]; then
-                exit "$exit_code"
-            fi
         fi
     else
         echo "Skipping Bats tests (bats not installed)"
         exit_code=1
-    fi
-    
-    # Run legacy tests if requested
-    if [[ "$legacy" == "true" ]]; then
-        local legacy_result=0
-        run_legacy_tests "$verbose" "$fail_fast" || legacy_result=$?
-        if [[ $legacy_result -gt 0 ]]; then
-            exit_code=$legacy_result
-        fi
     fi
     
     exit "$exit_code"

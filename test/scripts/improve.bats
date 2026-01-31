@@ -52,24 +52,6 @@ teardown() {
     [[ "$output" == *"--max-issues"* ]]
 }
 
-@test "help includes --auto-continue option" {
-    run "$PROJECT_ROOT/scripts/improve.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"--auto-continue"* ]]
-}
-
-@test "help includes --dry-run option" {
-    run "$PROJECT_ROOT/scripts/improve.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"--dry-run"* ]]
-}
-
-@test "help includes --review-only option" {
-    run "$PROJECT_ROOT/scripts/improve.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"--review-only"* ]]
-}
-
 @test "help includes --timeout option" {
     run "$PROJECT_ROOT/scripts/improve.sh" --help
     [ "$status" -eq 0 ]
