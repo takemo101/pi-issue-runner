@@ -66,23 +66,33 @@ steps:
 `workflows/` ディレクトリにYAMLファイルを作成します：
 
 ```yaml
-# workflows/thorough.yaml
+# workflows/thorough.yaml（カスタムワークフローの例）
 name: thorough
 description: 徹底ワークフロー（計画・実装・テスト・レビュー・マージ）
 steps:
   - plan
   - implement
-  - test
+  - test      # カスタムステップ: agents/test.md が必要
   - review
   - merge
 ```
 
+> **注意**: 上記の `test` はカスタムステップの例です。使用する場合は `agents/test.md` を作成してください。
+
 ### 2. エージェントテンプレートの作成
 
-各ステップには対応するエージェントテンプレートが必要です。`agents/` ディレクトリにMarkdownファイルを作成します：
+**重要**: ビルトイン以外のカスタムステップを使用する場合は、対応するエージェントテンプレートを必ず作成してください。
+
+ビルトインで提供されているステップ:
+- `plan` - 実装計画の作成
+- `implement` - コードの実装
+- `review` - セルフレビュー
+- `merge` - PRの作成とマージ
+
+`agents/` ディレクトリにMarkdownファイルを作成します：
 
 ```markdown
-# agents/test.md
+# agents/test.md（カスタムステップの例）
 # Test Agent
 
 GitHub Issue #{{issue_number}} のテストを実行します。
@@ -98,6 +108,8 @@ GitHub Issue #{{issue_number}} のテストを実行します。
 ```bash
 ./scripts/run.sh 42 --workflow thorough
 ```
+
+> **注意**: カスタムワークフローで定義したステップに対応するエージェントテンプレートが存在しない場合、ビルトインのフォールバックプロンプトが使用されます。最適な結果を得るには、各ステップ用のテンプレートを作成してください。
 
 ## ワークフロー検索順序
 
