@@ -1,0 +1,17 @@
+# pi-issue-runner 設定ファイル
+# 詳細: https://github.com/takemo101/pi-issue-runner/blob/main/docs/configuration.md
+
+worktree:
+  base_dir: ".worktrees"
+  # copy_files: ".env .env.local"  # worktreeにコピーするファイル
+
+tmux:
+  session_prefix: "pi"
+  # start_in_session: true
+
+pi:
+  command: "pi"
+  # args: ""
+
+# parallel:
+#   max_concurrent: 0  # 0 = 無制限
