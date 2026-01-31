@@ -63,14 +63,11 @@ extract_issue_number() {
 #   $1 - session_name: セッション名
 #   $2 - working_dir: 作業ディレクトリ
 #   $3 - command: 実行するコマンド
-#   $4 - cleanup_mode: クリーンアップモード (optional: "auto", "prompt", "none")
-#   $5 - issue_number: Issue番号 (cleanup_mode使用時に必要)
+# Note: 自動クリーンアップはwatch-session.shによって処理される
 create_session() {
     local session_name="$1"
     local working_dir="$2"
     local command="$3"
-    local cleanup_mode="${4:-none}"
-    local issue_number="${5:-}"
     
     check_tmux || return 1
     
@@ -82,33 +79,12 @@ create_session() {
     log_info "Creating tmux session: $session_name"
     log_debug "Working directory: $working_dir"
     log_debug "Command: $command"
-    log_debug "Cleanup mode: $cleanup_mode"
     
     # デタッチ状態でセッション作成
     tmux new-session -d -s "$session_name" -c "$working_dir"
     
-    # クリーンアップモードが設定されている場合、セッション終了後に処理を実行
-    if [[ "$cleanup_mode" != "none" && -n "$issue_number" ]]; then
-        # remain-on-exitを有効にして、メインコマンド終了後もセッションを維持
-        tmux set-option -t "$session_name" remain-on-exit on
-        
-        # スクリプトディレクトリを取得
-        local script_dir
-        script_dir="$(cd "$SCRIPT_DIR/.." && pwd)/scripts"
-        
-        # post-session.shへの引数を構築
-        local post_session_args="$issue_number --session \"$session_name\" --worktree \"$working_dir\""
-        if [[ "$cleanup_mode" == "none" ]]; then
-            post_session_args="$post_session_args --no-cleanup"
-        fi
-        
-        # メインコマンドとpost-session.shを連続実行
-        local full_command="$command; \"$script_dir/post-session.sh\" $post_session_args"
-        tmux send-keys -t "$session_name" "$full_command" Enter
-    else
-        # クリーンアップなしの場合は通常実行
-        tmux send-keys -t "$session_name" "$command" Enter
-    fi
+    # コマンドを実行
+    tmux send-keys -t "$session_name" "$command" Enter
     
     log_info "Session created: $session_name"
 }

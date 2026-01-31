@@ -231,7 +231,7 @@ main() {
 
     # tmuxセッション作成
     log_info "=== Starting Pi Session ==="
-    create_session "$session_name" "$full_worktree_path" "$full_command" "$cleanup_mode" "$issue_number"
+    create_session "$session_name" "$full_worktree_path" "$full_command"
     
     # セッション作成成功 - クリーンアップ対象から除外
     unregister_worktree_for_cleanup
