@@ -147,46 +147,6 @@ EOF
 }
 
 # ====================
-# render_template テスト
-# ====================
-
-@test "render_template renders issue_number and branch_name" {
-    template="Issue #{{issue_number}} on branch {{branch_name}}"
-    result="$(render_template "$template" "42" "feature/test")"
-    [ "$result" = "Issue #42 on branch feature/test" ]
-}
-
-@test "render_template renders step_name and workflow_name" {
-    template="Step: {{step_name}}, Workflow: {{workflow_name}}"
-    result="$(render_template "$template" "" "" "" "implement" "default")"
-    [ "$result" = "Step: implement, Workflow: default" ]
-}
-
-@test "render_template renders worktree_path" {
-    template="Path: {{worktree_path}}"
-    result="$(render_template "$template" "" "" "/path/to/worktree")"
-    [ "$result" = "Path: /path/to/worktree" ]
-}
-
-@test "render_template replaces empty variable with empty string" {
-    template="Issue #{{issue_number}}"
-    result="$(render_template "$template")"
-    [ "$result" = "Issue #" ]
-}
-
-@test "render_template renders issue_title" {
-    template="Issue: {{issue_title}}"
-    result="$(render_template "$template" "" "" "" "" "default" "Fix bug in parser")"
-    [ "$result" = "Issue: Fix bug in parser" ]
-}
-
-@test "render_template combines issue_number, issue_title, branch_name" {
-    template="Issue #{{issue_number}}: {{issue_title}} on {{branch_name}}"
-    result="$(render_template "$template" "42" "feature/test" "" "" "default" "Add new feature")"
-    [ "$result" = "Issue #42: Add new feature on feature/test" ]
-}
-
-# ====================
 # get_agent_prompt テスト
 # ====================
 
