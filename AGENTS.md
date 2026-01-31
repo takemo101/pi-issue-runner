@@ -23,8 +23,7 @@ pi-issue-runner/
 │   ├── status.sh      # 状態確認
 │   ├── attach.sh      # セッションアタッチ
 │   ├── stop.sh        # セッション停止
-│   ├── cleanup.sh     # クリーンアップ
-│   └── post-session.sh # セッション終了後処理
+│   └── cleanup.sh     # クリーンアップ
 ├── lib/               # 共通ライブラリ
 │   ├── config.sh      # 設定読み込み
 │   ├── github.sh      # GitHub CLI操作
@@ -179,8 +178,11 @@ GitHub Issue #{{issue_number}} のテストを実行します。
 | 変数 | 説明 |
 |------|------|
 | `{{issue_number}}` | GitHub Issue番号 |
+| `{{issue_title}}` | Issueタイトル |
 | `{{branch_name}}` | ブランチ名 |
 | `{{worktree_path}}` | worktreeのパス |
+| `{{step_name}}` | 現在のステップ名 |
+| `{{workflow_name}}` | ワークフロー名 |
 
 ### ワークフロー検索順序
 
