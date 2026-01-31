@@ -282,10 +282,33 @@ review_and_create_issues() {
 
     echo "[pi] レビュー実行中..."
     
-    # piを実行
-    if ! "$pi_command" --message "$review_prompt" 2>&1 | tee "$output_file"; then
-        log_error "pi command failed"
+    # piを実行（teeのバッファリング問題対策）
+    # stdbufが利用可能な場合はラインバッファリングを有効化
+    local pi_exit_code=0
+    if command -v stdbuf &>/dev/null; then
+        log_debug "Using stdbuf for line buffering"
+        stdbuf -oL "$pi_command" --message "$review_prompt" 2>&1 | stdbuf -oL tee "$output_file" || pi_exit_code=$?
+    else
+        log_debug "stdbuf not available, using standard tee"
+        "$pi_command" --message "$review_prompt" 2>&1 | tee "$output_file" || pi_exit_code=$?
+    fi
+    
+    # ファイルシステムを同期（バッファフラッシュ）
+    sync 2>/dev/null || true
+    
+    # 少し待機（ファイル書き込み完了を確実に）
+    sleep 0.5
+    
+    if [[ $pi_exit_code -ne 0 ]]; then
+        log_error "pi command failed with exit code $pi_exit_code"
         return 1
+    fi
+    
+    # デバッグログ: ファイル情報を表示
+    if [[ "${LOG_LEVEL:-}" == "DEBUG" ]]; then
+        log_debug "Output file: $output_file"
+        log_debug "File size: $(wc -c < "$output_file") bytes"
+        log_debug "File lines: $(wc -l < "$output_file") lines"
     fi
 
     # Issue番号を抽出
