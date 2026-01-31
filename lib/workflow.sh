@@ -451,6 +451,13 @@ EOF
 ### On Error
 - If tests fail, fix the issue before committing
 - If PR merge fails, report the error
+- **For unrecoverable errors**, output the error marker:
+  - Prefix: \`###TASK\`
+  - Middle: \`_ERROR_\`
+  - Issue number: \`${issue_number}\`
+  - Suffix: \`###\`
+
+This will notify the user and allow manual intervention.
 
 ### On Completion
 **CRITICAL**: After completing all workflow steps (including PR merge), you MUST output the completion marker.

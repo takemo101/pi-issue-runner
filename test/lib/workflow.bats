@@ -303,3 +303,31 @@ EOF
     result="$(get_workflow_steps_array "default" "/nonexistent")"
     [ "$result" = "plan implement review merge" ]
 }
+
+# ====================
+# generate_workflow_prompt テスト
+# ====================
+
+@test "generate_workflow_prompt includes error marker documentation" {
+    result="$(generate_workflow_prompt "default" "42" "Test Issue" "Body" "feature/test" "/path" "$TEST_DIR")"
+    [[ "$result" == *"###TASK"* ]]
+    [[ "$result" == *"_ERROR_"* ]]
+    [[ "$result" == *"unrecoverable errors"* ]]
+}
+
+@test "generate_workflow_prompt includes completion marker documentation" {
+    result="$(generate_workflow_prompt "default" "42" "Test Issue" "Body" "feature/test" "/path" "$TEST_DIR")"
+    [[ "$result" == *"###TASK"* ]]
+    [[ "$result" == *"_COMPLETE_"* ]]
+}
+
+@test "generate_workflow_prompt includes issue number in markers" {
+    result="$(generate_workflow_prompt "default" "99" "Test Issue" "Body" "feature/test" "/path" "$TEST_DIR")"
+    [[ "$result" == *"99"* ]]
+}
+
+@test "generate_workflow_prompt includes On Error section" {
+    result="$(generate_workflow_prompt "default" "42" "Test Issue" "Body" "feature/test" "/path" "$TEST_DIR")"
+    [[ "$result" == *"### On Error"* ]]
+    [[ "$result" == *"manual intervention"* ]]
+}
