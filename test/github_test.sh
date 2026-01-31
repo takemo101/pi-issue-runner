@@ -105,6 +105,141 @@ else
 fi
 
 # ===================
+# sanitize_issue_body テスト
+# ===================
+echo ""
+echo "=== sanitize_issue_body tests ==="
+
+assert_equals() {
+    local description="$1"
+    local expected="$2"
+    local actual="$3"
+    if [[ "$actual" == "$expected" ]]; then
+        echo "✓ $description"
+        ((TESTS_PASSED++)) || true
+    else
+        echo "✗ $description"
+        echo "  Expected: '$expected'"
+        echo "  Actual:   '$actual'"
+        ((TESTS_FAILED++)) || true
+    fi
+}
+
+assert_not_contains() {
+    local description="$1"
+    local pattern="$2"
+    local actual="$3"
+    if [[ "$actual" != *"$pattern"* ]]; then
+        echo "✓ $description"
+        ((TESTS_PASSED++)) || true
+    else
+        echo "✗ $description (should not contain '$pattern')"
+        echo "  Actual: '$actual'"
+        ((TESTS_FAILED++)) || true
+    fi
+}
+
+assert_contains_escaped() {
+    local description="$1"
+    local escaped="$2"
+    local actual="$3"
+    if [[ "$actual" == *"$escaped"* ]]; then
+        echo "✓ $description"
+        ((TESTS_PASSED++)) || true
+    else
+        echo "✗ $description (should contain escaped pattern '$escaped')"
+        echo "  Actual: '$actual'"
+        ((TESTS_FAILED++)) || true
+    fi
+}
+
+# sanitize_issue_body関数が存在するかテスト
+if declare -f sanitize_issue_body > /dev/null 2>&1; then
+    echo "✓ sanitize_issue_body function exists"
+    ((TESTS_PASSED++)) || true
+    
+    # 通常テキストは変更されない
+    result=$(sanitize_issue_body "Normal text without any special patterns")
+    assert_equals "sanitize_issue_body preserves normal text" \
+        "Normal text without any special patterns" "$result"
+    
+    # 空文字列
+    result=$(sanitize_issue_body "")
+    assert_equals "sanitize_issue_body handles empty string" "" "$result"
+    
+    # コマンド置換 $(...) のエスケープ
+    result=$(sanitize_issue_body 'Test $(whoami) command')
+    assert_contains_escaped "sanitize_issue_body escapes command substitution" '\$(' "$result"
+    
+    # バッククォートのエスケープ
+    result=$(sanitize_issue_body 'Test `ls -la` command')
+    assert_contains_escaped "sanitize_issue_body escapes backticks" '\`' "$result"
+    
+    # 変数展開 ${...} のエスケープ
+    result=$(sanitize_issue_body 'Test ${HOME} variable')
+    assert_contains_escaped "sanitize_issue_body escapes variable expansion" '\$\{' "$result"
+    
+    # 複合パターン
+    result=$(sanitize_issue_body 'Mixed $(cmd) and `cmd2` and ${VAR}')
+    assert_contains_escaped "sanitize_issue_body escapes all patterns (cmd subst)" '\$(' "$result"
+    assert_contains_escaped "sanitize_issue_body escapes all patterns (backtick)" '\`' "$result"
+    assert_contains_escaped "sanitize_issue_body escapes all patterns (var expand)" '\$\{' "$result"
+else
+    echo "✗ sanitize_issue_body function does not exist"
+    ((TESTS_FAILED++)) || true
+fi
+
+# ===================
+# detect_dangerous_patterns テスト
+# ===================
+echo ""
+echo "=== detect_dangerous_patterns tests ==="
+
+if declare -f detect_dangerous_patterns > /dev/null 2>&1; then
+    echo "✓ detect_dangerous_patterns function exists"
+    ((TESTS_PASSED++)) || true
+    
+    # 安全なテキスト
+    if detect_dangerous_patterns "Safe text" 2>/dev/null; then
+        echo "✓ detect_dangerous_patterns returns success for safe text"
+        ((TESTS_PASSED++)) || true
+    else
+        echo "✗ detect_dangerous_patterns should return success for safe text"
+        ((TESTS_FAILED++)) || true
+    fi
+    
+    # 危険なパターン（コマンド置換）
+    if ! detect_dangerous_patterns 'Dangerous $(rm -rf /)' 2>/dev/null; then
+        echo "✓ detect_dangerous_patterns detects command substitution"
+        ((TESTS_PASSED++)) || true
+    else
+        echo "✗ detect_dangerous_patterns should detect command substitution"
+        ((TESTS_FAILED++)) || true
+    fi
+    
+    # 危険なパターン（バッククォート）
+    if ! detect_dangerous_patterns 'Dangerous `rm -rf /`' 2>/dev/null; then
+        echo "✓ detect_dangerous_patterns detects backticks"
+        ((TESTS_PASSED++)) || true
+    else
+        echo "✗ detect_dangerous_patterns should detect backticks"
+        ((TESTS_FAILED++)) || true
+    fi
+    
+    # 危険なパターン（変数展開）
+    if ! detect_dangerous_patterns 'Dangerous ${PATH}' 2>/dev/null; then
+        echo "✓ detect_dangerous_patterns detects variable expansion"
+        ((TESTS_PASSED++)) || true
+    else
+        echo "✗ detect_dangerous_patterns should detect variable expansion"
+        ((TESTS_FAILED++)) || true
+    fi
+else
+    echo "✗ detect_dangerous_patterns function does not exist"
+    ((TESTS_FAILED++)) || true
+fi
+
+# ===================
 # 結果サマリー
 # ===================
 echo ""
