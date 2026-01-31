@@ -487,12 +487,38 @@ test_mixed_ansi_and_cr
 test_complex_ansi
 
 # ===================
+# run_pi_interactive 関数のテスト
+# ===================
+echo ""
+echo "=== run_pi_interactive function tests ==="
+
+# 関数の存在確認
+assert_contains "script has run_pi_interactive function" 'run_pi_interactive()' "$improve_source"
+
+# script コマンドによるPTY保持
+assert_contains "function checks for script command" 'command -v script' "$improve_source"
+assert_contains "function handles macOS script syntax" '"$(uname)" == "Darwin"' "$improve_source"
+assert_contains "function uses macOS script -q" 'script -q "$output_file"' "$improve_source"
+assert_contains "function uses Linux script -q -c" 'script -q -c "$cmd_str"' "$improve_source"
+
+# unbuffer フォールバック
+assert_contains "function checks for unbuffer command" 'command -v unbuffer' "$improve_source"
+assert_contains "function uses unbuffer for PTY" 'unbuffer "$pi_command"' "$improve_source"
+
+# 最終フォールバック
+assert_contains "function has fallback warning" 'PTY preservation not available' "$improve_source"
+assert_contains "function uses stdbuf in fallback" 'stdbuf -oL "$pi_command"' "$improve_source"
+
+# review_and_create_issues での使用
+assert_contains "review_and_create_issues uses run_pi_interactive" 'run_pi_interactive "$output_file" "$pi_command"' "$improve_source"
+
+# ===================
 # バッファリング対策のテスト
 # ===================
 echo ""
 echo "=== Buffering fix tests ==="
 
-# stdbufの使用確認
+# stdbufの使用確認（run_pi_interactive内）
 assert_contains "script checks for stdbuf availability" 'command -v stdbuf' "$improve_source"
 assert_contains "script uses stdbuf -oL for pi command" 'stdbuf -oL "$pi_command"' "$improve_source"
 assert_contains "script uses stdbuf -oL for tee" 'stdbuf -oL tee' "$improve_source"

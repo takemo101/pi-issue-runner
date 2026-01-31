@@ -236,6 +236,76 @@ check_dependencies() {
     return 0
 }
 
+# piコマンドをPTY付きで実行（ターミナル幅を正しく認識させる）
+# 引数:
+#   $1 - output_file: 出力ファイルパス
+#   $2 - pi_command: piコマンドのパス
+#   残り - piコマンドの引数
+# 戻り値:
+#   piコマンドの終了コード
+run_pi_interactive() {
+    local output_file="$1"
+    local pi_command="$2"
+    shift 2
+    
+    local cols
+    cols=$(tput cols 2>/dev/null || echo 120)
+    
+    log_debug "Terminal columns: $cols"
+    log_debug "Output file: $output_file"
+    
+    # 方法1: script コマンドを試行（PTYを作成）
+    if command -v script &>/dev/null; then
+        log_debug "Trying script command for PTY preservation"
+        
+        if [[ "$(uname)" == "Darwin" ]]; then
+            # macOS: script -q <output_file> <command>
+            # Note: macOS の script は引数をそのまま実行する
+            log_debug "Using macOS script syntax"
+            if COLUMNS="$cols" script -q "$output_file" "$pi_command" "$@" 2>/dev/null; then
+                return 0
+            fi
+            log_debug "macOS script command failed, trying fallback"
+        else
+            # Linux: script -q -c "<command>" <output_file>
+            # Note: Linux の script は -c オプションでコマンドを指定
+            log_debug "Using Linux script syntax"
+            local cmd_str="$pi_command"
+            for arg in "$@"; do
+                # 引数をシングルクォートでエスケープ
+                cmd_str+=" '${arg//\'/\'\\\'\'}'"
+            done
+            if COLUMNS="$cols" script -q -c "$cmd_str" "$output_file" 2>/dev/null; then
+                return 0
+            fi
+            log_debug "Linux script command failed, trying fallback"
+        fi
+    fi
+    
+    # 方法2: unbuffer を試行
+    if command -v unbuffer &>/dev/null; then
+        log_debug "Trying unbuffer for PTY preservation"
+        if COLUMNS="$cols" unbuffer "$pi_command" "$@" 2>&1 | tee "$output_file"; then
+            return 0
+        fi
+        log_debug "unbuffer failed, trying fallback"
+    fi
+    
+    # 方法3: フォールバック（幅が狭くなる可能性あり）
+    log_warn "PTY preservation not available (no script/unbuffer), display may be narrow"
+    
+    local pi_exit_code=0
+    if command -v stdbuf &>/dev/null; then
+        log_debug "Using stdbuf for line buffering (fallback)"
+        COLUMNS="$cols" stdbuf -oL "$pi_command" "$@" 2>&1 | stdbuf -oL tee "$output_file" || pi_exit_code=$?
+    else
+        log_debug "Using standard pipe (fallback)"
+        COLUMNS="$cols" "$pi_command" "$@" 2>&1 | tee "$output_file" || pi_exit_code=$?
+    fi
+    
+    return $pi_exit_code
+}
+
 # プロジェクトをレビューしてIssueを作成
 # 引数:
 #   $1 - max_issues: 最大Issue数
@@ -282,20 +352,9 @@ review_and_create_issues() {
 
     echo "[pi] レビュー実行中..."
     
-    # ターミナル幅を取得（パイプ使用時にpiがTTY幅を取得できないため）
-    local cols
-    cols=$(tput cols 2>/dev/null || echo 120)
-    
-    # piを実行（teeのバッファリング問題対策）
-    # stdbufが利用可能な場合はラインバッファリングを有効化
+    # piを実行（PTY保持でターミナル幅を正しく認識させる）
     local pi_exit_code=0
-    if command -v stdbuf &>/dev/null; then
-        log_debug "Using stdbuf for line buffering"
-        COLUMNS="$cols" stdbuf -oL "$pi_command" --message "$review_prompt" 2>&1 | stdbuf -oL tee "$output_file" || pi_exit_code=$?
-    else
-        log_debug "stdbuf not available, using standard tee"
-        COLUMNS="$cols" "$pi_command" --message "$review_prompt" 2>&1 | tee "$output_file" || pi_exit_code=$?
-    fi
+    run_pi_interactive "$output_file" "$pi_command" --message "$review_prompt" || pi_exit_code=$?
     
     # ファイルシステムを同期（バッファフラッシュ）
     sync 2>/dev/null || true
