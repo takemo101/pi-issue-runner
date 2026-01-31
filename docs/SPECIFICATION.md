@@ -86,7 +86,7 @@ project-root/
 │   │   └── ...
 │   └── issue-43-yyy/        # Issue #43のworktree
 │       └── ...
-├── .pi-runner.yml           # ユーザー設定
+├── .pi-runner.yaml          # ユーザー設定
 ├── workflows/               # ビルトインワークフロー
 │   ├── default.yaml         # 完全ワークフロー
 │   └── simple.yaml          # 簡易ワークフロー
@@ -117,7 +117,7 @@ project-root/
 ### 設定ファイル形式（YAML）
 
 ```yaml
-# .pi-runner.yml
+# .pi-runner.yaml
 worktree:
   base_dir: ".worktrees"     # Worktree作成先
   copy_files: ".env"         # コピーするファイル（スペース区切り）

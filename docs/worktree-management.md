@@ -364,7 +364,7 @@ project-root/
 │       └── ...
 ├── src/                            # メインリポジトリのソース
 ├── package.json
-└── .pi-runner.yml
+└── .pi-runner.yaml
 ```
 
 ## セキュリティ考慮事項
