@@ -1,17 +1,77 @@
 # pi-issue-runner 設定ファイル
 # 詳細: https://github.com/takemo101/pi-issue-runner/blob/main/docs/configuration.md
 
+# =====================================
+# Worktree設定
+# =====================================
 worktree:
+  # worktreeの作成先ディレクトリ
   base_dir: ".worktrees"
-  # copy_files: ".env .env.local"  # worktreeにコピーするファイル
 
+  # worktree作成時にコピーするファイル
+  copy_files:
+    - .env
+    - .env.local
+    - .envrc
+
+# =====================================
+# tmux設定
+# =====================================
 tmux:
+  # セッション名のプレフィックス（例: pi-issue-42）
   session_prefix: "pi"
-  # start_in_session: true
 
+  # tmuxセッション内で起動するか
+  start_in_session: true
+
+# =====================================
+# piコマンド設定
+# =====================================
 pi:
+  # piコマンドのパス
   command: "pi"
-  # args: ""
 
-# parallel:
-#   max_concurrent: 0  # 0 = 無制限
+  # piに渡す追加引数（必要に応じてコメント解除）
+  # args:
+  #   - --model
+  #   - claude-sonnet-4-20250514
+
+# =====================================
+# 並列実行設定
+# =====================================
+parallel:
+  # 同時実行数の上限（0 = 無制限）
+  max_concurrent: 5
+
+# =====================================
+# ワークフロー設定
+# =====================================
+workflow:
+  # ワークフロー名
+  name: default
+
+  # 実行するステップ
+  steps:
+    - plan
+    - implement
+    - review
+    - merge
+
+# =====================================
+# Hook設定（#280実装後に有効）
+# =====================================
+hooks:
+  # 成功時の通知
+  on_success: |
+    osascript -e 'display notification "Issue #{{issue_number}} が完了しました" with title "Pi Issue Runner" subtitle "✅ 完了" sound name "Glass"'
+
+  # エラー時の通知
+  on_error: |
+    osascript -e 'display notification "{{error_message}}" with title "Pi Issue Runner" subtitle "❌ Issue #{{issue_number}} エラー" sound name "Basso"'
+
+#
+#   # セッション開始時
+#   # on_start: ./hooks/on-start.sh
+#
+#   # クリーンアップ後
+#   # on_cleanup: ./hooks/on-cleanup.sh
