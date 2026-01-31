@@ -441,8 +441,12 @@ EOF
 - If PR merge fails, report the error
 
 ### On Completion
-**IMPORTANT**: After completing all workflow steps (including PR merge), you MUST exit by running `/exit` command.
-This triggers automatic cleanup of the worktree and tmux session.
+**CRITICAL**: After completing all workflow steps (including PR merge):
+1. Do NOT just print a message about /exit
+2. You MUST actually type and send the command: /exit
+3. This is a pi internal command, not a bash command
+4. Simply respond with exactly: /exit
+5. This triggers automatic cleanup of the worktree and tmux session
 EOF
 }
 

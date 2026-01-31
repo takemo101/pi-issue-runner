@@ -15,6 +15,9 @@ GitHub Issueを入力として、Git worktreeを作成し、tmuxセッション�
 scripts/run.sh <issue-number> [options]
 
 Options:
+  --workflow <name> ワークフロー名（デフォルト: default）
+  -w <name>         --workflowの短縮形
+  --list-workflows  利用可能なワークフロー一覧を表示
   --no-attach       バックグラウンドで起動
   --no-cleanup      自動クリーンアップを無効化
   --reattach        既存セッションにアタッチ
