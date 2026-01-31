@@ -29,9 +29,10 @@ Options:
     --orphans         孤立したステータスファイルをクリーンアップ
     --delete-plans    クローズ済みIssueの計画書を削除
     --rotate-plans    古い計画書を削除（直近N件を保持、設定: plans.keep_recent）
-    --all             全てのクリーンアップを実行（--orphans + --rotate-plans）
-    --age <days>      指定日数より古いステータスファイルを削除（--orphansと併用）
-    --dry-run         削除せずに対象を表示（--orphans/--delete-plans/--rotate-plans/--allと使用）
+    --clear-logs      .improve-logsディレクトリを削除
+    --all             全てのクリーンアップを実行（--orphans + --rotate-plans + --clear-logs）
+    --age <days>      指定日数より古いファイルを削除（--orphans/--clear-logsと併用）
+    --dry-run         削除せずに対象を表示
     -h, --help        このヘルプを表示
 
 Examples:
@@ -46,9 +47,69 @@ Examples:
     $(basename "$0") --delete-plans --dry-run
     $(basename "$0") --rotate-plans         # 古い計画書を削除（直近N件を保持）
     $(basename "$0") --rotate-plans --dry-run
+    $(basename "$0") --clear-logs           # .improve-logsを削除
+    $(basename "$0") --clear-logs --age 7   # 7日以上前のログのみ削除
     $(basename "$0") --all                  # 全てのクリーンアップを実行
     $(basename "$0") --all --dry-run        # 削除対象を確認
 EOF
+}
+
+# .improve-logsディレクトリをクリーンアップ
+# 引数:
+#   $1 - dry_run: "true"の場合は削除せずに表示のみ
+#   $2 - age_days: 日数制限（オプション、指定時は古いファイルのみ対象）
+cleanup_improve_logs() {
+    local dry_run="${1:-false}"
+    local age_days="${2:-}"
+    local logs_dir=".improve-logs"
+    
+    if [[ ! -d "$logs_dir" ]]; then
+        log_info "No improve-logs directory found: $logs_dir"
+        return 0
+    fi
+    
+    local count=0
+    local log_files
+    
+    if [[ -n "$age_days" ]]; then
+        # 指定日数より古いファイルのみ
+        log_files=$(find "$logs_dir" -name "*.log" -type f -mtime +"$age_days" 2>/dev/null || true)
+    else
+        # 全てのログファイル
+        log_files=$(find "$logs_dir" -name "*.log" -type f 2>/dev/null || true)
+    fi
+    
+    if [[ -z "$log_files" ]]; then
+        if [[ -n "$age_days" ]]; then
+            log_info "No log files older than $age_days days found in $logs_dir"
+        else
+            log_info "No log files found in $logs_dir"
+        fi
+        return 0
+    fi
+    
+    while IFS= read -r log_file; do
+        [[ -z "$log_file" ]] && continue
+        count=$((count + 1))
+        
+        if [[ "$dry_run" == "true" ]]; then
+            log_info "[DRY-RUN] Would delete: $log_file"
+        else
+            log_info "Deleting: $log_file"
+            rm -f "$log_file"
+        fi
+    done <<< "$log_files"
+    
+    if [[ "$dry_run" == "true" ]]; then
+        log_info "[DRY-RUN] Would delete $count log file(s)"
+    else
+        log_info "Deleted $count log file(s)"
+        # ディレクトリが空なら削除
+        if [[ -d "$logs_dir" ]] && [[ -z "$(ls -A "$logs_dir")" ]]; then
+            rmdir "$logs_dir"
+            log_info "Removed empty directory: $logs_dir"
+        fi
+    fi
 }
 
 # 古い計画書をクリーンアップ（直近N件を保持）
@@ -255,6 +316,7 @@ main() {
     local orphans=false
     local delete_plans=false
     local rotate_plans=false
+    local clear_logs=false
     local all_cleanup=false
     local age_days=""
     local dry_run=false
@@ -287,6 +349,10 @@ main() {
                 ;;
             --rotate-plans)
                 rotate_plans=true
+                shift
+                ;;
+            --clear-logs)
+                clear_logs=true
                 shift
                 ;;
             --all)
@@ -332,6 +398,9 @@ main() {
         log_info ""
         log_info "Rotating old plans (keeping recent)..."
         cleanup_old_plans "$dry_run"
+        log_info ""
+        log_info "Clearing improve logs..."
+        cleanup_improve_logs "$dry_run" "$age_days"
         exit 0
     fi
 
@@ -350,6 +419,12 @@ main() {
     # --rotate-plans モード: 古い計画書のクリーンアップ（直近N件を保持）
     if [[ "$rotate_plans" == "true" ]]; then
         cleanup_old_plans "$dry_run"
+        exit 0
+    fi
+
+    # --clear-logs モード: .improve-logsのクリーンアップ
+    if [[ "$clear_logs" == "true" ]]; then
+        cleanup_improve_logs "$dry_run" "$age_days"
         exit 0
     fi
 
