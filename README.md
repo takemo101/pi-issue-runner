@@ -23,6 +23,9 @@ which pi
 
 # jq (JSON処理)
 which jq
+
+# yq (YAML処理、オプション - ワークフローのカスタマイズに必要)
+which yq
 ```
 
 ## インストール
@@ -147,6 +150,7 @@ pi-issue-runner/
 │   ├── github.sh           # GitHub API操作
 │   ├── log.sh              # ログ出力
 │   ├── tmux.sh             # tmux操作
+│   ├── workflow.sh         # ワークフローエンジン
 │   └── worktree.sh         # Git worktree操作
 ├── docs/                    # ドキュメント
 ├── test/                    # 単体テスト
