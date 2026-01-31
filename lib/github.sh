@@ -114,31 +114,31 @@ _DANGEROUS_PATTERNS=(
     '\$\{[^}]+\}'           # 変数展開 ${...}
 )
 
-# 危険なパターンを検出
-# 戻り値: 0=安全, 1=危険なパターン検出
-detect_dangerous_patterns() {
+# 危険なパターンが含まれているかチェック
+# 戻り値: 0=危険なパターンあり(true), 1=安全(false)
+# Bashの規約に従い、条件が真の場合に0を返す
+has_dangerous_patterns() {
     local text="$1"
-    local found=0
     
     # コマンド置換 $(...) - grepを使用して安全に検出
     if echo "$text" | grep -qE '\$\([^)]+\)'; then
         log_warn "Dangerous pattern detected: command substitution \$(...)  "
-        found=1
+        return 0  # 危険あり = true
     fi
     
     # バッククォート `...`
     if echo "$text" | grep -q '`[^`]*`'; then
         log_warn "Dangerous pattern detected: backtick command \`...\`"
-        found=1
+        return 0  # 危険あり = true
     fi
     
     # 変数展開 ${...}
     if echo "$text" | grep -qE '\$\{[^}]+\}'; then
         log_warn "Dangerous pattern detected: variable expansion \${...}"
-        found=1
+        return 0  # 危険あり = true
     fi
     
-    return $found
+    return 1  # 安全 = false
 }
 
 # Issue本文のサニタイズ
@@ -155,7 +155,7 @@ sanitize_issue_body() {
     fi
     
     # 危険なパターンを検出して警告
-    if ! detect_dangerous_patterns "$body" 2>/dev/null; then
+    if has_dangerous_patterns "$body" 2>/dev/null; then
         log_info "Issue body contains potentially dangerous patterns, sanitizing..."
     fi
     
@@ -170,4 +170,23 @@ sanitize_issue_body() {
     sanitized=$(echo "$sanitized" | sed 's/\${/\\${/g')
     
     echo "$sanitized"
+}
+
+# ===================
+# Issue取得（時刻フィルタ）
+# ===================
+
+# 指定時刻以降に作成されたIssueを取得
+# Usage: get_issues_created_after <start_time_iso8601> [max_issues]
+# Returns: Issue番号を1行ずつ出力
+get_issues_created_after() {
+    local start_time="$1"
+    local max_issues="${2:-20}"
+    
+    check_gh_cli || return 1
+    check_jq || return 1
+    
+    # 自分が作成したopenなIssueを取得し、開始時刻以降のものをフィルタ
+    gh issue list --state open --author "@me" --limit "$max_issues" --json number,createdAt 2>/dev/null \
+        | jq -r --arg start "$start_time" '.[] | select(.createdAt >= $start) | .number'
 }

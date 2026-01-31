@@ -322,6 +322,50 @@ your-project/
 └── .pi-runner.yaml         # 設定ファイル（オプション）
 ```
 
+## テスト
+
+### セットアップ
+
+```bash
+# macOS
+brew install bats-core
+
+# Linux (Ubuntu/Debian)
+sudo apt install bats
+```
+
+### テスト実行
+
+```bash
+# 全Batsテストを実行
+bats test/lib/*.bats test/scripts/*.bats
+
+# 特定のテストファイルを実行
+bats test/lib/config.bats
+
+# 詳細出力で実行
+bats --tap test/lib/*.bats
+```
+
+### テスト構造
+
+```
+test/
+├── lib/                    # ライブラリのユニットテスト
+│   ├── config.bats         # config.sh のテスト
+│   ├── github.bats         # github.sh のテスト
+│   └── log.bats            # log.sh のテスト
+├── scripts/                # スクリプトの統合テスト
+│   ├── run.bats            # run.sh のテスト
+│   ├── list.bats           # list.sh のテスト
+│   └── cleanup.bats        # cleanup.sh のテスト
+├── helpers/                # テストヘルパー
+│   └── mocks.sh            # モック関数
+├── fixtures/               # テスト用フィクスチャ
+│   └── sample-config.yaml
+└── test_helper.bash        # Bats共通ヘルパー
+```
+
 ## トラブルシューティング
 
 ### tmuxセッションが見つからない
@@ -361,6 +405,7 @@ gh auth login
 - [tmux統合](docs/tmux-integration.md) - tmuxセッション管理
 - [並列実行](docs/parallel-execution.md) - 複数タスクの並列処理
 - [設定リファレンス](docs/configuration.md) - 設定オプション
+- [セキュリティ](docs/security.md) - 入力サニタイズとセキュリティ対策
 
 ## 開発
 

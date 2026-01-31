@@ -8,82 +8,124 @@ TEST_DIR="$SCRIPT_DIR/../test"
 
 usage() {
     cat << EOF
-Usage: $(basename "$0") [options] [pattern]
+Usage: $(basename "$0") [options] [target]
 
 Options:
     -v, --verbose   詳細ログを表示
     -f, --fail-fast 最初の失敗で終了
+    -l, --legacy    旧形式テスト（*_test.sh）も実行
     -h, --help      このヘルプを表示
 
-Arguments:
-    pattern         テストファイル名のパターン（例: config, workflow）
+Target:
+    lib             test/lib/*.bats のみ実行
+    scripts         test/scripts/*.bats のみ実行
+    (default)       全Batsテストを実行
 
 Examples:
-    $(basename "$0")           # 全テスト実行
-    $(basename "$0") config    # config_test.sh のみ
-    $(basename "$0") -f        # fail-fast モード
+    $(basename "$0")             # 全Batsテスト実行
+    $(basename "$0") lib         # test/lib/*.bats のみ
+    $(basename "$0") -v          # 詳細ログ付き
+    $(basename "$0") -f          # fail-fast モード
+    $(basename "$0") -l          # 旧形式テストも含む
 EOF
 }
 
-main() {
-    local fail_fast=false
-    local verbose=false
-    local pattern="*"
+check_bats() {
+    if ! command -v bats &> /dev/null; then
+        echo "Error: bats is not installed" >&2
+        echo "Install with: brew install bats-core" >&2
+        return 1
+    fi
+}
 
-    # 引数パース
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            -v|--verbose)
-                verbose=true
-                shift
-                ;;
-            -f|--fail-fast)
-                fail_fast=true
-                shift
-                ;;
-            -h|--help)
-                usage
-                exit 0
-                ;;
-            -*)
-                echo "Unknown option: $1" >&2
-                usage >&2
-                exit 1
-                ;;
-            *)
-                pattern="$1"
-                shift
-                ;;
-        esac
+run_bats_tests() {
+    local verbose="$1"
+    local fail_fast="$2"
+    local target="$3"
+    
+    local bats_args=()
+    
+    if [[ "$verbose" == "true" ]]; then
+        bats_args+=(--tap)
+    fi
+    
+    # Determine which test files to run
+    local test_files=()
+    case "$target" in
+        lib)
+            test_files=("$TEST_DIR"/lib/*.bats)
+            ;;
+        scripts)
+            test_files=("$TEST_DIR"/scripts/*.bats)
+            ;;
+        *)
+            test_files=("$TEST_DIR"/lib/*.bats "$TEST_DIR"/scripts/*.bats)
+            ;;
+    esac
+    
+    # Filter to existing files only
+    local existing_files=()
+    for f in "${test_files[@]}"; do
+        [[ -f "$f" ]] && existing_files+=("$f")
     done
+    
+    if [[ ${#existing_files[@]} -eq 0 ]]; then
+        echo "No Bats test files found for target: $target"
+        return 1
+    fi
+    
+    echo "=== Running Bats Tests ==="
+    echo ""
+    
+    if [[ "$fail_fast" == "true" ]]; then
+        # Run tests one by one for fail-fast
+        for test_file in "${existing_files[@]}"; do
+            echo "Running: $(basename "$test_file")..."
+            if [[ ${#bats_args[@]} -gt 0 ]]; then
+                if ! bats "${bats_args[@]}" "$test_file"; then
+                    echo ""
+                    echo "Stopping due to --fail-fast"
+                    return 1
+                fi
+            else
+                if ! bats "$test_file"; then
+                    echo ""
+                    echo "Stopping due to --fail-fast"
+                    return 1
+                fi
+            fi
+        done
+    else
+        if [[ ${#bats_args[@]} -gt 0 ]]; then
+            bats "${bats_args[@]}" "${existing_files[@]}"
+        else
+            bats "${existing_files[@]}"
+        fi
+    fi
+}
 
+run_legacy_tests() {
+    local verbose="$1"
+    local fail_fast="$2"
+    
     local total=0
     local passed=0
     local failed=0
     local failed_tests=()
-
-    echo "=== Running Tests ==="
+    
     echo ""
-
-    # テストファイルを収集
-    local test_files=()
-    for test_file in "$TEST_DIR"/${pattern}_test.sh; do
-        [[ -f "$test_file" ]] && test_files+=("$test_file")
-    done
-
-    # パターンにマッチするファイルがない場合
-    if [[ ${#test_files[@]} -eq 0 ]]; then
-        echo "No test files matching pattern: ${pattern}_test.sh"
-        exit 1
-    fi
-
-    for test_file in "${test_files[@]}"; do
+    echo "=== Running Legacy Tests ==="
+    echo ""
+    
+    for test_file in "$TEST_DIR"/*_test.sh; do
+        [[ -f "$test_file" ]] || continue
+        
         local test_name
         test_name="$(basename "$test_file")"
         ((total++))
-
+        
         echo "Running: $test_name..."
-
+        
         if [[ "$verbose" == "true" ]]; then
             if bash "$test_file"; then
                 ((passed++))
@@ -100,7 +142,6 @@ main() {
             fi
             echo ""
         else
-            # 非verboseモードでは出力を抑制
             if bash "$test_file" > /dev/null 2>&1; then
                 ((passed++))
                 echo "✓ $test_name passed"
@@ -116,16 +157,20 @@ main() {
             fi
         fi
     done
-
-    # サマリー表示
+    
+    if [[ $total -eq 0 ]]; then
+        echo "No legacy test files found"
+        return 0
+    fi
+    
     echo ""
+    echo "Legacy Test Results:"
     echo "==================="
     echo "Total:  $total"
     echo "Passed: $passed"
     echo "Failed: $failed"
     echo "==================="
-
-    # 失敗したテストの一覧
+    
     if [[ ${#failed_tests[@]} -gt 0 ]]; then
         echo ""
         echo "Failed tests:"
@@ -133,12 +178,72 @@ main() {
             echo "  - $test_name"
         done
     fi
+    
+    return "$failed"
+}
 
-    # 終了コード: 失敗数（最大255）
-    if [[ $failed -gt 255 ]]; then
-        exit 255
+main() {
+    local fail_fast=false
+    local verbose=false
+    local legacy=false
+    local target=""
+    
+    # 引数パース
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -v|--verbose)
+                verbose=true
+                shift
+                ;;
+            -f|--fail-fast)
+                fail_fast=true
+                shift
+                ;;
+            -l|--legacy)
+                legacy=true
+                shift
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            -*)
+                echo "Unknown option: $1" >&2
+                usage >&2
+                exit 1
+                ;;
+            *)
+                target="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    local exit_code=0
+    
+    # Run Bats tests
+    if check_bats; then
+        if ! run_bats_tests "$verbose" "$fail_fast" "$target"; then
+            exit_code=1
+            if [[ "$fail_fast" == "true" ]]; then
+                exit "$exit_code"
+            fi
+        fi
+    else
+        echo "Skipping Bats tests (bats not installed)"
+        exit_code=1
     fi
-    exit "$failed"
+    
+    # Run legacy tests if requested
+    if [[ "$legacy" == "true" ]]; then
+        local legacy_result=0
+        run_legacy_tests "$verbose" "$fail_fast" || legacy_result=$?
+        if [[ $legacy_result -gt 0 ]]; then
+            exit_code=$legacy_result
+        fi
+    fi
+    
+    exit "$exit_code"
 }
 
 main "$@"

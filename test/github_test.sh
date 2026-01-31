@@ -190,52 +190,126 @@ else
 fi
 
 # ===================
-# detect_dangerous_patterns テスト
+# has_dangerous_patterns テスト
 # ===================
 echo ""
-echo "=== detect_dangerous_patterns tests ==="
+echo "=== has_dangerous_patterns tests ==="
 
-if declare -f detect_dangerous_patterns > /dev/null 2>&1; then
-    echo "✓ detect_dangerous_patterns function exists"
+if declare -f has_dangerous_patterns > /dev/null 2>&1; then
+    echo "✓ has_dangerous_patterns function exists"
     ((TESTS_PASSED++)) || true
     
-    # 安全なテキスト
-    if detect_dangerous_patterns "Safe text" 2>/dev/null; then
-        echo "✓ detect_dangerous_patterns returns success for safe text"
+    # 安全なテキスト（危険なパターンがない場合は1=falseを返す）
+    if ! has_dangerous_patterns "Safe text" 2>/dev/null; then
+        echo "✓ has_dangerous_patterns returns false for safe text"
         ((TESTS_PASSED++)) || true
     else
-        echo "✗ detect_dangerous_patterns should return success for safe text"
+        echo "✗ has_dangerous_patterns should return false for safe text"
         ((TESTS_FAILED++)) || true
     fi
     
-    # 危険なパターン（コマンド置換）
-    if ! detect_dangerous_patterns 'Dangerous $(rm -rf /)' 2>/dev/null; then
-        echo "✓ detect_dangerous_patterns detects command substitution"
+    # 危険なパターン（コマンド置換）- 0=trueを返す
+    if has_dangerous_patterns 'Dangerous $(rm -rf /)' 2>/dev/null; then
+        echo "✓ has_dangerous_patterns detects command substitution"
         ((TESTS_PASSED++)) || true
     else
-        echo "✗ detect_dangerous_patterns should detect command substitution"
+        echo "✗ has_dangerous_patterns should detect command substitution"
         ((TESTS_FAILED++)) || true
     fi
     
-    # 危険なパターン（バッククォート）
-    if ! detect_dangerous_patterns 'Dangerous `rm -rf /`' 2>/dev/null; then
-        echo "✓ detect_dangerous_patterns detects backticks"
+    # 危険なパターン（バッククォート）- 0=trueを返す
+    if has_dangerous_patterns 'Dangerous `rm -rf /`' 2>/dev/null; then
+        echo "✓ has_dangerous_patterns detects backticks"
         ((TESTS_PASSED++)) || true
     else
-        echo "✗ detect_dangerous_patterns should detect backticks"
+        echo "✗ has_dangerous_patterns should detect backticks"
         ((TESTS_FAILED++)) || true
     fi
     
-    # 危険なパターン（変数展開）
-    if ! detect_dangerous_patterns 'Dangerous ${PATH}' 2>/dev/null; then
-        echo "✓ detect_dangerous_patterns detects variable expansion"
+    # 危険なパターン（変数展開）- 0=trueを返す
+    if has_dangerous_patterns 'Dangerous ${PATH}' 2>/dev/null; then
+        echo "✓ has_dangerous_patterns detects variable expansion"
         ((TESTS_PASSED++)) || true
     else
-        echo "✗ detect_dangerous_patterns should detect variable expansion"
+        echo "✗ has_dangerous_patterns should detect variable expansion"
         ((TESTS_FAILED++)) || true
     fi
 else
-    echo "✗ detect_dangerous_patterns function does not exist"
+    echo "✗ has_dangerous_patterns function does not exist"
+    ((TESTS_FAILED++)) || true
+fi
+
+# ===================
+# get_issues_created_after テスト
+# ===================
+echo ""
+echo "=== get_issues_created_after tests ==="
+
+if declare -f get_issues_created_after > /dev/null 2>&1; then
+    echo "✓ get_issues_created_after function exists"
+    ((TESTS_PASSED++)) || true
+    
+    # 関数のシグネチャ確認
+    func_def=$(type get_issues_created_after 2>/dev/null | head -10)
+    if [[ "$func_def" == *'start_time="$1"'* ]]; then
+        echo "✓ get_issues_created_after accepts start_time parameter"
+        ((TESTS_PASSED++)) || true
+    else
+        echo "✗ get_issues_created_after should accept start_time parameter"
+        ((TESTS_FAILED++)) || true
+    fi
+    
+    if [[ "$func_def" == *'max_issues="${2:-20}"'* ]]; then
+        echo "✓ get_issues_created_after has default max_issues of 20"
+        ((TESTS_PASSED++)) || true
+    else
+        echo "✗ get_issues_created_after should have default max_issues of 20"
+        ((TESTS_FAILED++)) || true
+    fi
+    
+    # gh issue list コマンドが含まれているか
+    if [[ "$func_def" == *'gh issue list'* ]]; then
+        echo "✓ get_issues_created_after uses gh issue list"
+        ((TESTS_PASSED++)) || true
+    else
+        echo "✗ get_issues_created_after should use gh issue list"
+        ((TESTS_FAILED++)) || true
+    fi
+    
+    # --author "@me" が含まれているか
+    if [[ "$func_def" == *'--author "@me"'* ]]; then
+        echo "✓ get_issues_created_after filters by current user"
+        ((TESTS_PASSED++)) || true
+    else
+        echo "✗ get_issues_created_after should filter by current user"
+        ((TESTS_FAILED++)) || true
+    fi
+    
+    # jq でフィルタしているか
+    if [[ "$func_def" == *'jq -r'* && "$func_def" == *'select(.createdAt >= $start)'* ]]; then
+        echo "✓ get_issues_created_after filters by createdAt"
+        ((TESTS_PASSED++)) || true
+    else
+        echo "✗ get_issues_created_after should filter by createdAt"
+        ((TESTS_FAILED++)) || true
+    fi
+    
+    # 実際のAPI呼び出しテスト（ghが認証済みの場合のみ）
+    if command -v gh &> /dev/null && gh auth status &> /dev/null; then
+        # 未来の時刻を指定して呼び出し（結果は空になるはず）
+        future_time="2099-01-01T00:00:00Z"
+        result=$(get_issues_created_after "$future_time" 5 2>/dev/null) || true
+        if [[ -z "$result" ]]; then
+            echo "✓ get_issues_created_after returns empty for future time"
+            ((TESTS_PASSED++)) || true
+        else
+            echo "⊘ get_issues_created_after returned issues for future time (may have issues created in 2099)"
+        fi
+    else
+        echo "⊘ Skipping API call test (gh not authenticated)"
+    fi
+else
+    echo "✗ get_issues_created_after function does not exist"
     ((TESTS_FAILED++)) || true
 fi
 
