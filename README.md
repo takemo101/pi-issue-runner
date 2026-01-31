@@ -404,6 +404,7 @@ gh auth login
 - [tmux統合](docs/tmux-integration.md) - tmuxセッション管理
 - [並列実行](docs/parallel-execution.md) - 複数タスクの並列処理
 - [設定リファレンス](docs/configuration.md) - 設定オプション
+- [セキュリティ](docs/security.md) - 入力サニタイズとセキュリティ対策
 
 ## 開発
 
