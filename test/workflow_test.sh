@@ -221,6 +221,16 @@ template="Issue #{{issue_number}}"
 result=$(render_template "$template")
 assert_equals "Empty variable becomes empty string" "Issue #" "$result"
 
+# issue_title のテスト
+template="Issue: {{issue_title}}"
+result=$(render_template "$template" "" "" "" "" "default" "Fix bug in parser")
+assert_equals "Issue title rendering" "Issue: Fix bug in parser" "$result"
+
+# 複数変数の組み合わせテスト
+template="Issue #{{issue_number}}: {{issue_title}} on {{branch_name}}"
+result=$(render_template "$template" "42" "feature/test" "" "" "default" "Add new feature")
+assert_equals "Combined issue_number, issue_title, branch_name" "Issue #42: Add new feature on feature/test" "$result"
+
 # ===================
 # get_agent_prompt テスト
 # ===================
@@ -239,6 +249,11 @@ setup_test_dir
 echo "Custom agent for issue #{{issue_number}}" > "$TEST_DIR/agents/custom.md"
 result=$(get_agent_prompt "$TEST_DIR/agents/custom.md" "123")
 assert_equals "Custom agent file with template" "Custom agent for issue #123" "$result"
+
+# issue_title を含むカスタムエージェントファイル
+echo "Issue #{{issue_number}}: {{issue_title}}" > "$TEST_DIR/agents/with_title.md"
+result=$(get_agent_prompt "$TEST_DIR/agents/with_title.md" "42" "" "" "" "My Issue Title")
+assert_equals "Custom agent with issue_title" "Issue #42: My Issue Title" "$result"
 cleanup_test_dir
 
 # ===================
