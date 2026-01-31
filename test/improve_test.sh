@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# improve.sh のテスト - スクリプトオプションとGitHub API方式をテスト
+# improve.sh tests - recursive approach
 
 set +e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMPROVE_SCRIPT="$SCRIPT_DIR/../scripts/improve.sh"
 
-# テストカウンター
+# Test counter
 TESTS_PASSED=0
 TESTS_FAILED=0
 
@@ -80,76 +80,113 @@ assert_failure() {
 }
 
 # ===================
-# ヘルプオプションのテスト
+# Help option tests
 # ===================
 echo "=== improve.sh help option tests ==="
 
-# --help オプション
+# --help option
 result=$("$IMPROVE_SCRIPT" --help 2>&1)
 exit_code=$?
 assert_success "--help returns success" "$exit_code"
 assert_contains "--help shows usage" "Usage:" "$result"
 assert_contains "--help shows --max-iterations option" "--max-iterations" "$result"
 assert_contains "--help shows --max-issues option" "--max-issues" "$result"
-assert_contains "--help shows --auto-continue option" "--auto-continue" "$result"
-assert_contains "--help shows --dry-run option" "--dry-run" "$result"
 assert_contains "--help shows --timeout option" "--timeout" "$result"
-assert_contains "--help shows --review-only option" "--review-only" "$result"
+assert_contains "--help shows --iteration option" "--iteration" "$result"
 assert_contains "--help shows -v/--verbose option" "--verbose" "$result"
 assert_contains "--help shows -h/--help option" "--help" "$result"
 assert_contains "--help shows description" "Description:" "$result"
 assert_contains "--help shows examples" "Examples:" "$result"
 assert_contains "--help shows environment variables" "Environment Variables:" "$result"
 
-# -h オプション
+# -h option
 result=$("$IMPROVE_SCRIPT" -h 2>&1)
 exit_code=$?
 assert_success "-h returns success" "$exit_code"
 assert_contains "-h shows usage" "Usage:" "$result"
 
 # ===================
-# オプションパースのテスト
+# Option parsing tests
 # ===================
 echo ""
 echo "=== improve.sh option parsing tests ==="
 
-# 不明なオプション
+# Unknown option
 result=$("$IMPROVE_SCRIPT" --unknown-option 2>&1)
 exit_code=$?
 assert_failure "improve.sh with unknown option fails" "$exit_code"
 assert_contains "error message mentions unknown option" "Unknown option" "$result"
 
-# 不要な位置引数
+# Unexpected positional argument
 result=$("$IMPROVE_SCRIPT" unexpected-arg 2>&1)
 exit_code=$?
 assert_failure "improve.sh with unexpected argument fails" "$exit_code"
 assert_contains "error message mentions unexpected argument" "Unexpected argument" "$result"
 
 # ===================
-# スクリプトソースコードの構造テスト
+# Script structure tests
 # ===================
 echo ""
 echo "=== Script structure tests ==="
 
-# スクリプトの構文チェック
+# Syntax check
 bash -n "$IMPROVE_SCRIPT" 2>&1
 exit_code=$?
 assert_success "improve.sh has valid bash syntax" "$exit_code"
 
-# ソースコードの内容確認
+# Source code verification
 improve_source=$(cat "$IMPROVE_SCRIPT")
 
 assert_contains "script sources config.sh" "lib/config.sh" "$improve_source"
 assert_contains "script sources log.sh" "lib/log.sh" "$improve_source"
-assert_contains "script sources status.sh" "lib/status.sh" "$improve_source"
-assert_contains "script sources github.sh" "lib/github.sh" "$improve_source"
 assert_contains "script has main function" "main()" "$improve_source"
 assert_contains "script has usage function" "usage()" "$improve_source"
 assert_contains "script has check_dependencies function" "check_dependencies()" "$improve_source"
-assert_contains "script has review_and_create_issues function" "review_and_create_issues()" "$improve_source"
 
 # ===================
-# オプション処理のテスト
+# New simplified design tests
+# ===================
+echo ""
+echo "=== New simplified design tests ==="
+
+# Role separation: pi as orchestrator
+assert_contains "pi_command is used" 'pi_command=' "$improve_source"
+assert_contains "pi is called with --message" '--message' "$improve_source"
+
+# 3-phase structure
+assert_contains "has PHASE 1" '[PHASE 1]' "$improve_source"
+assert_contains "has PHASE 2" '[PHASE 2]' "$improve_source"
+assert_contains "has PHASE 3" '[PHASE 3]' "$improve_source"
+
+# Recursive call
+assert_contains "uses exec for recursion" 'exec "$0"' "$improve_source"
+assert_contains "passes iteration parameter" '--iteration' "$improve_source"
+
+# Session monitoring
+assert_contains "calls list.sh" 'list.sh' "$improve_source"
+assert_contains "calls wait-for-sessions.sh" 'wait-for-sessions.sh' "$improve_source"
+
+# ===================
+# Removed features tests
+# ===================
+echo ""
+echo "=== Removed features tests ==="
+
+# Removed options
+assert_not_contains "no --dry-run option" '--dry-run)' "$improve_source"
+assert_not_contains "no --review-only option" '--review-only)' "$improve_source"
+assert_not_contains "no --auto-continue option" '--auto-continue)' "$improve_source"
+
+# GitHub API related
+assert_not_contains "no get_issues_created_after" 'get_issues_created_after' "$improve_source"
+assert_not_contains "no CREATED_ISSUES array" 'CREATED_ISSUES=' "$improve_source"
+
+# Removed sources
+assert_not_contains "no status.sh source" 'source.*lib/status.sh' "$improve_source"
+assert_not_contains "no github.sh source" 'source.*lib/github.sh' "$improve_source"
+
+# ===================
+# Option handling tests
 # ===================
 echo ""
 echo "=== Option handling tests ==="
@@ -162,135 +199,80 @@ assert_contains "script has max_iterations variable" 'max_iterations=' "$improve
 assert_contains "script handles --max-issues" '--max-issues)' "$improve_source"
 assert_contains "script has max_issues variable" 'max_issues=' "$improve_source"
 
-# --auto-continue
-assert_contains "script handles --auto-continue" '--auto-continue)' "$improve_source"
-assert_contains "script has auto_continue variable" 'auto_continue=' "$improve_source"
-
-# --dry-run
-assert_contains "script handles --dry-run" '--dry-run)' "$improve_source"
-assert_contains "script has dry_run variable" 'dry_run=' "$improve_source"
-
-# --review-only
-assert_contains "script handles --review-only" '--review-only)' "$improve_source"
-assert_contains "script has review_only variable" 'review_only=' "$improve_source"
-
 # --timeout
 assert_contains "script handles --timeout" '--timeout)' "$improve_source"
 assert_contains "script has timeout variable" 'timeout=' "$improve_source"
+
+# --iteration (internal use)
+assert_contains "script handles --iteration" '--iteration)' "$improve_source"
+assert_contains "script has iteration variable" 'iteration=' "$improve_source"
 
 # -v/--verbose
 assert_contains "script handles -v option" '-v|--verbose)' "$improve_source"
 assert_contains "script sets LOG_LEVEL to DEBUG" 'LOG_LEVEL="DEBUG"' "$improve_source"
 
 # ===================
-# デフォルト値のテスト
+# Default values tests
 # ===================
 echo ""
 echo "=== Default values tests ==="
 
-assert_contains "max_iterations default is 3" 'max_iterations=3' "$improve_source"
-assert_contains "max_issues default is 5" 'max_issues=5' "$improve_source"
-assert_contains "auto_continue default is false" 'auto_continue=false' "$improve_source"
-assert_contains "dry_run default is false" 'dry_run=false' "$improve_source"
-assert_contains "review_only default is false" 'review_only=false' "$improve_source"
-assert_contains "timeout default is 3600" 'timeout=3600' "$improve_source"
+assert_contains "DEFAULT_MAX_ITERATIONS is 3" 'DEFAULT_MAX_ITERATIONS=3' "$improve_source"
+assert_contains "DEFAULT_MAX_ISSUES is 5" 'DEFAULT_MAX_ISSUES=5' "$improve_source"
+assert_contains "DEFAULT_TIMEOUT is 3600" 'DEFAULT_TIMEOUT=3600' "$improve_source"
 
 # ===================
-# 依存関係チェックのテスト
+# Dependency check tests
 # ===================
 echo ""
 echo "=== Dependency check tests ==="
 
-# check_dependencies関数の内容確認
+# check_dependencies function content
 assert_contains "checks for pi command" 'pi_command' "$improve_source"
-assert_contains "checks for gh command" 'command -v gh' "$improve_source"
 assert_contains "checks for tmux command" 'command -v tmux' "$improve_source"
 assert_contains "reports missing dependencies" 'Missing dependencies' "$improve_source"
 
-# ===================
-# GitHub API方式のテスト
-# ===================
-echo ""
-echo "=== GitHub API approach tests ==="
-
-# マーカーが使用されていないことを確認
-assert_not_contains "script does NOT use CREATED_ISSUES marker" '###CREATED_ISSUES###' "$improve_source"
-assert_not_contains "script does NOT use END_ISSUES marker" '###END_ISSUES###' "$improve_source"
-assert_not_contains "script does NOT use WOULD_CREATE_ISSUES marker" '###WOULD_CREATE_ISSUES###' "$improve_source"
-
-# GitHub API関数が使用されていることを確認
-assert_contains "script uses get_issues_created_after" 'get_issues_created_after' "$improve_source"
-
-# 開始時刻を記録していることを確認
-assert_contains "script records start_time" 'start_time=' "$improve_source"
-assert_contains "script uses date -u for UTC time" 'date -u' "$improve_source"
-
-# パイプとteeが使用されていないことを確認
-assert_not_contains "script does NOT use tee for output" '| tee' "$improve_source"
-assert_not_contains "script does NOT use stdbuf" 'stdbuf' "$improve_source"
+# gh dependency is no longer required
+assert_not_contains "does not check for gh" 'command -v gh' "$improve_source"
 
 # ===================
-# ワークフローのテスト
+# Iteration management tests
 # ===================
 echo ""
-echo "=== Workflow tests ==="
+echo "=== Iteration management tests ==="
 
-# イテレーションループ
-assert_contains "has iteration loop" 'while [[ $iteration -le $max_iterations ]]' "$improve_source"
+# Iteration limit check
+assert_contains "checks iteration limit" 'iteration -gt $max_iterations' "$improve_source"
+assert_contains "shows max iterations message" 'maximum iterations' "$improve_source"
 
-# フェーズ確認
-assert_contains "has review phase" '[REVIEW]' "$improve_source"
-assert_contains "has run phase" '[RUN]' "$improve_source"
-assert_contains "has wait phase" '[WAIT]' "$improve_source"
-
-# 承認ゲート
-assert_contains "has approval gate" 'read -r -p' "$improve_source"
-assert_contains "allows skip with auto-continue" 'auto_continue" != "true"' "$improve_source"
-
-# 完了メッセージ
-assert_contains "shows completion message" '改善完了' "$improve_source"
-assert_contains "shows max iterations message" '最大イテレーション数' "$improve_source"
+# Iteration display
+assert_contains "displays current iteration" 'Iteration $iteration/$max_iterations' "$improve_source"
 
 # ===================
-# dry-runモードのテスト
+# Pi prompt tests
 # ===================
 echo ""
-echo "=== Dry-run mode tests ==="
+echo "=== Pi prompt tests ==="
 
-assert_contains "dry-run skips issue fetch" 'dry-run' "$improve_source"
-
-# ===================
-# lib/github.sh の get_issues_created_after テスト
-# ===================
-echo ""
-echo "=== lib/github.sh get_issues_created_after tests ==="
-
-GITHUB_LIB="$SCRIPT_DIR/../lib/github.sh"
-github_source=$(cat "$GITHUB_LIB")
-
-# 関数が定義されていることを確認
-assert_contains "get_issues_created_after function exists" 'get_issues_created_after()' "$github_source"
-
-# 関数の内容確認
-assert_contains "uses gh issue list" 'gh issue list' "$github_source"
-assert_contains "uses --state open" '--state open' "$github_source"
-assert_contains "uses --author @me" '--author "@me"' "$github_source"
-assert_contains "uses jq for filtering" 'jq' "$github_source"
-assert_contains "filters by createdAt" 'createdAt' "$github_source"
-assert_contains "compares with start time" 'select(.createdAt >= $start)' "$github_source"
+# Prompt content verification
+assert_contains "prompt uses project-review" 'project-review' "$improve_source"
+assert_contains "prompt mentions Issue creation" 'GitHub Issue' "$improve_source"
+assert_contains "prompt mentions run.sh" 'run.sh' "$improve_source"
+assert_contains "prompt mentions --no-attach" '--no-attach' "$improve_source"
+assert_contains "prompt mentions TASK_COMPLETE" 'TASK_COMPLETE' "$improve_source"
 
 # ===================
-# レビュープロンプトの簡素化テスト
+# Completion tests
 # ===================
 echo ""
-echo "=== Review prompt simplification tests ==="
+echo "=== Completion tests ==="
 
-# プロンプトがシンプルになっていることを確認
-assert_contains "uses project-review skill" 'project-review' "$improve_source"
-assert_not_contains "prompt does NOT contain marker instructions" '以下の形式で最後に必ず出力' "$improve_source"
+# No sessions means completion
+assert_contains "shows no sessions message" 'No running sessions' "$improve_source"
+assert_contains "shows completion message" 'Improvement complete' "$improve_source"
 
 # ===================
-# 結果サマリー
+# Result summary
 # ===================
 echo ""
 echo "===================="

@@ -1,61 +1,53 @@
 #!/usr/bin/env bash
-# improve.sh - 継続的改善スクリプト
-# プロジェクトレビュー→Issue作成→並列実行→完了待ち→再レビューのループを自動化
+# improve.sh - Continuous improvement (recursive approach)
+# pi handles Issue creation and run.sh execution, improve.sh manages monitoring and loops
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
-source "$SCRIPT_DIR/../lib/status.sh"
-source "$SCRIPT_DIR/../lib/github.sh"
 
-# グローバル変数
-CREATED_ISSUES=()
+DEFAULT_MAX_ITERATIONS=3
+DEFAULT_MAX_ISSUES=5
+DEFAULT_TIMEOUT=3600
 
 usage() {
     cat << EOF
 Usage: $(basename "$0") [options]
 
 Options:
-    --max-iterations N   最大イテレーション数（デフォルト: 3）
-    --max-issues N       1回あたりの最大Issue数（デフォルト: 5）
-    --auto-continue      承認ゲートをスキップ（自動継続）
-    --dry-run            レビューのみ実行（Issue作成・実行しない）
-    --timeout <sec>      各イテレーションのタイムアウト（デフォルト: 3600）
-    --review-only        project-reviewスキルで問題を表示するのみ
-    -v, --verbose        詳細ログを表示
-    -h, --help           このヘルプを表示
+    --max-iterations N   Max iteration count (default: $DEFAULT_MAX_ITERATIONS)
+    --max-issues N       Max issues per iteration (default: $DEFAULT_MAX_ISSUES)
+    --timeout N          Session completion timeout in seconds (default: $DEFAULT_TIMEOUT)
+    --iteration N        Current iteration number (internal use)
+    -v, --verbose        Show verbose logs
+    -h, --help           Show this help
 
 Description:
-    プロジェクトの継続的改善を自動化します:
-    1. プロジェクトをレビューして問題を発見
-    2. 発見した問題からGitHub Issueを作成
-    3. 各Issueに対してpi-issue-runnerを並列実行
-    4. すべての実行が完了するまで待機
-    5. 問題がなくなるか最大回数に達するまで繰り返し
+    Runs continuous improvement:
+    1. pi creates Issues via project-review
+    2. pi starts parallel execution via pi-issue-runner
+    3. improve.sh monitors completion
+    4. Recursively starts next iteration on completion
 
 Examples:
     $(basename "$0")
     $(basename "$0") --max-iterations 2 --max-issues 3
-    $(basename "$0") --dry-run
-    $(basename "$0") --auto-continue
+    $(basename "$0") --timeout 1800
 
 Environment Variables:
-    PI_COMMAND           piコマンドのパス（デフォルト: pi）
-    LOG_LEVEL            ログレベル（DEBUG, INFO, WARN, ERROR）
+    PI_COMMAND           Path to pi command (default: pi)
+    LOG_LEVEL            Log level (DEBUG, INFO, WARN, ERROR)
 EOF
 }
 
 main() {
-    local max_iterations=3
-    local max_issues=5
-    local auto_continue=false
-    local dry_run=false
-    local review_only=false
-    local timeout=3600
+    local max_iterations=$DEFAULT_MAX_ITERATIONS
+    local max_issues=$DEFAULT_MAX_ISSUES
+    local timeout=$DEFAULT_TIMEOUT
+    local iteration=1
 
-    # 引数のパース
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --max-iterations)
@@ -66,20 +58,12 @@ main() {
                 max_issues="$2"
                 shift 2
                 ;;
-            --auto-continue)
-                auto_continue=true
-                shift
-                ;;
-            --dry-run)
-                dry_run=true
-                shift
-                ;;
-            --review-only)
-                review_only=true
-                shift
-                ;;
             --timeout)
                 timeout="$2"
+                shift 2
+                ;;
+            --iteration)
+                iteration="$2"
                 shift 2
                 ;;
             -v|--verbose)
@@ -105,120 +89,88 @@ main() {
 
     load_config
 
-    # 依存関係チェック
+    # Dependency check
     check_dependencies || exit 1
 
-    local iteration=1
-
-    echo ""
-    echo "╔════════════════════════════════════════════════════════════╗"
-    echo "║             🔧 継続的改善スクリプト (improve.sh)            ║"
-    echo "╠════════════════════════════════════════════════════════════╣"
-    echo "║  max-iterations: $max_iterations"
-    echo "║  max-issues:     $max_issues"
-    echo "║  auto-continue:  $auto_continue"
-    echo "║  dry-run:        $dry_run"
-    echo "║  timeout:        ${timeout}s"
-    echo "╚════════════════════════════════════════════════════════════╝"
-    echo ""
-
-    while [[ $iteration -le $max_iterations ]]; do
-        echo ""
-        echo "🔍 ════════════════════════════════════════════════════════"
-        echo "   Iteration $iteration/$max_iterations"
-        echo "════════════════════════════════════════════════════════════"
-        echo ""
-
-        # Phase 1: レビュー
-        echo "[REVIEW] プロジェクトをレビュー中..."
-        CREATED_ISSUES=()
-        
-        if ! review_and_create_issues "$max_issues" "$dry_run" "$review_only"; then
-            log_error "Review failed"
-            exit 1
-        fi
-
-        # Issue が0件なら完了
-        if [[ ${#CREATED_ISSUES[@]} -eq 0 ]]; then
-            echo ""
-            echo "✅ 改善完了！問題は見つかりませんでした。"
-            echo ""
-            exit 0
-        fi
-
-        echo "[pi] ${#CREATED_ISSUES[@]}件の問題を発見/Issue作成"
-        for issue in "${CREATED_ISSUES[@]}"; do
-            echo "  - Issue #$issue"
-        done
-
-        # --review-only モードの場合はここで終了
-        if [[ "$review_only" == "true" ]]; then
-            echo ""
-            echo "[INFO] --review-only モードのため、実行をスキップします"
-            break
-        fi
-
-        # --dry-run モードの場合はPhase 2-3をスキップ
-        if [[ "$dry_run" == "true" ]]; then
-            echo ""
-            echo "[INFO] --dry-run モードのため、実行をスキップします"
-        else
-            # Phase 2: 並列実行
-            echo ""
-            echo "[RUN] ${#CREATED_ISSUES[@]} Issueを並列実行中..."
-            for issue in "${CREATED_ISSUES[@]}"; do
-                echo "  Starting Issue #$issue..."
-                "$SCRIPT_DIR/run.sh" "$issue" --no-attach || {
-                    log_warn "Failed to start session for Issue #$issue"
-                }
-            done
-
-            # Phase 3: 完了待機
-            echo ""
-            echo "[WAIT] 完了を待機中..."
-            if ! "$SCRIPT_DIR/wait-for-sessions.sh" "${CREATED_ISSUES[@]}" --timeout "$timeout"; then
-                log_warn "Some sessions failed or timed out"
-            fi
-        fi
-
-        # Phase 4: 承認ゲート
-        if [[ $iteration -lt $max_iterations ]]; then
-            if [[ "$auto_continue" != "true" ]]; then
-                echo ""
-                read -r -p "次のイテレーションを実行しますか？ [Y/n]: " answer
-                if [[ "$answer" =~ ^[Nn] ]]; then
-                    echo "[INFO] ユーザーにより中断されました"
-                    break
-                fi
-            fi
-        fi
-
-        ((iteration++)) || true
-    done
-
+    # Max iterations check
     if [[ $iteration -gt $max_iterations ]]; then
         echo ""
-        echo "[INFO] 最大イテレーション数 ($max_iterations) に達しました"
+        echo "Reached maximum iterations ($max_iterations)"
+        exit 0
     fi
 
     echo ""
-    echo "🏁 改善プロセス終了"
+    echo "==============================================================="
+    echo "  Continuous Improvement - Iteration $iteration/$max_iterations"
+    echo "==============================================================="
+    echo ""
+
+    local pi_command
+    pi_command="$(get_config pi_command)"
+
+    # Phase 1: pi creates Issues and starts execution
+    local prompt
+    prompt="Execute the following steps:
+
+1. Use the project-review skill to review the entire project
+2. Create GitHub Issues for discovered problems (max ${max_issues})
+3. Start parallel execution for each Issue via Pi Issue Runner:
+   scripts/run.sh <issue-number> --no-attach
+4. After starting all Issues, output ###TASK_COMPLETE### and exit
+
+Note: If no problems are found, report 'no issues' and output ###TASK_COMPLETE###."
+
+    echo "[PHASE 1] Reviewing and creating Issues via pi..."
+    "$pi_command" --message "$prompt" || {
+        log_warn "pi command exited with non-zero status"
+    }
+
+    # Phase 2: Monitor session completion
+    echo ""
+    echo "[PHASE 2] Monitoring session completion..."
+    
+    # Get running sessions
+    local sessions
+    sessions=$("$SCRIPT_DIR/list.sh" 2>/dev/null | grep -oE "pi-issue-[0-9]+" || true)
+    
+    if [[ -z "$sessions" ]]; then
+        echo "No running sessions found"
+        echo ""
+        echo "Improvement complete! No issues found."
+        exit 0
+    fi
+    
+    # Extract issue numbers
+    local issues
+    issues=$(echo "$sessions" | sed "s/pi-issue-//g" | tr "\n" " ")
+    
+    echo "Monitoring: $issues"
+    
+    # shellcheck disable=SC2086
+    if ! "$SCRIPT_DIR/wait-for-sessions.sh" $issues --timeout "$timeout"; then
+        log_warn "Some sessions failed or timed out"
+    fi
+
+    # Phase 3: Recursive call
+    echo ""
+    echo "[PHASE 3] Starting next iteration..."
+    
+    exec "$0" \
+        --max-iterations "$max_iterations" \
+        --max-issues "$max_issues" \
+        --timeout "$timeout" \
+        --iteration "$((iteration + 1))"
 }
 
-# 依存関係チェック
+# Dependency check
 check_dependencies() {
     local missing=()
 
-    # piコマンド
+    # pi command
     local pi_command
     pi_command="$(get_config pi_command)"
     if ! command -v "$pi_command" &> /dev/null; then
         missing+=("$pi_command (pi)")
-    fi
-
-    # gh (GitHub CLI)
-    if ! command -v gh &> /dev/null; then
-        missing+=("gh (GitHub CLI)")
     fi
 
     # tmux
@@ -232,80 +184,6 @@ check_dependencies() {
             echo "  - $dep" >&2
         done
         return 1
-    fi
-
-    return 0
-}
-
-# プロジェクトをレビューしてIssueを作成
-# 引数:
-#   $1 - max_issues: 最大Issue数
-#   $2 - dry_run: ドライランモード
-#   $3 - review_only: レビューのみモード
-review_and_create_issues() {
-    local max_issues="$1"
-    local dry_run="$2"
-    local review_only="$3"
-    
-    local pi_command
-    pi_command="$(get_config pi_command)"
-    
-    # プロンプトの構築（マーカー出力指示は不要になった）
-    local review_prompt
-    if [[ "$review_only" == "true" ]]; then
-        review_prompt="project-reviewスキルを使用してプロジェクト全体をレビューし、発見した問題を一覧で表示してください。Issue作成は行わないでください。"
-    elif [[ "$dry_run" == "true" ]]; then
-        review_prompt="project-reviewスキルを使用してプロジェクト全体をレビューし、発見した問題を一覧で表示してください。実際にはIssue作成しないでください。"
-    else
-        review_prompt="project-reviewスキルを使用してプロジェクト全体を厳格にレビューし、発見した問題からGitHub Issueを作成してください。最大${max_issues}件までのIssueを作成してください。"
-    fi
-
-    echo "[pi] レビュー実行中..."
-    
-    # 開始時刻を記録（UTC ISO8601形式）
-    local start_time
-    start_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    log_debug "Start time: $start_time"
-    
-    # piを直接実行（パイプなし - PTY幅問題を解決）
-    local pi_exit_code=0
-    "$pi_command" --message "$review_prompt" || pi_exit_code=$?
-    
-    if [[ $pi_exit_code -ne 0 ]]; then
-        log_error "pi command failed with exit code $pi_exit_code"
-        return 1
-    fi
-    
-    # Issue番号を取得
-    if [[ "$dry_run" == "true" ]]; then
-        # ドライランモードではIssue番号を取得しない
-        echo "[dry-run] Issue作成をスキップしました"
-        CREATED_ISSUES=()
-    elif [[ "$review_only" == "true" ]]; then
-        # レビューのみモードではIssue番号を取得しない
-        CREATED_ISSUES=()
-    else
-        # GitHub APIで開始時刻以降に作成されたIssueを取得
-        log_debug "Fetching issues created after: $start_time"
-        
-        local issues_text
-        issues_text=$(get_issues_created_after "$start_time" "$max_issues") || true
-        
-        if [[ "${LOG_LEVEL:-}" == "DEBUG" ]]; then
-            log_debug "Fetched issues_text: '$issues_text'"
-        fi
-        
-        if [[ -n "$issues_text" ]]; then
-            while IFS= read -r issue; do
-                if [[ -n "$issue" && "$issue" =~ ^[0-9]+$ ]]; then
-                    CREATED_ISSUES+=("$issue")
-                fi
-            done <<< "$issues_text"
-        fi
-        
-        if [[ "${LOG_LEVEL:-}" == "DEBUG" ]]; then
-            log_debug "Final CREATED_ISSUES array: (${CREATED_ISSUES[*]:-})"
-        fi
     fi
 
     return 0
