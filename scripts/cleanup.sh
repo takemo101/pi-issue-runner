@@ -25,7 +25,8 @@ Options:
     --keep-session    セッションを維持（worktreeのみ削除）
     --keep-worktree   worktreeを維持（セッションのみ削除）
     --orphans         孤立したステータスファイルをクリーンアップ
-    --dry-run         削除せずに対象を表示（--orphansと使用）
+    --delete-plans    クローズ済みIssueの計画書を削除
+    --dry-run         削除せずに対象を表示（--orphans/--delete-plansと使用）
     -h, --help        このヘルプを表示
 
 Examples:
@@ -35,7 +36,77 @@ Examples:
     $(basename "$0") 42 --delete-branch
     $(basename "$0") --orphans
     $(basename "$0") --orphans --dry-run
+    $(basename "$0") --delete-plans
+    $(basename "$0") --delete-plans --dry-run
 EOF
+}
+
+# クローズ済みIssueの計画書をクリーンアップ
+# 引数:
+#   $1 - dry_run: "true"の場合は削除せずに表示のみ
+cleanup_closed_issue_plans() {
+    local dry_run="${1:-false}"
+    local plans_dir="docs/plans"
+    
+    if [[ ! -d "$plans_dir" ]]; then
+        log_info "No plans directory found: $plans_dir"
+        return 0
+    fi
+    
+    # gh CLIが利用可能かチェック
+    if ! command -v gh &> /dev/null; then
+        log_error "GitHub CLI (gh) is not installed"
+        log_info "Install: https://cli.github.com/"
+        return 1
+    fi
+    
+    local count=0
+    local plan_files
+    plan_files=$(find "$plans_dir" -name "issue-*-plan.md" -type f 2>/dev/null || true)
+    
+    if [[ -z "$plan_files" ]]; then
+        log_info "No plan files found in $plans_dir"
+        return 0
+    fi
+    
+    while IFS= read -r plan_file; do
+        [[ -z "$plan_file" ]] && continue
+        
+        # ファイル名からIssue番号を抽出
+        local filename
+        filename=$(basename "$plan_file")
+        local issue_number
+        issue_number=$(echo "$filename" | sed -n 's/issue-\([0-9]*\)-plan\.md/\1/p')
+        
+        if [[ -z "$issue_number" ]]; then
+            log_debug "Could not extract issue number from: $filename"
+            continue
+        fi
+        
+        # Issueの状態を確認
+        local issue_state
+        issue_state=$(gh issue view "$issue_number" --json state -q '.state' 2>/dev/null || echo "UNKNOWN")
+        
+        if [[ "$issue_state" == "CLOSED" ]]; then
+            count=$((count + 1))
+            if [[ "$dry_run" == "true" ]]; then
+                log_info "[DRY-RUN] Would delete: $plan_file (Issue #$issue_number is closed)"
+            else
+                log_info "Deleting: $plan_file (Issue #$issue_number is closed)"
+                rm -f "$plan_file"
+            fi
+        else
+            log_debug "Keeping: $plan_file (Issue #$issue_number state: $issue_state)"
+        fi
+    done <<< "$plan_files"
+    
+    if [[ $count -eq 0 ]]; then
+        log_info "No closed issue plans found to delete."
+    elif [[ "$dry_run" == "true" ]]; then
+        log_info "[DRY-RUN] Would delete $count plan file(s)"
+    else
+        log_info "Deleted $count plan file(s)"
+    fi
 }
 
 # 孤立したステータスファイルをクリーンアップ
@@ -78,6 +149,7 @@ main() {
     local keep_session=false
     local keep_worktree=false
     local orphans=false
+    local delete_plans=false
     local dry_run=false
 
     while [[ $# -gt 0 ]]; do
@@ -100,6 +172,10 @@ main() {
                 ;;
             --orphans)
                 orphans=true
+                shift
+                ;;
+            --delete-plans)
+                delete_plans=true
                 shift
                 ;;
             --dry-run)
@@ -127,6 +203,12 @@ main() {
     # --orphans モード: 孤立したステータスファイルのクリーンアップ
     if [[ "$orphans" == "true" ]]; then
         cleanup_orphaned_statuses "$dry_run"
+        exit 0
+    fi
+
+    # --delete-plans モード: クローズ済みIssueの計画書のクリーンアップ
+    if [[ "$delete_plans" == "true" ]]; then
+        cleanup_closed_issue_plans "$dry_run"
         exit 0
     fi
 

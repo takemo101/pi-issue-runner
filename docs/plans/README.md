@@ -28,12 +28,28 @@ issue-<issue番号>-plan.md
 
 ## クリーンアップ
 
-クローズ済み Issue の計画書を削除するには:
+### 自動削除
+
+マージエージェント (`agents/merge.md`) は PR マージ後に計画書を自動的に削除します。
+
+### 手動削除
+
+クローズ済み Issue の計画書を一括削除するには:
+
+```bash
+# プレビュー（実際には削除しない）
+./scripts/cleanup.sh --delete-plans --dry-run
+
+# 実行
+./scripts/cleanup.sh --delete-plans
+```
+
+### レガシー方法
+
+gh CLI を直接使う場合:
 
 ```bash
 gh issue list --state closed --json number -q ".[].number" | while read num; do
   rm -f docs/plans/issue-$num-plan.md
 done
 ```
-
-> **Note**: 計画書は PR マージ後に自動削除されないため、定期的なクリーンアップを推奨します。

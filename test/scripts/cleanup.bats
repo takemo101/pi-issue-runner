@@ -82,6 +82,11 @@ teardown() {
     [[ "$output" == *"--dry-run"* ]]
 }
 
+@test "cleanup.sh accepts --delete-plans option" {
+    run "$PROJECT_ROOT/scripts/cleanup.sh" --help
+    [[ "$output" == *"--delete-plans"* ]]
+}
+
 # ====================
 # --orphans オプションテスト
 # ====================
@@ -139,4 +144,28 @@ teardown() {
     
     # ファイルが削除されたことを確認
     [ ! -f "${BATS_TEST_TMPDIR}/.worktrees/.status/888.json" ]
+}
+
+# ====================
+# --delete-plans オプションテスト
+# ====================
+
+@test "cleanup.sh --delete-plans with no plans directory" {
+    cd "$BATS_TEST_TMPDIR"
+    mkdir -p test-repo && cd test-repo
+    git init &>/dev/null
+    
+    run "$PROJECT_ROOT/scripts/cleanup.sh" --delete-plans
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"No plans directory found"* ]]
+}
+
+@test "cleanup.sh --delete-plans with empty plans directory" {
+    cd "$BATS_TEST_TMPDIR"
+    mkdir -p test-repo/docs/plans && cd test-repo
+    git init &>/dev/null
+    
+    run "$PROJECT_ROOT/scripts/cleanup.sh" --delete-plans
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"No plan files found"* ]]
 }
