@@ -41,20 +41,12 @@ gh pr checks
 gh pr merge --merge --delete-branch
 ```
 
-### 4. 計画書の削除
+### 4. クリーンアップ
 
-マージ完了後、計画書を削除します：
-
-```bash
-rm -f docs/plans/issue-{{issue_number}}-plan.md
-git add -A
-git commit -m "chore: remove plan for issue #{{issue_number}}" || true
-git push origin main || true
-```
-
-### 5. クリーンアップ
-
-> **Note**: Worktreeのクリーンアップは自動的に行われます。
+> **Note**: 以下のクリーンアップは `watch-session.sh` により自動的に行われます：
+> - Worktree の削除
+> - 計画書（`docs/plans/issue-{{issue_number}}-plan.md`）の削除
+> 
 > 手動でクリーンアップが必要な場合は `scripts/cleanup.sh` を使用してください。
 
 ## コミットタイプ
