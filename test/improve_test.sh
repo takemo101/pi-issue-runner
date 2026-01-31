@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# improve.sh のテスト - スクリプトオプションとIssue番号抽出の両方をテスト
+# improve.sh のテスト - スクリプトオプションとGitHub API方式をテスト
 
 set +e
 
@@ -40,6 +40,21 @@ assert_contains() {
     fi
 }
 
+assert_not_contains() {
+    local description="$1"
+    local unexpected="$2"
+    local actual="$3"
+    if [[ "$actual" != *"$unexpected"* ]]; then
+        echo "✓ $description"
+        ((TESTS_PASSED++)) || true
+    else
+        echo "✗ $description"
+        echo "  Should NOT contain: '$unexpected'"
+        echo "  Actual: '$actual'"
+        ((TESTS_FAILED++)) || true
+    fi
+}
+
 assert_success() {
     local description="$1"
     local exit_code="$2"
@@ -60,37 +75,6 @@ assert_failure() {
         ((TESTS_PASSED++)) || true
     else
         echo "✗ $description (expected failure but got success)"
-        ((TESTS_FAILED++)) || true
-    fi
-}
-
-assert_array_equals() {
-    local description="$1"
-    shift
-    local -a expected=()
-    local -a actual=()
-    
-    # Parse expected and actual arrays
-    local parsing_expected=true
-    for arg in "$@"; do
-        if [[ "$arg" == "--" ]]; then
-            parsing_expected=false
-            continue
-        fi
-        if $parsing_expected; then
-            expected+=("$arg")
-        else
-            actual+=("$arg")
-        fi
-    done
-    
-    if [[ "${expected[*]:-}" == "${actual[*]:-}" ]]; then
-        echo "✓ $description"
-        ((TESTS_PASSED++)) || true
-    else
-        echo "✗ $description"
-        echo "  Expected: (${expected[*]:-})"
-        echo "  Actual:   (${actual[*]:-})"
         ((TESTS_FAILED++)) || true
     fi
 }
@@ -158,6 +142,7 @@ improve_source=$(cat "$IMPROVE_SCRIPT")
 assert_contains "script sources config.sh" "lib/config.sh" "$improve_source"
 assert_contains "script sources log.sh" "lib/log.sh" "$improve_source"
 assert_contains "script sources status.sh" "lib/status.sh" "$improve_source"
+assert_contains "script sources github.sh" "lib/github.sh" "$improve_source"
 assert_contains "script has main function" "main()" "$improve_source"
 assert_contains "script has usage function" "usage()" "$improve_source"
 assert_contains "script has check_dependencies function" "check_dependencies()" "$improve_source"
@@ -223,15 +208,26 @@ assert_contains "checks for tmux command" 'command -v tmux' "$improve_source"
 assert_contains "reports missing dependencies" 'Missing dependencies' "$improve_source"
 
 # ===================
-# レビューとIssue作成のテスト
+# GitHub API方式のテスト
 # ===================
 echo ""
-echo "=== Review and create issues tests ==="
+echo "=== GitHub API approach tests ==="
 
-assert_contains "uses project-review skill" 'project-review' "$improve_source"
-assert_contains "has CREATED_ISSUES marker" '###CREATED_ISSUES###' "$improve_source"
-assert_contains "has END_ISSUES marker" '###END_ISSUES###' "$improve_source"
-assert_contains "extracts issue numbers" 'CREATED_ISSUES+=(' "$improve_source"
+# マーカーが使用されていないことを確認
+assert_not_contains "script does NOT use CREATED_ISSUES marker" '###CREATED_ISSUES###' "$improve_source"
+assert_not_contains "script does NOT use END_ISSUES marker" '###END_ISSUES###' "$improve_source"
+assert_not_contains "script does NOT use WOULD_CREATE_ISSUES marker" '###WOULD_CREATE_ISSUES###' "$improve_source"
+
+# GitHub API関数が使用されていることを確認
+assert_contains "script uses get_issues_created_after" 'get_issues_created_after' "$improve_source"
+
+# 開始時刻を記録していることを確認
+assert_contains "script records start_time" 'start_time=' "$improve_source"
+assert_contains "script uses date -u for UTC time" 'date -u' "$improve_source"
+
+# パイプとteeが使用されていないことを確認
+assert_not_contains "script does NOT use tee for output" '| tee' "$improve_source"
+assert_not_contains "script does NOT use stdbuf" 'stdbuf' "$improve_source"
 
 # ===================
 # ワークフローのテスト
@@ -261,252 +257,37 @@ assert_contains "shows max iterations message" '最大イテレーション数' 
 echo ""
 echo "=== Dry-run mode tests ==="
 
-assert_contains "dry-run skips execution" '--dry-run モードのため、実行をスキップ' "$improve_source"
-assert_contains "dry-run shows would-create marker" '###WOULD_CREATE_ISSUES###' "$improve_source"
+assert_contains "dry-run skips issue fetch" 'dry-run' "$improve_source"
 
 # ===================
-# Issue番号抽出のテスト (from main branch)
-# ===================
-echo ""
-echo "=== Issue number extraction tests ==="
-
-# Function to extract issue numbers (same logic as improve.sh - updated version)
-extract_issue_numbers() {
-    local input_file="$1"
-    local max_issues="${2:-5}"
-    
-    # ANSIエスケープコードと制御文字を除去してから処理
-    cat "$input_file" \
-        | tr -d '\r' \
-        | sed 's/\x1b\[[0-9;]*m//g' \
-        | sed -n '/###CREATED_ISSUES###/,/###END_ISSUES###/p' \
-        | grep -oE '[0-9]+' \
-        | head -n "$max_issues"
-}
-
-# Test: Normal case - no leading spaces
-test_normal_case() {
-    local tmp_file
-    tmp_file="$(mktemp)"
-    cat > "$tmp_file" << 'EOF'
-Some output from pi...
-###CREATED_ISSUES###
-152
-153
-154
-###END_ISSUES###
-Done.
-EOF
-    
-    local -a result=()
-    while IFS= read -r line; do
-        [[ -n "$line" ]] && result+=("$line")
-    done < <(extract_issue_numbers "$tmp_file")
-    
-    rm -f "$tmp_file"
-    
-    assert_array_equals "Normal case: extracts issue numbers without spaces" \
-        "152" "153" "154" -- "${result[@]}"
-}
-
-# Test: Leading spaces - the bug case
-test_leading_spaces() {
-    local tmp_file
-    tmp_file="$(mktemp)"
-    cat > "$tmp_file" << 'EOF'
-Some output from pi...
- ###CREATED_ISSUES###
- 152
- 153
- 154
- ###END_ISSUES###
-Done.
-EOF
-    
-    local -a result=()
-    while IFS= read -r line; do
-        [[ -n "$line" ]] && result+=("$line")
-    done < <(extract_issue_numbers "$tmp_file")
-    
-    rm -f "$tmp_file"
-    
-    assert_array_equals "Leading spaces: extracts issue numbers with leading spaces" \
-        "152" "153" "154" -- "${result[@]}"
-}
-
-# Test: No markers found
-test_no_markers() {
-    local tmp_file
-    tmp_file="$(mktemp)"
-    cat > "$tmp_file" << 'EOF'
-Some output without markers
-152
-153
-EOF
-    
-    local -a result=()
-    while IFS= read -r line; do
-        [[ -n "$line" ]] && result+=("$line")
-    done < <(extract_issue_numbers "$tmp_file")
-    
-    rm -f "$tmp_file"
-    
-    assert_array_equals "No markers: returns empty array" \
-        -- "${result[@]:-}"
-}
-
-# Test: Max issues limit
-test_max_issues_limit() {
-    local tmp_file
-    tmp_file="$(mktemp)"
-    cat > "$tmp_file" << 'EOF'
-###CREATED_ISSUES###
-1
-2
-3
-4
-5
-6
-7
-###END_ISSUES###
-EOF
-    
-    local -a result=()
-    while IFS= read -r line; do
-        [[ -n "$line" ]] && result+=("$line")
-    done < <(extract_issue_numbers "$tmp_file" 3)
-    
-    rm -f "$tmp_file"
-    
-    assert_array_equals "Max issues limit: respects limit of 3" \
-        "1" "2" "3" -- "${result[@]}"
-}
-
-# Test: Single issue number
-test_single_issue() {
-    local tmp_file
-    tmp_file="$(mktemp)"
-    cat > "$tmp_file" << 'EOF'
-###CREATED_ISSUES###
- 999
-###END_ISSUES###
-EOF
-    
-    local -a result=()
-    while IFS= read -r line; do
-        [[ -n "$line" ]] && result+=("$line")
-    done < <(extract_issue_numbers "$tmp_file")
-    
-    rm -f "$tmp_file"
-    
-    assert_array_equals "Single issue: extracts single issue number" \
-        "999" -- "${result[@]}"
-}
-
-# Test: ANSI escape codes in output
-test_ansi_escape_codes() {
-    local tmp_file
-    tmp_file="$(mktemp)"
-    # Simulate ANSI colored output (e.g., green text)
-    printf "Some output from pi...\n\033[32m###CREATED_ISSUES###\033[0m\n\033[32m 162\033[0m\n\033[32m 163\033[0m\n\033[32m 164\033[0m\n\033[32m###END_ISSUES###\033[0m\nDone.\n" > "$tmp_file"
-    
-    local -a result=()
-    while IFS= read -r line; do
-        [[ -n "$line" ]] && result+=("$line")
-    done < <(extract_issue_numbers "$tmp_file")
-    
-    rm -f "$tmp_file"
-    
-    assert_array_equals "ANSI escape codes: extracts issue numbers with color codes" \
-        "162" "163" "164" -- "${result[@]}"
-}
-
-# Test: Carriage return in output
-test_carriage_return() {
-    local tmp_file
-    tmp_file="$(mktemp)"
-    # Simulate output with \r characters (Windows-style line endings)
-    printf "Some output from pi...\r\n###CREATED_ISSUES###\r\n 162\r\n 163\r\n 164\r\n###END_ISSUES###\r\nDone.\r\n" > "$tmp_file"
-    
-    local -a result=()
-    while IFS= read -r line; do
-        [[ -n "$line" ]] && result+=("$line")
-    done < <(extract_issue_numbers "$tmp_file")
-    
-    rm -f "$tmp_file"
-    
-    assert_array_equals "Carriage return: extracts issue numbers with \\r" \
-        "162" "163" "164" -- "${result[@]}"
-}
-
-# Test: Mixed ANSI codes and carriage returns
-test_mixed_ansi_and_cr() {
-    local tmp_file
-    tmp_file="$(mktemp)"
-    # Simulate output with both ANSI codes and \r
-    printf "Some output...\r\n\033[1;32m###CREATED_ISSUES###\033[0m\r\n \033[33m162\033[0m\r\n \033[33m163\033[0m\r\n###END_ISSUES###\r\n" > "$tmp_file"
-    
-    local -a result=()
-    while IFS= read -r line; do
-        [[ -n "$line" ]] && result+=("$line")
-    done < <(extract_issue_numbers "$tmp_file")
-    
-    rm -f "$tmp_file"
-    
-    assert_array_equals "Mixed ANSI and CR: extracts issue numbers correctly" \
-        "162" "163" -- "${result[@]}"
-}
-
-# Test: Complex ANSI sequences (bold, color, reset)
-test_complex_ansi() {
-    local tmp_file
-    tmp_file="$(mktemp)"
-    # Simulate complex ANSI sequences with bold, multiple color codes
-    printf "\033[1;4;32m###CREATED_ISSUES###\033[0m\n\033[38;5;208m999\033[0m\n\033[0;1m###END_ISSUES###\033[0m\n" > "$tmp_file"
-    
-    local -a result=()
-    while IFS= read -r line; do
-        [[ -n "$line" ]] && result+=("$line")
-    done < <(extract_issue_numbers "$tmp_file")
-    
-    rm -f "$tmp_file"
-    
-    assert_array_equals "Complex ANSI: extracts issue numbers with complex sequences" \
-        "999" -- "${result[@]}"
-}
-
-# Run issue extraction tests
-test_normal_case
-test_leading_spaces
-test_no_markers
-test_max_issues_limit
-test_single_issue
-test_ansi_escape_codes
-test_carriage_return
-test_mixed_ansi_and_cr
-test_complex_ansi
-
-# ===================
-# バッファリング対策のテスト
+# lib/github.sh の get_issues_created_after テスト
 # ===================
 echo ""
-echo "=== Buffering fix tests ==="
+echo "=== lib/github.sh get_issues_created_after tests ==="
 
-# stdbufの使用確認
-assert_contains "script checks for stdbuf availability" 'command -v stdbuf' "$improve_source"
-assert_contains "script uses stdbuf -oL for pi command" 'stdbuf -oL "$pi_command"' "$improve_source"
-assert_contains "script uses stdbuf -oL for tee" 'stdbuf -oL tee' "$improve_source"
+GITHUB_LIB="$SCRIPT_DIR/../lib/github.sh"
+github_source=$(cat "$GITHUB_LIB")
 
-# sync の使用確認
-assert_contains "script calls sync after tee" 'sync 2>/dev/null' "$improve_source"
+# 関数が定義されていることを確認
+assert_contains "get_issues_created_after function exists" 'get_issues_created_after()' "$github_source"
 
-# sleep の使用確認
-assert_contains "script waits after tee" 'sleep 0.5' "$improve_source"
+# 関数の内容確認
+assert_contains "uses gh issue list" 'gh issue list' "$github_source"
+assert_contains "uses --state open" '--state open' "$github_source"
+assert_contains "uses --author @me" '--author "@me"' "$github_source"
+assert_contains "uses jq for filtering" 'jq' "$github_source"
+assert_contains "filters by createdAt" 'createdAt' "$github_source"
+assert_contains "compares with start time" 'select(.createdAt >= $start)' "$github_source"
 
-# デバッグログの確認
-assert_contains "script logs output file path" 'log_debug "Output file:' "$improve_source"
-assert_contains "script logs file size" 'log_debug "File size:' "$improve_source"
-assert_contains "script logs file lines" 'log_debug "File lines:' "$improve_source"
+# ===================
+# レビュープロンプトの簡素化テスト
+# ===================
+echo ""
+echo "=== Review prompt simplification tests ==="
+
+# プロンプトがシンプルになっていることを確認
+assert_contains "uses project-review skill" 'project-review' "$improve_source"
+assert_not_contains "prompt does NOT contain marker instructions" '以下の形式で最後に必ず出力' "$improve_source"
 
 # ===================
 # 結果サマリー

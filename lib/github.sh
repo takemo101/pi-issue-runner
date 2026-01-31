@@ -171,3 +171,22 @@ sanitize_issue_body() {
     
     echo "$sanitized"
 }
+
+# ===================
+# Issue取得（時刻フィルタ）
+# ===================
+
+# 指定時刻以降に作成されたIssueを取得
+# Usage: get_issues_created_after <start_time_iso8601> [max_issues]
+# Returns: Issue番号を1行ずつ出力
+get_issues_created_after() {
+    local start_time="$1"
+    local max_issues="${2:-20}"
+    
+    check_gh_cli || return 1
+    check_jq || return 1
+    
+    # 自分が作成したopenなIssueを取得し、開始時刻以降のものをフィルタ
+    gh issue list --state open --author "@me" --limit "$max_issues" --json number,createdAt 2>/dev/null \
+        | jq -r --arg start "$start_time" '.[] | select(.createdAt >= $start) | .number'
+}

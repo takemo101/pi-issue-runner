@@ -8,6 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/status.sh"
+source "$SCRIPT_DIR/../lib/github.sh"
 
 # グローバル変数
 CREATED_ISSUES=()
@@ -246,111 +247,52 @@ review_and_create_issues() {
     local dry_run="$2"
     local review_only="$3"
     
-    local output_file
-    output_file="$(mktemp)"
-    trap "rm -f '$output_file'" RETURN
-    
     local pi_command
     pi_command="$(get_config pi_command)"
     
-    # プロンプトの構築
+    # プロンプトの構築（マーカー出力指示は不要になった）
     local review_prompt
     if [[ "$review_only" == "true" ]]; then
         review_prompt="project-reviewスキルを使用してプロジェクト全体をレビューし、発見した問題を一覧で表示してください。Issue作成は行わないでください。"
     elif [[ "$dry_run" == "true" ]]; then
-        review_prompt="project-reviewスキルを使用してプロジェクト全体をレビューし、発見した問題を一覧で表示してください。
-発見した問題のうち、作成するべきIssueがあれば、以下の形式で番号を出力してください（実際にはIssue作成しないでください）:
-
-###WOULD_CREATE_ISSUES###
-<仮のIssue番号または説明を1行ずつ>
-###END_ISSUES###"
+        review_prompt="project-reviewスキルを使用してプロジェクト全体をレビューし、発見した問題を一覧で表示してください。実際にはIssue作成しないでください。"
     else
-        review_prompt="project-reviewスキルを使用してプロジェクト全体を厳格にレビューし、発見した問題からGitHub Issueを作成してください。
-最大${max_issues}件までのIssueを作成してください。
-
-作成したIssue番号を以下の形式で最後に必ず出力してください:
-###CREATED_ISSUES###
-<Issue番号を1行ずつ、数字のみ>
-###END_ISSUES###
-
-例:
-###CREATED_ISSUES###
-147
-148
-###END_ISSUES###"
+        review_prompt="project-reviewスキルを使用してプロジェクト全体を厳格にレビューし、発見した問題からGitHub Issueを作成してください。最大${max_issues}件までのIssueを作成してください。"
     fi
 
     echo "[pi] レビュー実行中..."
     
-    # ターミナル幅を取得（パイプ使用時にpiがTTY幅を取得できないため）
-    local cols
-    cols=$(tput cols 2>/dev/null || echo 120)
+    # 開始時刻を記録（UTC ISO8601形式）
+    local start_time
+    start_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    log_debug "Start time: $start_time"
     
-    # piを実行（teeのバッファリング問題対策）
-    # stdbufが利用可能な場合はラインバッファリングを有効化
+    # piを直接実行（パイプなし - PTY幅問題を解決）
     local pi_exit_code=0
-    if command -v stdbuf &>/dev/null; then
-        log_debug "Using stdbuf for line buffering"
-        COLUMNS="$cols" stdbuf -oL "$pi_command" --message "$review_prompt" 2>&1 | stdbuf -oL tee "$output_file" || pi_exit_code=$?
-    else
-        log_debug "stdbuf not available, using standard tee"
-        COLUMNS="$cols" "$pi_command" --message "$review_prompt" 2>&1 | tee "$output_file" || pi_exit_code=$?
-    fi
-    
-    # ファイルシステムを同期（バッファフラッシュ）
-    sync 2>/dev/null || true
-    
-    # 少し待機（ファイル書き込み完了を確実に）
-    sleep 0.5
+    "$pi_command" --message "$review_prompt" || pi_exit_code=$?
     
     if [[ $pi_exit_code -ne 0 ]]; then
         log_error "pi command failed with exit code $pi_exit_code"
         return 1
     fi
     
-    # デバッグログ: ファイル情報を表示
-    if [[ "${LOG_LEVEL:-}" == "DEBUG" ]]; then
-        log_debug "Output file: $output_file"
-        log_debug "File size: $(wc -c < "$output_file") bytes"
-        log_debug "File lines: $(wc -l < "$output_file") lines"
-    fi
-
-    # Issue番号を抽出
+    # Issue番号を取得
     if [[ "$dry_run" == "true" ]]; then
-        # ドライランモードでは仮のIssue番号を表示するのみ
-        echo "[dry-run] 以下のIssueが作成される予定でした:"
-        sed -n '/###WOULD_CREATE_ISSUES###/,/###END_ISSUES###/p' "$output_file" \
-            | grep -v '###' \
-            | head -n "$max_issues" \
-            || true
+        # ドライランモードではIssue番号を取得しない
+        echo "[dry-run] Issue作成をスキップしました"
         CREATED_ISSUES=()
     elif [[ "$review_only" == "true" ]]; then
-        # レビューのみモードではIssue番号を抽出しない
+        # レビューのみモードではIssue番号を取得しない
         CREATED_ISSUES=()
     else
-        # デバッグログ: 抽出前の状態を表示
-        if [[ "${LOG_LEVEL:-}" == "DEBUG" ]]; then
-            log_debug "Output file size: $(wc -c < "$output_file") bytes"
-            log_debug "Checking for CREATED_ISSUES marker..."
-            if grep -q "###CREATED_ISSUES###" "$output_file"; then
-                log_debug "Marker found. Raw content between markers:"
-                sed -n '/###CREATED_ISSUES###/,/###END_ISSUES###/p' "$output_file" | cat -A | head -20
-            else
-                log_debug "Marker NOT found in output"
-            fi
-        fi
+        # GitHub APIで開始時刻以降に作成されたIssueを取得
+        log_debug "Fetching issues created after: $start_time"
         
-        # Issue番号を抽出（ANSIエスケープコード・制御文字を除去してから処理）
         local issues_text
-        issues_text=$(cat "$output_file" \
-            | tr -d '\r' \
-            | sed 's/\x1b\[[0-9;]*m//g' \
-            | sed -n '/###CREATED_ISSUES###/,/###END_ISSUES###/p' \
-            | grep -oE '[0-9]+' \
-            | head -n "$max_issues") || true
+        issues_text=$(get_issues_created_after "$start_time" "$max_issues") || true
         
         if [[ "${LOG_LEVEL:-}" == "DEBUG" ]]; then
-            log_debug "Extracted issues_text: '$issues_text'"
+            log_debug "Fetched issues_text: '$issues_text'"
         fi
         
         if [[ -n "$issues_text" ]]; then
