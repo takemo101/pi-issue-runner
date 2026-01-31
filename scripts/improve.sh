@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# improve.sh - Continuous improvement (recursive approach)
-# pi handles Issue creation and run.sh execution, improve.sh manages monitoring and loops
+# improve.sh - Continuous improvement (tmux-based approach)
+# Uses tmux session for pi execution, same as run.sh/watch-session.sh
 
 set -euo pipefail
 
@@ -8,67 +8,63 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
 
-DEFAULT_MAX_ITERATIONS=3
-DEFAULT_MAX_ISSUES=5
-DEFAULT_TIMEOUT=3600
-DEFAULT_SESSION_WAIT_RETRIES=10
-DEFAULT_SESSION_WAIT_INTERVAL=2
-
-# Completion markers
+# Constants
+IMPROVE_SESSION="pi-improve"
 MARKER_COMPLETE="###TASK_COMPLETE###"
 MARKER_NO_ISSUES="###NO_ISSUES###"
 
-# Run pi with completion marker detection
+DEFAULT_MAX_ITERATIONS=3
+DEFAULT_MAX_ISSUES=5
+DEFAULT_TIMEOUT=3600
+
+# Wait for marker detection using tmux capture-pane
 # Arguments:
-#   $1 - prompt to send to pi
-#   $2 - pi command path
+#   $1 - session: tmux session name
+#   $2 - timeout: timeout in seconds
 # Returns:
-#   0 - Issue created (TASK_COMPLETE marker detected)
+#   0 - Issues created (TASK_COMPLETE marker detected)
 #   1 - No issues found (NO_ISSUES marker detected)
-#   0 - pi exited normally without marker
-run_pi_with_completion_detection() {
-    local prompt="$1"
-    local pi_command="$2"
-    local output_file
-    output_file=$(mktemp)
-    local pi_pid
+#   2 - Timeout
+wait_for_marker() {
+    local session="$1"
+    local timeout="$2"
+    local start_time
+    start_time=$(date +%s)
     
-    # Trap for cleanup on interrupt
-    trap 'rm -f "$output_file"; kill "$pi_pid" 2>/dev/null || true' INT TERM
+    log_debug "Starting marker detection for session: $session"
     
-    # Run pi in background, output to both terminal and file
-    # Use stdbuf to disable buffering for real-time output
-    if command -v stdbuf &>/dev/null; then
-        stdbuf -oL "$pi_command" --message "$prompt" 2>&1 | tee "$output_file" &
-    else
-        "$pi_command" --message "$prompt" 2>&1 | tee "$output_file" &
-    fi
-    pi_pid=$!
-    
-    # Monitor for completion markers
-    while kill -0 "$pi_pid" 2>/dev/null; do
-        if grep -q "$MARKER_COMPLETE" "$output_file" 2>/dev/null; then
-            log_info "Completion marker detected. Terminating pi..."
-            kill "$pi_pid" 2>/dev/null || true
-            wait "$pi_pid" 2>/dev/null || true
-            rm -f "$output_file"
-            trap - INT TERM
+    while tmux has-session -t "$session" 2>/dev/null; do
+        local output
+        output=$(tmux capture-pane -t "$session" -p -S -200 2>/dev/null) || {
+            sleep 2
+            continue
+        }
+        
+        if echo "$output" | grep -qF "$MARKER_COMPLETE"; then
+            log_info "Completion marker detected"
+            tmux kill-session -t "$session" 2>/dev/null || true
             return 0  # Issues created
         fi
-        if grep -q "$MARKER_NO_ISSUES" "$output_file" 2>/dev/null; then
-            log_info "No issues marker detected. Terminating pi..."
-            kill "$pi_pid" 2>/dev/null || true
-            wait "$pi_pid" 2>/dev/null || true
-            rm -f "$output_file"
-            trap - INT TERM
+        
+        if echo "$output" | grep -qF "$MARKER_NO_ISSUES"; then
+            log_info "No issues marker detected"
+            tmux kill-session -t "$session" 2>/dev/null || true
             return 1  # No issues
         fi
-        sleep 1
+        
+        # Timeout check
+        local elapsed=$(( $(date +%s) - start_time ))
+        if [[ $elapsed -gt $timeout ]]; then
+            log_warn "Timeout waiting for marker ($timeout seconds)"
+            tmux kill-session -t "$session" 2>/dev/null || true
+            return 2  # Timeout
+        fi
+        
+        sleep 2
     done
     
-    # pi exited without marker
-    rm -f "$output_file"
-    trap - INT TERM
+    # Session ended without marker
+    log_debug "Session ended without marker"
     return 0
 }
 
@@ -85,10 +81,10 @@ Options:
     -h, --help           Show this help
 
 Description:
-    Runs continuous improvement:
-    1. pi creates Issues via project-review
-    2. pi starts parallel execution via pi-issue-runner
-    3. improve.sh monitors completion
+    Runs continuous improvement using tmux-based monitoring:
+    1. Creates tmux session "pi-improve" and runs pi inside
+    2. pi creates Issues via project-review and starts parallel execution
+    3. Monitors completion using tmux capture-pane
     4. Recursively starts next iteration on completion
 
 Examples:
@@ -155,22 +151,27 @@ main() {
     # Max iterations check
     if [[ $iteration -gt $max_iterations ]]; then
         echo ""
-        echo "Reached maximum iterations ($max_iterations)"
+        echo "🏁 Maximum iterations ($max_iterations) reached"
         exit 0
     fi
 
     echo ""
-    echo "==============================================================="
-    echo "  Continuous Improvement - Iteration $iteration/$max_iterations"
-    echo "==============================================================="
+    echo "╔════════════════════════════════════════════════════════════╗"
+    echo "║  🔧 Continuous Improvement - Iteration $iteration/$max_iterations"
+    echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
 
     local pi_command
     pi_command="$(get_config pi_command)"
 
-    # Phase 1: pi creates Issues and starts execution
-    local prompt
-    prompt="Execute the following steps:
+    # Kill existing session if present
+    if tmux has-session -t "$IMPROVE_SESSION" 2>/dev/null; then
+        log_info "Removing existing session: $IMPROVE_SESSION"
+        tmux kill-session -t "$IMPROVE_SESSION" 2>/dev/null || true
+    fi
+
+    # Phase 1: Create tmux session and run pi inside
+    local prompt="Execute the following steps:
 
 1. Use the project-review skill to review the entire project
 2. Create GitHub Issues for discovered problems (max ${max_issues})
@@ -183,52 +184,54 @@ After completing all steps, output EXACTLY ONE of the following markers:
 
 IMPORTANT: The marker must be output as a single line. This is required for automatic detection."
 
-    echo "[PHASE 1] Reviewing and creating Issues via pi..."
-    if ! run_pi_with_completion_detection "$prompt" "$pi_command"; then
+    echo "[PHASE 1] Starting pi in tmux session..."
+    
+    # Create tmux session and run pi
+    tmux new-session -d -s "$IMPROVE_SESSION" -x 200 -y 50 \
+        "$pi_command --message \"$prompt\""
+    
+    echo "[PHASE 1] Monitoring for completion marker..."
+    
+    local marker_result=0
+    wait_for_marker "$IMPROVE_SESSION" "$timeout" || marker_result=$?
+    
+    if [[ $marker_result -eq 1 ]]; then
         echo ""
         echo "✅ Improvement complete! No issues found."
         exit 0
     fi
+    
+    if [[ $marker_result -eq 2 ]]; then
+        log_error "Timeout waiting for pi to complete"
+        exit 1
+    fi
 
-    # Phase 2: Monitor session completion
+    # Phase 2: Wait for sessions to start and monitor completion
     echo ""
-    echo "[PHASE 2] Monitoring session completion..."
+    echo "[PHASE 2] Waiting for sessions to start..."
+    sleep 5  # Wait for sessions to start
     
-    # Wait for sessions to appear with retry
-    # Sessions may take a few seconds to start after run.sh --no-attach
-    local retry_count=0
-    local sessions=""
-    
-    echo "Waiting for sessions to start..."
-    while [[ $retry_count -lt $DEFAULT_SESSION_WAIT_RETRIES ]]; do
-        sessions=$("$SCRIPT_DIR/list.sh" 2>/dev/null | grep -oE "pi-issue-[0-9]+" || true)
-        if [[ -n "$sessions" ]]; then
-            break
-        fi
-        log_debug "Waiting for sessions to start... (attempt $((retry_count + 1))/$DEFAULT_SESSION_WAIT_RETRIES)"
-        sleep "$DEFAULT_SESSION_WAIT_INTERVAL"
-        ((retry_count++))
-    done
+    local sessions
+    sessions=$("$SCRIPT_DIR/list.sh" 2>/dev/null | grep -oE "pi-issue-[0-9]+" || true)
     
     if [[ -z "$sessions" ]]; then
-        echo "No running sessions found after waiting $((DEFAULT_SESSION_WAIT_RETRIES * DEFAULT_SESSION_WAIT_INTERVAL)) seconds"
+        echo "No running sessions found"
         echo ""
-        echo "Improvement complete! No issues found."
+        echo "✅ Improvement complete!"
         exit 0
     fi
     
-    # Extract issue numbers
     local issues
     issues=$(echo "$sessions" | sed "s/pi-issue-//g" | tr "\n" " ")
     
-    echo "Monitoring: $issues"
+    echo "[PHASE 2] Monitoring sessions: $issues"
     
     # shellcheck disable=SC2086
     if ! "$SCRIPT_DIR/wait-for-sessions.sh" $issues --timeout "$timeout"; then
         log_warn "Some sessions failed or timed out"
     fi
 
-    # Phase 3: Recursive call
+    # Phase 3: Recursive call for next iteration
     echo ""
     echo "[PHASE 3] Starting next iteration..."
     

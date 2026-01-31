@@ -224,64 +224,60 @@ teardown() {
     [[ "$source_content" == *'MARKER_NO_ISSUES="###NO_ISSUES###"'* ]]
 }
 
-@test "improve.sh has run_pi_with_completion_detection function" {
+# ====================
+# tmux方式テスト (Issue #232)
+# ====================
+
+@test "improve.sh defines IMPROVE_SESSION constant" {
     source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *"run_pi_with_completion_detection()"* ]]
+    [[ "$source_content" == *'IMPROVE_SESSION="pi-improve"'* ]]
 }
 
-@test "run_pi_with_completion_detection uses tee for output" {
+@test "improve.sh has wait_for_marker function" {
     source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'tee "$output_file"'* ]]
+    [[ "$source_content" == *"wait_for_marker()"* ]]
 }
 
-@test "run_pi_with_completion_detection monitors for MARKER_COMPLETE" {
+@test "wait_for_marker uses tmux capture-pane" {
     source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'grep -q "$MARKER_COMPLETE"'* ]]
+    [[ "$source_content" == *'tmux capture-pane -t "$session"'* ]]
 }
 
-@test "run_pi_with_completion_detection monitors for MARKER_NO_ISSUES" {
+@test "wait_for_marker monitors for MARKER_COMPLETE" {
     source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'grep -q "$MARKER_NO_ISSUES"'* ]]
+    [[ "$source_content" == *'grep -qF "$MARKER_COMPLETE"'* ]]
 }
 
-@test "run_pi_with_completion_detection cleans up temp file" {
+@test "wait_for_marker monitors for MARKER_NO_ISSUES" {
     source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'rm -f "$output_file"'* ]]
+    [[ "$source_content" == *'grep -qF "$MARKER_NO_ISSUES"'* ]]
 }
 
-@test "Phase 1 uses run_pi_with_completion_detection" {
+@test "wait_for_marker kills session after marker detection" {
     source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'run_pi_with_completion_detection "$prompt" "$pi_command"'* ]]
+    [[ "$source_content" == *'tmux kill-session -t "$session"'* ]]
+}
+
+@test "improve.sh creates tmux session for pi" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'tmux new-session -d -s "$IMPROVE_SESSION"'* ]]
+}
+
+@test "improve.sh kills existing session before starting" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'tmux kill-session -t "$IMPROVE_SESSION"'* ]]
 }
 
 # ====================
-# セッション待機リトライテスト (Issue #230)
+# セッション待機テスト
 # ====================
-
-@test "improve.sh has DEFAULT_SESSION_WAIT_RETRIES" {
-    grep -q 'DEFAULT_SESSION_WAIT_RETRIES=' "$PROJECT_ROOT/scripts/improve.sh"
-}
-
-@test "improve.sh has DEFAULT_SESSION_WAIT_INTERVAL" {
-    grep -q 'DEFAULT_SESSION_WAIT_INTERVAL=' "$PROJECT_ROOT/scripts/improve.sh"
-}
-
-@test "improve.sh has retry loop for session wait" {
-    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'retry_count -lt $DEFAULT_SESSION_WAIT_RETRIES'* ]]
-}
 
 @test "improve.sh waits for sessions to start before checking" {
     source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
     [[ "$source_content" == *'Waiting for sessions to start'* ]]
 }
 
-@test "improve.sh logs debug message during session wait" {
+@test "improve.sh uses sleep to wait for sessions" {
     source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'log_debug "Waiting for sessions to start'* ]]
-}
-
-@test "improve.sh shows wait time in no sessions message" {
-    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
-    [[ "$source_content" == *'No running sessions found after waiting'* ]]
+    [[ "$source_content" == *'sleep 5'* ]]
 }
