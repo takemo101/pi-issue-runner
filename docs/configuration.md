@@ -9,7 +9,7 @@ Pi Issue Runnerの動作は設定ファイルでカスタマイズできます�
 設定ファイルは以下の順序で検索され、最初に見つかったものが使用されます：
 
 1. `--config` オプションで指定されたパス
-2. プロジェクトルート: `./.pi-runner.yml`
+2. プロジェクトルート: `./.pi-runner.yaml`
 3. ホームディレクトリ: `~/.pi-runner/config.yml`
 4. デフォルト設定（ファイルなし）
 
@@ -18,7 +18,7 @@ Pi Issue Runnerの動作は設定ファイルでカスタマイズできます�
 ### YAML形式（推奨）
 
 ```yaml
-# .pi-runner.yml
+# .pi-runner.yaml
 
 # Git Worktree設定
 worktree:
@@ -339,7 +339,7 @@ class ConfigManager {
   
   private async findConfigFile(): Promise<string | null> {
     const candidates = [
-      './.pi-runner.yml',
+      './.pi-runner.yaml',
       './.pi-runner.yaml',
       './.pi-runner.json',
       path.join(os.homedir(), '.pi-runner/config.yml'),
@@ -500,7 +500,7 @@ pi-run run --issue 42 --no-auto-cleanup
 ### 開発環境
 
 ```yaml
-# .pi-runner.yml (開発)
+# .pi-runner.yaml (開発)
 worktree:
   base_dir: ".worktrees"
   copy_files:
@@ -525,7 +525,7 @@ logging:
 ### 本番環境（CI/CD）
 
 ```yaml
-# .pi-runner.yml (本番)
+# .pi-runner.yaml (本番)
 worktree:
   base_dir: "/tmp/pi-worktrees"
   copy_files:
@@ -549,7 +549,7 @@ error:
 ### チーム開発
 
 ```yaml
-# .pi-runner.yml (チーム)
+# .pi-runner.yaml (チーム)
 worktree:
   base_dir: ".worktrees"
   copy_files:
@@ -578,7 +578,7 @@ notifications:
 4. **ログレベルは環境で変える**: 開発=debug、本番=info
 5. **自動クリーンアップ**: 本番では有効、開発では無効にしてデバッグしやすく
 6. **バックアップ設定**: 本番環境では必ず有効化
-7. **設定のバージョン管理**: `.pi-runner.yml`はGitで管理、`.env`は除外
+7. **設定のバージョン管理**: `.pi-runner.yaml`はGitで管理、`.env`は除外
 
 ## トラブルシューティング
 
@@ -603,7 +603,7 @@ pi-run config --validate
 
 ```bash
 # 設定ファイルを削除
-rm .pi-runner.yml
+rm .pi-runner.yaml
 
 # または、デフォルト設定を出力
 pi-run config --init

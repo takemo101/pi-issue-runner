@@ -47,7 +47,7 @@ assert_contains() {
 echo "=== Issue #23: Config file name tests ==="
 
 config_source=$(cat "$PROJECT_ROOT/lib/config.sh")
-assert_contains "config uses .pi-runner.yml" '.pi-runner.yml' "$config_source"
+assert_contains "config uses .pi-runner.yaml" '.pi-runner.yaml' "$config_source"
 
 # ===================
 # Issue #22: セッション名テスト
