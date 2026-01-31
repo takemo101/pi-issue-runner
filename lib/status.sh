@@ -20,6 +20,106 @@ if ! declare -f log_debug > /dev/null 2>&1; then
     log_error() { echo "[ERROR] $*" >&2; }
 fi
 
+# JSONエスケープ関数
+# 引数:
+#   $1 - 文字列
+# 出力: JSONエスケープされた文字列
+json_escape() {
+    local str="$1"
+    # バックスラッシュを最初にエスケープ（順序重要）
+    str="${str//\\/\\\\}"
+    # ダブルクォート
+    str="${str//\"/\\\"}"
+    # タブ
+    str="${str//$'\t'/\\t}"
+    # 改行
+    str="${str//$'\n'/\\n}"
+    # キャリッジリターン
+    str="${str//$'\r'/\\r}"
+    # バックスペース
+    str="${str//$'\b'/\\b}"
+    # フォームフィード
+    str="${str//$'\f'/\\f}"
+    echo "$str"
+}
+
+# jqを使用してJSONを構築
+# 引数:
+#   $1 - issue_number
+#   $2 - status
+#   $3 - session_name
+#   $4 - timestamp
+#   $5 - error_message (オプション)
+# 出力: JSON文字列
+build_json_with_jq() {
+    local issue_number="$1"
+    local status="$2"
+    local session_name="$3"
+    local timestamp="$4"
+    local error_message="${5:-}"
+    
+    if [[ -n "$error_message" ]]; then
+        jq -n \
+            --argjson issue "$issue_number" \
+            --arg status "$status" \
+            --arg session "$session_name" \
+            --arg error "$error_message" \
+            --arg timestamp "$timestamp" \
+            '{issue: $issue, status: $status, session: $session, error_message: $error, timestamp: $timestamp}'
+    else
+        jq -n \
+            --argjson issue "$issue_number" \
+            --arg status "$status" \
+            --arg session "$session_name" \
+            --arg timestamp "$timestamp" \
+            '{issue: $issue, status: $status, session: $session, timestamp: $timestamp}'
+    fi
+}
+
+# jqなしでJSONを構築（フォールバック）
+# 引数:
+#   $1 - issue_number
+#   $2 - status
+#   $3 - session_name
+#   $4 - timestamp
+#   $5 - error_message (オプション)
+# 出力: JSON文字列
+build_json_fallback() {
+    local issue_number="$1"
+    local status="$2"
+    local session_name="$3"
+    local timestamp="$4"
+    local error_message="${5:-}"
+    
+    local escaped_status escaped_session escaped_timestamp
+    escaped_status="$(json_escape "$status")"
+    escaped_session="$(json_escape "$session_name")"
+    escaped_timestamp="$(json_escape "$timestamp")"
+    
+    if [[ -n "$error_message" ]]; then
+        local escaped_message
+        escaped_message="$(json_escape "$error_message")"
+        cat << EOF
+{
+  "issue": $issue_number,
+  "status": "$escaped_status",
+  "session": "$escaped_session",
+  "error_message": "$escaped_message",
+  "timestamp": "$escaped_timestamp"
+}
+EOF
+    else
+        cat << EOF
+{
+  "issue": $issue_number,
+  "status": "$escaped_status",
+  "session": "$escaped_session",
+  "timestamp": "$escaped_timestamp"
+}
+EOF
+    fi
+}
+
 # ステータスディレクトリを取得
 get_status_dir() {
     load_config
@@ -58,32 +158,12 @@ save_status() {
     local timestamp
     timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
     
-    # JSONを手動で構築（jqがない環境でも動作するように）
+    # JSONを構築（jqがあれば使用、なければフォールバック）
     local json
-    if [[ -n "$error_message" ]]; then
-        # エラーメッセージをJSONエスケープ
-        local escaped_message
-        escaped_message="$(echo "$error_message" | sed 's/\\/\\\\/g; s/"/\\"/g; s/	/\\t/g' | tr '\n' ' ')"
-        json=$(cat << EOF
-{
-  "issue": $issue_number,
-  "status": "$status",
-  "session": "$session_name",
-  "error_message": "$escaped_message",
-  "timestamp": "$timestamp"
-}
-EOF
-)
+    if command -v jq &>/dev/null; then
+        json="$(build_json_with_jq "$issue_number" "$status" "$session_name" "$timestamp" "$error_message")"
     else
-        json=$(cat << EOF
-{
-  "issue": $issue_number,
-  "status": "$status",
-  "session": "$session_name",
-  "timestamp": "$timestamp"
-}
-EOF
-)
+        json="$(build_json_fallback "$issue_number" "$status" "$session_name" "$timestamp" "$error_message")"
     fi
     
     echo "$json" > "$status_file"
