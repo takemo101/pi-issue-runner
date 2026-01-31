@@ -360,6 +360,7 @@ pi-issue-runner/
 │   ├── init.sh             # プロジェクト初期化
 │   └── test.sh             # テスト一括実行
 ├── lib/
+│   ├── agent.sh            # マルチエージェント対応
 │   ├── config.sh           # 設定読み込み
 │   ├── github.sh           # GitHub API操作
 │   ├── hooks.sh            # イベントhook機能
@@ -368,6 +369,9 @@ pi-issue-runner/
 │   ├── status.sh           # ステータスファイル管理
 │   ├── template.sh         # テンプレート処理
 │   ├── tmux.sh             # tmux操作
+│   ├── workflow-finder.sh  # ワークフロー検索
+│   ├── workflow-loader.sh  # ワークフロー読み込み
+│   ├── workflow-prompt.sh  # プロンプト処理
 │   ├── workflow.sh         # ワークフローエンジン
 │   ├── worktree.sh         # Git worktree操作
 │   └── yaml.sh             # YAMLパーサー
@@ -427,6 +431,7 @@ bats --tap test/lib/*.bats
 ```
 test/
 ├── lib/                         # ライブラリのユニットテスト
+│   ├── agent.bats               # agent.sh のテスト
 │   ├── config.bats              # config.sh のテスト
 │   ├── github.bats              # github.sh のテスト
 │   ├── hooks.bats               # hooks.sh のテスト
@@ -435,6 +440,9 @@ test/
 │   ├── status.bats              # status.sh のテスト
 │   ├── template.bats            # template.sh のテスト
 │   ├── tmux.bats                # tmux.sh のテスト
+│   ├── workflow-finder.bats     # workflow-finder.sh のテスト
+│   ├── workflow-loader.bats     # workflow-loader.sh のテスト
+│   ├── workflow-prompt.bats     # workflow-prompt.sh のテスト
 │   ├── workflow.bats            # workflow.sh のテスト
 │   ├── worktree.bats            # worktree.sh のテスト
 │   └── yaml.bats                # yaml.sh のテスト
