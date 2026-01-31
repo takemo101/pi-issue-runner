@@ -33,6 +33,7 @@ pi-issue-runner/
 │   ├── watch-session.sh  # セッション監視
 │   └── test.sh        # テスト一括実行
 ├── lib/               # 共通ライブラリ
+│   ├── agent.sh       # マルチエージェント対応
 │   ├── config.sh      # 設定読み込み
 │   ├── github.sh      # GitHub CLI操作
 │   ├── hooks.sh       # Hook機能
@@ -58,6 +59,7 @@ pi-issue-runner/
 ├── docs/              # ドキュメント
 ├── test/              # Batsテスト（*.bats形式）
 │   ├── lib/           # ライブラリのユニットテスト
+│   │   ├── agent.bats
 │   │   ├── config.bats
 │   │   ├── github.bats
 │   │   ├── hooks.bats
@@ -67,6 +69,9 @@ pi-issue-runner/
 │   │   ├── template.bats
 │   │   ├── tmux.bats
 │   │   ├── workflow.bats
+│   │   ├── workflow-finder.bats
+│   │   ├── workflow-loader.bats
+│   │   ├── workflow-prompt.bats
 │   │   ├── worktree.bats
 │   │   └── yaml.bats
 │   ├── scripts/       # スクリプトの統合テスト
