@@ -63,6 +63,21 @@ teardown() {
     [[ "$output" == *"--log-dir"* ]]
 }
 
+@test "improve.sh --help shows --dry-run option" {
+    run "$PROJECT_ROOT/scripts/improve.sh" --help
+    [[ "$output" == *"--dry-run"* ]]
+}
+
+@test "improve.sh --help shows --review-only option" {
+    run "$PROJECT_ROOT/scripts/improve.sh" --help
+    [[ "$output" == *"--review-only"* ]]
+}
+
+@test "improve.sh --help shows --auto-continue option" {
+    run "$PROJECT_ROOT/scripts/improve.sh" --help
+    [[ "$output" == *"--auto-continue"* ]]
+}
+
 @test "improve.sh --help shows description" {
     run "$PROJECT_ROOT/scripts/improve.sh" --help
     [[ "$output" == *"Description:"* ]]
@@ -160,6 +175,18 @@ teardown() {
     grep -q '\-\-log-dir)' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
+@test "improve.sh handles --dry-run option" {
+    grep -q '\-\-dry-run)' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh handles --review-only option" {
+    grep -q '\-\-review-only)' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh handles --auto-continue option" {
+    grep -q '\-\-auto-continue)' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
 # ====================
 # デフォルト値テスト
 # ====================
@@ -178,6 +205,22 @@ teardown() {
 
 @test "improve.sh has LOG_DIR" {
     grep -q 'LOG_DIR=' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+# ====================
+# オプションフラグテスト
+# ====================
+
+@test "improve.sh has dry_run variable" {
+    grep -q 'dry_run=' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh has review_only variable" {
+    grep -q 'review_only=' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh has auto_continue variable" {
+    grep -q 'auto_continue=' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
 # ====================
@@ -331,4 +374,46 @@ teardown() {
 
 @test "improve.sh cleanup uses --force flag" {
     grep -q 'cleanup.sh.*--force' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+# ====================
+# --dry-run オプションテスト
+# ====================
+
+@test "improve.sh dry-run mode modifies prompt" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'Issueは作成しないでください'* ]]
+}
+
+@test "improve.sh dry-run mode exits early" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'Dry-run mode complete'* ]]
+}
+
+@test "improve.sh dry-run mode shows message about no Issues created" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'No Issues were created'* ]]
+}
+
+# ====================
+# --review-only オプションテスト
+# ====================
+
+@test "improve.sh review-only mode exits early" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'Review-only mode complete'* ]]
+}
+
+# ====================
+# --auto-continue オプションテスト
+# ====================
+
+@test "improve.sh has confirmation prompt for manual mode" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'Press Enter to continue'* ]]
+}
+
+@test "improve.sh preserves --auto-continue flag in recursive call" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'args+=(--auto-continue)'* ]]
 }

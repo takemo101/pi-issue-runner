@@ -49,6 +49,9 @@ Options:
     --timeout N          Session completion timeout in seconds (default: $DEFAULT_TIMEOUT)
     --iteration N        Current iteration number (internal use)
     --log-dir DIR        Log directory (default: $LOG_DIR)
+    --dry-run            Review only, do not create Issues
+    --review-only        Show problems only (no Issue creation or execution)
+    --auto-continue      Auto-continue without approval (skip confirmation)
     -v, --verbose        Show verbose logs
     -h, --help           Show this help
 
@@ -68,6 +71,9 @@ Examples:
     $(basename "$0") --max-iterations 2 --max-issues 3
     $(basename "$0") --timeout 1800
     $(basename "$0") --log-dir /tmp/improve-logs
+    $(basename "$0") --dry-run
+    $(basename "$0") --review-only
+    $(basename "$0") --auto-continue
 
 Environment Variables:
     PI_COMMAND           Path to pi command (default: pi)
@@ -81,6 +87,9 @@ main() {
     local timeout=$DEFAULT_TIMEOUT
     local iteration=1
     local log_dir="$LOG_DIR"
+    local dry_run=false
+    local review_only=false
+    local auto_continue=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -103,6 +112,18 @@ main() {
             --log-dir)
                 log_dir="$2"
                 shift 2
+                ;;
+            --dry-run)
+                dry_run=true
+                shift
+                ;;
+            --review-only)
+                review_only=true
+                shift
+                ;;
+            --auto-continue)
+                auto_continue=true
+                shift
                 ;;
             -v|--verbose)
                 export LOG_LEVEL="DEBUG"
@@ -158,11 +179,20 @@ main() {
     start_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
     # Phase 1: Run pi --print for review and Issue creation
-    local prompt="project-reviewスキルを読み込んで実行し、プロジェクト全体をレビューしてください。
+    local prompt
+    if [[ "$dry_run" == "true" || "$review_only" == "true" ]]; then
+        # Dry-run or review-only mode: report problems without creating Issues
+        prompt="project-reviewスキルを読み込んで実行し、プロジェクト全体をレビューしてください。
+発見した問題を報告してください（最大${max_issues}件）。
+【重要】GitHub Issueは作成しないでください。問題の一覧を表示するのみにしてください。
+問題が見つからない場合は「問題は見つかりませんでした」と報告してください。"
+        echo "[PHASE 1] Running project review via pi --print (dry-run mode)..."
+    else
+        prompt="project-reviewスキルを読み込んで実行し、プロジェクト全体をレビューしてください。
 発見した問題からGitHub Issueを作成してください（最大${max_issues}件）。
 Issueを作成しない場合は「問題は見つかりませんでした」と報告してください。"
-
-    echo "[PHASE 1] Running project review via pi --print..."
+        echo "[PHASE 1] Running project review via pi --print..."
+    fi
     echo "[PHASE 1] This may take a few minutes..."
     
     # Run pi in --print mode and save output to log file while displaying
@@ -172,6 +202,21 @@ Issueを作成しない場合は「問題は見つかりませんでした」と
     
     echo ""
     echo "[PHASE 1] Review complete. Log saved to: $log_file"
+
+    # Exit early for review-only mode
+    if [[ "$review_only" == "true" ]]; then
+        echo ""
+        echo "✅ Review-only mode complete. See log for details: $log_file"
+        exit 0
+    fi
+
+    # Exit early for dry-run mode (after showing what would be done)
+    if [[ "$dry_run" == "true" ]]; then
+        echo ""
+        echo "✅ Dry-run mode complete. No Issues were created."
+        echo "   Review results saved to: $log_file"
+        exit 0
+    fi
 
     # Phase 2: Fetch Issues via GitHub API
     echo ""
@@ -233,12 +278,28 @@ Issueを作成しない場合は「問題は見つかりませんでした」と
     echo ""
     echo "[PHASE 5] Starting next iteration..."
     
-    exec "$0" \
-        --max-iterations "$max_iterations" \
-        --max-issues "$max_issues" \
-        --timeout "$timeout" \
-        --log-dir "$log_dir" \
+    # Confirmation before continuing (unless --auto-continue is set)
+    if [[ "$auto_continue" != "true" ]]; then
+        echo ""
+        echo "Press Enter to continue to iteration $((iteration + 1)), or Ctrl+C to abort..."
+        read -r
+    fi
+    
+    # Build arguments for recursive call
+    local args=(
+        --max-iterations "$max_iterations"
+        --max-issues "$max_issues"
+        --timeout "$timeout"
+        --log-dir "$log_dir"
         --iteration "$((iteration + 1))"
+    )
+    
+    # Preserve --auto-continue flag
+    if [[ "$auto_continue" == "true" ]]; then
+        args+=(--auto-continue)
+    fi
+    
+    exec "$0" "${args[@]}"
 }
 
 # Dependency check
