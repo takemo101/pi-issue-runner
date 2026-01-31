@@ -439,6 +439,10 @@ EOF
 ### On Error
 - If tests fail, fix the issue before committing
 - If PR merge fails, report the error
+
+### On Completion
+**IMPORTANT**: After completing all workflow steps (including PR merge), you MUST exit by running `/exit` command.
+This triggers automatic cleanup of the worktree and tmux session.
 EOF
 }
 
