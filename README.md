@@ -414,6 +414,54 @@ test/
 └── test_helper.bash             # Bats共通ヘルパー（モック関数含む）
 ```
 
+## メンテナンス
+
+定期的なクリーンアップを推奨します。
+
+### 一括クリーンアップ
+
+```bash
+# 孤立したステータスファイル + 古い計画書を削除
+./scripts/cleanup.sh --all
+
+# 確認のみ（削除しない）
+./scripts/cleanup.sh --all --dry-run
+```
+
+### 個別クリーンアップ
+
+```bash
+# 孤立したステータスファイルを削除
+./scripts/cleanup.sh --orphans
+
+# 古い計画書を削除（直近N件を保持、設定: plans.keep_recent）
+./scripts/cleanup.sh --rotate-plans
+
+# クローズ済みIssueの計画書を削除
+./scripts/cleanup.sh --delete-plans
+```
+
+### 手動削除が必要なもの
+
+以下のディレクトリは必要に応じて手動で削除してください：
+
+```bash
+# improve.sh のログ
+rm -rf .improve-logs/
+
+# 監視プロセスのログ
+rm -f /tmp/pi-watcher-*.log
+```
+
+### 設定
+
+計画書の保持件数は `.pi-runner.yaml` で設定できます：
+
+```yaml
+plans:
+  keep_recent: 10  # 直近10件を保持（0 = 全て保持）
+```
+
 ## トラブルシューティング
 
 ### tmuxセッションが見つからない
