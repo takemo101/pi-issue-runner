@@ -2,7 +2,27 @@
 
 Pi Issue Runnerの詳細な仕様とアーキテクチャドキュメント。
 
+## 🎯 このプロジェクトについて
+
+Pi Issue Runnerは、**AIエージェントによる並列開発**を実現するための基盤ツールです。
+GitHub Issueを入力として、独立したworktree環境でpiインスタンスを並列実行し、
+複数のタスクを同時に処理できます。
+
+→ **[設計思想と価値を詳しく読む](./overview.md)**
+
 ## 📚 目次
+
+### 概要
+
+- **[overview.md](./overview.md)** - 設計思想と価値
+  - なぜこの仕組みが重要なのか
+  - 設計原則
+  - ユースケース
+  - 技術的決定とトレードオフ
+
+- **[CHANGELOG.md](./CHANGELOG.md)** - 変更履歴
+  - バージョンごとの変更内容
+  - 追加機能、修正、破壊的変更
 
 ### 仕様書
 
@@ -60,12 +80,23 @@ Pi Issue Runnerの詳細な仕様とアーキテクチャドキュメント。
   - 安全なコマンド実行
   - ベストプラクティス
 
+- **[workflows.md](./workflows.md)** - ワークフロー
+  - ビルトインワークフロー（default, simple）
+  - カスタムワークフローの作成
+  - エージェントテンプレート
+
 - **[hooks.md](./hooks.md)** - Hook機能
   - ライフサイクルイベント
   - カスタムスクリプト実行
   - 通知設定
 
 ## 🚀 クイックリンク
+
+### はじめての方
+
+- [設計思想と価値](./overview.md) - なぜこの仕組みが重要か
+- [変更履歴](./CHANGELOG.md) - 最新の変更内容
+- [仕様概要](./SPECIFICATION.md) - 全体像を把握
 
 ### 開発者向け
 
@@ -85,9 +116,10 @@ Pi Issue Runnerの詳細な仕様とアーキテクチャドキュメント。
 
 ### 初めて読む方
 
-1. [SPECIFICATION.md](./SPECIFICATION.md) - 全体像を把握
-2. [architecture.md](./architecture.md) - システム設計を理解
-3. [configuration.md](./configuration.md) - 設定方法を学ぶ
+1. [overview.md](./overview.md) - 設計思想と価値を理解
+2. [SPECIFICATION.md](./SPECIFICATION.md) - 全体像を把握
+3. [architecture.md](./architecture.md) - システム設計を理解
+4. [configuration.md](./configuration.md) - 設定方法を学ぶ
 
 ### 機能実装する方
 
@@ -102,6 +134,24 @@ Pi Issue Runnerの詳細な仕様とアーキテクチャドキュメント。
 3. [configuration.md](./configuration.md#トラブルシューティング) - 設定問題
 
 ## 🔄 ドキュメント更新履歴
+
+詳細は [CHANGELOG.md](./CHANGELOG.md) を参照してください。
+
+- **2026-01-31**: Hook機能とセキュリティ強化
+  - Hook機能（on_start, on_success, on_error, on_cleanup）
+  - セキュリティドキュメント
+  - 設計思想ドキュメント（overview.md）
+  - 変更履歴（CHANGELOG.md）
+
+- **2026-01-30**: 自動クリーンアップとワークフロー
+  - 自動クリーンアップ機能
+  - ワークフローエンジン
+  - 継続的改善スクリプト
+
+- **2026-01-29**: 基盤機能の安定化
+  - プロジェクト初期化
+  - 設定管理強化
+  - 並列実行制御
 
 - **2024-01-30**: 初版作成
   - 全体仕様書
