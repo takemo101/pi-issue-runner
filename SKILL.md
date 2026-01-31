@@ -47,6 +47,7 @@ scripts/wait-for-sessions.sh 42 43    # 複数セッション完了待機
 - `tmux`
 - `pi`
 - `jq` (JSON処理)
+- `yq` (オプション - ワークフローのカスタマイズに必要)
 
 ## 自動クリーンアップ
 
