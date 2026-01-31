@@ -9,6 +9,7 @@ source "$SCRIPT_DIR/../lib/github.sh"
 source "$SCRIPT_DIR/../lib/worktree.sh"
 source "$SCRIPT_DIR/../lib/tmux.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
+source "$SCRIPT_DIR/../lib/workflow.sh"
 
 # 依存関係チェック
 check_dependencies || exit 1
@@ -24,16 +25,21 @@ Arguments:
     issue-number    GitHub Issue番号
 
 Options:
-    --branch NAME   カスタムブランチ名（デフォルト: issue-<num>-<title>）
-    --base BRANCH   ベースブランチ（デフォルト: HEAD）
-    --no-attach     セッション作成後にアタッチしない
-    --reattach      既存セッションがあればアタッチ
-    --force         既存セッション/worktreeを削除して再作成
-    --pi-args ARGS  piに渡す追加の引数
-    -h, --help      このヘルプを表示
+    --branch NAME     カスタムブランチ名（デフォルト: issue-<num>-<title>）
+    --base BRANCH     ベースブランチ（デフォルト: HEAD）
+    --workflow NAME   ワークフロー名（デフォルト: default）
+                      利用可能: default, simple
+    --no-attach       セッション作成後にアタッチしない
+    --reattach        既存セッションがあればアタッチ
+    --force           既存セッション/worktreeを削除して再作成
+    --pi-args ARGS    piに渡す追加の引数
+    --list-workflows  利用可能なワークフロー一覧を表示
+    -h, --help        このヘルプを表示
 
 Examples:
     $(basename "$0") 42
+    $(basename "$0") 42 --workflow simple
+    $(basename "$0") 42 --workflow thorough
     $(basename "$0") 42 --no-attach
     $(basename "$0") 42 --reattach
     $(basename "$0") 42 --force
@@ -46,10 +52,12 @@ main() {
     local issue_number=""
     local custom_branch=""
     local base_branch="HEAD"
+    local workflow_name="default"
     local no_attach=false
     local reattach=false
     local force=false
     local extra_pi_args=""
+    local list_workflows=false
 
     # 引数のパース
     while [[ $# -gt 0 ]]; do
@@ -65,6 +73,14 @@ main() {
             --base)
                 base_branch="$2"
                 shift 2
+                ;;
+            --workflow|-w)
+                workflow_name="$2"
+                shift 2
+                ;;
+            --list-workflows)
+                list_workflows=true
+                shift
                 ;;
             --no-attach)
                 no_attach=true
@@ -103,6 +119,13 @@ main() {
                 ;;
         esac
     done
+
+    # --list-workflowsオプションの処理
+    if [[ "$list_workflows" == "true" ]]; then
+        log_info "Available workflows:"
+        list_available_workflows
+        exit 0
+    fi
 
     if [[ -z "$issue_number" ]]; then
         log_error "Issue number is required"
@@ -190,172 +213,14 @@ main() {
     local pi_args
     pi_args="$(get_config pi_args)"
     
-    # プロンプトファイルを作成（シェルエスケープ問題を回避）
+    # プロンプトファイルをワークフローから生成
     local prompt_file="$full_worktree_path/.pi-prompt.md"
-    cat > "$prompt_file" << EOF
-Implement GitHub Issue #$issue_number
-
-## Title
-$issue_title
-
-## Description
-$issue_body
-
----
-
-## Instructions
-
-You are implementing GitHub Issue #$issue_number in an isolated worktree.
-
-### Step 1: Understand the Issue
-- Read the issue description carefully
-- If unclear, check related files in the codebase
-
-### Step 2: Implement
-- Follow existing code style and patterns
-- Keep changes minimal and focused
-- Add/update tests if applicable
-
-### Step 3: Verify
-- Run unit tests: \`./test/*_test.sh\` (if modified lib/ files)
-- Run Bats tests: \`bats tests/\` (if Bats installed)
-- Check syntax for all changed files: \`bash -n <file>\`
-- If no tests exist for modified code, consider adding them
-
-### Step 4: Commit & Push
-\`\`\`bash
-git add -A
-git commit -m "<type>: <description>
-
-Closes #$issue_number"
-git push -u origin feature/$branch_name
-\`\`\`
-
-### Step 5: Self-Review
-
-Before creating a PR, perform a multi-perspective self-review from different personas.
-
-#### Persona-Based Review Criteria (10 points total)
-
-**🔧 Senior Engineer** - Code quality, design patterns, edge cases
-| Criterion | Points | Focus |
-|-----------|--------|-------|
-| Correctness & Completeness | 3 | Does the code solve the issue correctly? Are all requirements implemented? |
-| Code Quality | 2 | Is the code clean, readable, and follows existing patterns? |
-
-**🧪 QA Engineer** - Test coverage, edge cases, error handling
-| Criterion | Points | Focus |
-|-----------|--------|-------|
-| Testing | 2 | Are there adequate tests? Do all tests pass? Are edge cases covered? |
-
-**📚 Technical Writer** - Documentation, clarity, consistency
-| Criterion | Points | Focus |
-|-----------|--------|-------|
-| Documentation Consistency | 2 | Are all docs (README, SKILL, AGENTS, SPECIFICATION) consistent with the changes? |
-
-**All Personas**
-| Criterion | Points | Focus |
-|-----------|--------|-------|
-| No Regressions | 1 | Does the change break existing functionality? |
-
-#### Implementation Completeness Check
-Before scoring, verify these items:
-- [ ] All requirements from the issue are implemented
-- [ ] All edge cases are handled
-- [ ] Error handling is complete
-- [ ] All affected files are updated
-- [ ] No TODO/FIXME left unresolved
-
-#### Consistency Check Items
-- If script options changed → Update option descriptions in all docs
-- If new files added → Update directory structure explanations
-- If configuration items changed → Update configuration examples
-- If dependencies added → Update prerequisites section
-
-#### Consistency Check Commands
-\`\`\`bash
-# Check option consistency across docs
-./scripts/run.sh --help
-grep -E "--[a-z]+" README.md SKILL.md docs/SPECIFICATION.md
-
-# Check directory structure consistency
-ls -la scripts/ lib/
-grep -A20 "ディレクトリ構造" README.md AGENTS.md docs/SPECIFICATION.md
-
-# Check for unresolved TODOs
-grep -rn "TODO\|FIXME" --include="*.sh" --include="*.md" .
-\`\`\`
-
-#### Scoring
-- Review your changes: \`git diff HEAD~1\`
-- Score each criterion from each persona's perspective
-- Calculate total and check Implementation Completeness
-- **If score >= 9**: Proceed to Step 6
-- **If score < 9**: Fix the issues and repeat Step 5
-
-#### Output Format
-\`\`\`
-## Self-Review Score: X/10
-
-### 🔧 Senior Engineer Review
-| Criterion | Score | Notes |
-|-----------|-------|-------|
-| Correctness & Completeness | X/3 | ... |
-| Code Quality | X/2 | ... |
-
-### 🧪 QA Engineer Review
-| Criterion | Score | Notes |
-|-----------|-------|-------|
-| Testing | X/2 | ... |
-
-### 📚 Technical Writer Review
-| Criterion | Score | Notes |
-|-----------|-------|-------|
-| Documentation Consistency | X/2 | ... |
-
-### All Personas
-| Criterion | Score | Notes |
-|-----------|-------|-------|
-| No Regressions | X/1 | ... |
-
-### Implementation Completeness
-- [x] All requirements from the issue are implemented
-- [x] All edge cases are handled
-- [x] Error handling is complete
-- [x] All affected files are updated
-- [x] No TODO/FIXME left unresolved
-
-### Issues to Fix (if score < 9)
-- ...
-\`\`\`
-
-### Step 6: Create & Merge PR
-\`\`\`bash
-gh pr create --title "<type>: <short description>" --body "## Summary
-Closes #$issue_number
-
-## Changes
-- <list key changes made>
-- <files modified and why>
-
-## Testing
-- <how the changes were tested>
-- <test commands run>"
-gh pr merge --merge --delete-branch
-\`\`\`
-
-### Commit Types
-- feat: New feature
-- fix: Bug fix  
-- docs: Documentation
-- refactor: Code refactoring
-- test: Adding tests
-- chore: Maintenance
-
-### On Error
-- If tests fail, fix the issue before committing
-- If PR merge fails, report the error
-EOF
+    log_info "Workflow: $workflow_name"
+    
+    if ! write_workflow_prompt "$prompt_file" "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path"; then
+        log_error "Failed to generate workflow prompt"
+        exit 1
+    fi
     
     # piにプロンプトファイルを渡す（@でファイル参照）
     local full_command="$pi_command $pi_args $extra_pi_args @\"$prompt_file\""

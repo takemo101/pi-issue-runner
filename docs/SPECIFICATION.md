@@ -39,13 +39,33 @@ Pi Issue RunnerはGitHub Issueを入力として、Git worktreeとtmuxセッシ�
 - Issue番号を自動的にプロンプトとして渡す
 - piコマンドへのカスタム引数サポート
 
-### 5. 並列実行
+### 5. ワークフローエンジン
+
+- YAMLベースのワークフロー定義
+- エージェントテンプレートによるステップ実行
+- テンプレート変数: `{{issue_number}}`, `{{issue_title}}`, `{{branch_name}}`, `{{worktree_path}}`
+- プロジェクト固有のワークフローをオーバーライド可能
+
+#### ビルトインワークフロー
+
+| ワークフロー | 説明 | ステップ |
+|------------|------|---------|
+| default | 完全ワークフロー | plan → implement → review → merge |
+| simple | 簡易ワークフロー | implement → merge |
+
+#### ワークフロー優先順位
+
+1. `.pi-runner.yaml`（プロジェクトルート）
+2. `.pi/workflow.yaml`
+3. ビルトイン（workflows/ディレクトリ）
+
+### 6. 並列実行
 
 - 複数のIssueを同時に処理
 - 各タスクは完全に独立した環境で実行
 - 最大同時実行数の設定（`parallel.max_concurrent`）
 
-### 6. クリーンアップ
+### 7. クリーンアップ
 
 - Worktreeの削除
 - tmuxセッションの終了
@@ -85,12 +105,21 @@ project-root/
 │   └── issue-43-yyy/        # Issue #43のworktree
 │       └── ...
 ├── .pi-runner.yml           # ユーザー設定
+├── workflows/               # ビルトインワークフロー
+│   ├── default.yaml         # 完全ワークフロー
+│   └── simple.yaml          # 簡易ワークフロー
+├── agents/                  # エージェントテンプレート
+│   ├── plan.md              # 計画エージェント
+│   ├── implement.md         # 実装エージェント
+│   ├── review.md            # レビューエージェント
+│   └── merge.md             # マージエージェント
 ├── lib/                     # シェルスクリプトライブラリ
 │   ├── config.sh            # 設定管理
 │   ├── github.sh            # GitHub CLI操作
 │   ├── log.sh               # ログ出力
 │   ├── tmux.sh              # tmux操作
-│   └── worktree.sh          # Git worktree操作
+│   ├── worktree.sh          # Git worktree操作
+│   └── workflow.sh          # ワークフローエンジン
 └── scripts/                 # 実行スクリプト
     ├── run.sh               # タスク起動
     ├── list.sh              # セッション一覧
@@ -139,12 +168,15 @@ PI_RUNNER_PARALLEL_MAX_CONCURRENT="5"
 ./scripts/run.sh <issue-number> [options]
 
 Options:
-    --branch NAME   カスタムブランチ名
-    --base BRANCH   ベースブランチ（デフォルト: HEAD）
-    --no-attach     セッション作成後にアタッチしない
-    --reattach      既存セッションがあればアタッチ
-    --force         既存セッション/worktreeを削除して再作成
-    --pi-args ARGS  piに渡す追加の引数
+    --branch NAME     カスタムブランチ名
+    --base BRANCH     ベースブランチ（デフォルト: HEAD）
+    --workflow NAME   ワークフロー名（デフォルト: default）
+                      利用可能: default, simple
+    --no-attach       セッション作成後にアタッチしない
+    --reattach        既存セッションがあればアタッチ
+    --force           既存セッション/worktreeを削除して再作成
+    --pi-args ARGS    piに渡す追加の引数
+    --list-workflows  利用可能なワークフロー一覧を表示
 ```
 
 ### list.sh - セッション一覧

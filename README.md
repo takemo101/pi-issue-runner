@@ -41,6 +41,13 @@ git clone https://github.com/takemo101/pi-issue-runner ~/.pi/agent/skills/pi-iss
 # Issue #42 からworktreeを作成してpiを起動
 scripts/run.sh 42
 
+# ワークフローを指定して起動
+scripts/run.sh 42 --workflow simple    # 簡易ワークフロー
+scripts/run.sh 42 --workflow default   # 完全ワークフロー（デフォルト）
+
+# 利用可能なワークフロー一覧を表示
+scripts/run.sh --list-workflows
+
 # 自動アタッチせずにバックグラウンドで起動
 scripts/run.sh 42 --no-attach
 
@@ -75,6 +82,44 @@ scripts/stop.sh pi-issue-42
 # セッションとworktreeをクリーンアップ
 scripts/cleanup.sh pi-issue-42
 ```
+
+## ワークフロー
+
+### ビルトインワークフロー
+
+- **default**: 完全ワークフロー（計画→実装→レビュー→マージ）
+- **simple**: 簡易ワークフロー（実装→マージのみ）
+
+```bash
+# デフォルトワークフロー
+scripts/run.sh 42
+
+# 簡易ワークフロー
+scripts/run.sh 42 --workflow simple
+```
+
+### カスタムワークフロー
+
+プロジェクト固有のワークフローを定義できます。以下の優先順位で読み込まれます：
+
+1. `.pi-runner.yaml`（プロジェクトルート）
+2. `.pi/workflow.yaml`
+3. ビルトインワークフロー
+
+ワークフロー定義例:
+
+```yaml
+# workflows/custom.yaml
+name: custom
+description: カスタムワークフロー
+steps:
+  - plan
+  - implement
+  - review
+  - merge
+```
+
+エージェントテンプレートは `{{issue_number}}`, `{{issue_title}}`, `{{branch_name}}`, `{{worktree_path}}` の変数を使用できます。
 
 ## 設定
 
@@ -142,7 +187,16 @@ pi-issue-runner/
 │   ├── github.sh           # GitHub API操作
 │   ├── log.sh              # ログ出力
 │   ├── tmux.sh             # tmux操作
-│   └── worktree.sh         # Git worktree操作
+│   ├── worktree.sh         # Git worktree操作
+│   └── workflow.sh         # ワークフローエンジン
+├── workflows/               # ビルトインワークフロー定義
+│   ├── default.yaml        # 完全ワークフロー（計画・実装・レビュー・マージ）
+│   └── simple.yaml         # 簡易ワークフロー（実装・マージのみ）
+├── agents/                  # ビルトインエージェントテンプレート
+│   ├── plan.md             # 計画エージェント
+│   ├── implement.md        # 実装エージェント
+│   ├── review.md           # レビューエージェント
+│   └── merge.md            # マージエージェント
 ├── docs/                    # ドキュメント
 ├── test/                    # 単体テスト
 ├── tests/                   # Batsテスト
