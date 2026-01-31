@@ -16,6 +16,29 @@ DEFAULT_MAX_ISSUES=5
 DEFAULT_TIMEOUT=3600
 LOG_DIR="$PROJECT_ROOT/.improve-logs"
 
+# Global: Track active sessions for cleanup on exit
+declare -a ACTIVE_ISSUE_NUMBERS=()
+
+# Cleanup function for EXIT trap
+cleanup_on_exit() {
+    local exit_code=$?
+    
+    # Only cleanup if there are active sessions and exit is not normal
+    if [[ ${#ACTIVE_ISSUE_NUMBERS[@]} -gt 0 && $exit_code -ne 0 ]]; then
+        log_warn "Interrupted! Cleaning up ${#ACTIVE_ISSUE_NUMBERS[@]} active session(s)..."
+        for issue in "${ACTIVE_ISSUE_NUMBERS[@]}"; do
+            log_info "  Cleaning up Issue #$issue..."
+            "$SCRIPT_DIR/cleanup.sh" "pi-issue-$issue" --force 2>/dev/null || true
+        done
+        log_info "Cleanup completed."
+    fi
+    
+    exit $exit_code
+}
+
+# Set up trap for cleanup on interruption
+trap cleanup_on_exit EXIT INT TERM
+
 usage() {
     cat << EOF
 Usage: $(basename "$0") [options]
@@ -187,18 +210,24 @@ Issueを作成しない場合は「問題は見つかりませんでした」と
     
     for issue in "${issue_array[@]}"; do
         echo "  Starting Issue #$issue..."
-        "$SCRIPT_DIR/run.sh" "$issue" --no-attach || {
+        if "$SCRIPT_DIR/run.sh" "$issue" --no-attach; then
+            # Track active session for cleanup on interruption
+            ACTIVE_ISSUE_NUMBERS+=("$issue")
+        else
             log_warn "Failed to start session for Issue #$issue"
-        }
+        fi
     done
 
     # Phase 4: Wait for sessions to complete
     echo ""
     echo "[PHASE 4] Waiting for sessions to complete..."
     
-    if ! "$SCRIPT_DIR/wait-for-sessions.sh" "${issue_array[@]}" --timeout "$timeout"; then
+    if ! "$SCRIPT_DIR/wait-for-sessions.sh" "${ACTIVE_ISSUE_NUMBERS[@]}" --timeout "$timeout" --cleanup; then
         log_warn "Some sessions failed or timed out"
     fi
+    
+    # Clear active sessions after completion (worktrees cleaned by --cleanup)
+    ACTIVE_ISSUE_NUMBERS=()
 
     # Phase 5: Recursive call for next iteration
     echo ""

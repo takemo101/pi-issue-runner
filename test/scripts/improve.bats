@@ -298,3 +298,37 @@ teardown() {
     source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
     [[ "$source_content" == *'Failed to start session'* ]]
 }
+
+# ====================
+# クリーンアップ機能テスト (Issue #247)
+# ====================
+
+@test "improve.sh has cleanup_on_exit function" {
+    grep -q 'cleanup_on_exit()' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh has ACTIVE_ISSUE_NUMBERS array" {
+    grep -q 'ACTIVE_ISSUE_NUMBERS' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh sets trap for EXIT INT TERM" {
+    grep -q 'trap cleanup_on_exit EXIT INT TERM' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh calls wait-for-sessions.sh with --cleanup option" {
+    grep -q 'wait-for-sessions.sh.*--cleanup' "$PROJECT_ROOT/scripts/improve.sh"
+}
+
+@test "improve.sh tracks active sessions in array" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'ACTIVE_ISSUE_NUMBERS+=("$issue")'* ]]
+}
+
+@test "improve.sh clears active sessions after completion" {
+    source_content=$(cat "$PROJECT_ROOT/scripts/improve.sh")
+    [[ "$source_content" == *'ACTIVE_ISSUE_NUMBERS=()'* ]]
+}
+
+@test "improve.sh cleanup uses --force flag" {
+    grep -q 'cleanup.sh.*--force' "$PROJECT_ROOT/scripts/improve.sh"
+}

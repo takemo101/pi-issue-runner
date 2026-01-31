@@ -197,3 +197,49 @@ EOF
     run "$PROJECT_ROOT/scripts/wait-for-sessions.sh" 800 801 --interval 1 --timeout 3 --quiet
     [ "$status" -eq 0 ]
 }
+
+# ====================
+# --cleanup オプションテスト (Issue #247)
+# ====================
+
+@test "wait-for-sessions.sh --help shows --cleanup option" {
+    run "$PROJECT_ROOT/scripts/wait-for-sessions.sh" --help
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"--cleanup"* ]]
+}
+
+@test "wait-for-sessions.sh handles --cleanup option" {
+    grep -q '\-\-cleanup)' "$PROJECT_ROOT/scripts/wait-for-sessions.sh"
+}
+
+@test "wait-for-sessions.sh --cleanup logs auto-cleanup message" {
+    # 完了ステータスを作成
+    cat > "$TEST_WORKTREE_DIR/.status/900.json" << 'EOF'
+{
+  "issue": 900,
+  "status": "complete",
+  "session": "pi-issue-900",
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+EOF
+
+    run "$PROJECT_ROOT/scripts/wait-for-sessions.sh" 900 --interval 1 --timeout 5 --cleanup
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Auto-cleanup enabled"* ]]
+}
+
+@test "wait-for-sessions.sh --cleanup calls cleanup for completed sessions" {
+    # 完了ステータスを作成
+    cat > "$TEST_WORKTREE_DIR/.status/901.json" << 'EOF'
+{
+  "issue": 901,
+  "status": "complete",
+  "session": "pi-issue-901",
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+EOF
+
+    run "$PROJECT_ROOT/scripts/wait-for-sessions.sh" 901 --interval 1 --timeout 5 --cleanup
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Cleaning up worktree"* ]]
+}
