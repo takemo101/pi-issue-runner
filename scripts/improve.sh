@@ -301,10 +301,10 @@ review_and_create_issues() {
         # レビューのみモードではIssue番号を抽出しない
         CREATED_ISSUES=()
     else
-        # Issue番号を抽出（数字のみの行）
+        # Issue番号を抽出（数字のみ、先頭・末尾の空白を許容）
         local issues_text
         issues_text=$(sed -n '/###CREATED_ISSUES###/,/###END_ISSUES###/p' "$output_file" \
-            | grep -E '^[0-9]+$' \
+            | grep -oE '[0-9]+' \
             | head -n "$max_issues") || true
         
         if [[ -n "$issues_text" ]]; then
