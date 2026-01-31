@@ -159,15 +159,15 @@ sanitize_issue_body() {
         log_info "Issue body contains potentially dangerous patterns, sanitizing..."
     fi
     
-    # サニタイズ処理
+    # サニタイズ処理（sedを使用してクロスプラットフォーム互換性を確保）
     # 1. $( を \$( にエスケープ（コマンド置換を無効化）
-    sanitized="${sanitized//\$(/\\\$(}"
+    sanitized=$(echo "$sanitized" | sed 's/\$(/\\$(/g')
     
     # 2. バッククォートをエスケープ
-    sanitized="${sanitized//\`/\\\`}"
+    sanitized=$(echo "$sanitized" | sed 's/`/\\`/g')
     
     # 3. ${ を \${ にエスケープ（変数展開を無効化）
-    sanitized="${sanitized//\$\{/\\\$\{}"
+    sanitized=$(echo "$sanitized" | sed 's/\${/\\${/g')
     
     echo "$sanitized"
 }
