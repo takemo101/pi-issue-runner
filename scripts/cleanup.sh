@@ -9,6 +9,7 @@ source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/tmux.sh"
 source "$SCRIPT_DIR/../lib/worktree.sh"
 source "$SCRIPT_DIR/../lib/status.sh"
+source "$SCRIPT_DIR/../lib/hooks.sh"
 
 usage() {
     cat << EOF
@@ -276,6 +277,9 @@ main() {
         fi
     fi
 
+    # on_cleanup hookを実行
+    run_hook "on_cleanup" "$issue_number" "$session_name" "" "" "" "0" ""
+    
     log_info "Cleanup completed."
 }
 

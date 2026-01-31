@@ -63,6 +63,7 @@ source "$SCRIPT_DIR/../lib/worktree.sh"
 source "$SCRIPT_DIR/../lib/tmux.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/workflow.sh"
+source "$SCRIPT_DIR/../lib/hooks.sh"
 
 # 依存関係チェック
 check_dependencies || exit 1
@@ -256,6 +257,9 @@ main() {
     
     # セッション作成成功 - クリーンアップ対象から除外
     unregister_worktree_for_cleanup
+    
+    # on_start hookを実行
+    run_hook "on_start" "$issue_number" "$session_name" "feature/$branch_name" "$full_worktree_path" "" "0" "$issue_title"
 
     # 自動クリーンアップが有効な場合、監視プロセスを起動
     if [[ "$cleanup_mode" != "none" ]]; then

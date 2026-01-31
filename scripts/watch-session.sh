@@ -9,6 +9,8 @@ source "$WATCHER_SCRIPT_DIR/../lib/config.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/log.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/tmux.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/notify.sh"
+source "$WATCHER_SCRIPT_DIR/../lib/worktree.sh"
+source "$WATCHER_SCRIPT_DIR/../lib/hooks.sh"
 
 usage() {
     cat << EOF
@@ -182,8 +184,23 @@ main() {
             local error_message
             error_message=$(echo "$output" | grep -A 1 "$error_marker" | tail -n 1 | head -c 200) || error_message="Unknown error"
             
-            # エラー処理を実行
-            handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach"
+            # worktreeパスとブランチ名を取得
+            local worktree_path=""
+            local branch_name=""
+            if worktree_path="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
+                branch_name="$(get_worktree_branch "$worktree_path" 2>/dev/null)" || branch_name=""
+            fi
+            
+            # ステータスを保存
+            save_status "$issue_number" "error" "$session_name" "$error_message"
+            
+            # on_error hookを実行（hook未設定時はデフォルト動作）
+            run_hook "on_error" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "$error_message" "1" ""
+            
+            # auto_attachが有効な場合はTerminalを開く
+            if [[ "$auto_attach" == "true" ]] && is_macos; then
+                open_terminal_and_attach "$session_name"
+            fi
             
             log_warn "Error notification sent. Session is still running for manual intervention."
             
@@ -200,8 +217,18 @@ main() {
         if [[ "$marker_count_current" -gt "$marker_count_baseline" ]]; then
             log_info "Completion marker detected! (baseline: $marker_count_baseline, current: $marker_count_current)"
             
-            # 完了処理
-            handle_complete "$session_name" "$issue_number"
+            # worktreeパスとブランチ名を取得
+            local worktree_path=""
+            local branch_name=""
+            if worktree_path="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
+                branch_name="$(get_worktree_branch "$worktree_path" 2>/dev/null)" || branch_name=""
+            fi
+            
+            # ステータスを保存
+            save_status "$issue_number" "complete" "$session_name"
+            
+            # on_success hookを実行（hook未設定時はデフォルト動作）
+            run_hook "on_success" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "" "0" ""
             
             log_info "Running cleanup..."
             

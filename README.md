@@ -280,6 +280,24 @@ steps:
 | `{{step_name}}` | 現在のステップ名（カスタム用） |
 | `{{workflow_name}}` | ワークフロー名（カスタム用） |
 
+## Hook機能
+
+セッションのライフサイクルイベントでカスタムスクリプトを実行できます。
+
+```yaml
+# .pi-runner.yaml
+hooks:
+  on_start: ./hooks/on-start.sh
+  on_success: terminal-notifier -title "完了" -message "Issue #{{issue_number}} が完了しました"
+  on_error: |
+    curl -X POST -H 'Content-Type: application/json' \
+      -d '{"text": "Issue #{{issue_number}} でエラー"}' \
+      $SLACK_WEBHOOK_URL
+  on_cleanup: echo "クリーンアップ完了" >> ~/.pi-runner/activity.log
+```
+
+詳細は[docs/hooks.md](docs/hooks.md)を参照してください。
+
 ## ディレクトリ構造
 
 ```
@@ -302,6 +320,7 @@ pi-issue-runner/
 ├── lib/
 │   ├── config.sh           # 設定読み込み
 │   ├── github.sh           # GitHub API操作
+│   ├── hooks.sh            # イベントhook機能
 │   ├── log.sh              # ログ出力
 │   ├── notify.sh           # 通知機能
 │   ├── status.sh           # ステータスファイル管理
