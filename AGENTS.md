@@ -35,10 +35,10 @@ pi-issue-runner/
 │   └── test.sh        # テスト一括実行
 ├── lib/               # 共通ライブラリ
 │   ├── agent.sh       # マルチエージェント対応
-│   ├── ci-classifier.sh  # CI失敗の分類
+│   ├── ci-classifier.sh   # CI失敗タイプ分類
 │   ├── ci-fix.sh      # CI失敗検出・自動修正
-│   ├── ci-monitor.sh  # CI監視
-│   ├── ci-retry.sh    # CIリトライ処理
+│   ├── ci-monitor.sh      # CI状態監視
+│   ├── ci-retry.sh        # CI自動修正リトライ管理
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh      # 設定読み込み
