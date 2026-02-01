@@ -36,6 +36,122 @@ Description:
 EOF
 }
 
+# エラーハンドリング関数
+# Usage: handle_error <session_name> <issue_number> <error_message> <auto_attach> <cleanup_args>
+handle_error() {
+    local session_name="$1"
+    local issue_number="$2"
+    local error_message="$3"
+    local auto_attach="$4"
+    local cleanup_args="${5:-}"
+    
+    log_warn "Session error detected: $session_name (Issue #$issue_number)"
+    log_warn "Error: $error_message"
+    
+    # worktreeパスとブランチ名を取得
+    local worktree_path=""
+    local branch_name=""
+    if worktree_path="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
+        branch_name="$(get_worktree_branch "$worktree_path" 2>/dev/null)" || branch_name=""
+    fi
+    
+    # ステータスを保存
+    save_status "$issue_number" "error" "$session_name" "$error_message"
+    
+    # on_error hookを実行（hook未設定時はデフォルト動作）
+    run_hook "on_error" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "$error_message" "1" ""
+    
+    # auto_attachが有効な場合はTerminalを開く
+    if [[ "$auto_attach" == "true" ]] && is_macos; then
+        open_terminal_and_attach "$session_name"
+    fi
+}
+
+# 完了ハンドリング関数
+# Usage: handle_complete <session_name> <issue_number> <auto_attach> <cleanup_args>
+# Returns: 0 on success, 1 on cleanup failure
+handle_complete() {
+    local session_name="$1"
+    local issue_number="$2"
+    local auto_attach="$3"
+    local cleanup_args="${4:-}"
+    
+    log_info "Session completed: $session_name (Issue #$issue_number)"
+    
+    # worktreeパスとブランチ名を取得
+    local worktree_path=""
+    local branch_name=""
+    if worktree_path="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
+        branch_name="$(get_worktree_branch "$worktree_path" 2>/dev/null)" || branch_name=""
+    fi
+    
+    # ステータスを保存
+    save_status "$issue_number" "complete" "$session_name"
+    
+    # on_success hookを実行（hook未設定時はデフォルト動作）
+    run_hook "on_success" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "" "0" ""
+    
+    log_info "Running cleanup..."
+    
+    # 少し待機（AIが出力を完了するまで）
+    sleep 2
+    
+    # cleanup実行（リトライ付き）
+    local cleanup_success=false
+    local cleanup_attempt=1
+    local max_cleanup_attempts=2
+    
+    while [[ $cleanup_attempt -le $max_cleanup_attempts ]]; do
+        log_info "Cleanup attempt $cleanup_attempt/$max_cleanup_attempts..."
+        
+        # shellcheck disable=SC2086
+        if "$WATCHER_SCRIPT_DIR/cleanup.sh" "$session_name" $cleanup_args; then
+            cleanup_success=true
+            break
+        else
+            log_warn "Cleanup attempt $cleanup_attempt failed"
+            if [[ $cleanup_attempt -lt $max_cleanup_attempts ]]; then
+                log_info "Retrying in 3 seconds..."
+                sleep 3
+            fi
+        fi
+        cleanup_attempt=$((cleanup_attempt + 1))
+    done
+    
+    if [[ "$cleanup_success" == "false" ]]; then
+        log_error "Cleanup failed after $max_cleanup_attempts attempts"
+        
+        # orphaned worktreeとしてマーク
+        log_warn "This worktree may need manual cleanup. You can run:"
+        log_warn "  ./scripts/cleanup.sh --orphan-worktrees --force"
+        return 1
+    fi
+    
+    # orphaned worktreeの検出と修復
+    log_info "Checking for any orphaned worktrees with 'complete' status..."
+    local orphaned_count
+    orphaned_count=$(count_complete_with_existing_worktrees)
+    
+    if [[ "$orphaned_count" -gt 0 ]]; then
+        log_info "Found $orphaned_count orphaned worktree(s) with 'complete' status. Cleaning up..."
+        # shellcheck source=../lib/cleanup-orphans.sh
+        cleanup_complete_with_worktrees "false" "false" || {
+            log_warn "Some orphaned worktrees could not be cleaned up automatically"
+        }
+    else
+        log_debug "No orphaned worktrees found"
+    fi
+    
+    # 古い計画書をローテーション
+    log_info "Rotating old plans..."
+    "$WATCHER_SCRIPT_DIR/cleanup.sh" --rotate-plans || {
+        log_warn "Plan rotation failed (non-critical)"
+    }
+    
+    log_info "Cleanup completed successfully"
+    return 0
+}
+
 main() {
     local session_name=""
     local marker=""
@@ -133,31 +249,19 @@ main() {
         local error_message
         error_message=$(echo "$baseline_output" | grep -A 1 "$error_marker" | tail -n 1 | head -c 200) || error_message="Unknown error"
         
-        handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach"
+        handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
         log_warn "Error notification sent. Session is still running for manual intervention."
         # エラーの場合は監視を続行（ユーザーが修正する可能性があるため）
     elif echo "$baseline_output" | grep -qF "$marker" 2>/dev/null; then
         log_info "Completion marker already present at startup"
         
-        handle_complete "$session_name" "$issue_number"
-        
-        log_info "Running cleanup..."
-        sleep 2
-        
-        # shellcheck disable=SC2086
-        "$WATCHER_SCRIPT_DIR/cleanup.sh" "$session_name" $cleanup_args || {
+        if handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"; then
+            log_info "Cleanup completed successfully"
+            exit 0
+        else
             log_error "Cleanup failed"
             exit 1
-        }
-        
-        # 古い計画書をローテーション
-        log_info "Rotating old plans..."
-        "$WATCHER_SCRIPT_DIR/cleanup.sh" --rotate-plans || {
-            log_warn "Plan rotation failed (non-critical)"
-        }
-        
-        log_info "Cleanup completed successfully"
-        exit 0
+        fi
     fi
     
     log_info "Starting marker detection..."
@@ -191,23 +295,7 @@ main() {
             local error_message
             error_message=$(echo "$output" | grep -A 1 "$error_marker" | tail -n 1 | head -c 200) || error_message="Unknown error"
             
-            # worktreeパスとブランチ名を取得
-            local worktree_path=""
-            local branch_name=""
-            if worktree_path="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
-                branch_name="$(get_worktree_branch "$worktree_path" 2>/dev/null)" || branch_name=""
-            fi
-            
-            # ステータスを保存
-            save_status "$issue_number" "error" "$session_name" "$error_message"
-            
-            # on_error hookを実行（hook未設定時はデフォルト動作）
-            run_hook "on_error" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "$error_message" "1" ""
-            
-            # auto_attachが有効な場合はTerminalを開く
-            if [[ "$auto_attach" == "true" ]] && is_macos; then
-                open_terminal_and_attach "$session_name"
-            fi
+            handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
             
             log_warn "Error notification sent. Session is still running for manual intervention."
             
@@ -224,99 +312,17 @@ main() {
         if [[ "$marker_count_current" -gt "$marker_count_baseline" ]]; then
             log_info "Completion marker detected! (baseline: $marker_count_baseline, current: $marker_count_current)"
             
-            # worktreeパスとブランチ名を取得
-            local worktree_path=""
-            local branch_name=""
-            if worktree_path="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
-                branch_name="$(get_worktree_branch "$worktree_path" 2>/dev/null)" || branch_name=""
-            fi
-            
-            # ステータスを保存
-            save_status "$issue_number" "complete" "$session_name"
-            
-            # on_success hookを実行（hook未設定時はデフォルト動作）
-            run_hook "on_success" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "" "0" ""
-            
-            log_info "Running cleanup..."
-            
-            # 少し待機（AIが出力を完了するまで）
-            sleep 2
-            
-            # cleanup実行（リトライ付き）
-            local cleanup_success=false
-            local cleanup_attempt=1
-            local max_cleanup_attempts=2
-            
-            while [[ $cleanup_attempt -le $max_cleanup_attempts ]]; do
-                log_info "Cleanup attempt $cleanup_attempt/$max_cleanup_attempts..."
-                
-                # shellcheck disable=SC2086
-                if "$WATCHER_SCRIPT_DIR/cleanup.sh" "$session_name" $cleanup_args; then
-                    cleanup_success=true
-                    break
-                else
-                    log_warn "Cleanup attempt $cleanup_attempt failed"
-                    if [[ $cleanup_attempt -lt $max_cleanup_attempts ]]; then
-                        log_info "Retrying in 3 seconds..."
-                        sleep 3
-                    fi
-                fi
-                cleanup_attempt=$((cleanup_attempt + 1))
-            done
-            
-            if [[ "$cleanup_success" == "false" ]]; then
-                log_error "Cleanup failed after $max_cleanup_attempts attempts"
-                
-                # orphaned worktreeとしてマーク
-                log_warn "This worktree may need manual cleanup. You can run:"
-                log_warn "  ./scripts/cleanup.sh --orphan-worktrees --force"
+            if handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"; then
+                log_info "Cleanup completed successfully"
+                exit 0
+            else
+                log_error "Cleanup failed"
                 exit 1
             fi
-            
-            # orphaned worktreeの検出と修復
-            log_info "Checking for any orphaned worktrees with 'complete' status..."
-            local orphaned_count
-            orphaned_count=$(count_complete_with_existing_worktrees)
-            
-            if [[ "$orphaned_count" -gt 0 ]]; then
-                log_info "Found $orphaned_count orphaned worktree(s) with 'complete' status. Cleaning up..."
-                # shellcheck source=../lib/cleanup-orphans.sh
-                cleanup_complete_with_worktrees "false" "false" || {
-                    log_warn "Some orphaned worktrees could not be cleaned up automatically"
-                }
-            else
-                log_debug "No orphaned worktrees found"
-            fi
-            
-            # 古い計画書をローテーション
-            log_info "Rotating old plans..."
-            "$WATCHER_SCRIPT_DIR/cleanup.sh" --rotate-plans || {
-                log_warn "Plan rotation failed (non-critical)"
-            }
-            
-            log_info "Cleanup completed successfully"
-            exit 0
         fi
 
         sleep "$interval"
     done
-}
-
-# handle_complete と handle_error 関数（後方互換性のため）
-handle_complete() {
-    local session_name="$1"
-    local issue_number="$2"
-    log_info "Session completed: $session_name (Issue #$issue_number)"
-}
-
-handle_error() {
-    local session_name="$1"
-    local issue_number="$2"
-    local error_message="$3"
-    local auto_attach="${4:-true}"
-    
-    log_warn "Session error detected: $session_name (Issue #$issue_number)"
-    log_warn "Error: $error_message"
 }
 
 main "$@"
