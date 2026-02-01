@@ -26,6 +26,7 @@ Options:
     --agent-args ARGS   エージェントに渡す追加の引数
     --pi-args ARGS      --agent-args のエイリアス（後方互換性）
     --list-workflows    利用可能なワークフロー一覧を表示
+    --ignore-blockers   依存関係チェックをスキップして強制実行
     -h, --help          このヘルプを表示
 
 Examples:
@@ -85,6 +86,7 @@ main() {
     local extra_agent_args=""
     local cleanup_mode="auto"  # デフォルト: 自動クリーンアップ
     local list_workflows=false
+    local ignore_blockers=false
 
     # 引数のパース
     while [[ $# -gt 0 ]]; do
@@ -123,6 +125,10 @@ main() {
                 ;;
             --no-cleanup)
                 cleanup_mode="none"
+                shift
+                ;;
+            --ignore-blockers)
+                ignore_blockers=true
                 shift
                 ;;
             --agent-args|--pi-args)
@@ -212,6 +218,19 @@ main() {
     issue_body="$(get_issue_body "$issue_number" 2>/dev/null)" || issue_body=""
     # サニタイズ処理を適用（セキュリティ対策）
     issue_body="$(sanitize_issue_body "$issue_body")"
+    
+    # 依存関係チェック
+    if [[ "$ignore_blockers" != "true" ]]; then
+        local open_blockers
+        if ! open_blockers=$(check_issue_blocked "$issue_number"); then
+            log_error "Issue #$issue_number is blocked by the following issues:"
+            echo "$open_blockers" | jq -r '.[] | "  - #\(.number): \(.title) (\(.state))"'
+            log_info "Complete the blocking issues first, or use --ignore-blockers to force execution."
+            exit 2
+        fi
+    else
+        log_warn "Ignoring blockers and proceeding with Issue #$issue_number"
+    fi
     
     # コメント取得（設定に応じて）
     local issue_comments=""
