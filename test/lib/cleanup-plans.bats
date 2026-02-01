@@ -389,11 +389,6 @@ MOCK_EOF
 @test "cleanup_closed_issue_plans shows count of deleted files" {
     mock_gh_with_issues
     
-    # 複数のクローズ済みIssue用計画書
-    mkdir -p "docs/plans"
-    echo "# Plan" > "docs/plans/issue-101-plan.md"
-    echo "# Plan" > "docs/plans/issue-102-plan.md"
-    
     cd "$BATS_TEST_TMPDIR"
     mkdir -p docs/plans
     echo "# Plan" > docs/plans/issue-101-plan.md
