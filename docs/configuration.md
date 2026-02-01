@@ -210,13 +210,12 @@ agent:
 
 #### テンプレート変数
 
-テンプレートで使用可能な変数：
+カスタムテンプレートで使用可能な変数については、[テンプレート変数リファレンス](#テンプレート変数リファレンス)を参照してください。
 
-| 変数 | 説明 |
-|------|------|
-| `{{command}}` | エージェントコマンド |
-| `{{args}}` | 引数（agent.args + --agent-args） |
-| `{{prompt_file}}` | プロンプトファイルのパス |
+エージェントコマンドテンプレートでは以下の変数が使用できます：
+- `{{command}}` - エージェントコマンド
+- `{{args}}` - 引数（agent.args + --agent-args）
+- `{{prompt_file}}` - プロンプトファイルのパス
 
 #### 後方互換性
 
@@ -323,14 +322,59 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 
 #### テンプレート変数
 
-| 変数 | 説明 |
-|------|------|
-| `{{issue_number}}` | GitHub Issue番号 |
-| `{{issue_title}}` | Issueタイトル |
-| `{{branch_name}}` | ブランチ名 |
-| `{{worktree_path}}` | worktreeのパス |
-| `{{step_name}}` | 現在のステップ名 |
-| `{{workflow_name}}` | ワークフロー名 |
+エージェントテンプレートで使用可能な変数については、[テンプレート変数リファレンス](#テンプレート変数リファレンス)を参照してください。
+
+## テンプレート変数リファレンス
+
+Pi Issue Runnerでは、2つの異なるコンテキストでテンプレート変数が使用されます。
+
+### エージェントコマンドテンプレート（`agent.template`）
+
+カスタムエージェント（`agent.type: custom`）のコマンド生成に使用されます。
+
+| 変数 | 説明 | 例 |
+|------|------|-----|
+| `{{command}}` | エージェントコマンド | `my-agent` |
+| `{{args}}` | 引数（agent.args + --agent-args） | `--verbose --timeout 60` |
+| `{{prompt_file}}` | プロンプトファイルのパス | `/tmp/prompt-plan.md` |
+
+**使用例**:
+```yaml
+agent:
+  type: custom
+  command: my-agent
+  template: '{{command}} {{args}} --file "{{prompt_file}}"'
+```
+
+### エージェントプロンプトテンプレート（`agents/*.md`）
+
+エージェントテンプレートファイル（Markdown）内で使用されます。
+
+| 変数 | 説明 | 例 |
+|------|------|-----|
+| `{{issue_number}}` | GitHub Issue番号 | `411` |
+| `{{issue_title}}` | Issueタイトル | `docs: テンプレート変数一覧の統合` |
+| `{{branch_name}}` | ブランチ名 | `issue-411-docs` |
+| `{{worktree_path}}` | worktreeのパス | `.worktrees/issue-411` |
+| `{{step_name}}` | 現在のステップ名 | `plan`, `implement` |
+| `{{workflow_name}}` | ワークフロー名 | `default`, `simple` |
+
+**使用例**:
+```markdown
+<!-- agents/plan.md -->
+# Plan Agent
+
+GitHub Issue #{{issue_number}} の実装計画を作成します。
+
+## コンテキスト
+- **Issue**: #{{issue_number}} - {{issue_title}}
+- **ブランチ**: {{branch_name}}
+- **Worktree**: {{worktree_path}}
+```
+
+### 実装との整合性
+
+テンプレート変数の実装は `lib/template.sh` の `render_template()` 関数で定義されています。新しい変数を追加する場合は、この関数も更新する必要があります。
 
 ## 環境変数による上書き
 
