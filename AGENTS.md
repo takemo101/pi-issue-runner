@@ -34,6 +34,8 @@ pi-issue-runner/
 │   └── test.sh        # テスト一括実行
 ├── lib/               # 共通ライブラリ
 │   ├── agent.sh       # マルチエージェント対応
+│   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
+│   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh      # 設定読み込み
 │   ├── github.sh      # GitHub CLI操作
 │   ├── hooks.sh       # Hook機能
@@ -151,9 +153,11 @@ shellcheck -x scripts/*.sh lib/*.sh  # 直接実行
 
 ### Batsテストの書き方
 
+> **Note**: 以下はサンプルコードです。`your-module.bats` は実際には存在しません。
+
 ```bash
 #!/usr/bin/env bats
-# test/lib/example.bats
+# test/lib/your-module.bats（架空の例）
 
 load '../test_helper'
 
