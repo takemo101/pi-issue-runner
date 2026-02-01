@@ -168,13 +168,17 @@ teardown() {
     # run.shの依存関係チェック部分のロジックを直接検証
     source "$PROJECT_ROOT/lib/github.sh"
     
-    # Mock gh to simulate blocked issue
+    # Mock gh to simulate blocked issue with GraphQL API
     cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
 #!/usr/bin/env bash
 if [[ "$2" == "view" && "$3" == "42" ]]; then
     echo '{"number":42,"title":"Test Issue","body":"## 依存関係\n- Blocked by #38","state":"OPEN"}'
 elif [[ "$2" == "view" && "$3" == "38" ]]; then
     echo '{"number":38,"title":"Base Feature","state":"OPEN"}'
+elif [[ "$1" == "repo" && "$2" == "view" ]]; then
+    echo '{"owner":{"login":"testowner"},"name":"testrepo"}'
+elif [[ "$1" == "api" && "$2" == "graphql" ]]; then
+    echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[{"number":38,"title":"Base Feature","state":"OPEN"}]}}}}}'
 fi
 MOCK_EOF
     chmod +x "$MOCK_DIR/gh"
@@ -190,13 +194,17 @@ MOCK_EOF
 }
 
 @test "run.sh shows blocking issues when blocked" {
-    # Mock gh to simulate blocked issue with blocker details
+    # Mock gh to simulate blocked issue with blocker details and GraphQL API
     cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
 #!/usr/bin/env bash
 if [[ "$2" == "view" && "$3" == "42" ]]; then
     echo '{"number":42,"title":"Test Issue","body":"## 依存関係\n- Blocked by #38","state":"OPEN"}'
 elif [[ "$2" == "view" && "$3" == "38" ]]; then
     echo '{"number":38,"title":"Base Feature","state":"OPEN"}'
+elif [[ "$1" == "repo" && "$2" == "view" ]]; then
+    echo '{"owner":{"login":"testowner"},"name":"testrepo"}'
+elif [[ "$1" == "api" && "$2" == "graphql" ]]; then
+    echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[{"number":38,"title":"Base Feature","state":"OPEN"}]}}}}}'
 fi
 MOCK_EOF
     chmod +x "$MOCK_DIR/gh"
@@ -211,7 +219,7 @@ MOCK_EOF
 }
 
 @test "run.sh shows blocker details with issue number and title" {
-    # Mock gh to simulate blocked issue with multiple blockers
+    # Mock gh to simulate blocked issue with multiple blockers and GraphQL API
     cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
 #!/usr/bin/env bash
 if [[ "$2" == "view" && "$3" == "42" ]]; then
@@ -220,6 +228,10 @@ elif [[ "$2" == "view" && "$3" == "38" ]]; then
     echo '{"number":38,"title":"Base Feature","state":"OPEN"}'
 elif [[ "$2" == "view" && "$3" == "39" ]]; then
     echo '{"number":39,"title":"Infrastructure","state":"OPEN"}'
+elif [[ "$1" == "repo" && "$2" == "view" ]]; then
+    echo '{"owner":{"login":"testowner"},"name":"testrepo"}'
+elif [[ "$1" == "api" && "$2" == "graphql" ]]; then
+    echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[{"number":38,"title":"Base Feature","state":"OPEN"},{"number":39,"title":"Infrastructure","state":"OPEN"}]}}}}}'
 fi
 MOCK_EOF
     chmod +x "$MOCK_DIR/gh"
@@ -235,13 +247,17 @@ MOCK_EOF
 }
 
 @test "run.sh suggests --ignore-blockers when blocked" {
-    # Mock gh to simulate blocked issue
+    # Mock gh to simulate blocked issue with GraphQL API
     cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
 #!/usr/bin/env bash
 if [[ "$2" == "view" && "$3" == "42" ]]; then
     echo '{"number":42,"title":"Test Issue","body":"Blocked by #38","state":"OPEN"}'
 elif [[ "$2" == "view" && "$3" == "38" ]]; then
     echo '{"number":38,"title":"Base Feature","state":"OPEN"}'
+elif [[ "$1" == "repo" && "$2" == "view" ]]; then
+    echo '{"owner":{"login":"testowner"},"name":"testrepo"}'
+elif [[ "$1" == "api" && "$2" == "graphql" ]]; then
+    echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[{"number":38,"title":"Base Feature","state":"OPEN"}]}}}}}'
 fi
 MOCK_EOF
     chmod +x "$MOCK_DIR/gh"
