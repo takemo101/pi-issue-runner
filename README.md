@@ -483,6 +483,7 @@ test/
 ├── scripts/                     # スクリプトの統合テスト
 │   ├── attach.bats              # attach.sh のテスト
 │   ├── cleanup.bats             # cleanup.sh のテスト
+│   ├── force-complete.bats      # force-complete.sh のテスト
 │   ├── improve.bats             # improve.sh のテスト
 │   ├── init.bats                # init.sh のテスト
 │   ├── list.bats                # list.sh のテスト
