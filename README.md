@@ -59,6 +59,7 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | `pi-status` | 状態確認 |
 | `pi-stop` | セッション停止 |
 | `pi-cleanup` | クリーンアップ |
+| `pi-force-complete` | セッション強制完了 |
 | `pi-improve` | 継続的改善 |
 | `pi-wait` | 完了待機 |
 | `pi-watch` | セッション監視 |
