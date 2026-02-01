@@ -5,7 +5,6 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/github.sh"
@@ -14,7 +13,7 @@ source "$SCRIPT_DIR/../lib/github.sh"
 DEFAULT_MAX_ITERATIONS=3
 DEFAULT_MAX_ISSUES=5
 DEFAULT_TIMEOUT=3600
-LOG_DIR="$PROJECT_ROOT/.improve-logs"
+# LOG_DIR is set after load_config to use current working directory
 
 # Global: Track active sessions for cleanup on exit
 declare -a ACTIVE_ISSUE_NUMBERS=()
@@ -40,6 +39,7 @@ cleanup_on_exit() {
 trap cleanup_on_exit EXIT INT TERM
 
 usage() {
+    local default_log_dir=".improve-logs"
     cat << EOF
 Usage: $(basename "$0") [options]
 
@@ -48,7 +48,7 @@ Options:
     --max-issues N       Max issues per iteration (default: $DEFAULT_MAX_ISSUES)
     --timeout N          Session completion timeout in seconds (default: $DEFAULT_TIMEOUT)
     --iteration N        Current iteration number (internal use)
-    --log-dir DIR        Log directory (default: $LOG_DIR)
+    --log-dir DIR        Log directory (default: $default_log_dir in current directory)
     --label LABEL        Session label for Issue filtering (auto-generated if not specified)
     --dry-run            Review only, do not create Issues
     --review-only        Show problems only (no Issue creation or execution)
@@ -68,7 +68,7 @@ Description:
     to ensure only Issues from this session are processed, enabling safe parallel runs.
 
 Log files:
-    Pi output is saved to: $LOG_DIR/iteration-N-YYYYMMDD-HHMMSS.log
+    Pi output is saved to: $default_log_dir/iteration-N-YYYYMMDD-HHMMSS.log
 
 Examples:
     $(basename "$0")
@@ -91,7 +91,8 @@ main() {
     local max_issues=$DEFAULT_MAX_ISSUES
     local timeout=$DEFAULT_TIMEOUT
     local iteration=1
-    local log_dir="$LOG_DIR"
+    # Default log directory: current working directory (the target project)
+    local log_dir=".improve-logs"
     local session_label=""
     local dry_run=false
     local review_only=false
