@@ -119,8 +119,15 @@ handle_complete() {
     while [[ $cleanup_attempt -le $max_cleanup_attempts ]]; do
         log_info "Cleanup attempt $cleanup_attempt/$max_cleanup_attempts..."
         
+        # 2回目以降は --force を追加（未コミットファイルがあっても削除）
+        local force_flag=""
+        if [[ $cleanup_attempt -gt 1 ]]; then
+            log_info "Adding --force flag for retry attempt"
+            force_flag="--force"
+        fi
+        
         # shellcheck disable=SC2086
-        if "$WATCHER_SCRIPT_DIR/cleanup.sh" "$session_name" $cleanup_args; then
+        if "$WATCHER_SCRIPT_DIR/cleanup.sh" "$session_name" $cleanup_args $force_flag; then
             cleanup_success=true
             break
         else
