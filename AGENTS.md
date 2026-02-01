@@ -275,6 +275,7 @@ GitHub Issue #{{issue_number}} のテストを実行します。
 | 変数 | 説明 | ビルトイン使用 |
 |------|------|----------------|
 | `{{issue_number}}` | GitHub Issue番号 | ✅ |
+| `{{pr_number}}` | PR番号 | ✅（ci-fix） |
 | `{{issue_title}}` | Issueタイトル | ✅ |
 | `{{branch_name}}` | ブランチ名 | ✅ |
 | `{{worktree_path}}` | worktreeのパス | ✅ |
