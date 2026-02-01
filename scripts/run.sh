@@ -164,6 +164,12 @@ main() {
         exit 1
     fi
 
+    # Issue番号が正の整数であることを検証
+    if [[ ! "$issue_number" =~ ^[0-9]+$ ]]; then
+        log_error "Issue number must be a positive integer: $issue_number"
+        exit 1
+    fi
+
     # 設定読み込み
     load_config
 

@@ -66,13 +66,27 @@ teardown() {
 }
 
 @test "run.sh fails with non-numeric issue number" {
-    mock_gh
-    mock_tmux
-    mock_git
-    enable_mocks
-    
     run "$PROJECT_ROOT/scripts/run.sh" abc
     [ "$status" -ne 0 ]
+    [[ "$output" == *"Issue number must be a positive integer"* ]]
+}
+
+@test "run.sh fails with negative issue number" {
+    run "$PROJECT_ROOT/scripts/run.sh" "-42"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Issue number must be a positive integer"* ]] || [[ "$output" == *"Unknown option"* ]]
+}
+
+@test "run.sh fails with decimal issue number" {
+    run "$PROJECT_ROOT/scripts/run.sh" "3.14"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Issue number must be a positive integer"* ]]
+}
+
+@test "run.sh fails with mixed alphanumeric issue number" {
+    run "$PROJECT_ROOT/scripts/run.sh" "issue-42"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Issue number must be a positive integer"* ]]
 }
 
 # ====================
