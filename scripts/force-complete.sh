@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# force-complete.sh - セッションを強制的に完了させる
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/config.sh"
+source "$SCRIPT_DIR/../lib/log.sh"
+source "$SCRIPT_DIR/../lib/tmux.sh"
+
+usage() {
+    cat << EOF
+Usage: $(basename "$0") <session-name|issue-number> [options]
+
+Arguments:
+    session-name    tmuxセッション名（例: pi-issue-42）
+    issue-number    GitHub Issue番号（例: 42）
+
+Options:
+    --error         エラーマーカーを送信
+    --message <msg> カスタムメッセージを追加
+    -h, --help      このヘルプを表示
+
+Examples:
+    $(basename "$0") 42
+    $(basename "$0") pi-issue-42
+    $(basename "$0") 42 --error
+    $(basename "$0") 42 --message "Manual completion"
+    $(basename "$0") 42 --error --message "Stopped by user"
+
+Description:
+    指定されたセッションに完了マーカーを送信し、watch-session.shによる
+    自動クリーンアップをトリガーします。
+
+    AIが完了マーカーを出力し忘れた場合や、手動でタスク完了を判断した
+    場合に使用してください。
+EOF
+}
+
+main() {
+    local target=""
+    local send_error=false
+    local custom_message=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --error)
+                send_error=true
+                shift
+                ;;
+            --message)
+                if [[ -z "${2:-}" ]]; then
+                    log_error "--message requires a value"
+                    exit 1
+                fi
+                custom_message="$2"
+                shift 2
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            -*)
+                log_error "Unknown option: $1"
+                usage >&2
+                exit 1
+                ;;
+            *)
+                if [[ -z "$target" ]]; then
+                    target="$1"
+                else
+                    log_error "Unexpected argument: $1"
+                    usage >&2
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$target" ]]; then
+        log_error "Session name or issue number is required"
+        usage >&2
+        exit 1
+    fi
+
+    load_config
+
+    # Issue番号かセッション名か判定
+    local session_name
+    local issue_number
+
+    if [[ "$target" =~ ^[0-9]+$ ]]; then
+        # Issue番号からセッション名を生成
+        issue_number="$target"
+        session_name="$(generate_session_name "$issue_number")"
+    else
+        session_name="$target"
+        # セッション名からIssue番号を抽出
+        issue_number="$(extract_issue_number "$session_name")"
+        if [[ -z "$issue_number" ]]; then
+            log_error "Could not extract issue number from session name: $session_name"
+            exit 1
+        fi
+    fi
+
+    # セッション存在確認
+    if ! session_exists "$session_name"; then
+        log_error "Session not found: $session_name"
+        exit 1
+    fi
+
+    # マーカー形式を決定
+    local marker
+    if [[ "$send_error" == "true" ]]; then
+        marker="###TASK_ERROR_${issue_number}###"
+        log_info "Sending error marker to session: $session_name"
+    else
+        marker="###TASK_COMPLETE_${issue_number}###"
+        log_info "Sending completion marker to session: $session_name"
+    fi
+
+    # セッションにマーカーを送信
+    # echoコマンドを送信して改行を含む出力を強制
+    tmux send-keys -t "$session_name" "echo '$marker'" Enter
+
+    # カスタムメッセージがある場合は追加送信
+    if [[ -n "$custom_message" ]]; then
+        log_info "Sending custom message: $custom_message"
+        tmux send-keys -t "$session_name" "echo '$custom_message'" Enter
+    fi
+
+    log_info "Marker sent. watch-session.sh will detect and cleanup."
+    log_info "Session: $session_name (Issue #$issue_number)"
+}
+
+main "$@"
