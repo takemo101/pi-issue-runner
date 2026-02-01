@@ -62,10 +62,13 @@ copy_files_to_worktree() {
     done
 }
 
-# worktreeを削除
+# worktreeを削除（リトライ付き）
 remove_worktree() {
     local worktree_path="$1"
     local force="${2:-false}"
+    local max_retries=3
+    local retry_delay=2
+    local attempt=1
     
     if [[ ! -d "$worktree_path" ]]; then
         log_error "Worktree not found: $worktree_path"
@@ -74,11 +77,41 @@ remove_worktree() {
     
     log_info "Removing worktree: $worktree_path"
     
-    if [[ "$force" == "true" ]]; then
-        git worktree remove --force "$worktree_path"
-    else
-        git worktree remove "$worktree_path"
-    fi
+    while [[ $attempt -le $max_retries ]]; do
+        local cmd_result=0
+        
+        if [[ "$force" == "true" ]]; then
+            git worktree remove --force "$worktree_path" 2>&1 || cmd_result=$?
+        else
+            git worktree remove "$worktree_path" 2>&1 || cmd_result=$?
+        fi
+        
+        if [[ $cmd_result -eq 0 ]]; then
+            log_info "Worktree removed successfully on attempt $attempt"
+            return 0
+        fi
+        
+        log_warn "Worktree removal failed on attempt $attempt (exit code: $cmd_result)"
+        
+        # エラーメッセージを解析して対応
+        if git worktree list --porcelain 2>/dev/null | grep -q "^worktree $worktree_path$"; then
+            # worktreeがまだ存在する
+            if [[ $attempt -lt $max_retries ]]; then
+                log_info "Retrying in ${retry_delay} seconds..."
+                sleep $retry_delay
+            fi
+        else
+            # worktreeは既に削除されている
+            log_info "Worktree already removed"
+            return 0
+        fi
+        
+        attempt=$((attempt + 1))
+    done
+    
+    log_error "Failed to remove worktree after $max_retries attempts: $worktree_path"
+    log_error "You may need to manually run: git worktree remove --force '$worktree_path'"
+    return 1
 }
 
 # worktree一覧を取得
