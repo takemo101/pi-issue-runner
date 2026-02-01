@@ -117,3 +117,21 @@ teardown() {
     result="$(render_template "$template" "" "feature/add-special")"
     [ "$result" = "Branch: feature/add-special" ]
 }
+
+@test "render_template renders pr_number" {
+    template="PR #{{pr_number}}"
+    result="$(render_template "$template" "" "" "" "" "" "" "123")"
+    [ "$result" = "PR #123" ]
+}
+
+@test "render_template handles pr_number with issue_number" {
+    template="Issue #{{issue_number}}, PR #{{pr_number}}"
+    result="$(render_template "$template" "42" "" "" "" "" "" "123")"
+    [ "$result" = "Issue #42, PR #123" ]
+}
+
+@test "render_template renders all variables including pr_number" {
+    template="Issue #{{issue_number}}: {{issue_title}} on {{branch_name}} at {{worktree_path}}, step {{step_name}} of {{workflow_name}}, PR #{{pr_number}}"
+    result="$(render_template "$template" "99" "fix/bug" "/tmp/wt" "implement" "default" "Fix Bug" "555")"
+    [ "$result" = "Issue #99: Fix Bug on fix/bug at /tmp/wt, step implement of default, PR #555" ]
+}
