@@ -60,6 +60,8 @@ pi-issue-runner/
 ├── test/              # Batsテスト（*.bats形式）
 │   ├── lib/           # ライブラリのユニットテスト
 │   │   ├── agent.bats
+│   │   ├── cleanup-orphans.bats
+│   │   ├── cleanup-plans.bats
 │   │   ├── config.bats
 │   │   ├── github.bats
 │   │   ├── hooks.bats
