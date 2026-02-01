@@ -116,7 +116,10 @@ EOF
 GITIGNORE_ENTRIES="
 # pi-issue-runner
 .worktrees/
+.improve-logs/
 .pi-runner.yaml.local
+.pi-runner.yml
+.pi-prompt.md
 *.swp
 "
 
