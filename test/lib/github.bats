@@ -432,3 +432,119 @@ MOCK_EOF
     [[ "$result" == *"### @testuser (2024-03-15)"* ]]
     [[ "$result" == *"Test comment body"* ]]
 }
+
+# ====================
+# check_issue_blocked テスト
+# ====================
+
+@test "check_issue_blocked function exists" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    declare -f check_issue_blocked > /dev/null
+}
+
+@test "check_issue_blocked returns 0 when no blockers" {
+    # ブロッカーなしのIssue本文
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$2" == "view" ]]; then
+    echo '{"number":42,"title":"Test Issue","body":"No blockers here","state":"OPEN"}'
+fi
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    # ブロッカーなしで成功(0)を返す
+    run check_issue_blocked 42
+    [ "$status" -eq 0 ]
+}
+
+@test "check_issue_blocked returns 1 when blocked by OPEN issue" {
+    # Issue #42にブロッカー(#38)があるモック
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$2" == "view" && "$3" == "42" ]]; then
+    echo '{"number":42,"title":"Test Issue","body":"## 依存関係\n- Blocked by #38","state":"OPEN"}'
+elif [[ "$2" == "view" && "$3" == "38" ]]; then
+    echo '{"number":38,"title":"Base Feature","state":"OPEN"}'
+fi
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    # ブロッカーありで失敗(1)を返す
+    run check_issue_blocked 42
+    [ "$status" -eq 1 ]
+    # ブロッカー情報がJSONで出力される
+    [[ "$output" == *"\"number\": 38"* ]]
+    [[ "$output" == *"\"title\": \"Base Feature\""* ]]
+    [[ "$output" == *"\"state\": \"OPEN\""* ]]
+}
+
+@test "check_issue_blocked returns 0 when blocker is CLOSED" {
+    # Issue #42に閉じられたブロッカー(#38)があるモック
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$2" == "view" && "$3" == "42" ]]; then
+    echo '{"number":42,"title":"Test Issue","body":"Blocked by #38","state":"OPEN"}'
+elif [[ "$2" == "view" && "$3" == "38" ]]; then
+    echo '{"number":38,"title":"Base Feature","state":"CLOSED"}'
+fi
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    # ブロッカーはあるがCLOSEDなので成功(0)
+    run check_issue_blocked 42
+    [ "$status" -eq 0 ]
+}
+
+@test "check_issue_blocked handles multiple blockers" {
+    # 複数のブロッカーを持つIssue
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$2" == "view" && "$3" == "42" ]]; then
+    echo '{"number":42,"title":"Test Issue","body":"## 依存関係\n- Blocked by #38\n- Blocked by #41","state":"OPEN"}'
+elif [[ "$2" == "view" && "$3" == "38" ]]; then
+    echo '{"number":38,"title":"Base Feature","state":"OPEN"}'
+elif [[ "$2" == "view" && "$3" == "41" ]]; then
+    echo '{"number":41,"title":"API Design","state":"OPEN"}'
+fi
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    run check_issue_blocked 42
+    [ "$status" -eq 1 ]
+    # 両方のブロッカーが含まれる
+    [[ "$output" == *"\"number\": 38"* ]]
+    [[ "$output" == *"\"number\": 41"* ]]
+}
+
+@test "check_issue_blocked returns 0 when all blockers are CLOSED" {
+    # 複数の閉じられたブロッカー
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$2" == "view" && "$3" == "42" ]]; then
+    echo '{"number":42,"title":"Test Issue","body":"Blocked by #38 and #41","state":"OPEN"}'
+elif [[ "$2" == "view" && "$3" == "38" ]]; then
+    echo '{"number":38,"title":"Base Feature","state":"CLOSED"}'
+elif [[ "$2" == "view" && "$3" == "41" ]]; then
+    echo '{"number":41,"title":"API Design","state":"CLOSED"}'
+fi
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    run check_issue_blocked 42
+    [ "$status" -eq 0 ]
+}
