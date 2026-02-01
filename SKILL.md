@@ -24,6 +24,7 @@ Options:
   -b, --branch <name>    カスタムブランチ名
   --base <branch>        ベースブランチ
   --pi-args <args>       piへの追加引数
+  --ignore-blockers      依存関係チェックをスキップして強制実行
 
 # セッション管理
 scripts/list.sh                          # セッション一覧
