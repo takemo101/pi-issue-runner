@@ -67,6 +67,7 @@ pi-issue-runner/
 │   ├── plan.md        # 計画エージェント
 │   ├── implement.md   # 実装エージェント
 │   ├── review.md      # レビューエージェント
+│   ├── test.md        # テストエージェント
 │   └── merge.md       # マージエージェント
 ├── docs/              # ドキュメント
 ├── test/              # Batsテスト（*.bats形式）
