@@ -39,14 +39,27 @@ Closes #{{issue_number}}
 ```
 
 ### 3. PRのマージ
-CIがパスしたことを確認してからマージします：
+
+CIの状態を確認してからマージします：
 
 ```bash
-# CI状態を確認
-gh pr checks
-
-# マージ
-gh pr merge --merge --delete-branch
+# CIが設定されているかチェック
+if gh pr checks 2>/dev/null | grep -q .; then
+  # CIが設定されている場合：パスするまで待機（タイムアウト: 10分）
+  echo "CI checks detected. Waiting for completion (timeout: 10 minutes)..."
+  if timeout 600 gh pr checks --watch; then
+    echo "CI passed. Merging PR..."
+    gh pr merge --merge --delete-branch
+  else
+    echo "ERROR: CI failed or timed out. PR will not be merged."
+    echo "###TASK_ERROR_{{issue_number}}###"
+    exit 1
+  fi
+else
+  # CIが設定されていない場合：スキップしてマージ
+  echo "No CI checks detected. Merging PR..."
+  gh pr merge --merge --delete-branch
+fi
 ```
 
 ### 4. クリーンアップ
