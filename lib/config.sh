@@ -35,6 +35,8 @@ CONFIG_AGENTS_PLAN="${CONFIG_AGENTS_PLAN:-}"         # planステップのエー
 CONFIG_AGENTS_IMPLEMENT="${CONFIG_AGENTS_IMPLEMENT:-}" # implementステップのエージェントファイルパス
 CONFIG_AGENTS_REVIEW="${CONFIG_AGENTS_REVIEW:-}"     # reviewステップのエージェントファイルパス
 CONFIG_AGENTS_MERGE="${CONFIG_AGENTS_MERGE:-}"       # mergeステップのエージェントファイルパス
+CONFIG_AGENTS_TEST="${CONFIG_AGENTS_TEST:-}"         # testステップのエージェントファイルパス
+CONFIG_AGENTS_CI_FIX="${CONFIG_AGENTS_CI_FIX:-}"     # ci-fixステップのエージェントファイルパス
 
 # 設定ファイルを探す
 find_config_file() {
@@ -210,6 +212,16 @@ _parse_config_file() {
         CONFIG_AGENTS_MERGE="$value"
     fi
     
+    value="$(yaml_get "$config_file" ".agents.test" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_AGENTS_TEST="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".agents.ci-fix" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_AGENTS_CI_FIX="$value"
+    fi
+    
     # 配列値の取得
     _parse_array_configs "$config_file"
 }
@@ -329,6 +341,12 @@ _apply_env_overrides() {
     if [[ -n "${PI_RUNNER_AGENTS_MERGE:-}" ]]; then
         CONFIG_AGENTS_MERGE="$PI_RUNNER_AGENTS_MERGE"
     fi
+    if [[ -n "${PI_RUNNER_AGENTS_TEST:-}" ]]; then
+        CONFIG_AGENTS_TEST="$PI_RUNNER_AGENTS_TEST"
+    fi
+    if [[ -n "${PI_RUNNER_AGENTS_CI_FIX:-}" ]]; then
+        CONFIG_AGENTS_CI_FIX="$PI_RUNNER_AGENTS_CI_FIX"
+    fi
 }
 
 # 設定値を取得
@@ -392,6 +410,12 @@ get_config() {
         agents_merge)
             echo "$CONFIG_AGENTS_MERGE"
             ;;
+        agents_test)
+            echo "$CONFIG_AGENTS_TEST"
+            ;;
+        agents_ci_fix)
+            echo "$CONFIG_AGENTS_CI_FIX"
+            ;;
         *)
             echo ""
             ;;
@@ -426,4 +450,6 @@ show_config() {
     echo "agents_implement: $CONFIG_AGENTS_IMPLEMENT"
     echo "agents_review: $CONFIG_AGENTS_REVIEW"
     echo "agents_merge: $CONFIG_AGENTS_MERGE"
+    echo "agents_test: $CONFIG_AGENTS_TEST"
+    echo "agents_ci_fix: $CONFIG_AGENTS_CI_FIX"
 }
