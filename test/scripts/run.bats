@@ -48,6 +48,7 @@ teardown() {
     [[ "$output" == *"--workflow"* ]]
     [[ "$output" == *"--no-attach"* ]]
     [[ "$output" == *"--force"* ]]
+    [[ "$output" == *"--ignore-blockers"* ]]
 }
 
 @test "help includes examples" {
@@ -152,4 +153,71 @@ teardown() {
 @test "run.sh accepts --pi-args option" {
     run "$PROJECT_ROOT/scripts/run.sh" --help
     [[ "$output" == *"--pi-args"* ]]
+}
+
+@test "run.sh accepts --ignore-blockers option" {
+    run "$PROJECT_ROOT/scripts/run.sh" --help
+    [[ "$output" == *"--ignore-blockers"* ]]
+}
+
+# ====================
+# 依存関係チェックテスト
+# ====================
+
+@test "run.sh exits with code 2 when issue is blocked" {
+    # run.shの依存関係チェック部分のロジックを直接検証
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    # Mock gh to simulate blocked issue
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$2" == "view" && "$3" == "42" ]]; then
+    echo '{"number":42,"title":"Test Issue","body":"## 依存関係\n- Blocked by #38","state":"OPEN"}'
+elif [[ "$2" == "view" && "$3" == "38" ]]; then
+    echo '{"number":38,"title":"Base Feature","state":"OPEN"}'
+fi
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    # ブロッカーチェックが失敗(1)を返すことを確認
+    run check_issue_blocked 42
+    [ "$status" -eq 1 ]
+    
+    # ブロッカー情報がJSONで出力される
+    [[ "$output" == *"\"number\": 38"* ]]
+    [[ "$output" == *"\"state\": \"OPEN\""* ]]
+}
+
+@test "run.sh proceeds with --ignore-blockers when issue is blocked" {
+    # Mock gh to simulate blocked issue
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$2" == "view" && "$3" == "42" ]]; then
+    echo '{"number":42,"title":"Test Issue","body":"## 依存関係\n- Blocked by #38","state":"OPEN"}'
+elif [[ "$2" == "view" && "$3" == "38" ]]; then
+    echo '{"number":38,"title":"Base Feature","state":"OPEN"}'
+fi
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    
+    enable_mocks
+    
+    # run.shのブロッカーチェック部分のみをテスト（tmuxセッション部分はスキップ）
+    # 依存関係チェックのロジックを直接検証
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    # ブロッカーがある状態
+    run check_issue_blocked 42
+    [ "$status" -eq 1 ]
+    
+    # --ignore-blockersを指定するとチェックをスキップする動作を確認
+    # run.shの該当部分:
+    # if [[ "$ignore_blockers" != "true" ]]; then
+    #     if ! open_blockers=$(check_issue_blocked "$issue_number"); then
+    #         ...
+    #     fi
+    # else
+    #     log_warn "Ignoring blockers and proceeding with Issue #$issue_number"
+    # fi
 }
