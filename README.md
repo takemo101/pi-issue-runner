@@ -361,6 +361,7 @@ pi-issue-runner/
 │   └── test.sh             # テスト一括実行
 ├── lib/
 │   ├── agent.sh            # マルチエージェント対応
+│   ├── ci-fix.sh           # CI失敗検出・自動修正
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh           # 設定読み込み
@@ -381,12 +382,36 @@ pi-issue-runner/
 │   ├── default.yaml        # 完全ワークフロー
 │   └── simple.yaml         # 簡易ワークフロー
 ├── agents/                  # エージェントテンプレート
+│   ├── ci-fix.md           # CI修正エージェント
 │   ├── plan.md             # 計画エージェント
 │   ├── implement.md        # 実装エージェント
 │   ├── review.md           # レビューエージェント
 │   └── merge.md            # マージエージェント
 ├── docs/                    # ドキュメント
-├── test/                    # 単体テスト
+├── test/                    # Batsテスト（*.bats形式）
+│   ├── lib/                 # ライブラリのユニットテスト
+│   │   ├── agent.bats       # agent.sh のテスト
+│   │   ├── ci-fix.bats      # ci-fix.sh のテスト
+│   │   ├── cleanup-orphans.bats  # cleanup-orphans.sh のテスト
+│   │   ├── cleanup-plans.bats    # cleanup-plans.sh のテスト
+│   │   ├── config.bats      # config.sh のテスト
+│   │   ├── github.bats      # github.sh のテスト
+│   │   ├── hooks.bats       # hooks.sh のテスト
+│   │   ├── log.bats         # log.sh のテスト
+│   │   ├── notify.bats      # notify.sh のテスト
+│   │   ├── status.bats      # status.sh のテスト
+│   │   ├── template.bats    # template.sh のテスト
+│   │   ├── tmux.bats        # tmux.sh のテスト
+│   │   ├── workflow-finder.bats  # workflow-finder.sh のテスト
+│   │   ├── workflow-loader.bats  # workflow-loader.sh のテスト
+│   │   ├── workflow-prompt.bats  # workflow-prompt.sh のテスト
+│   │   ├── workflow.bats    # workflow.sh のテスト
+│   │   ├── worktree.bats    # worktree.sh のテスト
+│   │   └── yaml.bats        # yaml.sh のテスト
+│   ├── scripts/             # スクリプトの統合テスト
+│   ├── regression/          # 回帰テスト
+│   ├── fixtures/            # テスト用フィクスチャ
+│   └── test_helper.bash     # Bats共通ヘルパー
 └── .worktrees/              # worktree作成先（実行時に生成）
 ```
 
@@ -434,6 +459,9 @@ bats --tap test/lib/*.bats
 test/
 ├── lib/                         # ライブラリのユニットテスト
 │   ├── agent.bats               # agent.sh のテスト
+│   ├── ci-fix.bats              # ci-fix.sh のテスト
+│   ├── cleanup-orphans.bats     # cleanup-orphans.sh のテスト
+│   ├── cleanup-plans.bats       # cleanup-plans.sh のテスト
 │   ├── config.bats              # config.sh のテスト
 │   ├── github.bats              # github.sh のテスト
 │   ├── hooks.bats               # hooks.sh のテスト
