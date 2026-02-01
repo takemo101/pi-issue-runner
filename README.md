@@ -54,7 +54,7 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | コマンド | 説明 |
 |----------|------|
 | `pi-run` | Issue実行 |
-| `pi-batch` | 複数Issue一括実行 |
+| `pi-batch` | 複数Issueを依存関係順にバッチ実行 |
 | `pi-list` | セッション一覧 |
 | `pi-attach` | セッションアタッチ |
 | `pi-status` | 状態確認 |
@@ -65,7 +65,6 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | `pi-wait` | 完了待機 |
 | `pi-watch` | セッション監視 |
 | `pi-init` | プロジェクト初期化 |
-| `pi-batch` | 複数Issueを依存関係順にバッチ実行 |
 
 | オプション | 説明 |
 |-----------|------|
