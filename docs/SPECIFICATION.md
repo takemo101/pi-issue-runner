@@ -91,9 +91,11 @@ project-root/
 │   ├── default.yaml         # 完全ワークフロー
 │   └── simple.yaml          # 簡易ワークフロー
 ├── agents/                  # エージェントテンプレート
+│   ├── ci-fix.md            # CI修正エージェント
 │   ├── plan.md              # 計画エージェント
 │   ├── implement.md         # 実装エージェント
 │   ├── review.md            # レビューエージェント
+│   ├── test.md              # テストエージェント
 │   └── merge.md             # マージエージェント
 ├── lib/                     # シェルスクリプトライブラリ
 │   ├── config.sh            # 設定管理
