@@ -16,3 +16,10 @@ pi:
 github:
   include_comments: true
   max_comments: 10
+
+# エージェントテンプレートファイルパスのカスタマイズ
+agents:
+  plan: custom/agents/plan.md
+  implement: custom/agents/implement.md
+  review: custom/agents/review.md
+  merge: custom/agents/merge.md
