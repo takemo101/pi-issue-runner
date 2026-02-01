@@ -35,6 +35,15 @@ scripts/cleanup.sh <session>             # 手動クリーンアップ
 scripts/force-complete.sh <session>      # セッション強制完了
 scripts/force-complete.sh 42 --error     # エラーとして完了
 
+# バッチ実行（依存関係を考慮）
+scripts/run-batch.sh <issue>... [options]
+scripts/run-batch.sh 42 43 44             # 並列実行
+scripts/run-batch.sh 42 43 --dry-run      # 計画のみ
+scripts/run-batch.sh 42 43 --sequential   # 順次実行
+
+# CI修正ワークフロー
+scripts/run.sh 42 --workflow ci-fix       # CI失敗の自動修正
+
 # 継続的改善
 scripts/improve.sh                    # レビュー→Issue作成→実行→待機のループ
 scripts/improve.sh --dry-run          # レビューのみ（Issue作成しない）
