@@ -105,6 +105,18 @@ workflow:
     - merge
 
 # =====================================
+# 計画書設定
+# =====================================
+plans:
+  # 保持する計画書の件数（0 = 全て保持）
+  # デフォルト: 10
+  keep_recent: 10
+  
+  # 計画書ディレクトリ
+  # デフォルト: docs/plans
+  dir: "docs/plans"
+
+# =====================================
 # エージェント設定（オプション）
 # =====================================
 agents:
@@ -249,6 +261,39 @@ parallel:
 # 無制限（デフォルト）
 parallel:
   max_concurrent: 0
+```
+
+### plans
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `keep_recent` | integer | `10` | 保持する計画書の件数（0 = 全て保持） |
+| `dir` | string | `docs/plans` | 計画書の保存先ディレクトリ |
+
+#### 計画書のローテーション
+
+計画書は自動的にローテーションされ、古い計画書が削除されます。
+
+```yaml
+# 最新20件の計画書のみ保持
+plans:
+  keep_recent: 20
+  dir: "docs/plans"
+
+# 全ての計画書を保持（自動削除無効）
+plans:
+  keep_recent: 0
+```
+
+#### 計画書の保存場所
+
+計画書は `{dir}/issue-{number}-plan.md` という命名規則で保存されます。
+
+```
+docs/plans/
+├── issue-42-plan.md
+├── issue-43-plan.md
+└── issue-44-plan.md
 ```
 
 ### workflow
@@ -401,6 +446,8 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_AGENTS_TEST` | `agents.test` |
 | `PI_RUNNER_AGENTS_CI_FIX` | `agents.ci-fix` |
 | `PI_RUNNER_PARALLEL_MAX_CONCURRENT` | `parallel.max_concurrent` |
+| `PI_RUNNER_PLANS_KEEP_RECENT` | `plans.keep_recent` |
+| `PI_RUNNER_PLANS_DIR` | `plans.dir` |
 
 ### 例: CI環境での使用
 
