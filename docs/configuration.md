@@ -32,8 +32,8 @@ worktree:
     - .env
     - .env.local
     - .envrc
-    - config/database.yml
-    - config/secrets.yml
+    - config/database.yml    # 例: Railsプロジェクトの場合
+    - config/secrets.yml     # 例: Railsプロジェクトの場合
 
 # =====================================
 # tmux設定

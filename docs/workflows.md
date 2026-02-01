@@ -66,18 +66,16 @@ steps:
 `workflows/` ディレクトリにYAMLファイルを作成します：
 
 ```yaml
-# workflows/thorough.yaml（カスタムワークフローの例）
+# workflows/thorough.yaml
 name: thorough
 description: 徹底ワークフロー（計画・実装・テスト・レビュー・マージ）
 steps:
   - plan
   - implement
-  - test      # カスタムステップ: agents/test.md が必要
+  - test
   - review
   - merge
 ```
-
-> **注意**: 上記の `test` はカスタムステップの例です。使用する場合は `agents/test.md` を作成してください。
 
 ### 2. エージェントテンプレートの作成
 
@@ -86,6 +84,7 @@ steps:
 ビルトインで提供されているステップ:
 - `plan` - 実装計画の作成
 - `implement` - コードの実装
+- `test` - テストの実行とカバレッジ確認
 - `review` - セルフレビュー
 - `merge` - PRの作成とマージ
 
@@ -191,8 +190,8 @@ steps:
 ```yaml
 # workflows/thorough.yaml
 name: thorough
-description: 徹底レビュー用
-custom:
+description: 徹底ワークフロー（計画・実装・テスト・レビュー・マージ）
+steps:
   - plan
   - implement
   - test
@@ -285,6 +284,7 @@ steps:
 |----------|----------|------|
 | plan | `agents/plan.md` | 実装計画を作成 |
 | implement | `agents/implement.md` | コードを実装 |
+| test | `agents/test.md` | テスト実行とカバレッジ確認 |
 | review | `agents/review.md` | セルフレビューを実施 |
 | merge | `agents/merge.md` | PRを作成してマージ |
 

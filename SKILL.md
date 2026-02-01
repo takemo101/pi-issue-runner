@@ -26,6 +26,10 @@ Options:
   --pi-args <args>       piへの追加引数
   --ignore-blockers      依存関係チェックをスキップして強制実行
 
+# バッチ実行（依存関係順）
+scripts/run-batch.sh <issue>... [options]
+scripts/run-batch.sh 42 43 44 --dry-run  # 計画のみ
+
 # セッション管理
 scripts/list.sh                          # セッション一覧
 scripts/attach.sh <session>              # セッションにアタッチ
@@ -35,6 +39,15 @@ scripts/cleanup.sh <session>             # 手動クリーンアップ
 scripts/force-complete.sh <session>      # セッション強制完了
 scripts/force-complete.sh 42 --error     # エラーとして完了
 
+# バッチ実行（依存関係を考慮）
+scripts/run-batch.sh <issue>... [options]
+scripts/run-batch.sh 42 43 44             # 並列実行
+scripts/run-batch.sh 42 43 --dry-run      # 計画のみ
+scripts/run-batch.sh 42 43 --sequential   # 順次実行
+
+# CI修正ワークフロー
+scripts/run.sh 42 --workflow ci-fix       # CI失敗の自動修正
+
 # 継続的改善
 scripts/improve.sh                    # レビュー→Issue作成→実行→待機のループ
 scripts/improve.sh --dry-run          # レビューのみ（Issue作成しない）
@@ -42,6 +55,11 @@ scripts/improve.sh --review-only      # 問題表示のみ
 scripts/improve.sh --max-iterations 2 # 最大2回繰り返す
 scripts/improve.sh --auto-continue    # 自動継続（承認スキップ）
 scripts/wait-for-sessions.sh 42 43    # 複数セッション完了待機
+
+# 複数Issueの一括実行
+scripts/run-batch.sh <issue>... [options]
+scripts/run-batch.sh 42 43 44 --dry-run     # 実行計画のみ表示
+scripts/run-batch.sh 42 43 44 --sequential  # 順次実行
 ```
 
 ## 前提条件

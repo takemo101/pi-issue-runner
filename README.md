@@ -54,6 +54,7 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | コマンド | 説明 |
 |----------|------|
 | `pi-run` | Issue実行 |
+| `pi-batch` | 複数Issue一括実行 |
 | `pi-list` | セッション一覧 |
 | `pi-attach` | セッションアタッチ |
 | `pi-status` | 状態確認 |
@@ -63,7 +64,6 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | `pi-improve` | 継続的改善 |
 | `pi-wait` | 完了待機 |
 | `pi-watch` | セッション監視 |
-| `pi-force-complete` | セッション強制完了 |
 | `pi-init` | プロジェクト初期化 |
 | `pi-batch` | 複数Issueを依存関係順にバッチ実行 |
 
@@ -130,6 +130,24 @@ pi-init --minimal
 
 # 既存ファイルを上書き
 pi-init --force
+```
+
+### バッチ実行（依存関係順）
+
+複数のIssueを依存関係を考慮して順次・並列実行：
+
+```bash
+# 複数Issueを依存関係順に実行
+scripts/run-batch.sh 42 43 44 45
+
+# 実行計画のみ表示
+scripts/run-batch.sh 42 43 --dry-run
+
+# 順次実行（並列化しない）
+scripts/run-batch.sh 42 43 --sequential
+
+# エラーがあっても続行
+scripts/run-batch.sh 42 43 --continue-on-error
 ```
 
 ### Issue実行
@@ -253,7 +271,36 @@ PI_RUNNER_AGENT_TYPE=claude scripts/run.sh 42
 
 ## ワークフロー例
 
-### 複数Issueの並列作業
+##### 複数Issueの一括実行
+
+`run-batch.sh` を使用すると、依存関係を考慮して複数のIssueを自動的に実行できます。
+
+```bash
+# 複数Issueを一括実行（依存関係順に自動実行）
+scripts/run-batch.sh 42 43 44 45 46
+
+# 実行計画のみ表示（実行しない）
+scripts/run-batch.sh 42 43 44 --dry-run
+
+# 順次実行（並列実行しない）
+scripts/run-batch.sh 42 43 44 --sequential
+
+# エラーがあっても次のレイヤーを継続実行
+scripts/run-batch.sh 42 43 44 --continue-on-error
+
+# タイムアウト指定
+scripts/run-batch.sh 42 43 44 --timeout 1800
+```
+
+**仕組み**:
+1. Issue間の依存関係を解析（GitHubの "Blocked by" 関係）
+2. 依存関係に基づいて実行レイヤーを計算
+3. 同じレイヤー内のIssueを並列実行
+4. 前のレイヤーが完了してから次のレイヤーを実行
+
+**詳細**: [docs/parallel-execution.md](docs/parallel-execution.md#run-batchsh-の使用)
+
+### 複数Issueの並列作業（手動）
 
 ```bash
 # 複数のIssueをバックグラウンドで起動
