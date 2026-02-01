@@ -201,11 +201,13 @@ teardown() {
     # worktreeベースディレクトリを設定
     mkdir -p .worktrees/.status
     export TEST_WORKTREE_DIR=".worktrees"
+    export TEST_PLANS_DIR="docs/plans"
     
     # get_config をオーバーライド（すでにsetupでやっているが念のため）
     get_config() {
         case "$1" in
             worktree_base_dir) echo ".worktrees" ;;
+            plans_dir) echo "docs/plans" ;;
             *) echo "" ;;
         esac
     }
@@ -247,4 +249,42 @@ teardown() {
     # 計画書が存在しない状態でhandle_completeを実行（エラーにならないこと）
     run handle_complete "pi-issue-99" "99"
     [ "$status" -eq 0 ]
+}
+
+@test "handle_complete uses custom plans_dir from config" {
+    # Git リポジトリをセットアップ
+    cd "$BATS_TEST_TMPDIR"
+    git init test-repo3 &>/dev/null
+    cd test-repo3
+    git config user.email "test@example.com" &>/dev/null
+    git config user.name "Test User" &>/dev/null
+    
+    # カスタム計画書ディレクトリを作成
+    mkdir -p custom/plans/dir
+    echo "# Plan for issue 42" > custom/plans/dir/issue-42-plan.md
+    git add -A &>/dev/null
+    git commit -m "Add plan" &>/dev/null
+    
+    # worktreeベースディレクトリを設定
+    mkdir -p .worktrees/.status
+    export TEST_WORKTREE_DIR=".worktrees"
+    export TEST_PLANS_DIR="custom/plans/dir"
+    
+    # get_config をオーバーライド
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo ".worktrees" ;;
+            plans_dir) echo "custom/plans/dir" ;;
+            *) echo "" ;;
+        esac
+    }
+    
+    # テスト前に計画書が存在することを確認
+    [ -f "custom/plans/dir/issue-42-plan.md" ]
+    
+    # handle_complete を実行
+    handle_complete "pi-issue-42" "42"
+    
+    # 計画書が削除されたことを確認
+    [ ! -f "custom/plans/dir/issue-42-plan.md" ]
 }
