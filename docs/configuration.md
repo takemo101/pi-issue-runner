@@ -475,7 +475,18 @@ workflow:
 
 ## 設定の実装詳細
 
-設定は `lib/config.sh` でBashスクリプトとして実装されています。
+設定は複数のモジュールで処理されます:
+
+### 基本設定: lib/config.sh
+
+以下の設定は `lib/config.sh` で処理されます:
+- `worktree.*` - worktreeのベースディレクトリ、コピーするファイル
+- `tmux.*` - セッション名のプレフィックス、セッション内起動設定
+- `pi.*` - piコマンドのパス、追加引数（後方互換性）
+- `agent.*` - エージェントプリセット、カスタムコマンド、引数、テンプレート
+- `parallel.*` - 並列実行の最大同時実行数
+- `plans.*` - 計画書の保持数、ディレクトリ
+- `github.*` - Issueコメントの取り込み設定
 
 ### 主要な関数
 
@@ -511,6 +522,14 @@ echo "Worktree directory: $base_dir"
 # デバッグ: 全設定を表示
 show_config
 ```
+
+### ワークフロー設定: lib/workflow-loader.sh
+
+以下の設定は `lib/workflow-loader.sh` で処理されます:
+- `.pi-runner.yaml` 内の `workflow.steps` - 実行するステップの定義
+- `workflows/*.yaml` ファイル - カスタムワークフロー定義ファイル
+
+ワークフロー設定の詳細は [ワークフロードキュメント](workflows.md) を参照してください。
 
 ## トラブルシューティング
 
