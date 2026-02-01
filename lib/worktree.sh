@@ -116,8 +116,8 @@ remove_worktree() {
             fi
         done < <(git worktree list --porcelain 2>/dev/null)
         
-        if [[ "$worktree_still_exists" == "true" ]]; then
-            # worktreeがまだ存在する
+        if [[ "$worktree_still_exists" == "true" ]] || [[ -d "$worktree_path" ]]; then
+            # worktreeがまだ存在する（gitの管理下または実際のディレクトリのいずれか）
             if [[ $attempt -lt $max_retries ]]; then
                 log_info "Retrying in ${retry_delay} seconds..."
                 sleep $retry_delay
