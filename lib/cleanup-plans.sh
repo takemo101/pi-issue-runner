@@ -122,7 +122,11 @@ cleanup_old_plans() {
 #   $1 - dry_run: "true"の場合は削除せずに表示のみ
 cleanup_closed_issue_plans() {
     local dry_run="${1:-false}"
-    local plans_dir="docs/plans"
+    
+    load_config
+    
+    local plans_dir
+    plans_dir="$(get_config plans_dir)"
     
     if [[ ! -d "$plans_dir" ]]; then
         log_info "No plans directory found: $plans_dir"

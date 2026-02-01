@@ -222,24 +222,24 @@ create_plan_file() {
 @test "cleanup_closed_issue_plans dry_run=true does not delete files" {
     mock_gh_with_issues
     
-    # cleanup_closed_issue_plans は docs/plans をハードコードで使用
+    # cleanup_closed_issue_plans は get_config plans_dir を使用
     cd "$BATS_TEST_TMPDIR"
-    mkdir -p docs/plans
-    echo "# Plan" > docs/plans/issue-101-plan.md
+    mkdir -p "$TEST_PLANS_DIR"
+    echo "# Plan" > "$TEST_PLANS_DIR/issue-101-plan.md"
     
     run cleanup_closed_issue_plans "true"
     [ "$status" -eq 0 ]
     
     # ファイルが残っていることを確認
-    [ -f "docs/plans/issue-101-plan.md" ]
+    [ -f "$TEST_PLANS_DIR/issue-101-plan.md" ]
 }
 
 @test "cleanup_closed_issue_plans dry_run=true shows DRY-RUN message for closed issues" {
     mock_gh_with_issues
     
     cd "$BATS_TEST_TMPDIR"
-    mkdir -p docs/plans
-    echo "# Plan" > docs/plans/issue-101-plan.md
+    mkdir -p "$TEST_PLANS_DIR"
+    echo "# Plan" > "$TEST_PLANS_DIR/issue-101-plan.md"
     
     run cleanup_closed_issue_plans "true"
     [ "$status" -eq 0 ]
@@ -255,48 +255,48 @@ create_plan_file() {
     mock_gh_with_issues
     
     cd "$BATS_TEST_TMPDIR"
-    mkdir -p docs/plans
-    echo "# Plan" > docs/plans/issue-101-plan.md
+    mkdir -p "$TEST_PLANS_DIR"
+    echo "# Plan" > "$TEST_PLANS_DIR/issue-101-plan.md"
     
     run cleanup_closed_issue_plans "false"
     [ "$status" -eq 0 ]
     
     # ファイルが削除されていることを確認
-    [ ! -f "docs/plans/issue-101-plan.md" ]
+    [ ! -f "$TEST_PLANS_DIR/issue-101-plan.md" ]
 }
 
 @test "cleanup_closed_issue_plans preserves open issue plans" {
     mock_gh_with_issues
     
     cd "$BATS_TEST_TMPDIR"
-    mkdir -p docs/plans
-    echo "# Plan" > docs/plans/issue-100-plan.md
+    mkdir -p "$TEST_PLANS_DIR"
+    echo "# Plan" > "$TEST_PLANS_DIR/issue-100-plan.md"
     
     run cleanup_closed_issue_plans "false"
     [ "$status" -eq 0 ]
     
     # ファイルが残っていることを確認
-    [ -f "docs/plans/issue-100-plan.md" ]
+    [ -f "$TEST_PLANS_DIR/issue-100-plan.md" ]
 }
 
 @test "cleanup_closed_issue_plans handles mixed cases" {
     mock_gh_with_issues
     
     cd "$BATS_TEST_TMPDIR"
-    mkdir -p docs/plans
-    echo "# Plan" > docs/plans/issue-100-plan.md  # OPEN
-    echo "# Plan" > docs/plans/issue-101-plan.md  # CLOSED
-    echo "# Plan" > docs/plans/issue-102-plan.md  # CLOSED
-    echo "# Plan" > docs/plans/issue-103-plan.md  # OPEN
+    mkdir -p "$TEST_PLANS_DIR"
+    echo "# Plan" > "$TEST_PLANS_DIR/issue-100-plan.md"  # OPEN
+    echo "# Plan" > "$TEST_PLANS_DIR/issue-101-plan.md"  # CLOSED
+    echo "# Plan" > "$TEST_PLANS_DIR/issue-102-plan.md"  # CLOSED
+    echo "# Plan" > "$TEST_PLANS_DIR/issue-103-plan.md"  # OPEN
     
     run cleanup_closed_issue_plans "false"
     [ "$status" -eq 0 ]
     
     # オープン中は保持、クローズ済みは削除
-    [ -f "docs/plans/issue-100-plan.md" ]
-    [ ! -f "docs/plans/issue-101-plan.md" ]
-    [ ! -f "docs/plans/issue-102-plan.md" ]
-    [ -f "docs/plans/issue-103-plan.md" ]
+    [ -f "$TEST_PLANS_DIR/issue-100-plan.md" ]
+    [ ! -f "$TEST_PLANS_DIR/issue-101-plan.md" ]
+    [ ! -f "$TEST_PLANS_DIR/issue-102-plan.md" ]
+    [ -f "$TEST_PLANS_DIR/issue-103-plan.md" ]
 }
 
 # ====================
@@ -322,7 +322,9 @@ MOCK_EOF
     
     # ghが見つからない場合のテストは、実際に存在しない場合のみ実行
     if ! command -v gh &> /dev/null; then
-        create_plan_file "100"
+        # TEST_PLANS_DIRに計画書を作成
+        mkdir -p "$TEST_PLANS_DIR"
+        echo "# Plan" > "$TEST_PLANS_DIR/issue-100-plan.md"
         
         run cleanup_closed_issue_plans "false"
         [ "$status" -eq 1 ]
@@ -339,10 +341,10 @@ MOCK_EOF
 @test "cleanup_closed_issue_plans handles missing plans directory" {
     mock_gh_with_issues
     
-    # cleanup_closed_issue_plans は docs/plans をハードコードで使用
+    # cleanup_closed_issue_plans は get_config plans_dir を使用
     # 存在しないディレクトリに移動してテスト
     cd "$BATS_TEST_TMPDIR"
-    rm -rf docs/plans 2>/dev/null || true
+    rm -rf "$TEST_PLANS_DIR" 2>/dev/null || true
     
     run cleanup_closed_issue_plans "false"
     [ "$status" -eq 0 ]
@@ -356,8 +358,8 @@ MOCK_EOF
 @test "cleanup_closed_issue_plans handles empty plans directory" {
     mock_gh_with_issues
     
-    # テスト用に docs/plans を作成（cleanup_closed_issue_plans はハードコードでこのパスを使用）
-    mkdir -p "$BATS_TEST_TMPDIR/docs/plans"
+    # テスト用に TEST_PLANS_DIR を作成（cleanup_closed_issue_plans は get_config plans_dir を使用）
+    mkdir -p "$TEST_PLANS_DIR"
     cd "$BATS_TEST_TMPDIR"
     
     run cleanup_closed_issue_plans "false"
@@ -390,9 +392,9 @@ MOCK_EOF
     mock_gh_with_issues
     
     cd "$BATS_TEST_TMPDIR"
-    mkdir -p docs/plans
-    echo "# Plan" > docs/plans/issue-101-plan.md
-    echo "# Plan" > docs/plans/issue-102-plan.md
+    mkdir -p "$TEST_PLANS_DIR"
+    echo "# Plan" > "$TEST_PLANS_DIR/issue-101-plan.md"
+    echo "# Plan" > "$TEST_PLANS_DIR/issue-102-plan.md"
     
     run cleanup_closed_issue_plans "false"
     [ "$status" -eq 0 ]
@@ -419,19 +421,63 @@ MOCK_EOF
     mock_gh_with_issues
     
     cd "$BATS_TEST_TMPDIR"
-    mkdir -p docs/plans
+    mkdir -p "$TEST_PLANS_DIR"
     
     # 正しい形式の計画書ファイル
-    echo "# Plan" > docs/plans/issue-100-plan.md
-    echo "# Plan" > docs/plans/issue-101-plan.md
+    echo "# Plan" > "$TEST_PLANS_DIR/issue-100-plan.md"
+    echo "# Plan" > "$TEST_PLANS_DIR/issue-101-plan.md"
     
     # 不正な形式のファイル（無視される）
-    echo "# Other" > docs/plans/other-file.md
-    echo "# Other" > docs/plans/issue-plan.md
+    echo "# Other" > "$TEST_PLANS_DIR/other-file.md"
+    echo "# Other" > "$TEST_PLANS_DIR/issue-plan.md"
     
     run cleanup_closed_issue_plans "true"
     [ "$status" -eq 0 ]
     
     # 正しい形式のファイルのみ処理される
     [[ "$output" == *"100"* ]] || [[ "$output" == *"101"* ]]
+}
+
+# ====================
+# カスタム plans_dir テスト
+# ====================
+
+@test "cleanup_closed_issue_plans uses custom plans_dir from config" {
+    mock_gh_with_issues
+    
+    # カスタムディレクトリを設定
+    local custom_plans_dir="$BATS_TEST_TMPDIR/custom/plans/path"
+    mkdir -p "$custom_plans_dir"
+    
+    # グローバルのTEST_PLANS_DIRを上書き
+    TEST_PLANS_DIR="$custom_plans_dir"
+    
+    # get_config をオーバーライドしてカスタムパスを返す
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo "$TEST_WORKTREE_DIR" ;;
+            plans_dir) echo "$custom_plans_dir" ;;
+            plans_keep_recent) echo "5" ;;
+            *) echo "" ;;
+        esac
+    }
+    
+    # カスタムディレクトリに計画書を作成
+    echo "# Plan" > "$custom_plans_dir/issue-101-plan.md"
+    echo "# Plan" > "$custom_plans_dir/issue-102-plan.md"
+    
+    # docs/plans にもファイルを作成（こちらは無視されるはず）
+    mkdir -p "$BATS_TEST_TMPDIR/docs/plans"
+    echo "# Plan" > "$BATS_TEST_TMPDIR/docs/plans/issue-101-plan.md"
+    
+    cd "$BATS_TEST_TMPDIR"
+    run cleanup_closed_issue_plans "false"
+    [ "$status" -eq 0 ]
+    
+    # カスタムディレクトリのファイルが削除されることを確認
+    [ ! -f "$custom_plans_dir/issue-101-plan.md" ]
+    [ ! -f "$custom_plans_dir/issue-102-plan.md" ]
+    
+    # docs/plans のファイルは無視される（残っている）
+    [ -f "$BATS_TEST_TMPDIR/docs/plans/issue-101-plan.md" ]
 }
