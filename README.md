@@ -66,6 +66,10 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | `pi-force-complete` | セッション強制完了 |
 | `pi-init` | プロジェクト初期化 |
 
+| オプション | 説明 |
+|-----------|------|
+| `--ignore-blockers` | 依存関係チェックをスキップして強制実行 |
+
 カスタムインストール先を指定する場合:
 
 ```bash
@@ -77,6 +81,35 @@ INSTALL_DIR=/usr/local/bin ./install.sh
 ```bash
 ./uninstall.sh
 ```
+
+## 依存関係チェック
+
+`run.sh` はIssue実行前にGitHubネイティブの依存関係（`Blocked by`）をチェックします。
+
+### 動作
+
+- OPENのブロッカーIssueがある場合、実行をスキップしてエラー終了（exit 2）
+- ブロッカーのIssue番号とタイトルを表示
+- `--ignore-blockers` オプションで強制実行可能
+
+### 例
+
+```bash
+$ ./scripts/run.sh 42
+[ERROR] Issue #42 is blocked by the following issues:
+  - #38: 基盤機能の実装 (OPEN)
+[INFO] Complete the blocking issues first, or use --ignore-blockers to force execution.
+
+$ ./scripts/run.sh 42 --ignore-blockers
+[WARN] Ignoring blockers and proceeding with Issue #42
+...
+```
+
+### 終了コード
+
+| コード | 意味 |
+|--------|------|
+| 2 | Issueがブロックされている |
 
 ## 使い方
 
