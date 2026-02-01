@@ -46,6 +46,48 @@ teardown() {
     [ -z "$result" ] || ! find_worktree_by_issue "99999" 2>/dev/null
 }
 
+@test "find_worktree_by_issue finds worktree with issue-N format" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    # issue-N 形式のディレクトリを作成
+    mkdir -p "$TEST_WORKTREE_BASE/issue-123"
+    
+    result="$(find_worktree_by_issue "123")"
+    [ "$result" = "$TEST_WORKTREE_BASE/issue-123" ]
+}
+
+@test "find_worktree_by_issue finds worktree with issue-N-title format" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    # issue-N-title 形式のディレクトリを作成
+    mkdir -p "$TEST_WORKTREE_BASE/issue-456-refactor-worktree"
+    
+    result="$(find_worktree_by_issue "456")"
+    [ "$result" = "$TEST_WORKTREE_BASE/issue-456-refactor-worktree" ]
+}
+
+@test "find_worktree_by_issue returns first match when multiple exist" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    # 複数のディレクトリを作成（先頭一致するもの）
+    mkdir -p "$TEST_WORKTREE_BASE/issue-789"
+    mkdir -p "$TEST_WORKTREE_BASE/issue-789-another"
+    
+    result="$(find_worktree_by_issue "789")"
+    # 最初に見つかったものを返す
+    [ -n "$result" ]
+    [[ "$result" == *"issue-789"* ]]
+}
+
 # ====================
 # copy_files_to_worktree テスト
 # ====================
