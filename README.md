@@ -54,6 +54,7 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | コマンド | 説明 |
 |----------|------|
 | `pi-run` | Issue実行 |
+| `pi-batch` | バッチ実行（依存関係順） |
 | `pi-list` | セッション一覧 |
 | `pi-attach` | セッションアタッチ |
 | `pi-status` | 状態確認 |
@@ -129,6 +130,24 @@ pi-init --minimal
 
 # 既存ファイルを上書き
 pi-init --force
+```
+
+### バッチ実行（依存関係順）
+
+複数のIssueを依存関係を考慮して順次・並列実行：
+
+```bash
+# 複数Issueを依存関係順に実行
+scripts/run-batch.sh 42 43 44 45
+
+# 実行計画のみ表示
+scripts/run-batch.sh 42 43 --dry-run
+
+# 順次実行（並列化しない）
+scripts/run-batch.sh 42 43 --sequential
+
+# エラーがあっても続行
+scripts/run-batch.sh 42 43 --continue-on-error
 ```
 
 ### Issue実行
