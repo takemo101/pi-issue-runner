@@ -211,6 +211,24 @@ has_dangerous_patterns() {
         return 0  # 危険あり = true
     fi
     
+    # プロセス置換 <(...)
+    if echo "$text" | grep -qE '<\([^)]+\)'; then
+        log_warn "Dangerous pattern detected: process substitution <(...)"
+        return 0  # 危険あり = true
+    fi
+    
+    # プロセス置換 >(...)
+    if echo "$text" | grep -qE '>\([^)]+\)'; then
+        log_warn "Dangerous pattern detected: process substitution >(...)"
+        return 0  # 危険あり = true
+    fi
+    
+    # 算術展開 $((...))
+    if echo "$text" | grep -qE '\$\(\([^)]+\)\)'; then
+        log_warn "Dangerous pattern detected: arithmetic expansion \$((...))"
+        return 0  # 危険あり = true
+    fi
+    
     return 1  # 安全 = false
 }
 
@@ -233,14 +251,26 @@ sanitize_issue_body() {
     fi
     
     # サニタイズ処理（sedを使用してクロスプラットフォーム互換性を確保）
-    # 1. $( を \$( にエスケープ（コマンド置換を無効化）
+    # 1. $(( を一時的なプレースホルダーに置換（算術展開を保護）
+    sanitized=$(echo "$sanitized" | sed 's/\$((/__ARITH_OPEN__/g')
+    
+    # 2. $( を \$( にエスケープ（コマンド置換を無効化）
     sanitized=$(echo "$sanitized" | sed 's/\$(/\\$(/g')
     
-    # 2. バッククォートをエスケープ
+    # 3. プレースホルダーを \$(( に置換（算術展開を無効化）
+    sanitized=$(echo "$sanitized" | sed 's/__ARITH_OPEN__/\\$((/g')
+    
+    # 3. バッククォートをエスケープ
     sanitized=$(echo "$sanitized" | sed 's/`/\\`/g')
     
-    # 3. ${ を \${ にエスケープ（変数展開を無効化）
+    # 4. ${ を \${ にエスケープ（変数展開を無効化）
     sanitized=$(echo "$sanitized" | sed 's/\${/\\${/g')
+    
+    # 5. <( を \<( にエスケープ（プロセス置換を無効化）
+    sanitized=$(echo "$sanitized" | sed 's/<(/\\<( /g')
+    
+    # 6. >( を \>( にエスケープ（プロセス置換を無効化）
+    sanitized=$(echo "$sanitized" | sed 's/>(/\\>(/g')
     
     echo "$sanitized"
 }
