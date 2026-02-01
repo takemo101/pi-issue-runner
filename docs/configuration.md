@@ -341,6 +341,10 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_AGENT_COMMAND` | `agent.command` |
 | `PI_RUNNER_AGENT_ARGS` | `agent.args` |
 | `PI_RUNNER_AGENT_TEMPLATE` | `agent.template` |
+| `PI_RUNNER_AGENTS_PLAN` | `agents.plan` |
+| `PI_RUNNER_AGENTS_IMPLEMENT` | `agents.implement` |
+| `PI_RUNNER_AGENTS_REVIEW` | `agents.review` |
+| `PI_RUNNER_AGENTS_MERGE` | `agents.merge` |
 | `PI_RUNNER_PARALLEL_MAX_CONCURRENT` | `parallel.max_concurrent` |
 
 ### 例: CI環境での使用
@@ -355,6 +359,14 @@ export PI_RUNNER_PARALLEL_MAX_CONCURRENT=2
 
 ```bash
 export PI_RUNNER_AGENT_TYPE="claude"
+./scripts/run.sh 42
+```
+
+### 例: カスタムエージェントテンプレートを使用
+
+```bash
+export PI_RUNNER_AGENTS_PLAN="custom/plan.md"
+export PI_RUNNER_AGENTS_IMPLEMENT="custom/implement.md"
 ./scripts/run.sh 42
 ```
 
