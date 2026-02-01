@@ -66,7 +66,10 @@ pi-issue-runner/
 ├── test/              # Batsテスト（*.bats形式）
 │   ├── lib/           # ライブラリのユニットテスト
 │   │   ├── agent.bats
+│   │   ├── ci-classifier.bats
 │   │   ├── ci-fix.bats
+│   │   ├── ci-monitor.bats
+│   │   ├── ci-retry.bats
 │   │   ├── cleanup-orphans.bats
 │   │   ├── cleanup-plans.bats
 │   │   ├── config.bats
