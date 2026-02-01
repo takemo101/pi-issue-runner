@@ -75,6 +75,10 @@ remove_worktree() {
         return 1
     fi
     
+    # パスを正規化（シンボリックリンクを解決）
+    local normalized_path
+    normalized_path="$(cd "$worktree_path" && pwd -P)" 2>/dev/null || normalized_path="$worktree_path"
+    
     log_info "Removing worktree: $worktree_path"
     
     while [[ $attempt -le $max_retries ]]; do
@@ -93,8 +97,26 @@ remove_worktree() {
         
         log_warn "Worktree removal failed on attempt $attempt (exit code: $cmd_result)"
         
-        # エラーメッセージを解析して対応
-        if git worktree list --porcelain 2>/dev/null | grep -q "^worktree $worktree_path$"; then
+        # worktreeがまだ存在するか正規化されたパスで確認
+        local worktree_still_exists=false
+        while read -r line; do
+            if [[ "$line" =~ ^worktree ]]; then
+                local listed_path="${line#worktree }"
+                # パスを正規化して比較（シンボリックリンク対応）
+                local normalized_listed_path
+                if [[ -d "$listed_path" ]]; then
+                    normalized_listed_path="$(cd "$listed_path" && pwd -P)" 2>/dev/null || normalized_listed_path="$listed_path"
+                else
+                    normalized_listed_path="$listed_path"
+                fi
+                if [[ "$normalized_listed_path" == "$normalized_path" ]]; then
+                    worktree_still_exists=true
+                    break
+                fi
+            fi
+        done < <(git worktree list --porcelain 2>/dev/null)
+        
+        if [[ "$worktree_still_exists" == "true" ]]; then
             # worktreeがまだ存在する
             if [[ $attempt -lt $max_retries ]]; then
                 log_info "Retrying in ${retry_delay} seconds..."

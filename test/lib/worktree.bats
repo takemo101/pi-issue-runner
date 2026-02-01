@@ -162,6 +162,97 @@ teardown() {
     [ "$status" -ne 0 ] || [[ "$output" == *"not found"* ]]
 }
 
+@test "remove_worktree fails without force when untracked files exist" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    
+    # Gitリポジトリ内で実行されていることを確認
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        skip "Not in a git repository"
+    fi
+    
+    cd "$PROJECT_ROOT"
+    
+    _CONFIG_LOADED=""
+    export PI_RUNNER_WORKTREE_BASE_DIR="$TEST_WORKTREE_BASE"
+    export PI_RUNNER_WORKTREE_COPY_FILES=""
+    load_config "$TEST_CONFIG_FILE"
+    
+    TEST_BRANCH_NAME="issue-427-test-$(date +%s)"
+    
+    # worktreeを作成
+    worktree_path="$(create_worktree "$TEST_BRANCH_NAME" "HEAD" 2>/dev/null)" || {
+        skip "Failed to create worktree"
+    }
+    
+    if [[ -z "$worktree_path" || ! -d "$worktree_path" ]]; then
+        skip "Worktree creation returned empty path"
+    fi
+    
+    # untrackedファイルを作成
+    echo "untracked content" > "$worktree_path/untracked_file.txt"
+    
+    # force=falseで削除を試行（失敗すべき）
+    run remove_worktree "$worktree_path" "false"
+    
+    # 削除に失敗することを確認
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Failed to remove worktree"* ]]
+    
+    # worktreeがまだ存在することを確認
+    [ -d "$worktree_path" ]
+    
+    # クリーンアップ（forceで削除）
+    git worktree remove --force "$worktree_path" 2>/dev/null || rm -rf "$worktree_path"
+    git branch -D "feature/$TEST_BRANCH_NAME" 2>/dev/null || true
+}
+
+@test "remove_worktree succeeds with force when untracked files exist" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    
+    # Gitリポジトリ内で実行されていることを確認
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        skip "Not in a git repository"
+    fi
+    
+    cd "$PROJECT_ROOT"
+    
+    _CONFIG_LOADED=""
+    export PI_RUNNER_WORKTREE_BASE_DIR="$TEST_WORKTREE_BASE"
+    export PI_RUNNER_WORKTREE_COPY_FILES=""
+    load_config "$TEST_CONFIG_FILE"
+    
+    TEST_BRANCH_NAME="issue-427-test-force-$(date +%s)"
+    
+    # worktreeを作成
+    worktree_path="$(create_worktree "$TEST_BRANCH_NAME" "HEAD" 2>/dev/null)" || {
+        skip "Failed to create worktree"
+    }
+    
+    if [[ -z "$worktree_path" || ! -d "$worktree_path" ]]; then
+        skip "Worktree creation returned empty path"
+    fi
+    
+    # untrackedファイルを作成
+    echo "untracked content" > "$worktree_path/untracked_file.txt"
+    
+    # force=trueで削除を試行（成功すべき）
+    run remove_worktree "$worktree_path" "true"
+    
+    # 削除に成功することを確認
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"successfully"* ]]
+    
+    # worktreeが削除されていることを確認
+    [ ! -d "$worktree_path" ]
+    
+    # ブランチを削除
+    git branch -D "feature/$TEST_BRANCH_NAME" 2>/dev/null || true
+}
+
 # ====================
 # 実際のworktree作成テスト（Git環境依存）
 # ====================
