@@ -39,8 +39,8 @@ setup() {
         :
     }
     
-    # ログを抑制
-    LOG_LEVEL="ERROR"
+    # ログレベルをINFOに設定（テストで出力をキャプチャするため）
+    LOG_LEVEL="INFO"
 }
 
 teardown() {
