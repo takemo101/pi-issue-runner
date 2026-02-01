@@ -463,7 +463,10 @@ bats --tap test/lib/*.bats
 test/
 ├── lib/                         # ライブラリのユニットテスト
 │   ├── agent.bats               # agent.sh のテスト
+│   ├── ci-classifier.bats       # ci-classifier.sh のテスト
 │   ├── ci-fix.bats              # ci-fix.sh のテスト
+│   ├── ci-monitor.bats          # ci-monitor.sh のテスト
+│   ├── ci-retry.bats            # ci-retry.sh のテスト
 │   ├── cleanup-orphans.bats     # cleanup-orphans.sh のテスト
 │   ├── cleanup-plans.bats       # cleanup-plans.sh のテスト
 │   ├── config.bats              # config.sh のテスト
