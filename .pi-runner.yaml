@@ -40,9 +40,11 @@ agent:
   # template: "{{command}} {{args}} < {{prompt_file}}"
 
   # エージェントに渡す追加引数
-  # args:
-  #   - --model
-  #   - claude-sonnet-4-20250514
+  args:
+    - --provider
+    - kimi-coding
+    - --model
+    - k2p5
 
 # =====================================
 # piコマンド設定（後方互換性のため残存）
