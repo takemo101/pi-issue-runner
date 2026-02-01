@@ -28,6 +28,7 @@ Push changes and create a pull request.'
 #   {{worktree_path}} - ワークツリーパス
 #   {{step_name}} - 現在のステップ名
 #   {{workflow_name}} - ワークフロー名
+#   {{pr_number}} - PR番号
 render_template() {
     local template="$1"
     local issue_number="${2:-}"
@@ -36,6 +37,7 @@ render_template() {
     local step_name="${5:-}"
     local workflow_name="${6:-default}"
     local issue_title="${7:-}"
+    local pr_number="${8:-}"
     
     local result="$template"
     
@@ -46,6 +48,7 @@ render_template() {
     result="${result//\{\{worktree_path\}\}/$worktree_path}"
     result="${result//\{\{step_name\}\}/$step_name}"
     result="${result//\{\{workflow_name\}\}/$workflow_name}"
+    result="${result//\{\{pr_number\}\}/$pr_number}"
     
     echo "$result"
 }
