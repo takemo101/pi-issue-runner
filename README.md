@@ -131,6 +131,24 @@ pi-init --minimal
 pi-init --force
 ```
 
+### バッチ実行（依存関係順）
+
+複数のIssueを依存関係を考慮して順次・並列実行：
+
+```bash
+# 複数Issueを依存関係順に実行
+scripts/run-batch.sh 42 43 44 45
+
+# 実行計画のみ表示
+scripts/run-batch.sh 42 43 --dry-run
+
+# 順次実行（並列化しない）
+scripts/run-batch.sh 42 43 --sequential
+
+# エラーがあっても続行
+scripts/run-batch.sh 42 43 --continue-on-error
+```
+
 ### Issue実行
 
 ```bash

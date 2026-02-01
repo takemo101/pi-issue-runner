@@ -26,6 +26,10 @@ Options:
   --pi-args <args>       piへの追加引数
   --ignore-blockers      依存関係チェックをスキップして強制実行
 
+# バッチ実行（依存関係順）
+scripts/run-batch.sh <issue>... [options]
+scripts/run-batch.sh 42 43 44 --dry-run  # 計画のみ
+
 # セッション管理
 scripts/list.sh                          # セッション一覧
 scripts/attach.sh <session>              # セッションにアタッチ
