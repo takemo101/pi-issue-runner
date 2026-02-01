@@ -28,16 +28,17 @@ pi-issue-runner/
 │   ├── attach.sh      # セッションアタッチ
 │   ├── stop.sh        # セッション停止
 │   ├── cleanup.sh     # クリーンアップ
+│   ├── force-complete.sh  # セッション強制完了
 │   ├── improve.sh     # 継続的改善スクリプト
 │   ├── wait-for-sessions.sh  # 複数セッション完了待機
 │   ├── watch-session.sh  # セッション監視
 │   └── test.sh        # テスト一括実行
 ├── lib/               # 共通ライブラリ
 │   ├── agent.sh       # マルチエージェント対応
-│   ├── ci-classifier.sh # CI失敗分類
+│   ├── ci-classifier.sh   # CI失敗タイプ分類
 │   ├── ci-fix.sh      # CI失敗検出・自動修正
-│   ├── ci-monitor.sh  # CI監視機能
-│   ├── ci-retry.sh    # CIリトライ機能
+│   ├── ci-monitor.sh      # CI状態監視
+│   ├── ci-retry.sh        # CI自動修正リトライ管理
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh      # 設定読み込み
@@ -69,7 +70,10 @@ pi-issue-runner/
 ├── test/              # Batsテスト（*.bats形式）
 │   ├── lib/           # ライブラリのユニットテスト
 │   │   ├── agent.bats
+│   │   ├── ci-classifier.bats  # ci-classifier.sh のテスト
 │   │   ├── ci-fix.bats
+│   │   ├── ci-monitor.bats     # ci-monitor.sh のテスト
+│   │   ├── ci-retry.bats       # ci-retry.sh のテスト
 │   │   ├── cleanup-orphans.bats
 │   │   ├── cleanup-plans.bats
 │   │   ├── config.bats

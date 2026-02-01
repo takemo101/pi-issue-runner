@@ -59,9 +59,11 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | `pi-status` | 状態確認 |
 | `pi-stop` | セッション停止 |
 | `pi-cleanup` | クリーンアップ |
+| `pi-force-complete` | セッション強制完了 |
 | `pi-improve` | 継続的改善 |
 | `pi-wait` | 完了待機 |
 | `pi-watch` | セッション監視 |
+| `pi-force-complete` | セッション強制完了 |
 | `pi-init` | プロジェクト初期化 |
 
 カスタムインストール先を指定する場合:
@@ -356,6 +358,7 @@ pi-issue-runner/
 │   ├── attach.sh           # セッションアタッチ
 │   ├── stop.sh             # セッション停止
 │   ├── cleanup.sh          # クリーンアップ
+│   ├── force-complete.sh   # セッション強制完了
 │   ├── watch-session.sh    # セッション監視と自動クリーンアップ
 │   ├── wait-for-sessions.sh # 複数セッション完了待機
 │   ├── improve.sh          # 継続的改善スクリプト
@@ -363,7 +366,10 @@ pi-issue-runner/
 │   └── test.sh             # テスト一括実行
 ├── lib/
 │   ├── agent.sh            # マルチエージェント対応
+│   ├── ci-classifier.sh    # CI失敗タイプ分類
 │   ├── ci-fix.sh           # CI失敗検出・自動修正
+│   ├── ci-monitor.sh       # CI状態監視
+│   ├── ci-retry.sh         # CI自動修正リトライ管理
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh           # 設定読み込み
@@ -395,7 +401,10 @@ pi-issue-runner/
 ├── test/                    # Batsテスト（*.bats形式）
 │   ├── lib/                 # ライブラリのユニットテスト
 │   │   ├── agent.bats       # agent.sh のテスト
+│   │   ├── ci-classifier.bats   # ci-classifier.sh のテスト
 │   │   ├── ci-fix.bats      # ci-fix.sh のテスト
+│   │   ├── ci-monitor.bats      # ci-monitor.sh のテスト
+│   │   ├── ci-retry.bats        # ci-retry.sh のテスト
 │   │   ├── cleanup-orphans.bats  # cleanup-orphans.sh のテスト
 │   │   ├── cleanup-plans.bats    # cleanup-plans.sh のテスト
 │   │   ├── config.bats      # config.sh のテスト
@@ -463,7 +472,10 @@ bats --tap test/lib/*.bats
 test/
 ├── lib/                         # ライブラリのユニットテスト
 │   ├── agent.bats               # agent.sh のテスト
+│   ├── ci-classifier.bats       # ci-classifier.sh のテスト
 │   ├── ci-fix.bats              # ci-fix.sh のテスト
+│   ├── ci-monitor.bats          # ci-monitor.sh のテスト
+│   ├── ci-retry.bats            # ci-retry.sh のテスト
 │   ├── cleanup-orphans.bats     # cleanup-orphans.sh のテスト
 │   ├── cleanup-plans.bats       # cleanup-plans.sh のテスト
 │   ├── config.bats              # config.sh のテスト
