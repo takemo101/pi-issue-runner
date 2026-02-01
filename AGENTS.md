@@ -52,8 +52,10 @@ pi-issue-runner/
 │   ├── worktree.sh    # Git worktree操作
 │   └── yaml.sh        # YAMLパーサー
 ├── workflows/         # ビルトインワークフロー定義
+│   ├── ci-fix.yaml    # CI修正ワークフロー
 │   ├── default.yaml   # 完全ワークフロー
-│   └── simple.yaml    # 簡易ワークフロー
+│   ├── simple.yaml    # 簡易ワークフロー
+│   └── thorough.yaml  # 徹底ワークフロー
 ├── agents/            # エージェントテンプレート
 │   ├── ci-fix.md      # CI修正エージェント
 │   ├── plan.md        # 計画エージェント

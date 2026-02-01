@@ -281,6 +281,8 @@ scripts/wait-for-sessions.sh 140 141 --fail-fast
 
 - **default**: 完全ワークフロー（計画→実装→レビュー→マージ）
 - **simple**: 簡易ワークフロー（実装→マージのみ）
+- **thorough**: 徹底ワークフロー（計画→実装→テスト→レビュー→マージ）
+- **ci-fix**: CI修正ワークフロー（CI失敗の自動修正）
 
 ```bash
 # デフォルトワークフロー
@@ -379,8 +381,10 @@ pi-issue-runner/
 │   ├── worktree.sh         # Git worktree操作
 │   └── yaml.sh             # YAMLパーサー
 ├── workflows/               # ビルトインワークフロー定義
+│   ├── ci-fix.yaml         # CI修正ワークフロー
 │   ├── default.yaml        # 完全ワークフロー
-│   └── simple.yaml         # 簡易ワークフロー
+│   ├── simple.yaml         # 簡易ワークフロー
+│   └── thorough.yaml       # 徹底ワークフロー
 ├── agents/                  # エージェントテンプレート
 │   ├── ci-fix.md           # CI修正エージェント
 │   ├── plan.md             # 計画エージェント
