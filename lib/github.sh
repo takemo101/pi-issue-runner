@@ -381,6 +381,98 @@ get_failed_ci_logs() {
 }
 
 # ===================
+# Issue依存関係（ブロッカー）管理
+# ===================
+
+# Issueのブロッカー一覧を取得（GraphQL API使用）
+# 引数: issue_number
+# 戻り値: JSON配列 [{number, title, state}, ...]
+# 例: [{"number":38,"title":"基盤機能","state":"OPEN"}]
+get_issue_blockers() {
+    local issue_number="$1"
+    
+    check_jq || return 1
+    check_gh_cli || return 1
+    
+    # リポジトリ情報を取得
+    local repo_info owner repo
+    repo_info=$(gh repo view --json owner,name 2>/dev/null) || {
+        log_error "Failed to get repository info"
+        echo "[]"
+        return 1
+    }
+    
+    owner=$(echo "$repo_info" | jq -r '.owner.login')
+    repo=$(echo "$repo_info" | jq -r '.name')
+    
+    if [[ -z "$owner" || -z "$repo" ]]; then
+        log_error "Could not determine repository owner/name"
+        echo "[]"
+        return 1
+    fi
+    
+    local query='
+    query($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $number) {
+          blockedBy(first: 20) {
+            nodes {
+              number
+              title
+              state
+            }
+          }
+        }
+      }
+    }'
+    
+    # GraphQL APIでブロッカーを取得
+    local result
+    result=$(gh api graphql \
+        -F "owner=$owner" \
+        -F "repo=$repo" \
+        -F "number=$issue_number" \
+        -f "query=$query" 2>/dev/null) || {
+        echo "[]"
+        return 1
+    }
+    
+    # blockedBy.nodes を抽出
+    local blockers
+    blockers=$(echo "$result" | jq -r '.data.repository.issue.blockedBy.nodes // []')
+    
+    echo "$blockers"
+}
+
+# Issueがブロックされているかチェック
+# 引数: issue_number
+# 戻り値: 0=ブロックされていない, 1=ブロックされている
+# stdout: ブロックされている場合、OPENなブロッカー情報をJSON配列で出力
+check_issue_blocked() {
+    local issue_number="$1"
+    
+    local blockers
+    if ! blockers=$(get_issue_blockers "$issue_number"); then
+        log_error "Failed to get issue blockers"
+        return 1
+    fi
+    
+    # OPEN状態のブロッカーをフィルタ
+    local open_blockers
+    open_blockers=$(echo "$blockers" | jq '[.[] | select(.state == "OPEN")]')
+    
+    local open_count
+    open_count=$(echo "$open_blockers" | jq 'length')
+    
+    if [[ "$open_count" -gt 0 ]]; then
+        echo "$open_blockers"
+        return 1
+    fi
+    
+    return 0
+}
+
+# ===================
 # セッションラベル管理
 # ===================
 

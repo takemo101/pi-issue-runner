@@ -432,3 +432,225 @@ MOCK_EOF
     [[ "$result" == *"### @testuser (2024-03-15)"* ]]
     [[ "$result" == *"Test comment body"* ]]
 }
+
+# ====================
+# get_issue_blockers テスト
+# ====================
+
+@test "get_issue_blockers function exists" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    declare -f get_issue_blockers > /dev/null
+}
+
+@test "get_issue_blockers returns blockers list" {
+    # GraphQL APIモック
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "auth" && "$2" == "status" ]]; then
+    exit 0
+elif [[ "$1" == "repo" && "$2" == "view" ]]; then
+    echo '{"owner":{"login":"testowner"},"name":"testrepo"}'
+elif [[ "$1" == "api" && "$2" == "graphql" ]]; then
+    echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[{"number":38,"title":"基盤機能","state":"OPEN"},{"number":39,"title":"依存タスク","state":"CLOSED"}]}}}}}'
+else
+    echo "Mock gh: unknown command: $*" >&2
+    exit 1
+fi
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    result="$(get_issue_blockers 42)"
+    
+    # OPENとCLOSEDの両方が含まれる（jqの出力は空白を含む）
+    [[ "$result" == *'"number": 38'* ]]
+    [[ "$result" == *'"number": 39'* ]]
+    [[ "$result" == *'"state": "OPEN"'* ]]
+    [[ "$result" == *'"state": "CLOSED"'* ]]
+}
+
+@test "get_issue_blockers returns empty array when no blockers" {
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "auth" && "$2" == "status" ]]; then
+    exit 0
+elif [[ "$1" == "repo" && "$2" == "view" ]]; then
+    echo '{"owner":{"login":"testowner"},"name":"testrepo"}'
+elif [[ "$1" == "api" && "$2" == "graphql" ]]; then
+    echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}'
+else
+    echo "Mock gh: unknown command: $*" >&2
+    exit 1
+fi
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    result="$(get_issue_blockers 42)"
+    
+    # 空配列が返される
+    [ "$result" = "[]" ]
+}
+
+@test "get_issue_blockers returns empty array on API error" {
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "auth" && "$2" == "status" ]]; then
+    exit 0
+elif [[ "$1" == "repo" && "$2" == "view" ]]; then
+    echo '{"owner":{"login":"testowner"},"name":"testrepo"}'
+elif [[ "$1" == "api" && "$2" == "graphql" ]]; then
+    echo '{"errors":[{"message":"Issue not found"}]}' >&2
+    exit 1
+else
+    echo "Mock gh: unknown command: $*" >&2
+    exit 1
+fi
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    # エラー時はreturn 1だが、空配列を出力する
+    run get_issue_blockers 999
+    
+    # エラー時も空配列が返される
+    [ "$output" = "[]" ]
+    [ "$status" -eq 1 ]
+}
+
+@test "get_issue_blockers requires jq" {
+    # jqがない場合のテスト - jqをモックして失敗させる
+    cat > "$MOCK_DIR/jq" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "jq not found" >&2
+exit 1
+MOCK_EOF
+    chmod +x "$MOCK_DIR/jq"
+    enable_mocks
+    
+    # ghは通常通り動作させる
+    mock_gh
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    run get_issue_blockers 42
+    [ "$status" -eq 1 ]
+}
+
+# ====================
+# check_issue_blocked テスト
+# ====================
+
+@test "check_issue_blocked function exists" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    declare -f check_issue_blocked > /dev/null
+}
+
+@test "check_issue_blocked returns 1 when OPEN blockers exist" {
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "auth" && "$2" == "status" ]]; then
+    exit 0
+elif [[ "$1" == "repo" && "$2" == "view" ]]; then
+    echo '{"owner":{"login":"testowner"},"name":"testrepo"}'
+elif [[ "$1" == "api" && "$2" == "graphql" ]]; then
+    echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[{"number":38,"title":"基盤機能","state":"OPEN"}]}}}}}'
+else
+    echo "Mock gh: unknown command: $*" >&2
+    exit 1
+fi
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    run check_issue_blocked 42
+    
+    # OPENブロッカーがあるのでreturn 1
+    [ "$status" -eq 1 ]
+    # OPENブロッカー情報が出力される（jqの出力は空白を含む）
+    [[ "$output" == *'"number": 38'* ]]
+    [[ "$output" == *'"state": "OPEN"'* ]]
+}
+
+@test "check_issue_blocked returns 0 when all blockers are CLOSED" {
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "auth" && "$2" == "status" ]]; then
+    exit 0
+elif [[ "$1" == "repo" && "$2" == "view" ]]; then
+    echo '{"owner":{"login":"testowner"},"name":"testrepo"}'
+elif [[ "$1" == "api" && "$2" == "graphql" ]]; then
+    echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[{"number":38,"title":"基盤機能","state":"CLOSED"}]}}}}}'
+else
+    echo "Mock gh: unknown command: $*" >&2
+    exit 1
+fi
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    run check_issue_blocked 42
+    
+    # 全てCLOSEDなのでreturn 0
+    [ "$status" -eq 0 ]
+}
+
+@test "check_issue_blocked returns 0 when no blockers" {
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "auth" && "$2" == "status" ]]; then
+    exit 0
+elif [[ "$1" == "repo" && "$2" == "view" ]]; then
+    echo '{"owner":{"login":"testowner"},"name":"testrepo"}'
+elif [[ "$1" == "api" && "$2" == "graphql" ]]; then
+    echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}'
+else
+    echo "Mock gh: unknown command: $*" >&2
+    exit 1
+fi
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    run check_issue_blocked 42
+    
+    # ブロッカーがないのでreturn 0
+    [ "$status" -eq 0 ]
+}
+
+@test "check_issue_blocked returns 1 when get_issue_blockers fails" {
+    # get_issue_blockersが失敗するケース
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "repo view --json owner,name"*)
+        exit 1
+        ;;
+    *)
+        echo "Mock gh: unknown command: $*" >&2
+        exit 1
+        ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    run check_issue_blocked 42
+    
+    # ブロッカー取得失敗時もreturn 1
+    [ "$status" -eq 1 ]
+}
