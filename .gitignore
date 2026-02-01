@@ -55,3 +55,6 @@ feature/
 .pi-prompt.md
 # pi-issue-runner
 .pi-runner.yaml.local
+
+# Pi Agent
+.pi
