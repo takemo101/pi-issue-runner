@@ -436,3 +436,66 @@ EOF
     [ "$(get_config agents_plan)" = "env/plan.md" ]
     [ "$(get_config agents_implement)" = "yaml/implement.md" ]
 }
+
+# ===================
+# config_file_found / require_config_file tests
+# ===================
+
+@test "config_file_found returns false when no config file" {
+    unset _CONFIG_LOADED
+    unset _CONFIG_FILE_FOUND
+    source "$PROJECT_ROOT/lib/config.sh"
+    
+    # 設定ファイルがないディレクトリで実行
+    cd "$BATS_TEST_TMPDIR"
+    git init -q
+    
+    load_config
+    
+    run config_file_found
+    [ "$status" -eq 1 ]
+}
+
+@test "config_file_found returns true when config file exists" {
+    unset _CONFIG_LOADED
+    unset _CONFIG_FILE_FOUND
+    source "$PROJECT_ROOT/lib/config.sh"
+    
+    # 設定ファイルがあるディレクトリで実行
+    cd "$BATS_TEST_TMPDIR"
+    git init -q
+    touch .pi-runner.yaml
+    
+    load_config
+    
+    run config_file_found
+    [ "$status" -eq 0 ]
+    [[ "$output" == *".pi-runner.yaml" ]]
+}
+
+@test "require_config_file fails when no config file" {
+    unset _CONFIG_LOADED
+    unset _CONFIG_FILE_FOUND
+    source "$PROJECT_ROOT/lib/config.sh"
+    
+    cd "$BATS_TEST_TMPDIR"
+    git init -q
+    
+    run require_config_file "test-command"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Configuration file '.pi-runner.yaml' not found"* ]]
+    [[ "$output" == *"test-command"* ]]
+}
+
+@test "require_config_file succeeds when config file exists" {
+    unset _CONFIG_LOADED
+    unset _CONFIG_FILE_FOUND
+    source "$PROJECT_ROOT/lib/config.sh"
+    
+    cd "$BATS_TEST_TMPDIR"
+    git init -q
+    touch .pi-runner.yaml
+    
+    run require_config_file "test-command"
+    [ "$status" -eq 0 ]
+}

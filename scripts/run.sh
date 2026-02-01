@@ -69,6 +69,9 @@ source "$SCRIPT_DIR/../lib/workflow.sh"
 source "$SCRIPT_DIR/../lib/hooks.sh"
 source "$SCRIPT_DIR/../lib/agent.sh"
 
+# 設定ファイルの存在チェック（必須）
+require_config_file "pi-run" || exit 1
+
 # 依存関係チェック
 check_dependencies || exit 1
 

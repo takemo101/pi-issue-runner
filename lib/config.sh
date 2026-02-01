@@ -54,6 +54,9 @@ find_config_file() {
     return 1
 }
 
+# 設定ファイルが見つかったかどうかのフラグ
+_CONFIG_FILE_FOUND=""
+
 # YAML設定を読み込む
 load_config() {
     # 重複呼び出し防止
@@ -65,10 +68,13 @@ load_config() {
     
     if [[ -z "$config_file" ]]; then
         if config_file="$(find_config_file "$(pwd)" 2>/dev/null)"; then
-            :  # ファイルが見つかった
+            _CONFIG_FILE_FOUND="$config_file"
         else
             config_file=""
+            _CONFIG_FILE_FOUND=""
         fi
+    else
+        _CONFIG_FILE_FOUND="$config_file"
     fi
 
     if [[ -n "$config_file" && -f "$config_file" ]]; then
@@ -79,6 +85,40 @@ load_config() {
     _apply_env_overrides
     
     _CONFIG_LOADED="true"
+}
+
+# 設定ファイルが見つかったかチェック（必須チェック用）
+# 戻り値: 0=見つかった, 1=見つからない
+# 出力: 見つかった場合はファイルパス
+config_file_found() {
+    if [[ -n "$_CONFIG_FILE_FOUND" ]]; then
+        echo "$_CONFIG_FILE_FOUND"
+        return 0
+    fi
+    return 1
+}
+
+# 設定ファイルが必須であることを検証
+# 引数: エラー時に表示するコマンド名（オプション）
+# 戻り値: 0=OK, 1=設定ファイルなし（エラー終了）
+require_config_file() {
+    local command_name="${1:-pi-issue-runner}"
+    
+    load_config
+    
+    if ! config_file_found >/dev/null; then
+        echo "[ERROR] Configuration file '.pi-runner.yaml' not found." >&2
+        echo "" >&2
+        echo "This project has not been initialized for $command_name." >&2
+        echo "Please run the following command to initialize:" >&2
+        echo "" >&2
+        echo "    pi-init" >&2
+        echo "" >&2
+        echo "Or create '.pi-runner.yaml' manually in your project root." >&2
+        return 1
+    fi
+    
+    return 0
 }
 
 # 設定ファイルをパース（yaml.shを使用）

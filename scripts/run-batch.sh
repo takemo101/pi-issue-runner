@@ -47,6 +47,9 @@ source "$SCRIPT_DIR/../lib/github.sh"
 source "$SCRIPT_DIR/../lib/dependency.sh"
 source "$SCRIPT_DIR/../lib/status.sh"
 
+# 設定ファイルの存在チェック（必須）
+require_config_file "pi-run-batch" || exit 1
+
 # グローバル設定
 DRY_RUN=false
 SEQUENTIAL=false
