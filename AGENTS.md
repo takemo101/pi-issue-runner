@@ -34,6 +34,8 @@ pi-issue-runner/
 │   └── test.sh        # テスト一括実行
 ├── lib/               # 共通ライブラリ
 │   ├── agent.sh       # マルチエージェント対応
+│   ├── cleanup-orphans.sh  # 孤立ステータスクリーンアップ
+│   ├── cleanup-plans.sh    # 計画書クリーンアップ
 │   ├── config.sh      # 設定読み込み
 │   ├── github.sh      # GitHub CLI操作
 │   ├── hooks.sh       # Hook機能
