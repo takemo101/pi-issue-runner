@@ -34,6 +34,7 @@ pi-issue-runner/
 │   └── test.sh        # テスト一括実行
 ├── lib/               # 共通ライブラリ
 │   ├── agent.sh       # マルチエージェント対応
+│   ├── ci-fix.sh      # CI失敗検出・自動修正
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh      # 設定読み込み
@@ -54,6 +55,7 @@ pi-issue-runner/
 │   ├── default.yaml   # 完全ワークフロー
 │   └── simple.yaml    # 簡易ワークフロー
 ├── agents/            # エージェントテンプレート
+│   ├── ci-fix.md      # CI修正エージェント
 │   ├── plan.md        # 計画エージェント
 │   ├── implement.md   # 実装エージェント
 │   ├── review.md      # レビューエージェント
@@ -62,6 +64,7 @@ pi-issue-runner/
 ├── test/              # Batsテスト（*.bats形式）
 │   ├── lib/           # ライブラリのユニットテスト
 │   │   ├── agent.bats
+│   │   ├── ci-fix.bats
 │   │   ├── cleanup-orphans.bats
 │   │   ├── cleanup-plans.bats
 │   │   ├── config.bats
