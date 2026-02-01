@@ -113,6 +113,8 @@ agents:
   implement: agents/implement.md
   review: agents/review.md
   merge: agents/merge.md
+  test: agents/test.md
+  ci-fix: agents/ci-fix.md
 ```
 
 ## 設定項目詳細
@@ -396,6 +398,8 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_AGENTS_IMPLEMENT` | `agents.implement` |
 | `PI_RUNNER_AGENTS_REVIEW` | `agents.review` |
 | `PI_RUNNER_AGENTS_MERGE` | `agents.merge` |
+| `PI_RUNNER_AGENTS_TEST` | `agents.test` |
+| `PI_RUNNER_AGENTS_CI_FIX` | `agents.ci-fix` |
 | `PI_RUNNER_PARALLEL_MAX_CONCURRENT` | `parallel.max_concurrent` |
 
 ### 例: CI環境での使用
