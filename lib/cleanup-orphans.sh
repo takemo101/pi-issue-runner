@@ -12,6 +12,11 @@ if ! declare -f find_orphaned_statuses > /dev/null 2>&1; then
     source "$_CLEANUP_ORPHANS_LIB_DIR/status.sh"
 fi
 
+# worktree.shがまだロードされていなければロード
+if ! declare -f find_worktree_by_issue > /dev/null 2>&1; then
+    source "$_CLEANUP_ORPHANS_LIB_DIR/worktree.sh"
+fi
+
 # ログ関数（log.shがロードされていなければダミー）
 if ! declare -f log_debug > /dev/null 2>&1; then
     log_debug() { :; }
@@ -61,5 +66,104 @@ cleanup_orphaned_statuses() {
         log_info "[DRY-RUN] Would remove $count orphaned status file(s)"
     else
         log_info "Removed $count orphaned status file(s)"
+    fi
+}
+
+# complete状態だがworktreeが残存しているケースを検出
+# 出力: "<issue_number>\t<worktree_path>" の形式（1行に1つ）
+find_complete_with_existing_worktrees() {
+    local status_dir
+    status_dir="$(get_status_dir)"
+    
+    if [[ ! -d "$status_dir" ]]; then
+        return 0
+    fi
+    
+    for status_file in "$status_dir"/*.json; do
+        [[ -f "$status_file" ]] || continue
+        local issue_number
+        issue_number="$(basename "$status_file" .json)"
+        
+        # complete状態か確認
+        local status
+        status="$(get_status_value "$issue_number")"
+        [[ "$status" == "complete" ]] || continue
+        
+        # 対応するworktreeが存在するか確認
+        local worktree
+        if worktree="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
+            echo -e "${issue_number}\t${worktree}"
+        fi
+    done
+}
+
+# complete状態だがworktreeが残存しているケースの数を取得
+count_complete_with_existing_worktrees() {
+    local count=0
+    while IFS= read -r _; do
+        count=$((count + 1))
+    done < <(find_complete_with_existing_worktrees)
+    echo "$count"
+}
+
+# complete状態だがworktreeが残存しているケースをクリーンアップ
+# 引数:
+#   $1 - dry_run: "true"の場合は削除せずに表示のみ
+#   $2 - force: "true"の場合はforceオプションを使用
+cleanup_complete_with_worktrees() {
+    local dry_run="${1:-false}"
+    local force="${2:-false}"
+    local entries
+    
+    entries="$(find_complete_with_existing_worktrees)"
+    
+    if [[ -z "$entries" ]]; then
+        log_info "No orphaned worktrees with 'complete' status found."
+        return 0
+    fi
+    
+    local count=0
+    while IFS=$'\t' read -r issue_number worktree; do
+        [[ -z "$issue_number" ]] && continue
+        count=$((count + 1))
+        
+        local branch_name=""
+        branch_name="$(get_worktree_branch "$worktree" 2>/dev/null)" || branch_name=""
+        
+        if [[ "$dry_run" == "true" ]]; then
+            log_info "[DRY-RUN] Would cleanup Issue #$issue_number"
+            log_info "[DRY-RUN]   Worktree: $worktree"
+            [[ -n "$branch_name" ]] && log_info "[DRY-RUN]   Branch: $branch_name"
+        else
+            log_info "Cleaning up orphaned worktree for Issue #$issue_number"
+            
+            # worktree削除
+            if remove_worktree "$worktree" "$force"; then
+                log_info "  Worktree removed: $worktree"
+                
+                # ステータスファイル削除
+                remove_status "$issue_number"
+                log_info "  Status file removed"
+                
+                # ブランチ削除
+                if [[ -n "$branch_name" ]]; then
+                    if git branch -d "$branch_name" 2>/dev/null || \
+                       [[ "$force" == "true" ]] && git branch -D "$branch_name" 2>/dev/null; then
+                        log_info "  Branch removed: $branch_name"
+                    else
+                        log_warn "  Failed to remove branch: $branch_name"
+                    fi
+                fi
+            else
+                log_error "  Failed to remove worktree: $worktree"
+                log_error "  You may need to manually run cleanup with --force"
+            fi
+        fi
+    done <<< "$entries"
+    
+    if [[ "$dry_run" == "true" ]]; then
+        log_info "[DRY-RUN] Would cleanup $count orphaned worktree(s) with 'complete' status"
+    else
+        log_info "Cleaned up $count orphaned worktree(s) with 'complete' status"
     fi
 }

@@ -11,6 +11,7 @@ source "$WATCHER_SCRIPT_DIR/../lib/tmux.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/notify.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/worktree.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/hooks.sh"
+source "$WATCHER_SCRIPT_DIR/../lib/cleanup-orphans.sh"
 
 usage() {
     cat << EOF
@@ -241,12 +242,51 @@ main() {
             # 少し待機（AIが出力を完了するまで）
             sleep 2
             
-            # cleanup実行
-            # shellcheck disable=SC2086
-            "$WATCHER_SCRIPT_DIR/cleanup.sh" "$session_name" $cleanup_args || {
-                log_error "Cleanup failed"
+            # cleanup実行（リトライ付き）
+            local cleanup_success=false
+            local cleanup_attempt=1
+            local max_cleanup_attempts=2
+            
+            while [[ $cleanup_attempt -le $max_cleanup_attempts ]]; do
+                log_info "Cleanup attempt $cleanup_attempt/$max_cleanup_attempts..."
+                
+                # shellcheck disable=SC2086
+                if "$WATCHER_SCRIPT_DIR/cleanup.sh" "$session_name" $cleanup_args; then
+                    cleanup_success=true
+                    break
+                else
+                    log_warn "Cleanup attempt $cleanup_attempt failed"
+                    if [[ $cleanup_attempt -lt $max_cleanup_attempts ]]; then
+                        log_info "Retrying in 3 seconds..."
+                        sleep 3
+                    fi
+                fi
+                cleanup_attempt=$((cleanup_attempt + 1))
+            done
+            
+            if [[ "$cleanup_success" == "false" ]]; then
+                log_error "Cleanup failed after $max_cleanup_attempts attempts"
+                
+                # orphaned worktreeとしてマーク
+                log_warn "This worktree may need manual cleanup. You can run:"
+                log_warn "  ./scripts/cleanup.sh --orphan-worktrees --force"
                 exit 1
-            }
+            fi
+            
+            # orphaned worktreeの検出と修復
+            log_info "Checking for any orphaned worktrees with 'complete' status..."
+            local orphaned_count
+            orphaned_count=$(count_complete_with_existing_worktrees)
+            
+            if [[ "$orphaned_count" -gt 0 ]]; then
+                log_info "Found $orphaned_count orphaned worktree(s) with 'complete' status. Cleaning up..."
+                # shellcheck source=../lib/cleanup-orphans.sh
+                cleanup_complete_with_worktrees "false" "false" || {
+                    log_warn "Some orphaned worktrees could not be cleaned up automatically"
+                }
+            else
+                log_debug "No orphaned worktrees found"
+            fi
             
             # 古い計画書をローテーション
             log_info "Rotating old plans..."
@@ -260,6 +300,23 @@ main() {
 
         sleep "$interval"
     done
+}
+
+# handle_complete と handle_error 関数（後方互換性のため）
+handle_complete() {
+    local session_name="$1"
+    local issue_number="$2"
+    log_info "Session completed: $session_name (Issue #$issue_number)"
+}
+
+handle_error() {
+    local session_name="$1"
+    local issue_number="$2"
+    local error_message="$3"
+    local auto_attach="${4:-true}"
+    
+    log_warn "Session error detected: $session_name (Issue #$issue_number)"
+    log_warn "Error: $error_message"
 }
 
 main "$@"

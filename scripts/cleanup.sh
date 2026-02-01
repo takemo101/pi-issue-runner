@@ -17,6 +17,7 @@ usage() {
     cat << EOF
 Usage: $(basename "$0") <session-name|issue-number> [options]
        $(basename "$0") --orphans [--dry-run]
+       $(basename "$0") --orphan-worktrees [--dry-run] [--force]
        $(basename "$0") --all [--dry-run]
 
 Arguments:
@@ -29,9 +30,10 @@ Options:
     --keep-session    セッションを維持（worktreeのみ削除）
     --keep-worktree   worktreeを維持（セッションのみ削除）
     --orphans         孤立したステータスファイルをクリーンアップ
+    --orphan-worktrees  complete状態だがworktreeが残存しているケースをクリーンアップ
     --delete-plans    クローズ済みIssueの計画書を削除
     --rotate-plans    古い計画書を削除（直近N件を保持、設定: plans.keep_recent）
-    --all             全てのクリーンアップを実行（--orphans + --rotate-plans）
+    --all             全てのクリーンアップを実行（--orphans + --rotate-plans + --orphan-worktrees）
     --age <days>      指定日数より古いステータスファイルを削除（--orphansと併用）
     --dry-run         削除せずに対象を表示（--orphans/--delete-plans/--rotate-plans/--allと使用）
     -h, --help        このヘルプを表示
@@ -44,6 +46,8 @@ Examples:
     $(basename "$0") --orphans
     $(basename "$0") --orphans --dry-run
     $(basename "$0") --orphans --age 7      # 孤立かつ7日以上前のファイルを削除
+    $(basename "$0") --orphan-worktrees      # complete状態の残存worktreeを削除
+    $(basename "$0") --orphan-worktrees --force
     $(basename "$0") --delete-plans
     $(basename "$0") --delete-plans --dry-run
     $(basename "$0") --rotate-plans         # 古い計画書を削除（直近N件を保持）
@@ -60,6 +64,7 @@ main() {
     local keep_session=false
     local keep_worktree=false
     local orphans=false
+    local orphan_worktrees=false
     local delete_plans=false
     local rotate_plans=false
     local all_cleanup=false
@@ -86,6 +91,10 @@ main() {
                 ;;
             --orphans)
                 orphans=true
+                shift
+                ;;
+            --orphan-worktrees)
+                orphan_worktrees=true
                 shift
                 ;;
             --delete-plans)
@@ -137,6 +146,9 @@ main() {
         log_info "Cleaning up orphaned status files..."
         cleanup_orphaned_statuses "$dry_run" "$age_days"
         log_info ""
+        log_info "Cleaning up orphaned worktrees with 'complete' status..."
+        cleanup_complete_with_worktrees "$dry_run" "$force"
+        log_info ""
         log_info "Rotating old plans (keeping recent)..."
         cleanup_old_plans "$dry_run"
         exit 0
@@ -145,6 +157,12 @@ main() {
     # --orphans モード: 孤立したステータスファイルのクリーンアップ
     if [[ "$orphans" == "true" ]]; then
         cleanup_orphaned_statuses "$dry_run" "$age_days"
+        exit 0
+    fi
+
+    # --orphan-worktrees モード: complete状態だがworktreeが残存しているケースをクリーンアップ
+    if [[ "$orphan_worktrees" == "true" ]]; then
+        cleanup_complete_with_worktrees "$dry_run" "$force"
         exit 0
     fi
 
@@ -192,31 +210,49 @@ main() {
     fi
 
     # Worktree削除
+    local cleanup_failed=false
+    local worktree=""
+    local branch_name=""
+    
     if [[ "$keep_worktree" == "false" ]]; then
-        local worktree
-        local branch_name=""
         if worktree="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
             # ブランチ名を取得（削除前に取得する必要がある）
             if [[ "$delete_branch" == "true" ]]; then
-                branch_name="$(get_worktree_branch "$worktree")"
+                branch_name="$(get_worktree_branch "$worktree" 2>/dev/null)" || {
+                    log_warn "Could not determine branch name for worktree: $worktree"
+                    branch_name=""
+                }
             fi
             
             log_info "Removing worktree: $worktree"
-            remove_worktree "$worktree" "$force"
+            if ! remove_worktree "$worktree" "$force"; then
+                log_error "Failed to remove worktree: $worktree"
+                cleanup_failed=true
+            else
+                log_info "Worktree removed successfully"
+            fi
             
             # ステータスファイルも削除
             log_debug "Removing status file for Issue #$issue_number"
-            remove_status "$issue_number"
+            remove_status "$issue_number" || {
+                log_warn "Failed to remove status file for Issue #$issue_number"
+            }
             
             # ブランチ削除
             if [[ "$delete_branch" == "true" && -n "$branch_name" ]]; then
                 log_info "Deleting branch: $branch_name"
                 if ! git branch -d "$branch_name" 2>/dev/null; then
                     if [[ "$force" == "true" ]]; then
-                        git branch -D "$branch_name"
+                        log_info "Force deleting branch: $branch_name"
+                        if ! git branch -D "$branch_name" 2>/dev/null; then
+                            log_warn "Failed to delete branch: $branch_name"
+                            cleanup_failed=true
+                        fi
                     else
                         log_warn "Branch has unmerged changes. Use --force to delete anyway."
                     fi
+                else
+                    log_info "Branch deleted successfully: $branch_name"
                 fi
             fi
         else
@@ -224,10 +260,19 @@ main() {
         fi
     fi
 
-    # on_cleanup hookを実行
-    run_hook "on_cleanup" "$issue_number" "$session_name" "" "" "" "0" ""
+    # on_cleanup hookを実行（失敗しても後続処理を継続）
+    log_debug "Running on_cleanup hook..."
+    run_hook "on_cleanup" "$issue_number" "$session_name" "$branch_name" "$worktree" "" "0" "" || {
+        log_warn "on_cleanup hook failed, but continuing cleanup process"
+    }
     
-    log_info "Cleanup completed."
+    if [[ "$cleanup_failed" == "true" ]]; then
+        log_error "Cleanup completed with errors for Issue #$issue_number"
+        log_error "Some resources may still remain. Check logs above for details."
+        return 1
+    fi
+    
+    log_info "Cleanup completed successfully for Issue #$issue_number"
 }
 
 main "$@"
