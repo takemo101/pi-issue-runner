@@ -130,6 +130,7 @@ fi
 # コマンドマッピング（command:script 形式）
 COMMANDS="
 pi-run:scripts/run.sh
+pi-batch:scripts/run-batch.sh
 pi-list:scripts/list.sh
 pi-attach:scripts/attach.sh
 pi-status:scripts/status.sh
