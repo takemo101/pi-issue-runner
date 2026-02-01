@@ -42,6 +42,11 @@ scripts/improve.sh --review-only      # 問題表示のみ
 scripts/improve.sh --max-iterations 2 # 最大2回繰り返す
 scripts/improve.sh --auto-continue    # 自動継続（承認スキップ）
 scripts/wait-for-sessions.sh 42 43    # 複数セッション完了待機
+
+# 複数Issueの一括実行
+scripts/run-batch.sh <issue>... [options]
+scripts/run-batch.sh 42 43 44 --dry-run     # 実行計画のみ表示
+scripts/run-batch.sh 42 43 44 --sequential  # 順次実行
 ```
 
 ## 前提条件
