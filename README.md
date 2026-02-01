@@ -364,7 +364,10 @@ pi-issue-runner/
 │   └── test.sh             # テスト一括実行
 ├── lib/
 │   ├── agent.sh            # マルチエージェント対応
+│   ├── ci-classifier.sh    # CI失敗タイプ分類
 │   ├── ci-fix.sh           # CI失敗検出・自動修正
+│   ├── ci-monitor.sh       # CI状態監視
+│   ├── ci-retry.sh         # CI自動修正リトライ管理
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh           # 設定読み込み
@@ -396,7 +399,10 @@ pi-issue-runner/
 ├── test/                    # Batsテスト（*.bats形式）
 │   ├── lib/                 # ライブラリのユニットテスト
 │   │   ├── agent.bats       # agent.sh のテスト
+│   │   ├── ci-classifier.bats   # ci-classifier.sh のテスト
 │   │   ├── ci-fix.bats      # ci-fix.sh のテスト
+│   │   ├── ci-monitor.bats      # ci-monitor.sh のテスト
+│   │   ├── ci-retry.bats        # ci-retry.sh のテスト
 │   │   ├── cleanup-orphans.bats  # cleanup-orphans.sh のテスト
 │   │   ├── cleanup-plans.bats    # cleanup-plans.sh のテスト
 │   │   ├── config.bats      # config.sh のテスト
@@ -464,7 +470,10 @@ bats --tap test/lib/*.bats
 test/
 ├── lib/                         # ライブラリのユニットテスト
 │   ├── agent.bats               # agent.sh のテスト
+│   ├── ci-classifier.bats       # ci-classifier.sh のテスト
 │   ├── ci-fix.bats              # ci-fix.sh のテスト
+│   ├── ci-monitor.bats          # ci-monitor.sh のテスト
+│   ├── ci-retry.bats            # ci-retry.sh のテスト
 │   ├── cleanup-orphans.bats     # cleanup-orphans.sh のテスト
 │   ├── cleanup-plans.bats       # cleanup-plans.sh のテスト
 │   ├── config.bats              # config.sh のテスト
