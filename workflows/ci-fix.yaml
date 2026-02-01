@@ -1,0 +1,4 @@
+name: ci-fix
+description: CI失敗を検出し自動修正を試行
+steps:
+  - ci-fix
