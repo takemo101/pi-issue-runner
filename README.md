@@ -54,7 +54,6 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | コマンド | 説明 |
 |----------|------|
 | `pi-run` | Issue実行 |
-| `pi-batch` | 複数Issue一括実行 |
 | `pi-list` | セッション一覧 |
 | `pi-attach` | セッションアタッチ |
 | `pi-status` | 状態確認 |
