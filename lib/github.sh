@@ -492,8 +492,8 @@ create_label_if_not_exists() {
     
     check_gh_cli || return 1
     
-    # ラベルが存在するかチェック（エラー出力を抑制）
-    if gh label list --search "$label" --json name 2>/dev/null | jq -e --arg name "$label" '.[] | select(.name == $name)' > /dev/null 2>&1; then
+    # ラベルが存在するかチェック（jqエラーは表示してデバッグを容易に）
+    if gh label list --search "$label" --json name 2>/dev/null | jq -e --arg name "$label" '.[] | select(.name == $name)' > /dev/null; then
         log_debug "Label '$label' already exists"
         return 0
     fi

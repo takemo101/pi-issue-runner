@@ -179,6 +179,44 @@ MOCK_EOF
     fi
 }
 
+@test "check_jq function structure is correct" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    # 関数定義を確認
+    func_def=$(declare -f check_jq)
+    
+    # 'command -v jq' を使用してチェックしていることを確認
+    [[ "$func_def" == *'command -v jq'* ]]
+    
+    # エラーメッセージを含むことを確認
+    [[ "$func_def" == *'jq is not installed'* ]]
+    
+    # インストール手順を含むことを確認
+    [[ "$func_def" == *'brew install jq'* ]]
+    [[ "$func_def" == *'apt install jq'* ]]
+}
+
+@test "check_dependencies function exists" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    declare -f check_dependencies > /dev/null
+}
+
+@test "check_dependencies calls check_jq" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    # 関数定義を確認
+    func_def=$(declare -f check_dependencies)
+    [[ "$func_def" == *"check_jq"* ]]
+}
+
+@test "check_dependencies calls check_gh_cli" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    # 関数定義を確認
+    func_def=$(declare -f check_dependencies)
+    [[ "$func_def" == *"check_gh_cli"* ]]
+}
+
 # ====================
 # get_issues_created_after テスト
 # ====================

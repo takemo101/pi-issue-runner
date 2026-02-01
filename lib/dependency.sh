@@ -13,6 +13,8 @@ source "$_DEPENDENCY_LIB_DIR/github.sh"
 get_issue_blockers_numbers() {
     local issue_number="$1"
     
+    check_jq || return 1
+    
     local blockers_json
     if ! blockers_json="$(get_issue_blockers "$issue_number")"; then
         log_warn "Failed to get blockers for issue #$issue_number"
@@ -21,7 +23,8 @@ get_issue_blockers_numbers() {
     fi
     
     # OPENまたはCLOSEDのブロッカー番号を抽出（完了していないブロッカーは実行順序に影響）
-    echo "$blockers_json" | jq -r '[.[].number] | map(tostring) | join(" ")' 2>/dev/null || echo ""
+    # jqエラーは表示してデバッグを容易に
+    echo "$blockers_json" | jq -r '[.[].number] | map(tostring) | join(" ")' || echo ""
 }
 
 # 依存関係グラフを構築
