@@ -140,7 +140,6 @@ pi-improve:scripts/improve.sh
 pi-wait:scripts/wait-for-sessions.sh
 pi-watch:scripts/watch-session.sh
 pi-init:scripts/init.sh
-pi-force-complete:scripts/force-complete.sh
 "
 
 echo "Installing pi-issue-runner to $INSTALL_DIR..."
