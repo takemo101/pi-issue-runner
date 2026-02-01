@@ -118,7 +118,7 @@ GITIGNORE_ENTRIES="
 .worktrees/
 .improve-logs/
 .pi-runner.yaml.local
-.pi-runner.yml
+.pi-runner.yaml
 .pi-prompt.md
 *.swp
 "
