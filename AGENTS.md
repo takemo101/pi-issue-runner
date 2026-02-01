@@ -22,6 +22,7 @@ pi-issue-runner/
 ├── uninstall.sh       # アンインストール
 ├── scripts/           # 実行スクリプト
 │   ├── run.sh         # メインエントリーポイント
+│   ├── run-batch.sh   # 複数Issueを依存関係順にバッチ実行
 │   ├── init.sh        # プロジェクト初期化
 │   ├── list.sh        # セッション一覧
 │   ├── status.sh      # 状態確認
@@ -42,6 +43,7 @@ pi-issue-runner/
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh      # 設定読み込み
+│   ├── dependency.sh  # 依存関係解析・レイヤー計算
 │   ├── github.sh      # GitHub CLI操作
 │   ├── hooks.sh       # Hook機能
 │   ├── log.sh         # ログ出力
@@ -77,6 +79,7 @@ pi-issue-runner/
 │   │   ├── cleanup-orphans.bats
 │   │   ├── cleanup-plans.bats
 │   │   ├── config.bats
+│   │   ├── dependency.bats       # dependency.sh のテスト
 │   │   ├── github.bats
 │   │   ├── hooks.bats
 │   │   ├── log.bats
@@ -98,6 +101,7 @@ pi-issue-runner/
 │   │   ├── init.bats
 │   │   ├── list.bats
 │   │   ├── run.bats
+│   │   ├── run-batch.bats        # run-batch.sh のテスト
 │   │   ├── status.bats
 │   │   ├── stop.bats
 │   │   ├── test.bats
