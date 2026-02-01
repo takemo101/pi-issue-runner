@@ -134,7 +134,7 @@ find_worktree_by_issue() {
     local base_dir
     base_dir="$(get_config worktree_base_dir)"
     
-    # issue-XXX-* パターンで検索
+    # issue-{number}* パターンで検索（ブランチ名にタイトルが含まれる場合に対応）
     local pattern="issue-${issue_number}"
     
     for dir in "$base_dir"/*; do
