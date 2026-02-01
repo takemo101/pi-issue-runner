@@ -30,6 +30,12 @@ CONFIG_AGENT_COMMAND="${CONFIG_AGENT_COMMAND:-}" # カスタムコマンド（�
 CONFIG_AGENT_ARGS="${CONFIG_AGENT_ARGS:-}"       # 追加引数（空 = pi.argsを使用）
 CONFIG_AGENT_TEMPLATE="${CONFIG_AGENT_TEMPLATE:-}" # カスタムテンプレート（空 = プリセットを使用）
 
+# エージェントテンプレートファイルパス設定
+CONFIG_AGENTS_PLAN="${CONFIG_AGENTS_PLAN:-}"         # planステップのエージェントファイルパス
+CONFIG_AGENTS_IMPLEMENT="${CONFIG_AGENTS_IMPLEMENT:-}" # implementステップのエージェントファイルパス
+CONFIG_AGENTS_REVIEW="${CONFIG_AGENTS_REVIEW:-}"     # reviewステップのエージェントファイルパス
+CONFIG_AGENTS_MERGE="${CONFIG_AGENTS_MERGE:-}"       # mergeステップのエージェントファイルパス
+
 # 設定ファイルを探す
 find_config_file() {
     local start_dir="${1:-.}"
@@ -143,6 +149,27 @@ _parse_config_file() {
         CONFIG_AGENT_TEMPLATE="$value"
     fi
     
+    # agents セクションのパース（エージェントテンプレートファイルパス）
+    value="$(yaml_get "$config_file" ".agents.plan" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_AGENTS_PLAN="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".agents.implement" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_AGENTS_IMPLEMENT="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".agents.review" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_AGENTS_REVIEW="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".agents.merge" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_AGENTS_MERGE="$value"
+    fi
+    
     # 配列値の取得
     _parse_array_configs "$config_file"
 }
@@ -248,6 +275,20 @@ _apply_env_overrides() {
     if [[ -n "${PI_RUNNER_AGENT_TEMPLATE:-}" ]]; then
         CONFIG_AGENT_TEMPLATE="$PI_RUNNER_AGENT_TEMPLATE"
     fi
+    
+    # agents セクションの環境変数オーバーライド
+    if [[ -n "${PI_RUNNER_AGENTS_PLAN:-}" ]]; then
+        CONFIG_AGENTS_PLAN="$PI_RUNNER_AGENTS_PLAN"
+    fi
+    if [[ -n "${PI_RUNNER_AGENTS_IMPLEMENT:-}" ]]; then
+        CONFIG_AGENTS_IMPLEMENT="$PI_RUNNER_AGENTS_IMPLEMENT"
+    fi
+    if [[ -n "${PI_RUNNER_AGENTS_REVIEW:-}" ]]; then
+        CONFIG_AGENTS_REVIEW="$PI_RUNNER_AGENTS_REVIEW"
+    fi
+    if [[ -n "${PI_RUNNER_AGENTS_MERGE:-}" ]]; then
+        CONFIG_AGENTS_MERGE="$PI_RUNNER_AGENTS_MERGE"
+    fi
 }
 
 # 設定値を取得
@@ -299,6 +340,18 @@ get_config() {
         agent_template)
             echo "$CONFIG_AGENT_TEMPLATE"
             ;;
+        agents_plan)
+            echo "$CONFIG_AGENTS_PLAN"
+            ;;
+        agents_implement)
+            echo "$CONFIG_AGENTS_IMPLEMENT"
+            ;;
+        agents_review)
+            echo "$CONFIG_AGENTS_REVIEW"
+            ;;
+        agents_merge)
+            echo "$CONFIG_AGENTS_MERGE"
+            ;;
         *)
             echo ""
             ;;
@@ -329,4 +382,8 @@ show_config() {
     echo "agent_command: $CONFIG_AGENT_COMMAND"
     echo "agent_args: $CONFIG_AGENT_ARGS"
     echo "agent_template: $CONFIG_AGENT_TEMPLATE"
+    echo "agents_plan: $CONFIG_AGENTS_PLAN"
+    echo "agents_implement: $CONFIG_AGENTS_IMPLEMENT"
+    echo "agents_review: $CONFIG_AGENTS_REVIEW"
+    echo "agents_merge: $CONFIG_AGENTS_MERGE"
 }
