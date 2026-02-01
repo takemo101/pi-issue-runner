@@ -261,17 +261,18 @@ main() {
     
     # 初期化時点でマーカーが既にあるか確認（高速完了タスク対応）
     # Issue #281: 初期化中（10秒待機中）にマーカーが出力された場合の検出
-    if echo "$baseline_output" | grep -qF "$error_marker" 2>/dev/null; then
+    # Issue #393: コードブロック内のマーカーを誤検出しないよう、行頭のみ検出
+    if echo "$baseline_output" | grep -qE "^[[:space:]]*${error_marker}$" 2>/dev/null; then
         log_warn "Error marker already present at startup"
         
-        # エラーメッセージを抽出
+        # エラーメッセージを抽出（マーカー行の次の行）
         local error_message
-        error_message=$(echo "$baseline_output" | grep -A 1 "$error_marker" | tail -n 1 | head -c 200) || error_message="Unknown error"
+        error_message=$(echo "$baseline_output" | grep -A 1 -E "^[[:space:]]*${error_marker}$" | tail -n 1 | head -c 200) || error_message="Unknown error"
         
         handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
         log_warn "Error notification sent. Session is still running for manual intervention."
         # エラーの場合は監視を続行（ユーザーが修正する可能性があるため）
-    elif echo "$baseline_output" | grep -qF "$marker" 2>/dev/null; then
+    elif echo "$baseline_output" | grep -qE "^[[:space:]]*${marker}$" 2>/dev/null; then
         log_info "Completion marker already present at startup"
         
         if handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"; then
@@ -302,17 +303,18 @@ main() {
         }
 
         # エラーマーカー検出（完了マーカーより先にチェック）
+        # Issue #393: コードブロック内のマーカーを誤検出しないよう、行頭のみ検出
         local error_count_baseline
         local error_count_current
-        error_count_baseline=$(echo "$baseline_output" | grep -cF "$error_marker" 2>/dev/null) || error_count_baseline=0
-        error_count_current=$(echo "$output" | grep -cF "$error_marker" 2>/dev/null) || error_count_current=0
+        error_count_baseline=$(echo "$baseline_output" | grep -cE "^[[:space:]]*${error_marker}$" 2>/dev/null) || error_count_baseline=0
+        error_count_current=$(echo "$output" | grep -cE "^[[:space:]]*${error_marker}$" 2>/dev/null) || error_count_current=0
         
         if [[ "$error_count_current" -gt "$error_count_baseline" ]]; then
             log_warn "Error marker detected! (baseline: $error_count_baseline, current: $error_count_current)"
             
-            # エラーメッセージを抽出（マーカーの次の行）
+            # エラーメッセージを抽出（マーカー行の次の行）
             local error_message
-            error_message=$(echo "$output" | grep -A 1 "$error_marker" | tail -n 1 | head -c 200) || error_message="Unknown error"
+            error_message=$(echo "$output" | grep -A 1 -E "^[[:space:]]*${error_marker}$" | tail -n 1 | head -c 200) || error_message="Unknown error"
             
             handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
             
@@ -323,10 +325,11 @@ main() {
         fi
         
         # 完了マーカー検出
+        # Issue #393: コードブロック内のマーカーを誤検出しないよう、行頭のみ検出
         local marker_count_baseline
         local marker_count_current
-        marker_count_baseline=$(echo "$baseline_output" | grep -cF "$marker" 2>/dev/null) || marker_count_baseline=0
-        marker_count_current=$(echo "$output" | grep -cF "$marker" 2>/dev/null) || marker_count_current=0
+        marker_count_baseline=$(echo "$baseline_output" | grep -cE "^[[:space:]]*${marker}$" 2>/dev/null) || marker_count_baseline=0
+        marker_count_current=$(echo "$output" | grep -cE "^[[:space:]]*${marker}$" 2>/dev/null) || marker_count_current=0
         
         if [[ "$marker_count_current" -gt "$marker_count_baseline" ]]; then
             log_info "Completion marker detected! (baseline: $marker_count_baseline, current: $marker_count_current)"
