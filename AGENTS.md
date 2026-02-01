@@ -84,6 +84,7 @@ pi-issue-runner/
 │   ├── scripts/       # スクリプトの統合テスト
 │   │   ├── attach.bats
 │   │   ├── cleanup.bats
+│   │   ├── force-complete.bats  # force-complete.sh のテスト
 │   │   ├── improve.bats
 │   │   ├── init.bats
 │   │   ├── list.bats
