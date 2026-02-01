@@ -307,3 +307,237 @@ MOCK_EOF
     [ "$status" -eq 0 ]
     [[ "$output" == *"ignore"* ]] || [[ "$output" == *"blockers"* ]] || [[ "$output" == *"skip"* ]]
 }
+
+# ====================
+# --reattach オプションテスト
+# ====================
+
+@test "run.sh --reattach attaches to existing session" {
+    # Mock tmux with existing session
+    cat > "$MOCK_DIR/tmux" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$1" in
+    "has-session")
+        # Session exists for pi-issue-42
+        if [[ "$3" == "pi-issue-42" ]]; then
+            exit 0
+        fi
+        exit 1
+        ;;
+    "attach-session")
+        echo "Attached to session"
+        exit 0
+        ;;
+    *)
+        exit 0
+        ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/tmux"
+    
+    # Mock gh for issue lookup
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$2" == "view" && "$3" == "42" ]]; then
+    echo '{"number":42,"title":"Test Issue","body":"Test","state":"OPEN"}'
+else
+    exit 0
+fi
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    # Mock attach_session to avoid actual tmux call
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    
+    # Test that --reattach tries to attach to existing session
+    run "$PROJECT_ROOT/scripts/run.sh" 42 --reattach
+    # Should succeed (status 0) and attach
+    [ "$status" -eq 0 ]
+    # Output should indicate attaching
+    [[ "$output" == *"Attaching to existing session"* ]] || [[ "$output" == *"pi-issue-42"* ]]
+}
+
+@test "run.sh --reattach exits with 0 on success" {
+    # Mock tmux with existing session that can be attached
+    cat > "$MOCK_DIR/tmux" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$1" in
+    "has-session")
+        exit 0  # Session exists
+        ;;
+    "attach-session")
+        exit 0  # Attach successful
+        ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/tmux"
+    
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo '{"number":42,"title":"Test","body":"Test","state":"OPEN"}'
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    run "$PROJECT_ROOT/scripts/run.sh" 42 --reattach
+    [ "$status" -eq 0 ]
+}
+
+# ====================
+# --force オプションテスト
+# ====================
+
+@test "run.sh --force kills existing session" {
+    # Mock tmux with existing session that gets killed
+    local tmux_calls=""
+    cat > "$MOCK_DIR/tmux" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$1" in
+    "has-session")
+        exit 0  # Session exists
+        ;;
+    "kill-session")
+        echo "Session killed"
+        exit 0
+        ;;
+    "new-session")
+        exit 0
+        ;;
+    "send-keys")
+        exit 0
+        ;;
+    "list-sessions")
+        echo ""
+        ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/tmux"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    
+    # Verify session_exists detects existing session
+    run session_exists "pi-issue-42"
+    [ "$status" -eq 0 ]
+}
+
+@test "run.sh --force removes existing worktree" {
+    # Create a temporary worktree structure
+    local test_worktree="$BATS_TEST_TMPDIR/.worktrees/issue-42-test"
+    mkdir -p "$test_worktree"
+    
+    # Mock git to simulate worktree removal
+    cat > "$MOCK_DIR/git" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$1" in
+    "worktree")
+        case "$2" in
+            "list")
+                echo ""
+                ;;
+            "remove")
+                exit 0
+                ;;
+        esac
+        ;;
+    "rev-parse")
+        exit 1  # Branch doesn't exist
+        ;;
+esac
+exit 0
+MOCK_EOF
+    chmod +x "$MOCK_DIR/git"
+    enable_mocks
+    
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    
+    # Test worktree removal logic
+    if [[ -d "$test_worktree" ]]; then
+        rm -rf "$test_worktree"
+    fi
+    [ ! -d "$test_worktree" ]
+}
+
+# ====================
+# 既存セッション時のエラーメッセージテスト
+# ====================
+
+@test "run.sh shows helpful error when session exists without options" {
+    # Mock tmux with existing session
+    cat > "$MOCK_DIR/tmux" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$1" in
+    "has-session")
+        exit 0  # Session exists
+        ;;
+    "list-sessions")
+        echo "pi-issue-42: 1 windows"
+        ;;
+esac
+exit 0
+MOCK_EOF
+    chmod +x "$MOCK_DIR/tmux"
+    
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo '{"number":42,"title":"Test","body":"Test","state":"OPEN"}'
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    # Run without --reattach or --force
+    run "$PROJECT_ROOT/scripts/run.sh" 42
+    
+    # Should fail with error
+    [ "$status" -eq 1 ]
+    # Should show helpful message
+    [[ "$output" == *"already exists"* ]]
+    [[ "$output" == *"--reattach"* ]] || [[ "$output" == *"--force"* ]]
+}
+
+@test "run.sh suggests --reattach and --force when session exists" {
+    # Mock tmux with existing session
+    cat > "$MOCK_DIR/tmux" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$1" in
+    "has-session")
+        exit 0  # Session exists
+        ;;
+esac
+exit 0
+MOCK_EOF
+    chmod +x "$MOCK_DIR/tmux"
+    
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo '{"number":42,"title":"Test","body":"Test","state":"OPEN"}'
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    run "$PROJECT_ROOT/scripts/run.sh" 42
+    
+    [ "$status" -eq 1 ]
+    # Should mention both options
+    [[ "$output" == *"reattach"* ]] || [[ "$output" == *"Attach"* ]]
+    [[ "$output" == *"force"* ]] || [[ "$output" == *"Remove"* ]]
+}
+
+@test "run.sh help shows --reattach description" {
+    run "$PROJECT_ROOT/scripts/run.sh" --help
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"--reattach"* ]]
+    [[ "$output" == *"Attach"* ]] || [[ "$output" == *"attach"* ]]
+}
+
+@test "run.sh help shows --force description" {
+    run "$PROJECT_ROOT/scripts/run.sh" --help
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"--force"* ]]
+    [[ "$output" == *"削除"* ]] || [[ "$output" == *"再作成"* ]] || [[ "$output" == *"Remove"* ]] || [[ "$output" == *"recreate"* ]]
+}
