@@ -160,8 +160,10 @@ run_bats_tests() {
     else
         if [[ ${#bats_args[@]} -gt 0 ]]; then
             bats "${bats_args[@]}" "${existing_files[@]}"
+            return $?
         else
             bats "${existing_files[@]}"
+            return $?
         fi
     fi
 }
