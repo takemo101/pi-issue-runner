@@ -39,6 +39,11 @@ EOF
 # エラーハンドリング関数
 # Usage: handle_error <session_name> <issue_number> <error_message> <auto_attach> <cleanup_args>
 handle_error() {
+    # set -e を一時的に無効化（関数内のエラーでスクリプトが終了しないように）
+    local old_opts
+    old_opts="$(set +o)"
+    set +e
+    
     local session_name="$1"
     local issue_number="$2"
     local error_message="$3"
@@ -51,26 +56,35 @@ handle_error() {
     # worktreeパスとブランチ名を取得
     local worktree_path=""
     local branch_name=""
-    if worktree_path="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
+    worktree_path="$(find_worktree_by_issue "$issue_number" 2>/dev/null)" || worktree_path=""
+    if [[ -n "$worktree_path" ]]; then
         branch_name="$(get_worktree_branch "$worktree_path" 2>/dev/null)" || branch_name=""
     fi
     
     # ステータスを保存
-    save_status "$issue_number" "error" "$session_name" "$error_message"
+    save_status "$issue_number" "error" "$session_name" "$error_message" 2>/dev/null || true
     
     # on_error hookを実行（hook未設定時はデフォルト動作）
-    run_hook "on_error" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "$error_message" "1" ""
+    run_hook "on_error" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "$error_message" "1" "" 2>/dev/null || true
     
     # auto_attachが有効な場合はTerminalを開く
     if [[ "$auto_attach" == "true" ]] && is_macos; then
-        open_terminal_and_attach "$session_name"
+        open_terminal_and_attach "$session_name" 2>/dev/null || true
     fi
+    
+    # set -e を復元
+    eval "$old_opts"
 }
 
 # 完了ハンドリング関数
 # Usage: handle_complete <session_name> <issue_number> <auto_attach> <cleanup_args>
 # Returns: 0 on success, 1 on cleanup failure
 handle_complete() {
+    # set -e を一時的に無効化（関数内のエラーでスクリプトが終了しないように）
+    local old_opts
+    old_opts="$(set +o)"
+    set +e
+    
     local session_name="$1"
     local issue_number="$2"
     local auto_attach="$3"
@@ -81,15 +95,16 @@ handle_complete() {
     # worktreeパスとブランチ名を取得
     local worktree_path=""
     local branch_name=""
-    if worktree_path="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
+    worktree_path="$(find_worktree_by_issue "$issue_number" 2>/dev/null)" || worktree_path=""
+    if [[ -n "$worktree_path" ]]; then
         branch_name="$(get_worktree_branch "$worktree_path" 2>/dev/null)" || branch_name=""
     fi
     
     # ステータスを保存
-    save_status "$issue_number" "complete" "$session_name"
+    save_status "$issue_number" "complete" "$session_name" "" 2>/dev/null || true
     
     # on_success hookを実行（hook未設定時はデフォルト動作）
-    run_hook "on_success" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "" "0" ""
+    run_hook "on_success" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "" "0" "" 2>/dev/null || true
     
     log_info "Running cleanup..."
     
@@ -144,11 +159,15 @@ handle_complete() {
     
     # 古い計画書をローテーション
     log_info "Rotating old plans..."
-    "$WATCHER_SCRIPT_DIR/cleanup.sh" --rotate-plans || {
+    "$WATCHER_SCRIPT_DIR/cleanup.sh" --rotate-plans 2>/dev/null || {
         log_warn "Plan rotation failed (non-critical)"
     }
     
     log_info "Cleanup completed successfully"
+    
+    # set -e を復元
+    eval "$old_opts"
+    
     return 0
 }
 
