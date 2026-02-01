@@ -65,6 +65,7 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | `pi-wait` | 完了待機 |
 | `pi-watch` | セッション監視 |
 | `pi-init` | プロジェクト初期化 |
+| `pi-batch` | 複数Issueを依存関係順にバッチ実行 |
 
 | オプション | 説明 |
 |-----------|------|
