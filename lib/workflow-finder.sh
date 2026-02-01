@@ -15,8 +15,9 @@ source "$_WORKFLOW_FINDER_LIB_DIR/config.sh"
 # 優先順位:
 #   1. .pi-runner.yaml（プロジェクトルート）の workflow セクション
 #   2. .pi/workflow.yaml
-#   3. workflows/default.yaml
-#   4. ビルトイン default
+#   3. workflows/{name}.yaml（プロジェクトローカル）
+#   4. pi-issue-runnerインストールディレクトリのworkflows/{name}.yaml
+#   5. ビルトイン default
 find_workflow_file() {
     local workflow_name="${1:-default}"
     local project_root="${2:-.}"
@@ -35,13 +36,20 @@ find_workflow_file() {
         return 0
     fi
     
-    # 3. workflows/{name}.yaml
+    # 3. workflows/{name}.yaml（プロジェクトローカル）
     if [[ -f "$project_root/workflows/${workflow_name}.yaml" ]]; then
         echo "$project_root/workflows/${workflow_name}.yaml"
         return 0
     fi
     
-    # 4. ビルトイン（特殊な値で返す）
+    # 4. pi-issue-runnerインストールディレクトリのworkflows/{name}.yaml
+    local pi_runner_workflows_dir="${_WORKFLOW_FINDER_LIB_DIR}/../workflows"
+    if [[ -f "$pi_runner_workflows_dir/${workflow_name}.yaml" ]]; then
+        echo "$pi_runner_workflows_dir/${workflow_name}.yaml"
+        return 0
+    fi
+    
+    # 5. ビルトイン（特殊な値で返す）
     echo "builtin:${workflow_name}"
     return 0
 }
@@ -49,9 +57,10 @@ find_workflow_file() {
 # エージェントファイル検索
 # 優先順位:
 #   1. 設定ファイルの agents.{step} で指定されたパス（存在する場合）
-#   2. agents/{step}.md
-#   3. .pi/agents/{step}.md
-#   4. ビルトイン
+#   2. agents/{step}.md（プロジェクトローカル）
+#   3. .pi/agents/{step}.md（プロジェクトローカル）
+#   4. pi-issue-runnerインストールディレクトリのagents/{step}.md
+#   5. ビルトイン（ハードコードされた最小限プロンプト）
 find_agent_file() {
     local step_name="$1"
     local project_root="${2:-.}"
@@ -93,19 +102,27 @@ find_agent_file() {
         fi
     fi
     
-    # 2. agents/{step}.md
+    # 2. agents/{step}.md（プロジェクトローカル）
     if [[ -f "$project_root/agents/${step_name}.md" ]]; then
         echo "$project_root/agents/${step_name}.md"
         return 0
     fi
     
-    # 3. .pi/agents/{step}.md
+    # 3. .pi/agents/{step}.md（プロジェクトローカル）
     if [[ -f "$project_root/.pi/agents/${step_name}.md" ]]; then
         echo "$project_root/.pi/agents/${step_name}.md"
         return 0
     fi
     
-    # 4. ビルトイン
+    # 4. pi-issue-runnerインストールディレクトリのagents/{step}.md
+    # _WORKFLOW_FINDER_LIB_DIR は lib/ を指すので、親ディレクトリのagents/を参照
+    local pi_runner_agents_dir="${_WORKFLOW_FINDER_LIB_DIR}/../agents"
+    if [[ -f "$pi_runner_agents_dir/${step_name}.md" ]]; then
+        echo "$pi_runner_agents_dir/${step_name}.md"
+        return 0
+    fi
+    
+    # 5. ビルトイン（ハードコードされた最小限プロンプト）
     echo "builtin:${step_name}"
     return 0
 }

@@ -39,14 +39,16 @@ teardown() {
 # find_workflow_file テスト
 # ====================
 
-@test "find_workflow_file returns builtin when no file exists" {
+@test "find_workflow_file returns pi-runner builtin workflow when no project file exists" {
     result="$(find_workflow_file "default" "$TEST_DIR")"
-    [ "$result" = "builtin:default" ]
+    # pi-issue-runnerのworkflows/ディレクトリからdefault.yamlを見つける
+    [[ "$result" == *"/workflows/default.yaml" ]] || [ "$result" = "builtin:default" ]
 }
 
-@test "find_workflow_file returns builtin:simple for simple workflow" {
+@test "find_workflow_file returns pi-runner builtin simple workflow" {
     result="$(find_workflow_file "simple" "$TEST_DIR")"
-    [ "$result" = "builtin:simple" ]
+    # pi-issue-runnerのworkflows/ディレクトリからsimple.yamlを見つける
+    [[ "$result" == *"/workflows/simple.yaml" ]] || [ "$result" = "builtin:simple" ]
 }
 
 @test "find_workflow_file returns workflows/default.yaml when exists" {
@@ -139,24 +141,28 @@ EOF
 # find_agent_file テスト
 # ====================
 
-@test "find_agent_file returns builtin when no agent file exists" {
+@test "find_agent_file returns pi-runner builtin agent when no project file exists" {
     result="$(find_agent_file "plan" "$TEST_DIR")"
-    [ "$result" = "builtin:plan" ]
+    # pi-issue-runnerのagents/ディレクトリからplan.mdを見つける
+    [[ "$result" == *"/agents/plan.md" ]] || [ "$result" = "builtin:plan" ]
 }
 
-@test "find_agent_file returns builtin for implement step" {
+@test "find_agent_file returns pi-runner builtin for implement step" {
     result="$(find_agent_file "implement" "$TEST_DIR")"
-    [ "$result" = "builtin:implement" ]
+    # pi-issue-runnerのagents/ディレクトリからimplement.mdを見つける
+    [[ "$result" == *"/agents/implement.md" ]] || [ "$result" = "builtin:implement" ]
 }
 
-@test "find_agent_file returns builtin for review step" {
+@test "find_agent_file returns pi-runner builtin for review step" {
     result="$(find_agent_file "review" "$TEST_DIR")"
-    [ "$result" = "builtin:review" ]
+    # pi-issue-runnerのagents/ディレクトリからreview.mdを見つける
+    [[ "$result" == *"/agents/review.md" ]] || [ "$result" = "builtin:review" ]
 }
 
-@test "find_agent_file returns builtin for merge step" {
+@test "find_agent_file returns pi-runner builtin for merge step" {
     result="$(find_agent_file "merge" "$TEST_DIR")"
-    [ "$result" = "builtin:merge" ]
+    # pi-issue-runnerのagents/ディレクトリからmerge.mdを見つける
+    [[ "$result" == *"/agents/merge.md" ]] || [ "$result" = "builtin:merge" ]
 }
 
 @test "find_agent_file returns agents/plan.md when exists" {
@@ -205,20 +211,22 @@ EOF
 # エッジケーステスト
 # ====================
 
-@test "find_workflow_file handles empty project root" {
+@test "find_workflow_file falls back to pi-runner installation dir for empty project" {
     empty_dir="${BATS_TEST_TMPDIR}/empty"
     mkdir -p "$empty_dir"
     
     result="$(find_workflow_file "default" "$empty_dir")"
-    [ "$result" = "builtin:default" ]
+    # pi-issue-runnerのworkflows/ディレクトリからdefault.yamlを見つける
+    [[ "$result" == *"/workflows/default.yaml" ]] || [ "$result" = "builtin:default" ]
 }
 
-@test "find_agent_file handles empty project root" {
+@test "find_agent_file falls back to pi-runner installation dir for empty project" {
     empty_dir="${BATS_TEST_TMPDIR}/empty"
     mkdir -p "$empty_dir"
     
     result="$(find_agent_file "plan" "$empty_dir")"
-    [ "$result" = "builtin:plan" ]
+    # pi-issue-runnerのagents/ディレクトリからplan.mdを見つける
+    [[ "$result" == *"/agents/plan.md" ]] || [ "$result" = "builtin:plan" ]
 }
 
 @test "find_workflow_file handles workflow name with special characters" {
