@@ -3,6 +3,6 @@ description: 徹底ワークフロー（計画・実装・テスト・レビュ�
 steps:
   - plan
   - implement
-  - test      # カスタムステップ: agents/test.md が必要
+  - test
   - review
   - merge
