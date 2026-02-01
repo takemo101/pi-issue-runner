@@ -48,7 +48,7 @@ temp/
 feature/
 
 # Pi Agent
-.pi
+# .pi  # コメントアウト：ci-workflow skillを管理対象にする
 
 # Config file (user-specific)
 .pi-runner.yml
