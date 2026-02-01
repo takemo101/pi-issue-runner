@@ -90,12 +90,11 @@ parallel:
   max_concurrent: 3
 
 # =====================================
-# ワークフロー設定
+# ワークフロー設定（デフォルト）
 # =====================================
+# 注: -w オプション未指定時に使用されるデフォルトワークフロー
+#     ワークフロー名を指定する場合は workflows/*.yaml を作成し、-w オプションを使用
 workflow:
-  # ワークフロー名
-  name: default
-  
   # 実行するステップ
   # ビルトイン: plan, implement, review, merge
   # カスタムステップも定義可能（対応するエージェントテンプレートが必要）
@@ -253,10 +252,13 @@ parallel:
 
 ### workflow
 
+**重要**: `.pi-runner.yaml` の `workflow` セクションは、**`-w` オプションを指定しない場合に使用される「デフォルトワークフロー」**を定義します。
+
 | キー | 型 | デフォルト | 説明 |
 |------|------|-----------|------|
-| `name` | string | `default` | ワークフロー名 |
 | `steps` | string[] | `plan implement review merge` | 実行するステップ |
+
+> **注意**: `workflow.name` は `.pi-runner.yaml` では無視されます（後方互換性のために残されています）。ワークフロー名を指定する場合は `-w` オプションと `workflows/*.yaml` を使用してください。
 
 #### ビルトインステップ
 
@@ -267,27 +269,32 @@ parallel:
 | `review` | コードレビュー |
 | `merge` | PRを作成してマージ |
 
-#### カスタムワークフロー例
+#### デフォルトワークフローのカスタマイズ例
 
 ```yaml
-# 簡易ワークフロー
+# .pi-runner.yaml
+# この設定は `./scripts/run.sh 42` （-w オプションなし）で使用される
 workflow:
-  name: simple
-  steps:
-    - implement
-    - merge
-
-# カスタムワークフロー例
-# 注: カスタムステップ（test等）を使用する場合は、
-# 対応するエージェントテンプレート（agents/test.md）の作成が必要です
-workflow:
-  name: custom
   steps:
     - plan
     - implement
     - review
     - merge
+
+# 簡易ワークフローに変更する場合
+workflow:
+  steps:
+    - implement
+    - merge
 ```
+
+**ワークフロー名を指定して実行する場合**:
+```bash
+# workflows/simple.yaml を使用
+./scripts/run.sh 42 -w simple
+```
+
+詳細なワークフローの使い分けについては [ワークフロードキュメント](./workflows.md) を参照してください。
 
 ### agents
 
@@ -401,10 +408,38 @@ LOG_LEVEL=QUIET ./scripts/run.sh 42
 
 ## ワークフローファイルの検索順序
 
-1. `.pi-runner.yaml` の `workflow` セクション
+ワークフローの検索順序は、`-w` オプションの有無によって異なります。
+
+### `-w` オプション未指定時（デフォルトワークフロー）
+
+```bash
+./scripts/run.sh 42
+```
+
+1. `.pi-runner.yaml` の `workflow` セクション（推奨）
 2. `.pi/workflow.yaml`
-3. `workflows/{name}.yaml`
-4. ビルトイン（default/simple）
+3. `workflows/default.yaml`
+4. ビルトイン `default`
+
+### `-w` オプション指定時（名前付きワークフロー）
+
+```bash
+./scripts/run.sh 42 -w simple
+```
+
+1. `.pi/workflow.yaml`
+2. `workflows/{name}.yaml`（上記例では `workflows/simple.yaml`）
+3. ビルトイン `{name}`（上記例では `simple`）
+
+> **重要**: `-w` オプションを指定した場合、`.pi-runner.yaml` の `workflow` セクションは**無視**されます。これは、明示的なワークフロー指定が設定ファイルのデフォルトより優先されるためです。
+
+### 使い分けの指針
+
+| 方法 | 使用シナリオ |
+|------|-------------|
+| `.pi-runner.yaml` の `workflow` セクション | プロジェクト全体のデフォルトワークフローを定義。通常はこれを使用。 |
+| `workflows/*.yaml` | 複数のワークフローを切り替えて使用する場合。`-w` オプションで選択。 |
+| `.pi/workflow.yaml` | プロジェクト固有のワークフローを単一ファイルで管理する場合（どちらの方法でも使用可能）。 |
 
 ## エージェントファイルの検索順序
 
@@ -464,8 +499,8 @@ worktree:
 parallel:
   max_concurrent: 5
 
+# デフォルトワークフロー（-w オプション未指定時に使用）
 workflow:
-  name: default
   steps:
     - plan
     - implement
