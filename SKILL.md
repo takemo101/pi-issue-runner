@@ -26,11 +26,13 @@ Options:
   --pi-args <args>       piへの追加引数
 
 # セッション管理
-scripts/list.sh              # セッション一覧
-scripts/attach.sh <session>  # セッションにアタッチ
-scripts/status.sh <session>  # 状態確認
-scripts/stop.sh <session>    # セッション停止
-scripts/cleanup.sh <session> # 手動クリーンアップ
+scripts/list.sh                          # セッション一覧
+scripts/attach.sh <session>              # セッションにアタッチ
+scripts/status.sh <session>              # 状態確認
+scripts/stop.sh <session>                # セッション停止
+scripts/cleanup.sh <session>             # 手動クリーンアップ
+scripts/force-complete.sh <session>      # セッション強制完了
+scripts/force-complete.sh 42 --error     # エラーとして完了
 
 # 継続的改善
 scripts/improve.sh                    # レビュー→Issue作成→実行→待機のループ
