@@ -40,20 +40,148 @@ Closes #{{issue_number}}
 
 ### 3. PRのマージ
 
-CIの状態を確認してからマージします：
+CIの状態を確認してからマージします。CIが失敗した場合は自動修正を試行します：
 
 ```bash
+# PR番号を取得
+PR_NUMBER=$(gh pr list --head "{{branch_name}}" --json number -q '.[0].number' 2>/dev/null)
+
 # CIが設定されているかチェック
-if gh pr checks 2>/dev/null | grep -q .; then
-  # CIが設定されている場合：パスするまで待機（タイムアウト: 10分）
+if gh pr checks "$PR_NUMBER" 2>/dev/null | grep -q .; then
   echo "CI checks detected. Waiting for completion (timeout: 10 minutes)..."
+  
+  # CI完了を待機
   if timeout 600 gh pr checks --watch; then
-    echo "CI passed. Merging PR..."
+    echo "✅ CI passed. Merging PR..."
     gh pr merge --merge --delete-branch
   else
-    echo "ERROR: CI failed or timed out. PR will not be merged."
-    echo "###TASK_ERROR_{{issue_number}}###"
-    exit 1
+    echo "⚠️ CI failed. Attempting auto-fix..."
+    
+    # ===== CI自動修正フロー =====
+    cd "{{worktree_path}}"
+    
+    # リトライ回数を追跡（ファイルベース）
+    RETRY_FILE="/tmp/pi-runner-ci-retry-{{issue_number}}"
+    RETRY_COUNT=$(cat "$RETRY_FILE" 2>/dev/null || echo "0")
+    MAX_RETRIES=3
+    
+    if [[ "$RETRY_COUNT" -ge "$MAX_RETRIES" ]]; then
+      echo "❌ Maximum retry count ($MAX_RETRIES) reached. Escalating to manual handling..."
+      
+      # PRをDraft化
+      gh pr ready "$PR_NUMBER" --undo 2>/dev/null || true
+      
+      # 失敗ログをコメント追加
+      FAILED_LOGS=$(gh run list --limit 1 --status failure --json databaseId -q '.[0].databaseId' | xargs -I {} gh run view {} --log-failed 2>/dev/null | head -100)
+      gh pr comment "$PR_NUMBER" --body "## 🤖 CI自動修正: エスカレーション
+
+CI失敗の自動修正が最大試行回数に達しました。手動対応が必要です。
+
+### 失敗ログ（要約）
+\`\`\`
+$FAILED_LOGS
+\`\`\`
+
+### 対応が必要な項目
+- [ ] 失敗ログの詳細確認
+- [ ] ソースコードの修正
+- [ ] CIの再実行
+" 2>/dev/null || true
+      
+      echo "###TASK_ERROR_{{issue_number}}###"
+      echo "CI failed after $MAX_RETRIES auto-fix attempts. PR marked as draft for manual handling."
+      exit 1
+    fi
+    
+    # 失敗タイプを特定
+    echo "Analyzing CI failure type..."
+    RUN_ID=$(gh run list --limit 1 --status failure --json databaseId -q '.[0].databaseId' 2>/dev/null)
+    FAILED_LOGS=$(gh run view "$RUN_ID" --log-failed 2>/dev/null || echo "")
+    
+    # 失敗タイプを検出
+    if echo "$FAILED_LOGS" | grep -qE '(Diff in|would have been reformatted|fmt check failed)'; then
+      FAILURE_TYPE="format"
+    elif echo "$FAILED_LOGS" | grep -qE '(warning:|clippy::|error: could not compile.*clippy)'; then
+      FAILURE_TYPE="lint"
+    elif echo "$FAILED_LOGS" | grep -qE '(FAILED|test result: FAILED|failures:)'; then
+      FAILURE_TYPE="test"
+    elif echo "$FAILED_LOGS" | grep -qE '(error\[E|cannot find|unresolved import)'; then
+      FAILURE_TYPE="build"
+    else
+      FAILURE_TYPE="unknown"
+    fi
+    
+    echo "Detected failure type: $FAILURE_TYPE"
+    
+    # 自動修正を試行
+    FIX_APPLIED=false
+    
+    case "$FAILURE_TYPE" in
+      "format")
+        echo "🛠️ Attempting format fix..."
+        if cargo fmt --all 2>/dev/null; then
+          git add -A
+          git commit -m "fix: CI修正 - フォーマット対応
+
+Refs #{{issue_number}}" || true
+          FIX_APPLIED=true
+        fi
+        ;;
+      "lint")
+        echo "🛠️ Attempting clippy fix..."
+        if cargo clippy --fix --allow-dirty --allow-staged --all-targets --all-features 2>/dev/null; then
+          git add -A
+          git commit -m "fix: CI修正 - Lint対応
+
+Refs #{{issue_number}}" || true
+          FIX_APPLIED=true
+        fi
+        ;;
+      "test"|"build")
+        echo "🤖 AI-based fixing required for $FAILURE_TYPE failure..."
+        # このケースはAIによる修正が必要
+        # 失敗したテスト/ファイルを特定して修正
+        ;;
+    esac
+    
+    if [[ "$FIX_APPLIED" == "true" ]]; then
+      # リトライ回数をインクリメント
+      echo $((RETRY_COUNT + 1)) > "$RETRY_FILE"
+      
+      # プッシュしてCI再実行
+      echo "Pushing fix and re-running CI..."
+      git push
+      
+      # CI再実行を待機
+      if timeout 600 gh pr checks --watch; then
+        echo "✅ CI passed after auto-fix. Merging PR..."
+        rm -f "$RETRY_FILE"  # 成功したのでリトライカウントをリセット
+        gh pr merge --merge --delete-branch
+      else
+        echo "❌ CI still failing after auto-fix. Will retry..."
+        echo "###TASK_ERROR_{{issue_number}}###"
+        echo "CI failed after auto-fix attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
+        exit 1
+      fi
+    else
+      # 自動修正不可 - エスカレーション
+      echo "❌ Auto-fix not available for this failure type. Escalating..."
+      
+      gh pr ready "$PR_NUMBER" --undo 2>/dev/null || true
+      gh pr comment "$PR_NUMBER" --body "## 🤖 CI自動修正: エスカレーション
+
+自動修正が困難な失敗タイプ（$FAILURE_TYPE）のため、手動対応が必要です。
+
+失敗ログ:
+\`\`\`
+$FAILED_LOGS
+\`\`\`
+" 2>/dev/null || true
+      
+      echo "###TASK_ERROR_{{issue_number}}###"
+      echo "CI failure type '$FAILURE_TYPE' requires manual fixing."
+      exit 1
+    fi
   fi
 else
   # CIが設定されていない場合：スキップしてマージ
