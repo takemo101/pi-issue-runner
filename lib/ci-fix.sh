@@ -7,177 +7,20 @@
 #   - Format: cargo fmt
 #   - Test失敗: AI解析による修正
 #   - ビルドエラー: AI解析による修正
+#
+# 注意: このファイルは以下のモジュールに依存します:
+#   - ci-monitor.sh: CI状態監視
+#   - ci-classifier.sh: 失敗タイプ分類
+#   - ci-retry.sh: リトライ管理
 
 set -euo pipefail
 
-_CI_FIX_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$_CI_FIX_LIB_DIR/log.sh"
-source "$_CI_FIX_LIB_DIR/github.sh"
-
-# ===================
-# 定数定義
-# ===================
-
-# CIポーリング設定
-CI_POLL_INTERVAL=30      # ポーリング間隔（秒）
-CI_TIMEOUT=600           # タイムアウト（10分 = 600秒）
-MAX_RETRY_COUNT=3        # 最大リトライ回数
-
-# 失敗タイプ定義
-FAILURE_TYPE_LINT="lint"
-FAILURE_TYPE_FORMAT="format"
-FAILURE_TYPE_TEST="test"
-FAILURE_TYPE_BUILD="build"
-FAILURE_TYPE_UNKNOWN="unknown"
-
-# ===================
-# CI状態監視
-# ===================
-
-# CI完了を待機（ポーリング）
-# Usage: wait_for_ci_completion <pr_number> [timeout_seconds]
-# Returns: 0=成功, 1=失敗, 2=タイムアウト
-wait_for_ci_completion() {
-    local pr_number="$1"
-    local timeout="${2:-$CI_TIMEOUT}"
-    local elapsed=0
-    
-    log_info "Waiting for CI completion (timeout: ${timeout}s)..."
-    
-    while [[ $elapsed -lt $timeout ]]; do
-        local status
-        status=$(get_pr_checks_status "$pr_number" 2>/dev/null || echo "pending")
-        
-        case "$status" in
-            "success")
-                log_info "CI completed successfully"
-                return 0
-                ;;
-            "failure")
-                log_warn "CI failed"
-                return 1
-                ;;
-            *)
-                log_debug "CI status: $status (elapsed: ${elapsed}s)"
-                ;;
-        esac
-        
-        sleep "$CI_POLL_INTERVAL"
-        elapsed=$((elapsed + CI_POLL_INTERVAL))
-    done
-    
-    log_error "CI wait timed out after ${timeout}s"
-    return 2
-}
-
-# PRのCIチェック状態を取得
-# Usage: get_pr_checks_status <pr_number>
-# Returns: success | failure | pending | unknown
-get_pr_checks_status() {
-    local pr_number="$1"
-    
-    if ! command -v gh &> /dev/null; then
-        log_error "gh CLI not found"
-        echo "unknown"
-        return 1
-    fi
-    
-    # PRのチェック状態を取得
-    local checks_json
-    checks_json=$(gh pr checks "$pr_number" --json state,conclusion 2>/dev/null || echo "[]")
-    
-    # チェックがない場合は成功とみなす
-    if [[ -z "$checks_json" || "$checks_json" == "[]" ]]; then
-        echo "success"
-        return 0
-    fi
-    
-    # jqで解析
-    if command -v jq &> /dev/null; then
-        # 失敗があるかチェック
-        if echo "$checks_json" | jq -e 'any(.[]; .state == "FAILURE" or .conclusion == "failure")' > /dev/null 2>&1; then
-            echo "failure"
-            return 0
-        fi
-        
-        # 進行中があるかチェック
-        if echo "$checks_json" | jq -e 'any(.[]; .state == "PENDING" or .state == "QUEUED")' > /dev/null 2>&1; then
-            echo "pending"
-            return 0
-        fi
-        
-        # 全て成功
-        if echo "$checks_json" | jq -e 'all(.[]; .state == "SUCCESS" or .conclusion == "success")' > /dev/null 2>&1; then
-            echo "success"
-            return 0
-        fi
-    fi
-    
-    echo "unknown"
-    return 0
-}
-
-# ===================
-# 失敗ログ取得・分析
-# ===================
-
-# 失敗したCIのログを取得
-# Usage: get_failed_ci_logs <pr_number>
-get_failed_ci_logs() {
-    local pr_number="$1"
-    
-    log_info "Fetching failed CI logs for PR #$pr_number"
-    
-    if ! command -v gh &> /dev/null; then
-        log_error "gh CLI not found"
-        return 1
-    fi
-    
-    # 最新の失敗したワークフロー実行を取得
-    local run_id
-    run_id=$(gh run list --limit 1 --status failure --json databaseId -q '.[0].databaseId' 2>/dev/null || echo "")
-    
-    if [[ -z "$run_id" ]]; then
-        log_warn "No failed runs found"
-        return 1
-    fi
-    
-    # 失敗したジョブのログを取得
-    gh run view "$run_id" --log-failed 2>/dev/null || echo ""
-}
-
-# CI失敗タイプを分類
-# Usage: classify_ci_failure <log_content>
-# Returns: lint | format | test | build | unknown
-classify_ci_failure() {
-    local log_content="$1"
-    
-    # フォーマットエラーをチェック（最も具体的なので先に）
-    if echo "$log_content" | grep -qE '(Diff in|would have been reformatted|fmt check failed)'; then
-        echo "$FAILURE_TYPE_FORMAT"
-        return 0
-    fi
-    
-    # Lint/Clippyエラーをチェック
-    if echo "$log_content" | grep -qE '(warning:|clippy::|error: could not compile.*clippy)'; then
-        echo "$FAILURE_TYPE_LINT"
-        return 0
-    fi
-    
-    # テスト失敗をチェック
-    if echo "$log_content" | grep -qE '(FAILED|test result: FAILED|failures:)'; then
-        echo "$FAILURE_TYPE_TEST"
-        return 0
-    fi
-    
-    # ビルドエラーをチェック
-    if echo "$log_content" | grep -qE '(error\[E|cannot find|unresolved import|expected.*found)'; then
-        echo "$FAILURE_TYPE_BUILD"
-        return 0
-    fi
-    
-    echo "$FAILURE_TYPE_UNKNOWN"
-}
+__CI_FIX_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$__CI_FIX_LIB_DIR/log.sh"
+source "$__CI_FIX_LIB_DIR/github.sh"
+source "$__CI_FIX_LIB_DIR/ci-monitor.sh"
+source "$__CI_FIX_LIB_DIR/ci-classifier.sh"
+source "$__CI_FIX_LIB_DIR/ci-retry.sh"
 
 # ===================
 # 自動修正実行
@@ -307,72 +150,6 @@ run_local_validation() {
         log_info "Local validation passed"
         return 0
     )
-}
-
-# ===================
-# リトライ管理
-# ===================
-
-# リトライ状態ファイルのパスを取得
-# Usage: get_retry_state_file <issue_number>
-get_retry_state_file() {
-    local issue_number="$1"
-    local state_dir="${PI_RUNNER_STATE_DIR:-/tmp/pi-runner-state}"
-    mkdir -p "$state_dir"
-    echo "$state_dir/ci-retry-$issue_number"
-}
-
-# リトライ回数を取得
-# Usage: get_retry_count <issue_number>
-get_retry_count() {
-    local issue_number="$1"
-    local state_file
-    state_file=$(get_retry_state_file "$issue_number")
-    
-    if [[ -f "$state_file" ]]; then
-        cat "$state_file" 2>/dev/null || echo "0"
-    else
-        echo "0"
-    fi
-}
-
-# リトライ回数をインクリメント
-# Usage: increment_retry_count <issue_number>
-increment_retry_count() {
-    local issue_number="$1"
-    local state_file
-    state_file=$(get_retry_state_file "$issue_number")
-    local count
-    count=$(get_retry_count "$issue_number")
-    
-    echo $((count + 1)) > "$state_file"
-}
-
-# リトライ回数をリセット
-# Usage: reset_retry_count <issue_number>
-reset_retry_count() {
-    local issue_number="$1"
-    local state_file
-    state_file=$(get_retry_state_file "$issue_number")
-    
-    rm -f "$state_file"
-}
-
-# リトライを続行すべきか判定
-# Usage: should_continue_retry <issue_number>
-# Returns: 0=続行可能, 1=最大回数に達した
-should_continue_retry() {
-    local issue_number="$1"
-    local count
-    count=$(get_retry_count "$issue_number")
-    
-    if [[ $count -lt $MAX_RETRY_COUNT ]]; then
-        log_info "Retry attempt $((count + 1))/$MAX_RETRY_COUNT"
-        return 0
-    else
-        log_warn "Maximum retry count ($MAX_RETRY_COUNT) reached"
-        return 1
-    fi
 }
 
 # ===================
