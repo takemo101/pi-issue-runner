@@ -114,7 +114,7 @@ MOCK_EOF
 
 @test "run-batch.sh accepts multiple issue numbers" {
     # スクリプトの内容を確認
-    grep -q "issues+=(\"\$1\")" "$PROJECT_ROOT/scripts/run-batch.sh"
+    grep -q "PARSE_ISSUES+=(\"\$1\")" "$PROJECT_ROOT/scripts/run-batch.sh"
 }
 
 @test "run-batch.sh supports --sequential option" {
