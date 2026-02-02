@@ -189,8 +189,11 @@ teardown() {
 }
 
 @test "should_continue_retry returns false at max retries" {
-    # 一意のIssue番号を使用してテスト間の干渉を防ぐ
-    local issue_number="max_retry_test_$$_$(date +%s%N)"
+    # テスト用の独立した状態ディレクトリを設定
+    export PI_RUNNER_STATE_DIR="$BATS_TEST_TMPDIR/state_max"
+    mkdir -p "$PI_RUNNER_STATE_DIR"
+    
+    local issue_number="test_max_$$"
     
     # 3回インクリメントして最大に到達
     increment_retry_count "$issue_number"
@@ -202,7 +205,11 @@ teardown() {
 }
 
 @test "should_continue_retry returns false over max retries" {
-    local issue_number=99990
+    # テスト用の独立した状態ディレクトリを設定
+    export PI_RUNNER_STATE_DIR="$BATS_TEST_TMPDIR/state_over"
+    mkdir -p "$PI_RUNNER_STATE_DIR"
+    
+    local issue_number="test_over_$$"
     
     # 4回インクリメント
     increment_retry_count "$issue_number"
