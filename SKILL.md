@@ -28,7 +28,8 @@ Options:
 
 # バッチ実行（依存関係順）
 scripts/run-batch.sh <issue>... [options]
-scripts/run-batch.sh 42 43 44 --dry-run  # 計画のみ
+scripts/run-batch.sh 42 43 44 --dry-run     # 実行計画のみ表示
+scripts/run-batch.sh 42 43 44 --sequential  # 順次実行
 
 # セッション管理
 scripts/list.sh                          # セッション一覧
@@ -43,12 +44,6 @@ scripts/force-complete.sh 42 --error     # エラーとして完了
 scripts/nudge.sh <issue-number>          # セッションに続行を促すメッセージを送信
 scripts/nudge.sh 42 --message "続けてください"
 
-# バッチ実行（依存関係を考慮）
-scripts/run-batch.sh <issue>... [options]
-scripts/run-batch.sh 42 43 44             # 並列実行
-scripts/run-batch.sh 42 43 --dry-run      # 計画のみ
-scripts/run-batch.sh 42 43 --sequential   # 順次実行
-
 # CI修正ワークフロー
 scripts/run.sh 42 --workflow ci-fix       # CI失敗の自動修正
 
@@ -59,11 +54,6 @@ scripts/improve.sh --review-only      # 問題表示のみ
 scripts/improve.sh --max-iterations 2 # 最大2回繰り返す
 scripts/improve.sh --auto-continue    # 自動継続（承認スキップ）
 scripts/wait-for-sessions.sh 42 43    # 複数セッション完了待機
-
-# 複数Issueの一括実行
-scripts/run-batch.sh <issue>... [options]
-scripts/run-batch.sh 42 43 44 --dry-run     # 実行計画のみ表示
-scripts/run-batch.sh 42 43 44 --sequential  # 順次実行
 ```
 
 ## 前提条件
