@@ -43,6 +43,11 @@ teardown() {
 }
 
 @test "daemonize runs command in background" {
+    # 高速モード時はスキップ
+    if [[ "${BATS_FAST_MODE:-}" == "1" ]]; then
+        skip "Skipping slow test in fast mode"
+    fi
+    
     source "$PROJECT_ROOT/lib/daemon.sh"
     
     # テスト用スクリプトを作成（2秒間動作）
@@ -71,6 +76,11 @@ EOF
 }
 
 @test "daemonize writes output to log file" {
+    # 高速モード時はスキップ
+    if [[ "${BATS_FAST_MODE:-}" == "1" ]]; then
+        skip "Skipping slow test in fast mode"
+    fi
+    
     source "$PROJECT_ROOT/lib/daemon.sh"
     
     # テスト用スクリプトを作成（標準出力と標準エラー出力）
@@ -116,6 +126,11 @@ EOF
 }
 
 @test "stop_daemon terminates running daemon" {
+    # 高速モード時はスキップ
+    if [[ "${BATS_FAST_MODE:-}" == "1" ]]; then
+        skip "Skipping slow test in fast mode"
+    fi
+    
     source "$PROJECT_ROOT/lib/daemon.sh"
     
     # テスト用デーモンを起動（5秒間動作）
@@ -146,6 +161,11 @@ EOF
 }
 
 @test "daemon process survives parent shell exit" {
+    # 高速モード時はスキップ
+    if [[ "${BATS_FAST_MODE:-}" == "1" ]]; then
+        skip "Skipping slow test in fast mode"
+    fi
+    
     source "$PROJECT_ROOT/lib/daemon.sh"
     
     # サブシェルでデーモンを起動し、即座に終了
@@ -166,6 +186,11 @@ EOF
 }
 
 @test "daemonize with setsid on Linux or double fork on macOS" {
+    # 高速モード時はスキップ
+    if [[ "${BATS_FAST_MODE:-}" == "1" ]]; then
+        skip "Skipping slow test in fast mode"
+    fi
+    
     source "$PROJECT_ROOT/lib/daemon.sh"
     
     # OSを検出して適切な方法でデーモン化されるか確認
@@ -189,6 +214,11 @@ EOF
 }
 
 @test "find_daemon_pid finds running process by pattern" {
+    # 高速モード時はスキップ
+    if [[ "${BATS_FAST_MODE:-}" == "1" ]]; then
+        skip "Skipping slow test in fast mode"
+    fi
+    
     source "$PROJECT_ROOT/lib/daemon.sh"
     
     # テスト用の一意なパターンを持つプロセスを起動

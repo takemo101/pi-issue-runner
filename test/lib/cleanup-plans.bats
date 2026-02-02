@@ -134,6 +134,11 @@ create_plan_file() {
 # ====================
 
 @test "cleanup_old_plans dry_run=false deletes old files" {
+    # 高速モード時はスキップ
+    if [[ "${BATS_FAST_MODE:-}" == "1" ]]; then
+        skip "Skipping slow test in fast mode"
+    fi
+    
     # 6個の計画書を作成（異なる更新時刻）
     for i in {1..6}; do
         create_plan_file "$i" "$((i * 10))"
@@ -150,6 +155,11 @@ create_plan_file() {
 }
 
 @test "cleanup_old_plans shows deleted message" {
+    # 高速モード時はスキップ
+    if [[ "${BATS_FAST_MODE:-}" == "1" ]]; then
+        skip "Skipping slow test in fast mode"
+    fi
+    
     for i in {1..6}; do
         create_plan_file "$i" "$((i * 10))"
         sleep 0.1
@@ -372,6 +382,11 @@ MOCK_EOF
 # ====================
 
 @test "cleanup_old_plans with keep_count=1 keeps only newest" {
+    # 高速モード時はスキップ
+    if [[ "${BATS_FAST_MODE:-}" == "1" ]]; then
+        skip "Skipping slow test in fast mode"
+    fi
+    
     # 3個の計画書を作成（異なる更新時刻）
     create_plan_file "10" "300"  # 最も古い
     sleep 0.2
@@ -402,6 +417,11 @@ MOCK_EOF
 }
 
 @test "cleanup_old_plans uses default keep_count from config" {
+    # 高速モード時はスキップ
+    if [[ "${BATS_FAST_MODE:-}" == "1" ]]; then
+        skip "Skipping slow test in fast mode"
+    fi
+    
     for i in {1..10}; do
         create_plan_file "$i" "$((i * 10))"
         sleep 0.05
