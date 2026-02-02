@@ -68,6 +68,7 @@ source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/workflow.sh"
 source "$SCRIPT_DIR/../lib/hooks.sh"
 source "$SCRIPT_DIR/../lib/agent.sh"
+source "$SCRIPT_DIR/../lib/daemon.sh"
 
 # 設定ファイルの存在チェック（必須）
 require_config_file "pi-run" || exit 1
@@ -307,10 +308,13 @@ main() {
         local watcher_log="/tmp/pi-watcher-${session_name}.log"
         local watcher_script
         watcher_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/watch-session.sh"
-        nohup "$watcher_script" "$session_name" \
-            > "$watcher_log" 2>&1 &
-        local watcher_pid=$!
-        disown "$watcher_pid" 2>/dev/null || true
+        
+        # Issue #553: daemonize関数を使用してプロセスグループを分離
+        # nohup + disown だけでは親プロセスグループ終了時に一緒に死ぬため、
+        # daemonizeで新しいセッションを作成して完全に分離する
+        local watcher_pid
+        watcher_pid=$(daemonize "$watcher_log" "$watcher_script" "$session_name")
+        
         log_debug "Watcher PID: $watcher_pid, Log: $watcher_log"
     fi
 
