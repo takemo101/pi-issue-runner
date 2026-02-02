@@ -196,6 +196,31 @@ teardown() {
 }
 
 # ====================
+# kill_session テスト
+# ====================
+
+@test "kill_session returns success for nonexistent session" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    run kill_session "nonexistent-session-name-xyz789"
+    [ "$status" -eq 0 ]
+}
+
+@test "kill_session accepts custom max_wait parameter" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    # カスタム待機時間（1秒）を指定して存在しないセッションを終了
+    run kill_session "nonexistent-session-name-xyz456" 1
+    [ "$status" -eq 0 ]
+}
+
+# ====================
 # check_concurrent_limit テスト
 # ====================
 
