@@ -37,6 +37,7 @@ pi-issue-runner/
 │   └── test.sh        # テスト一括実行
 ├── lib/               # 共通ライブラリ
 │   ├── agent.sh       # マルチエージェント対応
+│   ├── batch.sh       # バッチ処理コア機能
 │   ├── ci-classifier.sh   # CI失敗タイプ分類
 │   ├── ci-fix.sh      # CI失敗検出・自動修正
 │   ├── ci-monitor.sh      # CI状態監視
@@ -75,6 +76,7 @@ pi-issue-runner/
 ├── test/              # Batsテスト（*.bats形式）
 │   ├── lib/           # ライブラリのユニットテスト
 │   │   ├── agent.bats
+│   │   ├── batch.bats
 │   │   ├── ci-classifier.bats  # ci-classifier.sh のテスト
 │   │   ├── ci-fix.bats
 │   │   ├── ci-monitor.bats     # ci-monitor.sh のテスト
