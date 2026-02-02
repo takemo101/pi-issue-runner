@@ -423,7 +423,11 @@ hooks:
   on_cleanup: echo "クリーンアップ完了" >> ~/.pi-runner/activity.log
 ```
 
-詳細は[docs/hooks.md](docs/hooks.md)を参照してください。
+### ⚠️ セキュリティ注意
+
+インラインフックコマンド（文字列として記述されたコマンド）は `eval` で実行されます。`.pi-runner.yaml` に含まれるコマンドが実行されるため、**信頼できないリポジトリの設定ファイルは確認してから実行してください**。
+
+詳細なセキュリティ情報は [docs/security.md](docs/security.md) を参照してください。
 
 ## ディレクトリ構造
 
