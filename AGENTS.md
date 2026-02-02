@@ -109,7 +109,6 @@ pi-issue-runner/
 │   │   ├── nudge.bats
 │   │   ├── run.bats
 │   │   ├── run-batch.bats        # run-batch.sh のテスト
-│   │   ├── run-watcher.bats
 │   │   ├── status.bats
 │   │   ├── stop.bats
 │   │   ├── test.bats
