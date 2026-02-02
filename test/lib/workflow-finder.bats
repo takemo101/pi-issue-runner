@@ -18,6 +18,8 @@ setup() {
     unset CONFIG_AGENTS_IMPLEMENT
     unset CONFIG_AGENTS_REVIEW
     unset CONFIG_AGENTS_MERGE
+    unset CONFIG_AGENTS_TEST
+    unset CONFIG_AGENTS_CI_FIX
     
     source "$PROJECT_ROOT/lib/workflow-finder.sh"
     
@@ -165,6 +167,16 @@ EOF
     [[ "$result" == *"/agents/merge.md" ]] || [ "$result" = "builtin:merge" ]
 }
 
+@test "find_agent_file returns builtin for test step" {
+    result="$(find_agent_file "test" "$TEST_DIR")"
+    [ "$result" = "builtin:test" ]
+}
+
+@test "find_agent_file returns builtin for ci-fix step" {
+    result="$(find_agent_file "ci-fix" "$TEST_DIR")"
+    [ "$result" = "builtin:ci-fix" ]
+}
+
 @test "find_agent_file returns agents/plan.md when exists" {
     echo "# Custom Plan Agent" > "$TEST_DIR/agents/plan.md"
     
@@ -300,6 +312,8 @@ EOF
     echo "# Custom Implement" > "$TEST_DIR/custom/implement.md"
     echo "# Custom Review" > "$TEST_DIR/custom/review.md"
     echo "# Custom Merge" > "$TEST_DIR/custom/merge.md"
+    echo "# Custom Test" > "$TEST_DIR/custom/test.md"
+    echo "# Custom CI Fix" > "$TEST_DIR/custom/ci-fix.md"
     
     cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
 agents:
@@ -307,6 +321,8 @@ agents:
   implement: custom/implement.md
   review: custom/review.md
   merge: custom/merge.md
+  test: custom/test.md
+  ci-fix: custom/ci-fix.md
 EOF
     
     # テストディレクトリに移動して設定を読み込む
@@ -317,6 +333,8 @@ EOF
     [ "$(find_agent_file "implement" "$TEST_DIR")" = "$TEST_DIR/custom/implement.md" ]
     [ "$(find_agent_file "review" "$TEST_DIR")" = "$TEST_DIR/custom/review.md" ]
     [ "$(find_agent_file "merge" "$TEST_DIR")" = "$TEST_DIR/custom/merge.md" ]
+    [ "$(find_agent_file "test" "$TEST_DIR")" = "$TEST_DIR/custom/test.md" ]
+    [ "$(find_agent_file "ci-fix" "$TEST_DIR")" = "$TEST_DIR/custom/ci-fix.md" ]
 }
 
 @test "find_agent_file handles absolute path in config" {

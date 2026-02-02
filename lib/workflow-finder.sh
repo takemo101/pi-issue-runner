@@ -83,6 +83,12 @@ find_agent_file() {
         merge)
             config_path="$(get_config agents_merge)"
             ;;
+        test)
+            config_path="$(get_config agents_test)"
+            ;;
+        ci-fix)
+            config_path="$(get_config agents_ci_fix)"
+            ;;
     esac
     
     # 1. 設定ファイルで指定されたパス（相対パスの場合はproject_rootから解決）
