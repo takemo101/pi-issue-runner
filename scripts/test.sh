@@ -16,12 +16,18 @@ Options:
     -f, --fail-fast   最初の失敗で終了
     -s, --shellcheck  ShellCheckを実行
     -a, --all         全てのチェック（bats + shellcheck）を実行
+    -j, --jobs N      並列実行のジョブ数（デフォルト: 16）
+    --fast            高速モード（重いテストをスキップ）
     -h, --help        このヘルプを表示
 
 Target:
     lib               test/lib/*.bats のみ実行
     scripts           test/scripts/*.bats のみ実行
     (default)         全Batsテストを実行
+
+Environment:
+    BATS_JOBS         並列実行のジョブ数（デフォルト: 16）
+    BATS_FAST_MODE    1=高速モード有効
 
 Examples:
     $(basename "$0")             # 全Batsテスト実行
@@ -104,11 +110,18 @@ run_bats_tests() {
     local verbose="$1"
     local fail_fast="$2"
     local target="$3"
+    local jobs="$4"
+    local fast_mode="$5"
     
     local bats_args=()
     
     if [[ "$verbose" == "true" ]]; then
         bats_args+=(--tap)
+    fi
+    
+    # 並列実行の設定
+    if [[ "$jobs" -gt 1 && "$fail_fast" != "true" ]]; then
+        bats_args+=(--jobs "$jobs")
     fi
     
     # Determine which test files to run
@@ -173,6 +186,8 @@ main() {
     local verbose=false
     local shellcheck_only=false
     local run_all=false
+    local fast_mode=false
+    local jobs="${BATS_JOBS:-16}"
     local target=""
     
     # 引数パース
@@ -194,6 +209,14 @@ main() {
                 run_all=true
                 shift
                 ;;
+            -j|--jobs)
+                jobs="$2"
+                shift 2
+                ;;
+            --fast)
+                fast_mode=true
+                shift
+                ;;
             -h|--help)
                 usage
                 exit 0
@@ -209,6 +232,11 @@ main() {
                 ;;
         esac
     done
+    
+    # 環境変数で高速モードを有効化
+    if [[ "${BATS_FAST_MODE:-}" == "1" ]]; then
+        fast_mode=true
+    fi
     
     local exit_code=0
     
@@ -234,7 +262,16 @@ main() {
     
     # Run Bats tests
     if check_bats; then
-        if ! run_bats_tests "$verbose" "$fail_fast" "$target"; then
+        # 並列実行情報を表示
+        if [[ "$jobs" -gt 1 && "$fail_fast" != "true" ]]; then
+            echo "Running tests in parallel with $jobs jobs..."
+        fi
+        if [[ "$fast_mode" == "true" ]]; then
+            echo "Fast mode enabled: skipping heavy tests..."
+            export BATS_FAST_MODE=1
+        fi
+        
+        if ! run_bats_tests "$verbose" "$fail_fast" "$target" "$jobs" "$fast_mode"; then
             exit_code=1
         fi
     else
