@@ -125,10 +125,13 @@ _execute_hook() {
     local hook="$1"
     ...
     # インラインコマンドとして実行
+    log_warn "Executing inline hook command (security note: ensure this is from a trusted source)"
     log_debug "Executing inline hook"
     eval "$hook"
 }
 ```
+
+実行時には警告ログが出力されるため、意図しないコマンド実行に気づくことができます。
 
 ### リスク
 

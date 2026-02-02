@@ -129,6 +129,7 @@ _execute_hook() {
     fi
     
     # インラインコマンドとして実行
+    log_warn "Executing inline hook command (security note: ensure this is from a trusted source)"
     log_debug "Executing inline hook"
     eval "$hook"
 }
