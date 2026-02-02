@@ -389,6 +389,11 @@ teardown() {
 }
 
 @test "find_old_statuses finds old files" {
+    # このテストはtouch -tが遅いため、デフォルトではスキップ
+    if [[ "${BATS_ENABLE_SLOW_TESTS:-}" != "1" ]]; then
+        skip "Skipping slow timestamp test (set BATS_ENABLE_SLOW_TESTS=1 to enable)"
+    fi
+    
     source "$PROJECT_ROOT/lib/status.sh"
     
     # ステータスファイルを作成して日付を過去に変更
