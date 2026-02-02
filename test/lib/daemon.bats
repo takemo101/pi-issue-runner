@@ -216,3 +216,59 @@ EOF
     # クリーンアップ
     stop_daemon "$pid" 2>/dev/null || true
 }
+
+@test "Issue #553: watcher survives batch timeout scenario" {
+    source "$PROJECT_ROOT/lib/daemon.sh"
+    
+    local log_file="$BATS_TEST_TMPDIR/batch_timeout_test.log"
+    local status_file="$BATS_TEST_TMPDIR/watcher_status.txt"
+    
+    # batch timeoutシナリオをシミュレートするスクリプト
+    local batch_script="$BATS_TEST_TMPDIR/batch_simulator.sh"
+    cat > "$batch_script" << 'EOF'
+#!/usr/bin/env bash
+log_file="$1"
+status_file="$2"
+echo "running" > "$status_file"
+echo "$(date): Batch started" >> "$log_file"
+# 親がタイムアウトで死んでも生き続ける
+for i in {1..30}; do
+    echo "$(date): Still running (iteration $i)" >> "$log_file"
+    sleep 1
+done
+echo "$(date): Batch completed normally" >> "$log_file"
+echo "completed" > "$status_file"
+EOF
+    chmod +x "$batch_script"
+    
+    # 親プロセスをシミュレートしてwatcherを起動
+    local watcher_pid
+    watcher_pid=$(
+        # バッチ処理をシミュレート
+        pid=$(daemonize "$log_file" "$batch_script" "$log_file" "$status_file")
+        echo "$pid"
+        # すぐに終了（タイムアウトシミュレーション）
+        exit 0
+    )
+    
+    TEST_WATCHER_PID="$watcher_pid"
+    
+    # 親が終了してもwatcherが生きているか確認
+    sleep 1
+    run is_daemon_running "$watcher_pid"
+    [ "$status" -eq 0 ]
+    
+    # ログが書き込まれているか確認
+    run cat "$log_file"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Batch started"* ]]
+    [[ "$output" == *"Still running"* ]]
+    
+    # ステータスファイルが"running"であることを確認
+    [ -f "$status_file" ]
+    run cat "$status_file"
+    [ "$output" == "running" ]  # まだ完了していない
+    
+    # クリーンアップ
+    stop_daemon "$watcher_pid" 2>/dev/null || true
+}
