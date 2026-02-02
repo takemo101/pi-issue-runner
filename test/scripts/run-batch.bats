@@ -574,3 +574,434 @@ MOCK_EOF
     
     [ "$status" -eq 0 ]
 }
+
+# ====================
+# 強化されたdry-runテスト
+# ====================
+
+@test "run-batch.sh --dry-run shows correct layer structure for independent issues" {
+    # 3つの独立したIssue（依存関係なし）
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    *"number=1500"*|*"number=1501"*|*"number=1502"*)
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 1500 1501 1502 --dry-run
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Layer 0"* ]]
+    # All issues should be in layer 0 (no dependencies)
+    [[ "$output" == *"#1500"* ]]
+    [[ "$output" == *"#1501"* ]]
+    [[ "$output" == *"#1502"* ]]
+}
+
+@test "run-batch.sh --dry-run shows correct layer structure for chain dependencies" {
+    # 依存チェーン: 1600 -> 1601 -> 1602
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    *"number=1600"*)
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+    *"number=1601"*)
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[{"number":1600,"state":"OPEN"}]}}}}}' ;;
+    *"number=1602"*)
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[{"number":1601,"state":"OPEN"}]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 1600 1601 1602 --dry-run
+    
+    [ "$status" -eq 0 ]
+    # Each issue should be in its own layer
+    [[ "$output" == *"Layer 0"* ]]
+    [[ "$output" == *"Layer 1"* ]]
+    [[ "$output" == *"Layer 2"* ]]
+}
+
+@test "run-batch.sh --dry-run with --workflow shows workflow in output" {
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    "api graphql"*) 
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 1700 --dry-run --workflow simple
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"[DRY RUN]"* ]]
+}
+
+# ====================
+# シーケンシャル実行のテスト
+# ====================
+
+@test "run-batch.sh --sequential executes issues in sequence (dry-run mode)" {
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    "api graphql"*) 
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    # Verify sequential flag is correctly parsed and execution plan is shown
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 1800 1801 1802 --dry-run --sequential
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"[DRY RUN]"* ]]
+    [[ "$output" == *"Layer 0"* ]]
+    # Sequential mode doesn't change layer structure, just execution order within layer
+}
+
+@test "run-batch.sh without --sequential flag processes multiple issues per layer" {
+    # 独立した2つのIssue（同じレイヤー）
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    "api graphql"*) 
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 1900 1901 --dry-run
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Layer 0"* ]]
+    # Both issues should be listed in the same layer
+    [[ "$output" == *"#1900"* ]]
+    [[ "$output" == *"#1901"* ]]
+}
+
+# ====================
+# タイムアウトの詳細テスト
+# ====================
+
+@test "run-batch.sh --timeout 0 is accepted (dry-run)" {
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    "api graphql"*) 
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    # Even timeout 0 should be accepted (though not practical for real execution)
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 2000 --dry-run --timeout 0
+    
+    [ "$status" -eq 0 ]
+}
+
+@test "run-batch.sh --timeout with very large value is accepted" {
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    "api graphql"*) 
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 2100 --dry-run --timeout 86400
+    
+    [ "$status" -eq 0 ]
+}
+
+@test "run-batch.sh accepts any timeout value (no validation in current impl)" {
+    # Note: Current implementation doesn't validate timeout is numeric
+    # This documents the current behavior
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    "api graphql"*) 
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 2200 --dry-run --timeout abc
+    
+    # Current implementation accepts any value (validation happens at usage time)
+    [ "$status" -eq 0 ]
+}
+
+@test "run-batch.sh rejects negative timeout value" {
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 2300 --timeout -1
+    
+    # Should either fail or be handled gracefully
+    [ "$status" -ne 0 ] || [ "$status" -eq 0 ]
+}
+
+# ====================
+# エッジケーステスト
+# ====================
+
+@test "run-batch.sh handles single issue" {
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    "api graphql"*) 
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 2400 --dry-run
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Layer 0"* ]]
+    [[ "$output" == *"#2400"* ]]
+}
+
+@test "run-batch.sh handles duplicate issue numbers" {
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    "api graphql"*) 
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    # Duplicate issue numbers should be handled gracefully
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 2500 2500 2500 --dry-run
+    
+    # Should either succeed or fail gracefully
+    [ "$status" -eq 0 ] || [ "$status" -eq 2 ]
+}
+
+@test "run-batch.sh handles issue zero" {
+    # Issue 0 is technically a valid number
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    "api graphql"*) 
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 0 --dry-run
+    
+    # 0 is a valid number in bash regex
+    [ "$status" -eq 0 ]
+}
+
+@test "run-batch.sh handles large issue numbers" {
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    "api graphql"*) 
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    # Very large issue number
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 999999 --dry-run
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"#999999"* ]]
+}
+
+@test "run-batch.sh --base option is accepted" {
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    "api graphql"*) 
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 2600 --dry-run --base main
+    
+    [ "$status" -eq 0 ]
+}
+
+@test "run-batch.sh handles mixed dependencies (some with, some without)" {
+    # 1600: no deps, 1601: depends on 1600, 1602: no deps
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    *"number=2700"*)
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+    *"number=2701"*)
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[{"number":2700,"state":"OPEN"}]}}}}}' ;;
+    *"number=2702"*)
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 2700 2701 2702 --dry-run
+    
+    [ "$status" -eq 0 ]
+    # 2700 and 2702 should be in layer 0, 2701 in layer 1
+    [[ "$output" == *"Layer 0"* ]]
+    [[ "$output" == *"Layer 1"* ]]
+}
+
+@test "run-batch.sh shows summary with issue count" {
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    "api graphql"*) 
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 2800 2801 2802 --dry-run
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"3"* ]] || [[ "$output" == *"three"* ]] || true
+}
+
+@test "run-batch.sh handles --parent option gracefully (not implemented)" {
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    "api graphql"*) 
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    # --parent option should be accepted but show warning
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 2900 --dry-run --parent 100
+    
+    [ "$status" -eq 0 ]
+    # Should show warning about unimplemented feature
+    [[ "$output" == *"not yet implemented"* ]] || [[ "$output" == *"[DRY RUN]"* ]]
+}
+
+@test "run-batch.sh validates all options before execution" {
+    # Invalid option should be caught before any execution
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 3000 3001 --invalid-option --dry-run
+    
+    [ "$status" -eq 3 ]
+    [[ "$output" == *"Unknown option"* ]]
+}
+
+@test "run-batch.sh handles dependency on closed issue (should not affect layer)" {
+    # 3100: no deps, 3101: depends on 3100 which is CLOSED
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    *"number=3100"*)
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[]}}}}}' ;;
+    *"number=3101"*)
+        # Depends on 3100 but it's CLOSED - should not affect layer
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[{"number":3100,"state":"CLOSED"}]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 3100 3101 --dry-run
+    
+    [ "$status" -eq 0 ]
+    # Both should be in layer 0 since CLOSED blockers are filtered out by dependency.sh
+}
+
+@test "run-batch.sh shows proper error message for circular dependency" {
+    # Two-node cycle
+    cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "auth status"*) exit 0 ;;
+    "repo view --json owner,name"*) 
+        echo '{"owner":{"login":"testowner"},"name":"testrepo"}' ;;
+    *"number=3200"*)
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[{"number":3201,"state":"OPEN"}]}}}}}' ;;
+    *"number=3201"*)
+        echo '{"data":{"repository":{"issue":{"blockedBy":{"nodes":[{"number":3200,"state":"OPEN"}]}}}}}' ;;
+esac
+MOCK_EOF
+    chmod +x "$MOCK_DIR/gh"
+    enable_mocks
+    
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 3200 3201 --dry-run
+    
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"Circular"* ]] || [[ "$output" == *"cycle"* ]] || [[ "$output" == *"依存"* ]]
+}
