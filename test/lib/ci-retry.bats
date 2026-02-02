@@ -189,7 +189,8 @@ teardown() {
 }
 
 @test "should_continue_retry returns false at max retries" {
-    local issue_number=99991
+    # 一意のIssue番号を使用してテスト間の干渉を防ぐ
+    local issue_number="max_retry_test_$$_$(date +%s%N)"
     
     # 3回インクリメントして最大に到達
     increment_retry_count "$issue_number"

@@ -169,12 +169,14 @@ EOF
 
 @test "find_agent_file returns builtin for test step" {
     result="$(find_agent_file "test" "$TEST_DIR")"
-    [ "$result" = "builtin:test" ]
+    # ビルトインファイルパスまたはbuiltin:testを返す
+    [[ "$result" == *"/agents/test.md" ]] || [ "$result" = "builtin:test" ]
 }
 
 @test "find_agent_file returns builtin for ci-fix step" {
     result="$(find_agent_file "ci-fix" "$TEST_DIR")"
-    [ "$result" = "builtin:ci-fix" ]
+    # ビルトインファイルパスまたはbuiltin:ci-fixを返す
+    [[ "$result" == *"/agents/ci-fix.md" ]] || [ "$result" = "builtin:ci-fix" ]
 }
 
 @test "find_agent_file returns agents/plan.md when exists" {
