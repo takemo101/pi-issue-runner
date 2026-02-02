@@ -80,6 +80,7 @@ pi-issue-runner/
 │   │   ├── cleanup-orphans.bats
 │   │   ├── cleanup-plans.bats
 │   │   ├── config.bats
+│   │   ├── daemon.bats
 │   │   ├── dependency.bats       # dependency.sh のテスト
 │   │   ├── github.bats
 │   │   ├── hooks.bats
@@ -101,8 +102,10 @@ pi-issue-runner/
 │   │   ├── improve.bats
 │   │   ├── init.bats
 │   │   ├── list.bats
+│   │   ├── nudge.bats
 │   │   ├── run.bats
 │   │   ├── run-batch.bats        # run-batch.sh のテスト
+│   │   ├── run-watcher.bats
 │   │   ├── status.bats
 │   │   ├── stop.bats
 │   │   ├── test.bats
