@@ -93,7 +93,7 @@ scripts/run-batch.sh 42 43 44 --sequential  # 順次実行
 scripts/run.sh 42 --no-cleanup
 ```
 
-### メッセージ送信（nudge）
+### メッセージ送信
 
 実行中のセッションにメッセージを送信して、続行を促すことができます。
 
