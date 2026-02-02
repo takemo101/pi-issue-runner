@@ -76,8 +76,8 @@
 
 ## 完了条件
 
-- [ ] `scripts/run-batch.sh` が500行以下になっている
-- [ ] `lib/batch.sh` が作成され、分割した関数が含まれている
-- [ ] 既存テスト `test/scripts/run-batch.bats` が全てパス
-- [ ] 新規テスト `test/lib/batch.bats` が作成され、主要関数がテストされている
-- [ ] ShellCheck で警告が出ていない
+- [x] `scripts/run-batch.sh` が500行以下になっている (263行)
+- [x] `lib/batch.sh` が作成され、分割した関数が含まれている (282行)
+- [x] 既存テスト `test/scripts/run-batch.bats` が全てパス (52テスト)
+- [x] 新規テスト `test/lib/batch.bats` が作成され、主要関数がテストされている (35テスト)
+- [x] ShellCheck で警告が出ていない
