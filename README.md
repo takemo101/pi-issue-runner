@@ -447,6 +447,7 @@ pi-issue-runner/
 │   └── test.sh             # テスト一括実行
 ├── lib/
 │   ├── agent.sh            # マルチエージェント対応
+│   ├── batch.sh            # バッチ処理コア機能
 │   ├── ci-classifier.sh    # CI失敗タイプ分類
 │   ├── ci-fix.sh           # CI失敗検出・自動修正
 │   ├── ci-monitor.sh       # CI状態監視
