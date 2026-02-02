@@ -163,6 +163,51 @@ MOCK_EOF
     [ "$result" = "$input" ]
 }
 
+@test "sanitize_issue_body escapes process substitution input" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    input='test <(cat /etc/passwd) test'
+    result="$(sanitize_issue_body "$input")"
+    
+    # <( が \<( にエスケープされていることを確認
+    [[ "$result" == *'\<'* ]]
+}
+
+@test "sanitize_issue_body escapes process substitution output" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    input='test >(cat) test'
+    result="$(sanitize_issue_body "$input")"
+    
+    # >( が \>( にエスケープされていることを確認
+    [[ "$result" == *'\>'* ]]
+}
+
+@test "sanitize_issue_body escapes arithmetic expansion" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    input='test $((1+1)) test'
+    result="$(sanitize_issue_body "$input")"
+    
+    # $(( が \$(( にエスケープされていることを確認
+    [[ "$result" == *'\$((1+1))'* ]]
+}
+
+@test "sanitize_issue_body escapes all dangerous patterns" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    input='$(cmd) `backtick` ${var} <(input) >(output) $((1+2))'
+    result="$(sanitize_issue_body "$input")"
+    
+    # 全てのパターンがエスケープされていることを確認
+    [[ "$result" == *'\$(' ]]
+    [[ "$result" == *'\`' ]]
+    [[ "$result" == *'\${' ]]
+    [[ "$result" == *'\<(' ]]
+    [[ "$result" == *'\>(' ]]
+    [[ "$result" == *'\$((1+2))'* ]]
+}
+
 # ====================
 # 依存関係チェックテスト
 # ====================
@@ -294,6 +339,27 @@ MOCK_EOF
     source "$PROJECT_ROOT/lib/github.sh"
     
     run has_dangerous_patterns 'Dangerous ${PATH}'
+    [ "$status" -eq 0 ]
+}
+
+@test "has_dangerous_patterns detects process substitution input" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    run has_dangerous_patterns 'Dangerous <(cat /etc/passwd)'
+    [ "$status" -eq 0 ]
+}
+
+@test "has_dangerous_patterns detects process substitution output" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    run has_dangerous_patterns 'Dangerous >(cat)'
+    [ "$status" -eq 0 ]
+}
+
+@test "has_dangerous_patterns detects arithmetic expansion" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    run has_dangerous_patterns 'Dangerous $((1+1))'
     [ "$status" -eq 0 ]
 }
 
