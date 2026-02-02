@@ -243,6 +243,119 @@ teardown() {
     [[ "$output" == *"No orphaned status files found"* ]]
 }
 
+# ====================
+# レースコンディション対策テスト (Issue #549)
+# ====================
+
+@test "find_complete_with_existing_worktrees skips if tmux session exists" {
+    # worktreeディレクトリを作成
+    mkdir -p "$TEST_WORKTREE_DIR/issue-800-test"
+    
+    # completeステータスを作成（セッション名付き）
+    save_status "800" "complete" "pi-issue-800"
+    
+    # tmux has-session をモック（セッションが存在する場合）
+    tmux() {
+        if [[ "$1" == "has-session" ]]; then
+            return 0  # セッション存在
+        fi
+        command tmux "$@"
+    }
+    export -f tmux
+    
+    # 検索を実行
+    run find_complete_with_existing_worktrees
+    [ "$status" -eq 0 ]
+    
+    # セッションが存在するので結果は空
+    [[ -z "$output" ]]
+}
+
+@test "find_complete_with_existing_worktrees includes worktree if tmux session not exists" {
+    # worktreeディレクトリを作成
+    mkdir -p "$TEST_WORKTREE_DIR/issue-801-test"
+    
+    # completeステータスを作成（セッション名付き）
+    save_status "801" "complete" "pi-issue-801"
+    
+    # tmux has-session をモック（セッションが存在しない場合）
+    tmux() {
+        if [[ "$1" == "has-session" ]]; then
+            return 1  # セッション不存在
+        fi
+        command tmux "$@"
+    }
+    export -f tmux
+    
+    # 検索を実行
+    run find_complete_with_existing_worktrees
+    [ "$status" -eq 0 ]
+    
+    # セッションが存在しないのでworktreeが検出される
+    [[ "$output" == *"801"* ]]
+    [[ "$output" == *"issue-801-test"* ]]
+}
+
+@test "find_complete_with_existing_worktrees handles missing session field" {
+    # worktreeディレクトリを作成
+    mkdir -p "$TEST_WORKTREE_DIR/issue-802-test"
+    
+    # completeステータスを作成（セッション名なし - 後方互換性）
+    save_status "802" "complete" ""
+    
+    # 検索を実行
+    run find_complete_with_existing_worktrees
+    [ "$status" -eq 0 ]
+    
+    # セッション名がない場合は検出される
+    [[ "$output" == *"802"* ]]
+}
+
+@test "cleanup_complete_with_worktrees respects session check" {
+    # worktreeディレクトリを作成
+    mkdir -p "$TEST_WORKTREE_DIR/issue-803-test"
+    
+    # completeステータスを作成
+    save_status "803" "complete" "pi-issue-803"
+    
+    # tmux has-session をモック（セッションが存在する場合）
+    tmux() {
+        if [[ "$1" == "has-session" ]]; then
+            return 0  # セッション存在
+        fi
+        command tmux "$@"
+    }
+    export -f tmux
+    
+    # クリーンアップを実行
+    run cleanup_complete_with_worktrees "false" "false"
+    [ "$status" -eq 0 ]
+    
+    # セッションが存在するのでクリーンアップされない
+    [[ "$output" == *"No orphaned worktrees"* ]]
+    
+    # worktreeとステータスファイルが残っていることを確認
+    [ -d "$TEST_WORKTREE_DIR/issue-803-test" ]
+    [ -f "$TEST_WORKTREE_DIR/.status/803.json" ]
+}
+
+@test "get_session_name_for_issue returns session name from status file" {
+    # ステータスファイルを作成
+    save_status "900" "complete" "pi-issue-900"
+    
+    # セッション名を取得
+    run get_session_name_for_issue "900"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "pi-issue-900" ]]
+}
+
+@test "get_session_name_for_issue returns empty for non-existent issue" {
+    # 存在しないIssue
+    run get_session_name_for_issue "999"
+    [ "$status" -eq 0 ]
+    [[ -z "$output" ]]
+}
+
 @test "cleanup_orphaned_statuses handles status directory not existing" {
     # ステータスディレクトリを削除
     rm -rf "$TEST_WORKTREE_DIR/.status"
