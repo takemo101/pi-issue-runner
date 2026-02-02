@@ -25,6 +25,26 @@ if ! declare -f log_debug > /dev/null 2>&1; then
     log_error() { echo "[ERROR] $*" >&2; }
 fi
 
+# Issue番号からセッション名を取得
+# 引数:
+#   $1 - issue_number: Issue番号
+# 出力: セッション名（存在しない場合は空）
+get_session_name_for_issue() {
+    local issue_number="$1"
+    local status_file
+    status_file="$(get_status_dir)/${issue_number}.json"
+
+    if [[ -f "$status_file" ]]; then
+        # jqがあれば使用、なければgrep/sedで抽出
+        if command -v jq &>/dev/null; then
+            jq -r '.session // empty' "$status_file"
+        else
+            # フォールバック: grep/sedで抽出
+            grep -o '"session"[[:space:]]*:[[:space:]]*"[^"]*"' "$status_file" 2>/dev/null | sed 's/.*"session"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' || true
+        fi
+    fi
+}
+
 # 孤立したステータスファイルをクリーンアップ
 # 引数:
 #   $1 - dry_run: "true"の場合は削除せずに表示のみ
@@ -88,7 +108,16 @@ find_complete_with_existing_worktrees() {
         local status
         status="$(get_status_value "$issue_number")"
         [[ "$status" == "complete" ]] || continue
-        
+
+        # ★追加: セッションが存在する場合はスキップ（レースコンディション対策）
+        # Issue #549: 並列実行時に他のセッションのworktreeが誤削除される問題を防止
+        local session_name
+        session_name="$(get_session_name_for_issue "$issue_number")"
+        if [[ -n "$session_name" ]] && tmux has-session -t "$session_name" 2>/dev/null; then
+            log_debug "Skipping Issue #$issue_number - tmux session still active: $session_name"
+            continue
+        fi
+
         # 対応するworktreeが存在するか確認
         local worktree
         if worktree="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
