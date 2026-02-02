@@ -31,6 +31,7 @@ pi-issue-runner/
 │   ├── cleanup.sh     # クリーンアップ
 │   ├── force-complete.sh  # セッション強制完了
 │   ├── improve.sh     # 継続的改善スクリプト
+│   ├── nudge.sh       # セッションへメッセージ送信
 │   ├── wait-for-sessions.sh  # 複数セッション完了待機
 │   ├── watch-session.sh  # セッション監視
 │   └── test.sh        # テスト一括実行
@@ -44,6 +45,7 @@ pi-issue-runner/
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh      # 設定読み込み
 │   ├── dependency.sh  # 依存関係解析・レイヤー計算
+│   ├── daemon.sh      # プロセスデーモン化
 │   ├── github.sh      # GitHub CLI操作
 │   ├── hooks.sh       # Hook機能
 │   ├── log.sh         # ログ出力
