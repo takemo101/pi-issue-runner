@@ -115,8 +115,10 @@ attach_session() {
 }
 
 # セッションを終了
+# セッションが完全に終了するまで待機する
 kill_session() {
     local session_name="$1"
+    local max_wait="${2:-10}"  # 最大待機秒数（デフォルト10秒）
     
     check_tmux || return 1
     
@@ -127,6 +129,21 @@ kill_session() {
     
     log_info "Killing session: $session_name"
     tmux kill-session -t "$session_name"
+    
+    # セッションが完全に終了するまで待機
+    local waited=0
+    while session_exists "$session_name" && [[ "$waited" -lt "$max_wait" ]]; do
+        sleep 0.5
+        waited=$((waited + 1))
+    done
+    
+    if session_exists "$session_name"; then
+        log_warn "Session $session_name still exists after ${max_wait}s wait"
+        return 1
+    fi
+    
+    log_debug "Session $session_name terminated successfully"
+    return 0
 }
 
 # セッション一覧を取得
