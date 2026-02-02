@@ -64,6 +64,7 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | `pi-improve` | 継続的改善 |
 | `pi-wait` | 完了待機 |
 | `pi-watch` | セッション監視 |
+| `pi-nudge` | セッションにメッセージ送信 |
 | `pi-init` | プロジェクト初期化 |
 
 | オプション | 説明 |
