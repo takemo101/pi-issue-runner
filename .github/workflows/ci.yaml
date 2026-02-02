@@ -31,17 +31,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        id: cache-deps
+        with:
+          path: |
+            /usr/local/bin/bats
+            /usr/local/bin/yq
+            /usr/local/bin/gh
+          key: ${{ runner.os }}-deps-v1
+
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y jq tmux
 
-          # Install yq (YAML parser)
+      - name: Install yq
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
           YQ_VERSION="v4.40.5"
           sudo wget -qO /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
           sudo chmod +x /usr/local/bin/yq
 
-          # Install gh CLI (GitHub CLI)
+      - name: Install gh CLI
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
           curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
           sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
@@ -49,12 +63,15 @@ jobs:
           sudo apt-get install -y gh
 
       - name: Install Bats
+        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
-          git clone https://github.com/bats-core/bats-core.git
-          cd bats-core
+          git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats-core
+          cd /tmp/bats-core
           sudo ./install.sh /usr/local
 
       - name: Run unit tests
         run: |
           echo "=== Running Bats tests ==="
           ./scripts/test.sh
+        env:
+          BATS_JOBS: 16
