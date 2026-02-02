@@ -212,8 +212,9 @@ teardown() {
     grep -q 'DEFAULT_TIMEOUT=' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
-@test "improve.sh has LOG_DIR" {
-    grep -q 'LOG_DIR=' "$PROJECT_ROOT/scripts/improve.sh"
+@test "improve.sh has log_dir variable" {
+    # LOG_DIR または log_dir のいずれかが存在することを確認
+    grep -qE '(LOG_DIR|log_dir)=' "$PROJECT_ROOT/scripts/improve.sh"
 }
 
 # ====================

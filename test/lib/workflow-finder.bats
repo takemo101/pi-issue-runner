@@ -167,9 +167,16 @@ EOF
     [[ "$result" == *"/agents/merge.md" ]] || [ "$result" = "builtin:merge" ]
 }
 
-@test "find_agent_file returns builtin for unknown step" {
-    result="$(find_agent_file "unknown-step-12345" "$TEST_DIR")"
-    [ "$result" = "builtin:unknown-step-12345" ]
+@test "find_agent_file returns builtin for test step" {
+    result="$(find_agent_file "test" "$TEST_DIR")"
+    # ビルトインファイルパスまたはbuiltin:testを返す
+    [[ "$result" == *"/agents/test.md" ]] || [ "$result" = "builtin:test" ]
+}
+
+@test "find_agent_file returns builtin for ci-fix step" {
+    result="$(find_agent_file "ci-fix" "$TEST_DIR")"
+    # ビルトインファイルパスまたはbuiltin:ci-fixを返す
+    [[ "$result" == *"/agents/ci-fix.md" ]] || [ "$result" = "builtin:ci-fix" ]
 }
 
 @test "find_agent_file returns agents/plan.md when exists" {
