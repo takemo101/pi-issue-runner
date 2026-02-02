@@ -182,6 +182,34 @@ MOCK_EOF
 }
 
 # ====================
+# リファクタリング後の新関数テスト
+# ====================
+
+@test "run-batch.sh has parse_arguments function" {
+    grep -q "^parse_arguments() {" "$PROJECT_ROOT/scripts/run-batch.sh"
+}
+
+@test "run-batch.sh has execute_layer_sequential function" {
+    grep -q "^execute_layer_sequential() {" "$PROJECT_ROOT/scripts/run-batch.sh"
+}
+
+@test "run-batch.sh has execute_layer_parallel function" {
+    grep -q "^execute_layer_parallel() {" "$PROJECT_ROOT/scripts/run-batch.sh"
+}
+
+@test "run-batch.sh has process_layer function" {
+    grep -q "^process_layer() {" "$PROJECT_ROOT/scripts/run-batch.sh"
+}
+
+@test "run-batch.sh has show_execution_plan function" {
+    grep -q "^show_execution_plan() {" "$PROJECT_ROOT/scripts/run-batch.sh"
+}
+
+@test "run-batch.sh has show_summary_and_exit function" {
+    grep -q "^show_summary_and_exit() {" "$PROJECT_ROOT/scripts/run-batch.sh"
+}
+
+# ====================
 # dry-runモードテスト（詳細）
 # ====================
 
@@ -573,4 +601,37 @@ MOCK_EOF
     run "$PROJECT_ROOT/scripts/run-batch.sh" 1400 --dry-run --verbose
     
     [ "$status" -eq 0 ]
+}
+
+# ====================
+# オプション値検証テスト（リファクタリング追加）
+# ====================
+
+@test "run-batch.sh --workflow requires a value" {
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 1500 --workflow
+    
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"requires a value"* ]]
+}
+
+@test "run-batch.sh --base requires a value" {
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 1600 --base
+    
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"requires a value"* ]]
+}
+
+@test "run-batch.sh --parent requires a value" {
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 1700 --parent
+    
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"requires a value"* ]]
+}
+
+@test "run-batch.sh rejects option value starting with dash" {
+    # --timeout に次のオプションを値として渡すことはできない
+    run "$PROJECT_ROOT/scripts/run-batch.sh" 1800 --timeout --workflow
+    
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"requires a value"* ]]
 }
