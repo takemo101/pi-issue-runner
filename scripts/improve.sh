@@ -13,7 +13,8 @@ source "$SCRIPT_DIR/../lib/github.sh"
 DEFAULT_MAX_ITERATIONS=3
 DEFAULT_MAX_ISSUES=5
 DEFAULT_TIMEOUT=3600
-# LOG_DIR is set after load_config to use current working directory
+# shellcheck disable=SC2034
+LOG_DIR=""  # Set in main() after load_config to use current working directory
 
 # Global: Track active sessions for cleanup on exit
 declare -a ACTIVE_ISSUE_NUMBERS=()
