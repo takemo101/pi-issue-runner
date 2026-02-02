@@ -10,17 +10,16 @@ setup() {
         export _CLEANUP_TMPDIR=1
     fi
     
-    # 状態ファイルのクリーンアップ（状態ディレクトリ内のファイルを削除）
-    rm -rf /tmp/pi-runner-state/ci-retry-*
+    # 並列実行時の衝突を避けるため、テストごとに一意な状態ディレクトリを使用
+    export PI_RUNNER_STATE_DIR="$BATS_TEST_TMPDIR/pi-runner-state"
+    mkdir -p "$PI_RUNNER_STATE_DIR"
     
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/ci-retry.sh"
 }
 
 teardown() {
-    # リトライ状態ファイルのクリーンアップ（状態ディレクトリ内のファイルを削除）
-    rm -rf /tmp/pi-runner-state/ci-retry-*
-    
+    # テストごとの状態ディレクトリは全体クリーンアップ時に削除される
     # TMPDIRクリーンアップ
     if [[ "${_CLEANUP_TMPDIR:-}" == "1" && -d "${BATS_TEST_TMPDIR:-}" ]]; then
         rm -rf "$BATS_TEST_TMPDIR"

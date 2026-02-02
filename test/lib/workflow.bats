@@ -52,8 +52,9 @@ teardown() {
 # ====================
 
 @test "find_workflow_file returns builtin when no file exists" {
-    result="$(find_workflow_file "default" "$TEST_DIR")"
-    [ "$result" = "builtin:default" ]
+    # 存在しないワークフロー名を使用してbuiltinが返されることを確認
+    result="$(find_workflow_file "nonexistent-workflow-12345" "$TEST_DIR")"
+    [ "$result" = "builtin:nonexistent-workflow-12345" ]
 }
 
 @test "find_workflow_file returns workflows/default.yaml when exists" {
@@ -90,8 +91,9 @@ EOF
 # ====================
 
 @test "find_agent_file returns builtin when no agent file exists" {
-    result="$(find_agent_file "plan" "$TEST_DIR")"
-    [ "$result" = "builtin:plan" ]
+    # 存在しないエージェント名を使用してbuiltinが返されることを確認
+    result="$(find_agent_file "nonexistent-agent-12345" "$TEST_DIR")"
+    [ "$result" = "builtin:nonexistent-agent-12345" ]
 }
 
 @test "find_agent_file returns agents/plan.md when exists" {

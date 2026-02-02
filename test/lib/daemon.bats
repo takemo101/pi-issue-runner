@@ -223,25 +223,35 @@ EOF
     
     # テスト用の一意なパターンを持つプロセスを起動
     local unique_pattern
-    unique_pattern="test_daemon_$$_$(date +%s)"
+    unique_pattern="test_daemon_$$_$(date +%s)_unique"
     local test_script="$BATS_TEST_TMPDIR/test_find.sh"
     cat > "$test_script" << EOF
 #!/usr/bin/env bash
 # $unique_pattern
-sleep 3
+sleep 5
 EOF
     chmod +x "$test_script"
     
     # デーモン化して実行
     local pid
     pid=$(daemonize "$TEST_LOG_FILE" "$test_script")
-    sleep 0.3
+    
+    # CI環境ではプロセス起動に時間がかかる場合があるため、十分に待機
+    local found_pid=""
+    local attempts=0
+    local max_attempts=20
+    while [[ $attempts -lt $max_attempts ]]; do
+        found_pid=$(find_daemon_pid "$unique_pattern" 2>/dev/null || echo "")
+        if [[ -n "$found_pid" ]]; then
+            break
+        fi
+        sleep 0.2
+        ((attempts++)) || true
+    done
     
     # パターンでPIDを検索
-    run find_daemon_pid "$unique_pattern"
-    [ "$status" -eq 0 ]
-    [[ -n "$output" ]]
-    [[ "$output" =~ ^[0-9]+$ ]]
+    [[ -n "$found_pid" ]]
+    [[ "$found_pid" =~ ^[0-9]+$ ]]
     
     # クリーンアップ
     stop_daemon "$pid" 2>/dev/null || true
