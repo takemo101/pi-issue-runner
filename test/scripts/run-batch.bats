@@ -102,10 +102,10 @@ MOCK_EOF
 }
 
 @test "run-batch.sh sources required libraries" {
-    # スクリプトのライブラリ読み込み部分を確認（40-50行目）
-    head -50 "$PROJECT_ROOT/scripts/run-batch.sh" | grep -q "lib/config.sh"
-    head -50 "$PROJECT_ROOT/scripts/run-batch.sh" | grep -q "lib/log.sh"
-    head -50 "$PROJECT_ROOT/scripts/run-batch.sh" | grep -q "lib/dependency.sh"
+    # スクリプトのライブラリ読み込み部分を確認
+    grep -q "lib/config.sh" "$PROJECT_ROOT/scripts/run-batch.sh"
+    grep -q "lib/log.sh" "$PROJECT_ROOT/scripts/run-batch.sh"
+    grep -q "lib/dependency.sh" "$PROJECT_ROOT/scripts/run-batch.sh"
 }
 
 # ====================
@@ -169,16 +169,20 @@ MOCK_EOF
 # 統合フローテスト
 # ====================
 
-@test "run-batch.sh has execute_issue function" {
-    grep -q "^execute_issue() {" "$PROJECT_ROOT/scripts/run-batch.sh"
+@test "run-batch.sh sources lib/batch.sh for batch functions" {
+    grep -q "lib/batch.sh" "$PROJECT_ROOT/scripts/run-batch.sh"
 }
 
-@test "run-batch.sh has execute_issue_async function" {
-    grep -q "^execute_issue_async() {" "$PROJECT_ROOT/scripts/run-batch.sh"
+@test "lib/batch.sh has execute_issue function" {
+    grep -q "^execute_issue() {" "$PROJECT_ROOT/lib/batch.sh"
 }
 
-@test "run-batch.sh has wait_for_layer_completion function" {
-    grep -q "^wait_for_layer_completion() {" "$PROJECT_ROOT/scripts/run-batch.sh"
+@test "lib/batch.sh has execute_issue_async function" {
+    grep -q "^execute_issue_async() {" "$PROJECT_ROOT/lib/batch.sh"
+}
+
+@test "lib/batch.sh has wait_for_layer_completion function" {
+    grep -q "^wait_for_layer_completion() {" "$PROJECT_ROOT/lib/batch.sh"
 }
 
 # ====================
@@ -189,24 +193,24 @@ MOCK_EOF
     grep -q "^parse_arguments() {" "$PROJECT_ROOT/scripts/run-batch.sh"
 }
 
-@test "run-batch.sh has execute_layer_sequential function" {
-    grep -q "^execute_layer_sequential() {" "$PROJECT_ROOT/scripts/run-batch.sh"
+@test "lib/batch.sh has execute_layer_sequential function" {
+    grep -q "^execute_layer_sequential() {" "$PROJECT_ROOT/lib/batch.sh"
 }
 
-@test "run-batch.sh has execute_layer_parallel function" {
-    grep -q "^execute_layer_parallel() {" "$PROJECT_ROOT/scripts/run-batch.sh"
+@test "lib/batch.sh has execute_layer_parallel function" {
+    grep -q "^execute_layer_parallel() {" "$PROJECT_ROOT/lib/batch.sh"
 }
 
-@test "run-batch.sh has process_layer function" {
-    grep -q "^process_layer() {" "$PROJECT_ROOT/scripts/run-batch.sh"
+@test "lib/batch.sh has process_layer function" {
+    grep -q "^process_layer() {" "$PROJECT_ROOT/lib/batch.sh"
 }
 
-@test "run-batch.sh has show_execution_plan function" {
-    grep -q "^show_execution_plan() {" "$PROJECT_ROOT/scripts/run-batch.sh"
+@test "lib/batch.sh has show_execution_plan function" {
+    grep -q "^show_execution_plan() {" "$PROJECT_ROOT/lib/batch.sh"
 }
 
-@test "run-batch.sh has show_summary_and_exit function" {
-    grep -q "^show_summary_and_exit() {" "$PROJECT_ROOT/scripts/run-batch.sh"
+@test "lib/batch.sh has show_summary_and_exit function" {
+    grep -q "^show_summary_and_exit() {" "$PROJECT_ROOT/lib/batch.sh"
 }
 
 # ====================
