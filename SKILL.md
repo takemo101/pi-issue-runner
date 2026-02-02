@@ -39,6 +39,10 @@ scripts/cleanup.sh <session>             # 手動クリーンアップ
 scripts/force-complete.sh <session>      # セッション強制完了
 scripts/force-complete.sh 42 --error     # エラーとして完了
 
+# メッセージ送信
+scripts/nudge.sh <issue-number>          # セッションに続行を促すメッセージを送信
+scripts/nudge.sh 42 --message "続けてください"
+
 # バッチ実行（依存関係を考慮）
 scripts/run-batch.sh <issue>... [options]
 scripts/run-batch.sh 42 43 44             # 並列実行
@@ -88,6 +92,21 @@ scripts/run-batch.sh 42 43 44 --sequential  # 順次実行
 # 自動クリーンアップを無効化
 scripts/run.sh 42 --no-cleanup
 ```
+
+### メッセージ送信（nudge）
+
+実行中のセッションにメッセージを送信して、続行を促すことができます。
+
+```bash
+# セッションにメッセージを送信（続行を促す）
+scripts/nudge.sh <issue-number> [options]
+scripts/nudge.sh 42 --message "続けてください"
+```
+
+| オプション | 説明 |
+|-----------|------|
+| `-m, --message TEXT` | 送信するメッセージ（デフォルト: "続けてください"） |
+| `-s, --session NAME` | セッション名を明示的に指定 |
 
 ## 詳細ドキュメント
 
