@@ -128,6 +128,13 @@ kill_session() {
     fi
     
     log_info "Killing session: $session_name"
+    
+    # Fix for Issue #585: Move session to safe directory before killing
+    # This prevents ENOENT errors when worktree is deleted while session
+    # still has it as current working directory
+    tmux send-keys -t "$session_name" "cd /" Enter 2>/dev/null || true
+    sleep 0.5
+    
     tmux kill-session -t "$session_name"
     
     # セッションが完全に終了するまで待機
