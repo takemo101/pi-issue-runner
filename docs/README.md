@@ -101,8 +101,8 @@ GitHub Issueを入力として、独立したworktree環境でpiインスタン�
 ### 開発者向け
 
 - [システム構成図](./architecture.md#システム構成)
-- [データモデル](./SPECIFICATION.md#データモデル)
-- [API設計](./architecture.md#core-service-layer)
+- [ディレクトリ構造](./SPECIFICATION.md#ディレクトリ構造)
+- [API設計](./architecture.md#2-library-layer-lib)
 - [エラーハンドリング](./architecture.md#エラーハンドリング)
 
 ### 運用者向け
@@ -110,7 +110,7 @@ GitHub Issueを入力として、独立したworktree環境でpiインスタン�
 - [設定ガイド](./configuration.md)
 - [トラブルシューティング](./worktree-management.md#トラブルシューティング)
 - [パフォーマンスチューニング](./parallel-execution.md#パフォーマンス最適化)
-- [バックアップ戦略](./state-management.md#バックアップとリストア)
+- [クリーンアップ戦略](./state-management.md#クリーンアップ)
 
 ## 📖 ドキュメントの読み方
 
@@ -125,12 +125,12 @@ GitHub Issueを入力として、独立したworktree環境でpiインスタン�
 
 1. [architecture.md](./architecture.md) - レイヤー構成を確認
 2. 該当する機能のドキュメント（worktree, tmux, parallel, state）を参照
-3. [SPECIFICATION.md](./SPECIFICATION.md#データモデル) - データ構造を確認
+3. [SPECIFICATION.md](./SPECIFICATION.md#ディレクトリ構造) - データ構造を確認
 
 ### トラブルシューティング
 
 1. 該当する機能のドキュメント内の「トラブルシューティング」セクション
-2. [state-management.md](./state-management.md#復旧処理) - 復旧処理
+2. [state-management.md](./state-management.md#監視と復旧) - 監視と復旧
 3. [configuration.md](./configuration.md#トラブルシューティング) - 設定問題
 
 ## 🔄 ドキュメント更新履歴
