@@ -487,7 +487,6 @@ pi-issue-runner/
 │   ├── implement.md        # 実装エージェント
 │   ├── test.md             # テストエージェント
 │   ├── review.md           # レビューエージェント
-│   ├── test.md             # テストエージェント
 │   └── merge.md            # マージエージェント
 ├── docs/                    # ドキュメント
 ├── test/                    # Batsテスト（*.bats形式）
