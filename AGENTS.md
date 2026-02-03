@@ -30,8 +30,11 @@ pi-issue-runner/
 │   ├── stop.sh        # セッション停止
 │   ├── cleanup.sh     # クリーンアップ
 │   ├── ci-fix-helper.sh  # CI修正ヘルパー（lib/ci-fix.shのラッパー）
+│   ├── context.sh     # コンテキスト管理
+│   ├── dashboard.sh   # ダッシュボード表示
 │   ├── force-complete.sh  # セッション強制完了
 │   ├── improve.sh     # 継続的改善スクリプト
+│   ├── next.sh        # 次のタスク取得
 │   ├── nudge.sh       # セッションへメッセージ送信
 │   ├── wait-for-sessions.sh  # 複数セッション完了待機
 │   ├── watch-session.sh  # セッション監視
@@ -47,12 +50,15 @@ pi-issue-runner/
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh      # 設定読み込み
-│   ├── dependency.sh  # 依存関係解析・レイヤー計算
+│   ├── context.sh     # コンテキスト管理
 │   ├── daemon.sh      # プロセスデーモン化
+│   ├── dashboard.sh   # ダッシュボード機能
+│   ├── dependency.sh  # 依存関係解析・レイヤー計算
 │   ├── github.sh      # GitHub CLI操作
 │   ├── hooks.sh       # Hook機能
 │   ├── log.sh         # ログ出力
 │   ├── notify.sh      # 通知機能
+│   ├── priority.sh    # 優先度計算
 │   ├── status.sh      # 状態管理
 │   ├── template.sh    # テンプレート処理
 │   ├── tmux.sh        # tmux操作
@@ -87,12 +93,15 @@ pi-issue-runner/
 │   │   ├── cleanup-improve-logs.bats  # cleanup-improve-logs.sh のテスト
 │   │   ├── cleanup-plans.bats
 │   │   ├── config.bats
+│   │   ├── context.bats
 │   │   ├── daemon.bats
+│   │   ├── dashboard.bats
 │   │   ├── dependency.bats       # dependency.sh のテスト
 │   │   ├── github.bats      # github.sh のテスト
 │   │   ├── hooks.bats
 │   │   ├── log.bats
 │   │   ├── notify.bats
+│   │   ├── priority.bats
 │   │   ├── status.bats
 │   │   ├── template.bats
 │   │   ├── tmux.bats
@@ -104,11 +113,15 @@ pi-issue-runner/
 │   │   └── yaml.bats
 │   ├── scripts/       # スクリプトの統合テスト
 │   │   ├── attach.bats
+│   │   ├── ci-fix-helper.bats  # ci-fix-helper.sh のテスト
 │   │   ├── cleanup.bats
+│   │   ├── context.bats
+│   │   ├── dashboard.bats
 │   │   ├── force-complete.bats  # force-complete.sh のテスト
 │   │   ├── improve.bats
 │   │   ├── init.bats
 │   │   ├── list.bats
+│   │   ├── next.bats
 │   │   ├── nudge.bats
 │   │   ├── run.bats
 │   │   ├── run-batch.bats        # run-batch.sh のテスト
