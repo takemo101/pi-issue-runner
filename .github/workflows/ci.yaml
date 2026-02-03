@@ -37,9 +37,9 @@ jobs:
         with:
           path: |
             /usr/local/bin/bats
+            /usr/local/libexec/bats-core
             /usr/local/bin/yq
-            /usr/local/bin/gh
-          key: ${{ runner.os }}-deps-v1
+          key: ${{ runner.os }}-deps-v2
 
       - name: Install system dependencies
         run: |
