@@ -206,7 +206,9 @@ MOCK_EOF
 }
 
 @test "lib/batch.sh has show_execution_plan function" {
-    grep -q "^show_execution_plan() {" "$PROJECT_ROOT/lib/batch.sh"
+    # show_execution_plan is provided by lib/dependency.sh (sourced in batch.sh)
+    source "$PROJECT_ROOT/lib/batch.sh"
+    type show_execution_plan &>/dev/null
 }
 
 @test "lib/batch.sh has show_summary_and_exit function" {

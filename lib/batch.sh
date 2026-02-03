@@ -14,6 +14,7 @@ set -euo pipefail
 _BATCH_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_BATCH_LIB_DIR/log.sh"
 source "$_BATCH_LIB_DIR/status.sh"
+source "$_BATCH_LIB_DIR/dependency.sh"
 
 # Issueを実行（同期的）
 # 引数: issue_number
@@ -222,44 +223,6 @@ process_layer() {
     fi
 
     return 0
-}
-
-# 実行計画を表示
-# 引数: Issue番号の配列（可変長）
-# 出力: フォーマット済み実行計画
-# shellcheck disable=SC2034
-show_execution_plan() {
-    local -a issues=("$@")
-
-    log_info "Execution plan:"
-
-    # 依存関係からレイヤーを計算（将来の拡張用に変数を定義）
-    # shellcheck disable=SC2034
-    local -A layer_map
-    # shellcheck disable=SC2034
-    local -A dependencies
-
-    # ブロッカー取得とレイヤー計算（簡易版）
-    for issue in "${issues[@]}"; do
-        # 依存関係がない場合はレイヤー0
-        layer_map[$issue]=0
-    done
-
-    # 単純なレイヤー表示（issue番号順）
-    local current_layer=0
-    local layer_issues=""
-
-    for issue in "${issues[@]}"; do
-        if [[ -z "$layer_issues" ]]; then
-            layer_issues="#${issue}"
-        else
-            layer_issues="${layer_issues}, #${issue}"
-        fi
-    done
-
-    if [[ -n "$layer_issues" ]]; then
-        log_info "  Layer ${current_layer}: $layer_issues"
-    fi
 }
 
 # 結果サマリーを表示して終了
