@@ -3,12 +3,15 @@
 
 load '../test_helper'
 
-# Bash 4.0+が必要（連想配列のサポート）
-if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
-    skip "Bash 4.0 or higher is required (current: ${BASH_VERSION})"
-fi
+# Bash 4.0+チェック用ヘルパー
+require_bash4() {
+    if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
+        skip "Bash 4.0 or higher is required (current: ${BASH_VERSION})"
+    fi
+}
 
 setup() {
+    require_bash4  # すべてのテストでBash 4.0+を要求
     if [[ -z "${BATS_TEST_TMPDIR:-}" ]]; then
         export BATS_TEST_TMPDIR="$(mktemp -d)"
         export _CLEANUP_TMPDIR=1
