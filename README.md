@@ -593,7 +593,9 @@ test/
 │   ├── improve.bats             # improve.sh のテスト
 │   ├── init.bats                # init.sh のテスト
 │   ├── list.bats                # list.sh のテスト
+│   ├── nudge.bats               # nudge.sh のテスト
 │   ├── run.bats                 # run.sh のテスト
+│   ├── run-batch.bats           # run-batch.sh のテスト
 │   ├── status.bats              # status.sh のテスト
 │   ├── stop.bats                # stop.sh のテスト
 │   ├── test.bats                # test.sh のテスト
