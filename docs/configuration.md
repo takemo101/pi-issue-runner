@@ -117,6 +117,22 @@ plans:
   dir: "docs/plans"
 
 # =====================================
+# improve-logs クリーンアップ設定
+# =====================================
+improve_logs:
+  # 保持するログファイルの件数（0 = 全て保持）
+  # デフォルト: 10
+  keep_recent: 10
+  
+  # 保持するログファイルの日数（0 = 日数制限なし）
+  # デフォルト: 7
+  keep_days: 7
+  
+  # ログファイルの保存ディレクトリ
+  # デフォルト: .improve-logs
+  dir: ".improve-logs"
+
+# =====================================
 # エージェント設定（オプション）
 # =====================================
 agents:
@@ -295,6 +311,61 @@ docs/plans/
 ├── issue-43-plan.md
 └── issue-44-plan.md
 ```
+
+### improve_logs
+
+`.improve-logs` ディレクトリの自動クリーンアップ設定
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `keep_recent` | integer | `10` | 直近何件のログを保持するか（0 = 全て保持） |
+| `keep_days` | integer | `7` | 何日以内のログを保持するか（0 = 日数制限なし） |
+| `dir` | string | `.improve-logs` | ログファイルの保存ディレクトリ |
+
+#### ログファイルのクリーンアップ
+
+`improve.sh` が生成するログファイルは、設定に基づいて自動的にクリーンアップできます。
+
+```yaml
+# 最新10件かつ7日以内のログを保持
+improve_logs:
+  keep_recent: 10
+  keep_days: 7
+  dir: .improve-logs
+
+# 全てのログを保持（自動削除無効）
+improve_logs:
+  keep_recent: 0
+  keep_days: 0
+```
+
+#### 使用方法
+
+```bash
+# 設定に従ってクリーンアップ
+./scripts/cleanup.sh --improve-logs
+
+# 特定の日数で上書き（7日以上前のログを削除）
+./scripts/cleanup.sh --improve-logs --age 7
+
+# ドライラン（削除せずに対象を表示）
+./scripts/cleanup.sh --improve-logs --dry-run
+
+# 全てのクリーンアップ（improve-logsも含む）
+./scripts/cleanup.sh --all
+```
+
+#### 削除条件
+
+ログファイルは以下の条件で削除されます：
+
+- **keep_recent**: 更新日時の新しい順に並べて、N件を超えるファイルを削除
+- **keep_days**: N日より古いファイルを削除
+- 両方が設定されている場合、いずれかの条件に該当すると削除
+
+**例**: `keep_recent: 10, keep_days: 7` の場合
+- 最新10件のログは保持（日時にかかわらず）
+- 11件目以降のログは、7日以内なら保持、7日より古ければ削除
 
 ### workflow
 
