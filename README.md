@@ -459,6 +459,8 @@ pi-issue-runner/
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh           # 設定読み込み
+│   ├── daemon.sh           # プロセスデーモン化
+│   ├── dependency.sh       # 依存関係解析・レイヤー計算
 │   ├── github.sh           # GitHub API操作
 │   ├── hooks.sh            # イベントhook機能
 │   ├── log.sh              # ログ出力
@@ -487,6 +489,7 @@ pi-issue-runner/
 ├── test/                    # Batsテスト（*.bats形式）
 │   ├── lib/                 # ライブラリのユニットテスト
 │   │   ├── agent.bats       # agent.sh のテスト
+│   │   ├── batch.bats       # batch.sh のテスト
 │   │   ├── ci-classifier.bats   # ci-classifier.sh のテスト
 │   │   ├── ci-fix.bats      # ci-fix.sh のテスト
 │   │   ├── ci-monitor.bats      # ci-monitor.sh のテスト
@@ -494,6 +497,8 @@ pi-issue-runner/
 │   │   ├── cleanup-orphans.bats  # cleanup-orphans.sh のテスト
 │   │   ├── cleanup-plans.bats    # cleanup-plans.sh のテスト
 │   │   ├── config.bats      # config.sh のテスト
+│   │   ├── daemon.bats      # daemon.sh のテスト
+│   │   ├── dependency.bats  # dependency.sh のテスト
 │   │   ├── github.bats      # github.sh のテスト
 │   │   ├── hooks.bats       # hooks.sh のテスト
 │   │   ├── log.bats         # log.sh のテスト
@@ -558,6 +563,7 @@ bats --tap test/lib/*.bats
 test/
 ├── lib/                         # ライブラリのユニットテスト
 │   ├── agent.bats               # agent.sh のテスト
+│   ├── batch.bats               # batch.sh のテスト
 │   ├── ci-classifier.bats       # ci-classifier.sh のテスト
 │   ├── ci-fix.bats              # ci-fix.sh のテスト
 │   ├── ci-monitor.bats          # ci-monitor.sh のテスト
@@ -565,6 +571,8 @@ test/
 │   ├── cleanup-orphans.bats     # cleanup-orphans.sh のテスト
 │   ├── cleanup-plans.bats       # cleanup-plans.sh のテスト
 │   ├── config.bats              # config.sh のテスト
+│   ├── daemon.bats              # daemon.sh のテスト
+│   ├── dependency.bats          # dependency.sh のテスト
 │   ├── github.bats              # github.sh のテスト
 │   ├── hooks.bats               # hooks.sh のテスト
 │   ├── log.bats                 # log.sh のテスト
@@ -585,6 +593,8 @@ test/
 │   ├── improve.bats             # improve.sh のテスト
 │   ├── init.bats                # init.sh のテスト
 │   ├── list.bats                # list.sh のテスト
+│   ├── nudge.bats               # nudge.sh のテスト
+│   ├── run-batch.bats           # run-batch.sh のテスト
 │   ├── run.bats                 # run.sh のテスト
 │   ├── status.bats              # status.sh のテスト
 │   ├── stop.bats                # stop.sh のテスト
