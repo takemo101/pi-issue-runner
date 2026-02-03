@@ -52,18 +52,22 @@
 pi-issue-runner/
 ├── scripts/           # ユーザー実行可能なスクリプト
 │   ├── run.sh         # メインエントリーポイント
+│   ├── run-batch.sh   # 複数Issueバッチ実行
 │   ├── list.sh        # セッション一覧表示
 │   ├── status.sh      # 状態確認
 │   ├── attach.sh      # セッションにアタッチ
 │   ├── stop.sh        # セッション停止
 │   ├── cleanup.sh     # クリーンアップ
+│   ├── force-complete.sh  # セッション強制完了
 │   ├── init.sh        # プロジェクト初期化
 │   ├── improve.sh     # 継続的改善
+│   ├── nudge.sh       # セッションへメッセージ送信
 │   ├── wait-for-sessions.sh  # 複数セッション待機
 │   ├── watch-session.sh      # セッション監視
 │   └── test.sh        # テスト実行
 ├── lib/               # 共通ライブラリ
 │   ├── agent.sh       # マルチエージェント対応
+│   ├── batch.sh       # バッチ処理コア機能
 │   ├── ci-classifier.sh   # CI失敗タイプ分類
 │   ├── ci-fix.sh      # CI失敗検出・自動修正
 │   ├── ci-monitor.sh      # CI状態監視
@@ -71,6 +75,7 @@ pi-issue-runner/
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh      # 設定管理
+│   ├── daemon.sh      # プロセスデーモン化
 │   ├── dependency.sh  # 依存関係解析・レイヤー計算
 │   ├── github.sh      # GitHub CLI操作
 │   ├── hooks.sh       # Hook機能
@@ -86,12 +91,16 @@ pi-issue-runner/
 │   ├── worktree.sh    # Git worktree操作
 │   └── yaml.sh        # YAMLパーサー
 ├── workflows/         # ワークフロー定義
+│   ├── ci-fix.yaml    # CI修正ワークフロー
 │   ├── default.yaml   # 完全ワークフロー
-│   └── simple.yaml    # 簡易ワークフロー
+│   ├── simple.yaml    # 簡易ワークフロー
+│   └── thorough.yaml  # 徹底ワークフロー
 ├── agents/            # エージェントテンプレート
+│   ├── ci-fix.md      # CI修正エージェント
 │   ├── plan.md        # 計画エージェント
 │   ├── implement.md   # 実装エージェント
 │   ├── review.md      # レビューエージェント
+│   ├── test.md        # テストエージェント
 │   └── merge.md       # マージエージェント
 ├── test/              # Batsテスト
 │   ├── lib/           # ライブラリテスト
@@ -114,9 +123,12 @@ pi-issue-runner/
 | スクリプト | 機能 |
 |-----------|------|
 | `run.sh` | Issue番号を受け取り、worktree作成からpi起動まで実行 |
+| `run-batch.sh` | 複数Issueを依存関係順にバッチ実行 |
 | `list.sh` | 実行中のセッション一覧を表示 |
 | `status.sh` | 特定Issueの状態を確認 |
 | `attach.sh` | 実行中セッションにアタッチ |
+| `nudge.sh` | セッションへメッセージ送信 |
+| `force-complete.sh` | セッション強制完了 |
 | `cleanup.sh` | worktreeとセッションをクリーンアップ |
 
 **共通パターン**:
