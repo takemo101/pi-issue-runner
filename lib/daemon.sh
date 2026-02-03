@@ -4,6 +4,8 @@
 # Issue #553: run-batch.sh経由で起動したwatcherがタイムアウト時に死ぬ問題の解決
 # setsidがない環境（macOSなど）でも動作するように、プロセスグループを分離する
 
+set -euo pipefail
+
 # コマンドをデーモン化して実行
 # Usage: daemonize <log_file> <command> [args...]
 # Returns: デーモンプロセスのPID（setsid使用時）、または子シェルのPID（互換モード時）
