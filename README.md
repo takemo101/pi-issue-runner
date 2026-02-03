@@ -34,10 +34,14 @@ which yq  # オプション
 
 ### スキルとしてインストール（piから使用）
 
-piのスキルディレクトリにクローン:
+piのスキルディレクトリにクローン（パスは環境に合わせて変更してください）:
 
 ```bash
+# 例: ユーザースキルディレクトリ
 git clone https://github.com/takemo101/pi-issue-runner ~/.pi/agent/skills/pi-issue-runner
+
+# または: プロジェクト固有のスキルディレクトリ
+git clone https://github.com/takemo101/pi-issue-runner .pi/skills/pi-issue-runner
 ```
 
 ### グローバルインストール（コマンドラインから使用）
