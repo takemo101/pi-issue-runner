@@ -158,7 +158,11 @@ categorize_issues() {
     
     # 各Issueを分類
     local issue_count
-    issue_count=$(echo "$issues_json" | jq 'length' 2>/dev/null || echo 0)
+    issue_count=$(echo "$issues_json" | jq 'length' 2>/dev/null)
+    # Ensure issue_count is a valid number
+    if [[ -z "$issue_count" || "$issue_count" == "null" || "$issue_count" == "[]" ]]; then
+        issue_count=0
+    fi
     
     for ((i=0; i<issue_count; i++)); do
         local issue_num title
@@ -188,7 +192,11 @@ categorize_issues() {
     local closed_issues
     closed_issues="$(collect_closed_issues_this_week)"
     local closed_count
-    closed_count=$(echo "$closed_issues" | jq 'length' 2>/dev/null || echo 0)
+    closed_count=$(echo "$closed_issues" | jq 'length' 2>/dev/null)
+    # Ensure closed_count is a valid number
+    if [[ -z "$closed_count" || "$closed_count" == "null" || "$closed_count" == "[]" ]]; then
+        closed_count=0
+    fi
     
     for ((i=0; i<closed_count; i++)); do
         local issue_num
