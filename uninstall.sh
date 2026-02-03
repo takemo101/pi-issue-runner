@@ -14,14 +14,19 @@ INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 # コマンド一覧
 COMMANDS="
 pi-run
+pi-batch
 pi-list
 pi-attach
 pi-status
 pi-stop
 pi-cleanup
+pi-force-complete
 pi-improve
 pi-wait
 pi-watch
+pi-init
+pi-nudge
+pi-context
 "
 
 echo "Uninstalling pi-issue-runner from $INSTALL_DIR..."
