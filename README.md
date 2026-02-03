@@ -640,16 +640,19 @@ test/
 
 # クローズ済みIssueの計画書を削除
 ./scripts/cleanup.sh --delete-plans
+
+# improve-logsディレクトリのクリーンアップ
+./scripts/cleanup.sh --improve-logs
+
+# 日数指定でクリーンアップ
+./scripts/cleanup.sh --improve-logs --age 7
 ```
 
 ### 手動削除が必要なもの
 
-以下のディレクトリは必要に応じて手動で削除してください：
+以下は必要に応じて手動で削除してください：
 
 ```bash
-# improve.sh のログ
-rm -rf .improve-logs/
-
 # 監視プロセスのログ
 rm -f /tmp/pi-watcher-*.log
 ```
