@@ -120,7 +120,7 @@ cmd_add() {
     fi
     
     append_issue_context "$issue_number" "$text"
-    log_info "Added context to issue #$issue_number"
+    echo "Added context to issue #$issue_number"
 }
 
 # add-project サブコマンド
@@ -133,7 +133,7 @@ cmd_add_project() {
     fi
     
     append_project_context "$text"
-    log_info "Added context to project"
+    echo "Added context to project"
 }
 
 # edit サブコマンド
@@ -207,14 +207,14 @@ cmd_clean() {
         esac
     done
     
-    log_info "Cleaning contexts older than $days days..."
+    echo "Cleaning contexts older than $days days..."
     local count
     count="$(clean_old_contexts "$days")"
     
     if [[ "$count" -eq 0 ]]; then
-        log_info "No old contexts found"
+        echo "No old contexts found"
     else
-        log_info "Removed $count old context(s)"
+        echo "Removed $count old context(s)"
     fi
 }
 
@@ -292,7 +292,6 @@ cmd_init() {
     
     init_issue_context "$issue_number" "$issue_title"
     echo "Initialized context for issue #$issue_number"
-    log_info "Initialized context for issue #$issue_number"
 }
 
 # init-project サブコマンド
@@ -305,7 +304,6 @@ cmd_init_project() {
     
     init_project_context
     echo "Initialized project context"
-    log_info "Initialized project context"
 }
 
 main() {
