@@ -182,8 +182,10 @@ handle_complete() {
     
     log_info "Running cleanup..."
     
-    # 少し待機（AIが出力を完了するまで）
-    sleep 2
+    # セッションが完全に終了し、プロセスが解放されるまで待機
+    # Issue #585対策: worktree削除前に確実にセッションを終了させる
+    log_info "Waiting for session termination (5s)..."
+    sleep 5
     
     # cleanup実行（リトライ付き）
     local cleanup_success=false

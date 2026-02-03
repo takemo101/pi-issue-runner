@@ -244,7 +244,7 @@ main() {
             fi
             
             log_info "Removing worktree: $worktree"
-            if ! remove_worktree "$worktree" "$force"; then
+            if ! safe_remove_worktree "$worktree" "$force"; then
                 log_error "Failed to remove worktree: $worktree"
                 cleanup_failed=true
             else

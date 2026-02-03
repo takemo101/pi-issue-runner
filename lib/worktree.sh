@@ -201,3 +201,67 @@ find_worktree_by_issue() {
     
     return 1
 }
+
+# worktreeが使用中かどうかをチェック
+# 使用中のプロセスがある場合はtrueを返す
+# Usage: is_worktree_in_use <worktree_path>
+is_worktree_in_use() {
+    local worktree_path="$1"
+    
+    if [[ ! -d "$worktree_path" ]]; then
+        return 1  # 存在しない = 使用中ではない
+    fi
+    
+    # lsofで使用中かチェック（macOS/Linux両対応）
+    if command -v lsof >/dev/null 2>&1; then
+        if lsof +D "$worktree_path" 2>/dev/null | grep -q .; then
+            return 0  # 使用中
+        fi
+    fi
+    
+    # fuserで使用中かチェック（Linux中心）
+    if command -v fuser >/dev/null 2>&1; then
+        if fuser "$worktree_path" 2>/dev/null | grep -q '[0-9]'; then
+            return 0  # 使用中
+        fi
+    fi
+    
+    return 1  # 使用中ではない
+}
+
+# worktreeを安全に削除（使用中チェック付き）
+# Usage: safe_remove_worktree <worktree_path> [force]
+safe_remove_worktree() {
+    local worktree_path="$1"
+    local force="${2:-false}"
+    local max_wait=30
+    local waited=0
+    
+    if [[ ! -d "$worktree_path" ]]; then
+        log_debug "Worktree does not exist: $worktree_path"
+        return 0
+    fi
+    
+    log_info "Checking if worktree is in use: $worktree_path"
+    
+    # 使用中の場合は待機
+    while is_worktree_in_use "$worktree_path" && [[ "$waited" -lt "$max_wait" ]]; do
+        log_info "Worktree is in use, waiting... (${waited}s/${max_wait}s)"
+        sleep 1
+        waited=$((waited + 1))
+    done
+    
+    # それでも使用中の場合
+    if is_worktree_in_use "$worktree_path"; then
+        if [[ "$force" == "true" ]]; then
+            log_warn "Worktree still in use after ${max_wait}s, forcing removal..."
+        else
+            log_error "Worktree is still in use after ${max_wait}s: $worktree_path"
+            log_error "Please check running processes and try again, or use --force"
+            return 1
+        fi
+    fi
+    
+    # 削除実行
+    remove_worktree "$worktree_path" "$force"
+}
