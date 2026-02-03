@@ -121,6 +121,28 @@ main() {
     fi
     echo ""
 
+    # Watcher情報 (Issue #693)
+    echo "--- Watcher ---"
+    local watcher_pid
+    watcher_pid="$(load_watcher_pid "$issue_number" 2>/dev/null || echo '')"
+    
+    if [[ -n "$watcher_pid" ]]; then
+        if is_watcher_running "$issue_number"; then
+            echo "Status: Running (PID: $watcher_pid)"
+            local watcher_log="/tmp/pi-watcher-${session_name}.log"
+            echo "Log: $watcher_log"
+        else
+            echo "Status: Not running ⚠️"
+            echo "Hint: Run 'scripts/restart-watcher.sh $issue_number' to restart"
+        fi
+    else
+        echo "Status: No watcher found"
+        if session_exists "$session_name"; then
+            echo "Hint: Run 'scripts/restart-watcher.sh $issue_number' to start"
+        fi
+    fi
+    echo ""
+
     # Worktree情報
     echo "--- Worktree ---"
     local worktree

@@ -295,6 +295,12 @@ main() {
                 log_warn "Failed to remove status file for Issue #$issue_number"
             }
             
+            # Watcher PIDファイルも削除 (Issue #693)
+            log_debug "Removing watcher PID file for Issue #$issue_number"
+            remove_watcher_pid "$issue_number" || {
+                log_warn "Failed to remove watcher PID file for Issue #$issue_number"
+            }
+            
             # ブランチ削除
             if [[ "$delete_branch" == "true" && -n "$branch_name" ]]; then
                 log_info "Deleting branch: $branch_name"
