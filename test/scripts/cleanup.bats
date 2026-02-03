@@ -245,3 +245,158 @@ teardown() {
     # 新しいファイルなので対象外
     [[ "$output" != *"555"* ]] || [[ "$output" == *"No orphaned status files"* ]]
 }
+
+# ====================
+# --improve-logs オプションテスト
+# ====================
+
+@test "cleanup.sh --improve-logs: cleans up improve-logs directory" {
+    local test_dir="${BATS_TEST_TMPDIR}/test-project"
+    mkdir -p "$test_dir/.improve-logs"
+    
+    # Create test log files
+    for i in $(seq 1 15); do
+        echo "test" > "$test_dir/.improve-logs/iteration-$i-20260203-$(printf '%02d' $i)0000.log"
+    done
+    
+    # Create config with keep_recent=10
+    cat > "$test_dir/.pi-runner.yaml" << 'YAML'
+improve_logs:
+  keep_recent: 10
+  keep_days: 0
+YAML
+    
+    cd "$test_dir"
+    run "$PROJECT_ROOT/scripts/cleanup.sh" --improve-logs
+    [ "$status" -eq 0 ]
+    
+    # Should keep 10 files
+    local remaining=$(find "$test_dir/.improve-logs" -name "*.log" 2>/dev/null | wc -l | tr -d ' ')
+    [ "$remaining" -eq 10 ]
+}
+
+@test "cleanup.sh --improve-logs --age 7: deletes old logs" {
+    local test_dir="${BATS_TEST_TMPDIR}/test-project"
+    mkdir -p "$test_dir/.improve-logs"
+    
+    # Create old log (modify timestamp to 10 days ago)
+    local old_log="$test_dir/.improve-logs/iteration-1-20260120-120000.log"
+    echo "old" > "$old_log"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        touch -t "$(date -v-10d +%Y%m%d%H%M.%S)" "$old_log" 2>/dev/null || skip "touch -t failed on macOS"
+    else
+        touch -t "$(date -d '10 days ago' +%Y%m%d%H%M.%S)" "$old_log" 2>/dev/null || skip "touch -t failed on Linux"
+    fi
+    
+    # Create recent log
+    local new_log="$test_dir/.improve-logs/iteration-2-20260203-120000.log"
+    echo "new" > "$new_log"
+    
+    # Create config
+    cat > "$test_dir/.pi-runner.yaml" << 'YAML'
+improve_logs:
+  keep_recent: 0
+  keep_days: 0
+YAML
+    
+    cd "$test_dir"
+    run "$PROJECT_ROOT/scripts/cleanup.sh" --improve-logs --age 7
+    [ "$status" -eq 0 ]
+    
+    # Old file should be deleted
+    [ ! -f "$old_log" ]
+    [ -f "$new_log" ]
+}
+
+@test "cleanup.sh --improve-logs --dry-run: shows but doesn't delete" {
+    local test_dir="${BATS_TEST_TMPDIR}/test-project"
+    mkdir -p "$test_dir/.improve-logs"
+    
+    # Create test log files
+    for i in $(seq 1 15); do
+        echo "test" > "$test_dir/.improve-logs/iteration-$i-20260203-$(printf '%02d' $i)0000.log"
+    done
+    
+    # Create config
+    cat > "$test_dir/.pi-runner.yaml" << 'YAML'
+improve_logs:
+  keep_recent: 5
+  keep_days: 0
+YAML
+    
+    cd "$test_dir"
+    run "$PROJECT_ROOT/scripts/cleanup.sh" --improve-logs --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"[DRY-RUN]"* ]]
+    [[ "$output" == *"Would delete"* ]]
+    
+    # All files should still exist
+    local remaining=$(find "$test_dir/.improve-logs" -name "*.log" 2>/dev/null | wc -l | tr -d ' ')
+    [ "$remaining" -eq 15 ]
+}
+
+@test "cleanup.sh --all: includes improve-logs cleanup" {
+    local test_dir="${BATS_TEST_TMPDIR}/test-project"
+    mkdir -p "$test_dir/.improve-logs"
+    
+    # Create test log files
+    for i in $(seq 1 5); do
+        echo "test" > "$test_dir/.improve-logs/iteration-$i-20260203-$(printf '%02d' $i)0000.log"
+    done
+    
+    # Create config
+    cat > "$test_dir/.pi-runner.yaml" << 'YAML'
+improve_logs:
+  keep_recent: 10
+  keep_days: 7
+YAML
+    
+    cd "$test_dir"
+    git init &>/dev/null
+    
+    run "$PROJECT_ROOT/scripts/cleanup.sh" --all --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"improve-logs"* ]]
+}
+
+@test "cleanup.sh --improve-logs: no directory - success" {
+    local test_dir="${BATS_TEST_TMPDIR}/test-project"
+    mkdir -p "$test_dir"
+    
+    # Create minimal config
+    cat > "$test_dir/.pi-runner.yaml" << 'YAML'
+improve_logs:
+  keep_recent: 10
+YAML
+    
+    cd "$test_dir"
+    run "$PROJECT_ROOT/scripts/cleanup.sh" --improve-logs
+    [ "$status" -eq 0 ]
+    # Success is sufficient - debug messages may not appear in output
+}
+
+@test "cleanup.sh --improve-logs: respects custom directory" {
+    local test_dir="${BATS_TEST_TMPDIR}/test-project"
+    mkdir -p "$test_dir/custom-logs"
+    
+    # Create test log files in custom directory
+    for i in $(seq 1 10); do
+        echo "test" > "$test_dir/custom-logs/iteration-$i-20260203-$(printf '%02d' $i)0000.log"
+    done
+    
+    # Create config with custom directory
+    cat > "$test_dir/.pi-runner.yaml" << 'YAML'
+improve_logs:
+  keep_recent: 5
+  keep_days: 0
+  dir: custom-logs
+YAML
+    
+    cd "$test_dir"
+    run "$PROJECT_ROOT/scripts/cleanup.sh" --improve-logs
+    [ "$status" -eq 0 ]
+    
+    # Should keep 5 files in custom directory
+    local remaining=$(find "$test_dir/custom-logs" -name "*.log" 2>/dev/null | wc -l | tr -d ' ')
+    [ "$remaining" -eq 5 ]
+}
