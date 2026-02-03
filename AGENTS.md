@@ -43,6 +43,7 @@ pi-issue-runner/
 │   ├── ci-monitor.sh      # CI状態監視
 │   ├── ci-retry.sh        # CI自動修正リトライ管理
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
+│   ├── cleanup-improve-logs.sh  # improve-logsのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh      # 設定読み込み
 │   ├── dependency.sh  # 依存関係解析・レイヤー計算
@@ -82,6 +83,7 @@ pi-issue-runner/
 │   │   ├── ci-monitor.bats     # ci-monitor.sh のテスト
 │   │   ├── ci-retry.bats       # ci-retry.sh のテスト
 │   │   ├── cleanup-orphans.bats
+│   │   ├── cleanup-improve-logs.bats  # cleanup-improve-logs.sh のテスト
 │   │   ├── cleanup-plans.bats
 │   │   ├── config.bats
 │   │   ├── daemon.bats
