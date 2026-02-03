@@ -35,57 +35,55 @@ echo "Checking CI status for PR #$PR_NUMBER..."
 gh pr checks "$PR_NUMBER" 2>/dev/null || echo "No checks found"
 ```
 
-### 2. 失敗ログ取得
+### 2. CI失敗の検出と自動修正（推奨: ヘルパースクリプト使用）
 
 ```bash
-# 最新の失敗したワークフローを取得
-RUN_ID=$(gh run list --limit 1 --status failure --json databaseId -q '.[0].databaseId' 2>/dev/null)
+# ヘルパースクリプトのパス
+HELPER_SCRIPT="./scripts/ci-fix-helper.sh"
 
-if [[ -n "$RUN_ID" ]]; then
-    echo "Fetching failed logs from run $RUN_ID..."
-    gh run view "$RUN_ID" --log-failed 2>/dev/null | head -100
+# 失敗タイプを検出
+FAILURE_TYPE=$("$HELPER_SCRIPT" detect "$PR_NUMBER")
+echo "Detected failure type: $FAILURE_TYPE"
+
+# 自動修正を試行
+cd "{{worktree_path}}"
+if "$HELPER_SCRIPT" fix "$FAILURE_TYPE" "{{worktree_path}}"; then
+    echo "✅ Auto-fix successful"
+    
+    # 変更をコミット＆プッシュ
+    git add -A
+    git commit -m "fix: CI修正 - ${FAILURE_TYPE}対応
+
+Refs #{{issue_number}}"
+    git push
+    
+    echo "Changes pushed. CI will re-run automatically."
+else
+    FIX_RESULT=$?
+    if [[ $FIX_RESULT -eq 2 ]]; then
+        echo "⚠️ AI-based fixing required for $FAILURE_TYPE"
+        # 次のセクションに進む
+    else
+        echo "❌ Auto-fix failed"
+        exit 1
+    fi
 fi
 ```
 
-### 3. 失敗タイプ分析
+### 3. AI修正が必要な場合（テスト/ビルド失敗）
 
-取得したログから失敗タイプを特定：
-
-| パターン | 失敗タイプ | 修正方法 |
-|---------|-----------|---------|
-| `Diff in`, `would have been reformatted` | フォーマット | `cargo fmt --all` |
-| `warning:`, `clippy::` | Lint/Clippy | `cargo clippy --fix --allow-dirty --allow-staged` |
-| `FAILED`, `test result: FAILED` | テスト失敗 | AIによるソース修正 |
-| `error[E`, `cannot find` | ビルドエラー | AIによるソース修正 |
-
-### 4. 自動修正実行
-
-#### フォーマット/Lintの場合（コマンドで自動修正）
+ヘルパースクリプトが自動修正できなかった場合（終了コード2）：
 
 ```bash
-cd "{{worktree_path}}"
+# 失敗ログを詳細に取得
+RUN_ID=$(gh run list --limit 1 --status failure --json databaseId -q '.[0].databaseId' 2>/dev/null)
+FAILURE_LOG=$(gh run view "$RUN_ID" --log-failed 2>/dev/null || echo "")
 
-# フォーマット修正
-cargo fmt --all
-
-# Clippy修正
-cargo clippy --fix --allow-dirty --allow-staged --all-targets --all-features
-
-# 変更を確認
-git diff --stat
-
-# コミット
-git add -A
-git commit -m "fix: CI修正 - フォーマット・Lint対応
-
-Refs #{{issue_number}}"
-
-# プッシュ
-git push
+echo "Analyzing failure logs..."
+echo "$FAILURE_LOG" | head -50
 ```
 
-#### テスト/ビルド失敗の場合（AI修正）
-
+**手動修正ステップ**:
 1. エラーログを詳細に分析
 2. 失敗しているファイルを特定
 3. ソースコードを修正
@@ -94,7 +92,39 @@ git push
    cargo build
    cargo test --lib
    ```
-5. 修正をコミット・プッシュ
+5. 修正をコミット・プッシュ:
+   ```bash
+   git add -A
+   git commit -m "fix: CI修正 - テスト/ビルド対応
+
+Refs #{{issue_number}}"
+   git push
+   ```
+
+### 4. 代替方法: インラインスクリプト（後方互換性）
+
+ヘルパースクリプトが使用できない環境では、以下を使用：
+
+```bash
+cd "{{worktree_path}}"
+
+# フォーマット修正
+cargo fmt --all 2>&1 && echo "Format fixed" || true
+
+# Clippy修正
+cargo clippy --fix --allow-dirty --allow-staged --all-targets --all-features 2>&1 && echo "Lint fixed" || true
+
+# 変更を確認
+if git diff --quiet && git diff --cached --quiet; then
+    echo "No changes to commit"
+else
+    git add -A
+    git commit -m "fix: CI修正 - フォーマット・Lint対応
+
+Refs #{{issue_number}}"
+    git push
+fi
+```
 
 ### 5. CI再実行待機
 

@@ -8,6 +8,15 @@
 #   - Test失敗: AI解析による修正
 #   - ビルドエラー: AI解析による修正
 #
+# 使用方法:
+#   このライブラリは scripts/ci-fix-helper.sh からラップされており、
+#   エージェントテンプレート (agents/ci-fix.md) やワークフローから
+#   ci-fix-helper.sh を通じて呼び出されます。
+#
+#   直接 source して使用することも可能:
+#     source lib/ci-fix.sh
+#     handle_ci_failure 42 123 /path/to/worktree
+#
 # 注意: このファイルは以下のモジュールに依存します:
 #   - ci-monitor.sh: CI状態監視
 #   - ci-classifier.sh: 失敗タイプ分類

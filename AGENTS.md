@@ -29,6 +29,7 @@ pi-issue-runner/
 │   ├── attach.sh      # セッションアタッチ
 │   ├── stop.sh        # セッション停止
 │   ├── cleanup.sh     # クリーンアップ
+│   ├── ci-fix-helper.sh  # CI修正ヘルパー（lib/ci-fix.shのラッパー）
 │   ├── force-complete.sh  # セッション強制完了
 │   ├── improve.sh     # 継続的改善スクリプト
 │   ├── nudge.sh       # セッションへメッセージ送信

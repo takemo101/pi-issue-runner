@@ -525,6 +525,7 @@ pi-issue-runner/
 │   ├── attach.sh           # セッションアタッチ
 │   ├── stop.sh             # セッション停止
 │   ├── cleanup.sh          # クリーンアップ
+│   ├── ci-fix-helper.sh    # CI修正ヘルパー（lib/ci-fix.shのラッパー）
 │   ├── force-complete.sh   # セッション強制完了
 │   ├── nudge.sh            # セッションへメッセージ送信
 │   ├── watch-session.sh    # セッション監視と自動クリーンアップ
