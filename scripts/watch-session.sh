@@ -150,12 +150,19 @@ handle_complete() {
     # on_success hookを実行（hook未設定時はデフォルト動作）
     run_hook "on_success" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "" "0" "" 2>/dev/null || true
     
-    # IssueをClose（既にCloseされている場合は無視）
-    log_info "Closing Issue #$issue_number..."
-    if gh issue close "$issue_number" 2>/dev/null; then
-        log_info "Issue #$issue_number closed successfully"
+    # IssueをClose（PRが存在する場合はPRマージ時の自動Closeに任せる）
+    local pr_number
+    pr_number=$(gh pr list --head "$branch_name" --json number -q '.[0].number' 2>/dev/null) || pr_number=""
+    
+    if [[ -n "$pr_number" ]]; then
+        log_info "PR #$pr_number exists for Issue #$issue_number, skipping direct close (will be closed on PR merge)"
     else
-        log_debug "Issue #$issue_number may already be closed or close failed"
+        log_info "No PR found, closing Issue #$issue_number directly..."
+        if gh issue close "$issue_number" 2>/dev/null; then
+            log_info "Issue #$issue_number closed successfully"
+        else
+            log_debug "Issue #$issue_number may already be closed or close failed"
+        fi
     fi
     
     log_info "Running cleanup..."
