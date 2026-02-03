@@ -8,19 +8,31 @@
 #   - Test失敗: AI解析による修正
 #   - ビルドエラー: AI解析による修正
 #
-# 使用方法:
-#   このライブラリは scripts/ci-fix-helper.sh からラップされており、
-#   エージェントテンプレート (agents/ci-fix.md) やワークフローから
-#   ci-fix-helper.sh を通じて呼び出されます。
+# 【重要】使用状況について:
+#   このファイルは他のスクリプトから直接 source されるのではなく、
+#   scripts/ci-fix-helper.sh というラッパースクリプトを介して使用されます。
+#   これは意図的な設計で、ライブラリ層とCLIインターフェース層を分離しています。
 #
-#   直接 source して使用することも可能:
-#     source lib/ci-fix.sh
-#     handle_ci_failure 42 123 /path/to/worktree
+# 使用フロー:
+#   agents/ci-fix.md (エージェントテンプレート)
+#     → scripts/ci-fix-helper.sh (CLIラッパー)
+#       → lib/ci-fix.sh (このライブラリ)
 #
-# 注意: このファイルは以下のモジュールに依存します:
-#   - ci-monitor.sh: CI状態監視
-#   - ci-classifier.sh: 失敗タイプ分類
-#   - ci-retry.sh: リトライ管理
+# 直接使用する場合:
+#   source lib/ci-fix.sh
+#   handle_ci_failure 42 123 /path/to/worktree
+#
+# 依存モジュール:
+#   - lib/log.sh: ログ出力
+#   - lib/github.sh: GitHub CLI操作
+#   - lib/ci-monitor.sh: CI状態監視
+#   - lib/ci-classifier.sh: 失敗タイプ分類
+#   - lib/ci-retry.sh: リトライ管理
+#
+# 関連ファイル:
+#   - scripts/ci-fix-helper.sh: このライブラリのCLIラッパー
+#   - agents/ci-fix.md: ci-fixエージェントテンプレート
+#   - workflows/ci-fix.yaml: ci-fixワークフロー定義
 
 set -euo pipefail
 

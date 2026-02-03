@@ -1,8 +1,21 @@
 #!/usr/bin/env bash
 # ci-fix-helper.sh - CI修正ヘルパースクリプト
 #
-# このスクリプトは lib/ci-fix.sh とその依存ライブラリをラップし、
-# エージェントテンプレートやワークフローから簡単に呼び出せるようにします。
+# 【このスクリプトの役割】
+#   このスクリプトは lib/ci-fix.sh のCLIラッパーです。
+#   ライブラリ層（lib/ci-fix.sh）とCLIインターフェース層を分離し、
+#   エージェントテンプレートやワークフローから簡単に呼び出せるようにします。
+#
+# 【設計意図】
+#   - lib/ci-fix.sh: 再利用可能な関数群（ライブラリ層）
+#   - scripts/ci-fix-helper.sh: ユーザー向けCLIインターフェース
+#   この分離により、ライブラリ関数を直接使いたい場合と、
+#   コマンドラインから使いたい場合の両方に対応できます。
+#
+# 【使用フロー】
+#   agents/ci-fix.md (エージェントテンプレート)
+#     → scripts/ci-fix-helper.sh (このスクリプト)
+#       → lib/ci-fix.sh (ライブラリ)
 #
 # Usage:
 #   ./scripts/ci-fix-helper.sh detect <pr_number>
