@@ -181,7 +181,8 @@ Options:
     --no-cleanup      pi終了後の自動クリーンアップを無効化
     --reattach        既存セッションがあればアタッチ
     --force           既存セッション/worktreeを削除して再作成
-    --pi-args ARGS    piに渡す追加の引数
+    --agent-args ARGS エージェントに渡す追加の引数
+    --pi-args ARGS    --agent-args のエイリアス（後方互換性）
     --list-workflows  利用可能なワークフロー一覧を表示
 ```
 
@@ -329,6 +330,165 @@ Options:
 ./scripts/improve.sh --max-iterations 2 --max-issues 3
 ./scripts/improve.sh --dry-run
 ./scripts/improve.sh --auto-continue
+```
+
+### nudge.sh - セッションへメッセージ送信
+
+```bash
+./scripts/nudge.sh <session-name|issue-number> [options]
+
+Arguments:
+    session-name    tmuxセッション名（例: pi-issue-42）
+    issue-number    GitHub Issue番号（例: 42）
+
+Options:
+    -m, --message TEXT  送信するメッセージ（デフォルト: "続けてください"）
+    -s, --session NAME  セッション名を明示的に指定
+    -h, --help          このヘルプを表示
+```
+
+#### 使用例
+
+```bash
+./scripts/nudge.sh 42
+./scripts/nudge.sh pi-issue-42
+./scripts/nudge.sh 42 --message "続きをお願いします"
+./scripts/nudge.sh --session pi-issue-42 --message "完了しましたか？"
+```
+
+### run-batch.sh - バッチ実行
+
+```bash
+./scripts/run-batch.sh <issue-number>... [options]
+
+Arguments:
+    issue-number...   実行するIssue番号（複数指定可）
+
+Options:
+    --dry-run           実行計画のみ表示（実行しない）
+    --sequential        並列実行せず順次実行
+    --continue-on-error エラーがあっても次のレイヤーを実行
+    --timeout <sec>     完了待機のタイムアウト（デフォルト: 3600）
+    --interval <sec>    完了確認の間隔（デフォルト: 5）
+    --parent <issue>    親IssueのSubtaskを自動展開（将来拡張）
+    --workflow <name>   使用するワークフロー名（デフォルト: default）
+    --base <branch>     ベースブランチ（デフォルト: HEAD）
+    -q, --quiet         進捗表示を抑制
+    -v, --verbose       詳細ログを出力
+    -h, --help          このヘルプを表示
+```
+
+#### 動作概要
+
+複数のGitHub Issueを依存関係順に並列実行します：
+
+1. 各IssueのSubtaskから依存関係を解析
+2. 依存関係に基づいてレイヤーを計算
+3. 各レイヤーのIssueを並列実行
+4. すべてのIssueが完了するまで待機
+
+#### 使用例
+
+```bash
+./scripts/run-batch.sh 482 483 484 485 486
+./scripts/run-batch.sh 482 483 --dry-run
+./scripts/run-batch.sh 482 483 --sequential
+./scripts/run-batch.sh 482 483 --continue-on-error
+```
+
+#### 終了コード
+
+| コード | 意味 |
+|--------|------|
+| 0 | 全Issue成功 |
+| 1 | 一部Issueが失敗 |
+| 2 | 循環依存を検出 |
+| 3 | 引数エラー |
+
+### init.sh - プロジェクト初期化
+
+```bash
+./scripts/init.sh [options]
+
+Options:
+    --full          完全セットアップ（agents/, workflows/ も作成）
+    --minimal       最小セットアップ（.pi-runner.yaml のみ）
+    --force         既存ファイルを上書き
+    -h, --help      このヘルプを表示
+```
+
+#### 使用例
+
+```bash
+./scripts/init.sh              # 標準セットアップ
+./scripts/init.sh --full       # 完全セットアップ
+./scripts/init.sh --minimal    # 最小セットアップ
+./scripts/init.sh --force      # 既存ファイルを上書き
+```
+
+### force-complete.sh - セッション強制完了
+
+```bash
+./scripts/force-complete.sh <session-name|issue-number> [options]
+
+Arguments:
+    session-name    tmuxセッション名（例: pi-issue-42）
+    issue-number    GitHub Issue番号（例: 42）
+
+Options:
+    --error         エラーマーカーを送信
+    --message <msg> カスタムメッセージを追加
+    -h, --help      このヘルプを表示
+```
+
+#### 動作概要
+
+指定されたセッションに完了マーカーを送信し、watch-session.shによる自動クリーンアップをトリガーします。
+
+AIが完了マーカーを出力し忘れた場合や、手動でタスク完了を判断した場合に使用してください。
+
+#### 使用例
+
+```bash
+./scripts/force-complete.sh 42
+./scripts/force-complete.sh pi-issue-42
+./scripts/force-complete.sh 42 --error
+./scripts/force-complete.sh 42 --message "Manual completion"
+./scripts/force-complete.sh 42 --error --message "Stopped by user"
+```
+
+### test.sh - テスト実行
+
+```bash
+./scripts/test.sh [options] [target]
+
+Options:
+    -v, --verbose     詳細ログを表示
+    -f, --fail-fast   最初の失敗で終了
+    -s, --shellcheck  ShellCheckを実行
+    -a, --all         全てのチェック（bats + shellcheck）を実行
+    -j, --jobs N      並列実行のジョブ数（デフォルト: 16）
+    --fast            高速モード（重いテストをスキップ）
+    -h, --help        このヘルプを表示
+```
+
+#### ターゲット
+
+| ターゲット | 説明 |
+|-----------|------|
+| `lib` | test/lib/*.bats のみ実行 |
+| `scripts` | test/scripts/*.bats のみ実行 |
+| (デフォルト) | 全Batsテストを実行 |
+
+#### 使用例
+
+```bash
+./scripts/test.sh             # 全Batsテスト実行
+./scripts/test.sh lib         # test/lib/*.bats のみ
+./scripts/test.sh -v          # 詳細ログ付き
+./scripts/test.sh -f          # fail-fast モード
+./scripts/test.sh -s          # ShellCheckのみ実行
+./scripts/test.sh -a          # Batsテスト + ShellCheck
 ```
 
 ### wait-for-sessions.sh - 複数セッション完了待機
