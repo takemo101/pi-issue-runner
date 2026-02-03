@@ -88,8 +88,10 @@ project-root/
 │       └── ...
 ├── .pi-runner.yaml          # ユーザー設定
 ├── workflows/               # ビルトインワークフロー
+│   ├── ci-fix.yaml          # CI修正ワークフロー
 │   ├── default.yaml         # 完全ワークフロー
-│   └── simple.yaml          # 簡易ワークフロー
+│   ├── simple.yaml          # 簡易ワークフロー
+│   └── thorough.yaml        # 徹底ワークフロー
 ├── agents/                  # エージェントテンプレート
 │   ├── ci-fix.md            # CI修正エージェント
 │   ├── plan.md              # 計画エージェント
@@ -104,6 +106,7 @@ project-root/
 │   ├── ci-fix.sh            # CI失敗検出・自動修正
 │   ├── ci-monitor.sh        # CI状態監視
 │   ├── ci-retry.sh          # CI自動修正リトライ管理
+│   ├── cleanup-improve-logs.sh # 改善ログのクリーンアップ
 │   ├── cleanup-orphans.sh   # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh     # 計画書のローテーション
 │   ├── config.sh            # 設定管理
@@ -123,13 +126,18 @@ project-root/
 │   ├── worktree.sh          # Git worktree操作
 │   └── yaml.sh              # YAMLパーサー
 └── scripts/                 # 実行スクリプト
-    ├── run.sh               # タスク起動
-    ├── list.sh              # セッション一覧
-    ├── status.sh            # 状態確認
     ├── attach.sh            # セッションアタッチ
-    ├── stop.sh              # セッション停止
     ├── cleanup.sh           # クリーンアップ
+    ├── force-complete.sh    # セッション強制完了
     ├── improve.sh           # 継続的改善スクリプト
+    ├── init.sh              # プロジェクト初期化
+    ├── list.sh              # セッション一覧
+    ├── nudge.sh             # セッションへメッセージ送信
+    ├── run-batch.sh         # バッチ実行
+    ├── run.sh               # タスク起動
+    ├── status.sh            # 状態確認
+    ├── stop.sh              # セッション停止
+    ├── test.sh              # テスト実行
     ├── wait-for-sessions.sh # 複数セッション完了待機
     └── watch-session.sh     # セッション監視と自動クリーンアップ
 ```
