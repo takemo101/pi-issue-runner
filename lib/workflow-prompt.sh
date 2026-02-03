@@ -6,6 +6,11 @@ set -euo pipefail
 _WORKFLOW_PROMPT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_WORKFLOW_PROMPT_LIB_DIR/log.sh"
 
+# コンテキスト管理をロード（存在する場合）
+if [[ -f "$_WORKFLOW_PROMPT_LIB_DIR/context.sh" ]]; then
+    source "$_WORKFLOW_PROMPT_LIB_DIR/context.sh"
+fi
+
 # Note: find_agent_file, get_agent_prompt, find_workflow_file, get_workflow_steps
 # are expected to be loaded by workflow.sh before this file
 
@@ -44,6 +49,21 @@ $issue_title
 ## Description
 $issue_body
 EOF
+    
+    # コンテキストセクションを追加（コンテキストがある場合のみ）
+    if declare -f load_all_context > /dev/null 2>&1; then
+        local context_content
+        context_content="$(load_all_context "$issue_number" 2>/dev/null || true)"
+        
+        if [[ -n "$context_content" ]]; then
+            cat << EOF
+
+## 過去のコンテキスト
+
+$context_content
+EOF
+        fi
+    fi
     
     # コメントセクションを追加（コメントがある場合のみ）
     if [[ -n "$issue_comments" ]]; then

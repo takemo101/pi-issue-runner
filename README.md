@@ -70,6 +70,7 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | `pi-watch` | セッション監視 |
 | `pi-nudge` | セッションにメッセージ送信 |
 | `pi-init` | プロジェクト初期化 |
+| `pi-context` | コンテキスト管理 |
 
 | オプション | 説明 |
 |-----------|------|
@@ -191,6 +192,82 @@ scripts/run.sh 42 --agent-args "--verbose"
 # または従来のオプション（後方互換性）
 scripts/run.sh 42 --pi-args "--verbose"
 ```
+
+### コンテキスト永続化
+
+pi-issue-runnerは、セッション間でコンテキスト（学習内容、試行履歴、技術的決定事項など）を永続化できます。
+
+#### 自動読み込み
+
+`pi-run` でIssueを実行すると、過去のコンテキストが自動的にプロンプトに注入されます：
+
+```bash
+pi-run 42
+```
+
+#### コンテキストの確認
+
+```bash
+# Issue固有のコンテキストを表示
+scripts/context.sh show 42
+
+# プロジェクト全体のコンテキストを表示
+scripts/context.sh show-project
+
+# コンテキストがあるIssue一覧
+scripts/context.sh list
+```
+
+#### コンテキストの追加
+
+```bash
+# Issue固有のコンテキストに追記
+scripts/context.sh add 42 "JWT認証は依存ライブラリの問題で失敗"
+
+# プロジェクト全体のコンテキストに追記
+scripts/context.sh add-project "ShellCheck SC2155を修正する際は変数宣言と代入を分離"
+```
+
+#### コンテキストの編集
+
+```bash
+# Issue固有のコンテキストをエディタで編集
+scripts/context.sh edit 42
+
+# プロジェクト全体のコンテキストをエディタで編集
+scripts/context.sh edit-project
+```
+
+#### コンテキストのクリーンアップ
+
+```bash
+# 30日より古いコンテキストを削除
+scripts/context.sh clean --days 30
+
+# Issue固有のコンテキストを削除
+scripts/context.sh remove 42
+
+# プロジェクトコンテキストを削除
+scripts/context.sh remove-project
+```
+
+#### コンテキストファイルの場所
+
+コンテキストは `.worktrees/.context/` に保存されます：
+
+```
+.worktrees/
+├── .context/
+│   ├── project.md           # プロジェクト全体のコンテキスト
+│   └── issues/
+│       ├── 42.md            # Issue #42 固有のコンテキスト
+│       └── ...
+```
+
+#### エージェントによる自動保存
+
+エージェントは、タスク完了時に自動的にコンテキストを保存することが推奨されます。
+各エージェントテンプレート（`agents/*.md`）に保存手順が記載されています。
 
 ### セッション管理
 
