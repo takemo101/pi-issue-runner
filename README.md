@@ -459,6 +459,8 @@ pi-issue-runner/
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh           # 設定読み込み
+│   ├── daemon.sh           # プロセスデーモン化
+│   ├── dependency.sh       # 依存関係解析・レイヤー計算
 │   ├── github.sh           # GitHub API操作
 │   ├── hooks.sh            # イベントhook機能
 │   ├── log.sh              # ログ出力
