@@ -85,6 +85,7 @@ cmd_show() {
     local issue_number="$1"
     
     if ! context_exists "$issue_number"; then
+        echo "No context found for issue #$issue_number"
         log_warn "No context found for issue #$issue_number"
         return 1
     fi
@@ -97,6 +98,7 @@ cmd_show() {
 # show-project サブコマンド
 cmd_show_project() {
     if ! context_exists; then
+        echo "No project context found"
         log_warn "No project context found"
         return 1
     fi
@@ -175,6 +177,7 @@ cmd_list() {
     issues="$(list_issue_contexts)"
     
     if [[ -z "$issues" ]]; then
+        echo "No issue contexts found"
         log_info "No issue contexts found"
         return 0
     fi
@@ -229,6 +232,7 @@ cmd_export() {
     else
         # Issue固有コンテキストをエクスポート
         if ! context_exists "$issue_number"; then
+            echo "No context found for issue #$issue_number"
             log_error "No context found for issue #$issue_number"
             return 1
         fi
@@ -241,6 +245,7 @@ cmd_remove() {
     local issue_number="$1"
     
     if ! context_exists "$issue_number"; then
+        echo "No context found for issue #$issue_number"
         log_warn "No context found for issue #$issue_number"
         return 1
     fi
@@ -280,22 +285,26 @@ cmd_init() {
     local issue_title="${2:-Issue #${issue_number}}"
     
     if context_exists "$issue_number"; then
+        echo "Context already exists for issue #$issue_number"
         log_warn "Context already exists for issue #$issue_number"
         return 1
     fi
     
     init_issue_context "$issue_number" "$issue_title"
+    echo "Initialized context for issue #$issue_number"
     log_info "Initialized context for issue #$issue_number"
 }
 
 # init-project サブコマンド
 cmd_init_project() {
     if context_exists; then
+        echo "Project context already exists"
         log_warn "Project context already exists"
         return 1
     fi
     
     init_project_context
+    echo "Initialized project context"
     log_info "Initialized project context"
 }
 
