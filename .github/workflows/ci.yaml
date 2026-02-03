@@ -24,8 +24,8 @@ jobs:
         env:
           SHELLCHECK_OPTS: "-x"
 
-  unit-tests:
-    name: Unit Tests
+  unit-tests-lib:
+    name: Unit Tests (Lib)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -69,9 +69,63 @@ jobs:
           cd /tmp/bats-core
           sudo ./install.sh /usr/local
 
-      - name: Run unit tests
+      - name: Run lib unit tests
         run: |
-          echo "=== Running Bats tests ==="
-          ./scripts/test.sh
+          echo "=== Running Bats tests (lib) ==="
+          ./scripts/test.sh lib
         env:
-          BATS_JOBS: 16
+          BATS_JOBS: 4
+          BATS_FAST_MODE: 1
+
+  unit-tests-scripts:
+    name: Unit Tests (Scripts)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        id: cache-deps
+        with:
+          path: |
+            /usr/local/bin/bats
+            /usr/local/libexec/bats-core
+            /usr/local/bin/yq
+          key: ${{ runner.os }}-deps-v2
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq tmux
+
+      - name: Install yq
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          YQ_VERSION="v4.40.5"
+          sudo wget -qO /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Install gh CLI
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+      - name: Install Bats
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats-core
+          cd /tmp/bats-core
+          sudo ./install.sh /usr/local
+
+      - name: Run scripts unit tests
+        run: |
+          echo "=== Running Bats tests (scripts) ==="
+          ./scripts/test.sh scripts
+        env:
+          BATS_JOBS: 4
+          BATS_FAST_MODE: 1
