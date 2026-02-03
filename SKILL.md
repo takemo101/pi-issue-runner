@@ -32,6 +32,13 @@ scripts/run-batch.sh <issue>... [options]
 scripts/run-batch.sh 42 43 44 --dry-run     # 実行計画のみ表示
 scripts/run-batch.sh 42 43 44 --sequential  # 順次実行
 
+# タスク提案
+scripts/next.sh                          # 次に実行すべきIssueを提案
+scripts/next.sh -n 3                     # 次の3件を提案
+scripts/next.sh -l feature               # featureラベル付きから提案
+scripts/next.sh --json                   # JSON形式で出力
+scripts/next.sh -v                       # 詳細な判断理由を表示
+
 # セッション管理
 scripts/list.sh                          # セッション一覧
 scripts/attach.sh <session>              # セッションにアタッチ
