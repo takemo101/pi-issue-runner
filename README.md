@@ -539,7 +539,9 @@ pi-issue-runner/
 │   ├── ci-fix.sh           # CI失敗検出・自動修正
 │   ├── ci-monitor.sh       # CI状態監視
 │   ├── ci-retry.sh         # CI自動修正リトライ管理
+│   ├── cleanup-improve-logs.sh  # improve-logsクリーンアップ
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
+│   ├── cleanup-improve-logs.sh  # improve-logsのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh           # 設定読み込み
 │   ├── daemon.sh           # プロセスデーモン化
@@ -578,7 +580,9 @@ pi-issue-runner/
 │   │   ├── ci-fix.bats      # ci-fix.sh のテスト
 │   │   ├── ci-monitor.bats      # ci-monitor.sh のテスト
 │   │   ├── ci-retry.bats        # ci-retry.sh のテスト
+│   │   ├── cleanup-improve-logs.bats  # cleanup-improve-logs.sh のテスト
 │   │   ├── cleanup-orphans.bats  # cleanup-orphans.sh のテスト
+│   │   ├── cleanup-improve-logs.bats  # cleanup-improve-logs.sh のテスト
 │   │   ├── cleanup-plans.bats    # cleanup-plans.sh のテスト
 │   │   ├── config.bats      # config.sh のテスト
 │   │   ├── daemon.bats      # daemon.sh のテスト
@@ -717,16 +721,19 @@ test/
 
 # クローズ済みIssueの計画書を削除
 ./scripts/cleanup.sh --delete-plans
+
+# improve-logsディレクトリのクリーンアップ
+./scripts/cleanup.sh --improve-logs
+
+# 日数指定でクリーンアップ
+./scripts/cleanup.sh --improve-logs --age 7
 ```
 
 ### 手動削除が必要なもの
 
-以下のディレクトリは必要に応じて手動で削除してください：
+以下は必要に応じて手動で削除してください：
 
 ```bash
-# improve.sh のログ
-rm -rf .improve-logs/
-
 # 監視プロセスのログ
 rm -f /tmp/pi-watcher-*.log
 ```

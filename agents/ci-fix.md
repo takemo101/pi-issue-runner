@@ -8,6 +8,10 @@ GitHub Issue #{{issue_number}} のCI失敗を検出し、自動修正を試行�
 > - `git commit` は必ず `-m` オプションを使用
 > - 対話的なプロンプトが出るコマンドは使用しない
 
+> **🚫 禁止事項**
+> - **`gh issue close` を絶対に実行しないでください**
+> - IssueのCloseはPRマージ時に `Closes #xxx` で自動的に行われます
+
 ## コンテキスト
 
 - **Issue番号**: #{{issue_number}}

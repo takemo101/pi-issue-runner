@@ -150,19 +150,34 @@ handle_complete() {
     # on_success hookを実行（hook未設定時はデフォルト動作）
     run_hook "on_success" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "" "0" "" 2>/dev/null || true
     
-    # IssueをClose（PRが存在する場合はPRマージ時の自動Closeに任せる）
+    # PRがマージされているか確認
+    # PRがマージされていない場合は、まだワークフローが完了していない可能性がある
     local pr_number
-    pr_number=$(gh pr list --head "$branch_name" --json number -q '.[0].number' 2>/dev/null) || pr_number=""
+    local pr_state
+    pr_number=$(gh pr list --state all --head "$branch_name" --json number -q '.[0].number' 2>/dev/null) || pr_number=""
     
     if [[ -n "$pr_number" ]]; then
-        log_info "PR #$pr_number exists for Issue #$issue_number, skipping direct close (will be closed on PR merge)"
-    else
-        log_info "No PR found, closing Issue #$issue_number directly..."
-        if gh issue close "$issue_number" 2>/dev/null; then
-            log_info "Issue #$issue_number closed successfully"
+        pr_state=$(gh pr view "$pr_number" --json state -q '.state' 2>/dev/null) || pr_state=""
+        
+        if [[ "$pr_state" == "MERGED" ]]; then
+            log_info "PR #$pr_number is MERGED - workflow completed successfully"
+        elif [[ "$pr_state" == "OPEN" ]]; then
+            log_warn "PR #$pr_number exists but is not merged yet"
+            log_warn "Completion marker detected but PR is still open - waiting for merge..."
+            log_warn "This may indicate the AI output the marker too early"
+            # PRがまだマージされていない場合は、クリーンアップをスキップ
+            # ユーザーに通知して手動対応を促す
+            send_notification "Warning" "PR #$pr_number is not merged yet for Issue #$issue_number"
+            return 1
         else
-            log_debug "Issue #$issue_number may already be closed or close failed"
+            log_info "PR #$pr_number state: $pr_state"
         fi
+    else
+        log_warn "No PR found for Issue #$issue_number"
+        log_warn "Completion marker detected but no PR was created - workflow may not have completed correctly"
+        log_warn "Skipping cleanup. Please check the session manually."
+        send_notification "Warning" "No PR created for Issue #$issue_number - check session"
+        return 1
     fi
     
     log_info "Running cleanup..."
