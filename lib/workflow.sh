@@ -54,6 +54,7 @@ run_step() {
     local worktree_path="${4:-}"
     local project_root="${5:-.}"
     local issue_title="${6:-}"
+    local pr_number="${7:-}"
     
     log_info "Running step: $step_name"
     
@@ -64,7 +65,7 @@ run_step() {
     
     # プロンプト取得
     local prompt
-    prompt=$(get_agent_prompt "$agent_file" "$issue_number" "$branch_name" "$worktree_path" "$step_name" "$issue_title")
+    prompt=$(get_agent_prompt "$agent_file" "$issue_number" "$branch_name" "$worktree_path" "$step_name" "$issue_title" "$pr_number")
     
     echo "$prompt"
 }

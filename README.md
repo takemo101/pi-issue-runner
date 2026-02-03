@@ -438,12 +438,14 @@ pi-issue-runner/
 ├── README.md                # このファイル
 ├── scripts/
 │   ├── run.sh              # Issue実行
+│   ├── run-batch.sh        # 複数Issueを依存関係順にバッチ実行
 │   ├── list.sh             # セッション一覧
 │   ├── status.sh           # 状態確認
 │   ├── attach.sh           # セッションアタッチ
 │   ├── stop.sh             # セッション停止
 │   ├── cleanup.sh          # クリーンアップ
 │   ├── force-complete.sh   # セッション強制完了
+│   ├── nudge.sh            # セッションへメッセージ送信
 │   ├── watch-session.sh    # セッション監視と自動クリーンアップ
 │   ├── wait-for-sessions.sh # 複数セッション完了待機
 │   ├── improve.sh          # 継続的改善スクリプト
@@ -483,7 +485,9 @@ pi-issue-runner/
 │   ├── ci-fix.md           # CI修正エージェント
 │   ├── plan.md             # 計画エージェント
 │   ├── implement.md        # 実装エージェント
+│   ├── test.md             # テストエージェント
 │   ├── review.md           # レビューエージェント
+│   ├── test.md             # テストエージェント
 │   └── merge.md            # マージエージェント
 ├── docs/                    # ドキュメント
 ├── test/                    # Batsテスト（*.bats形式）
@@ -594,8 +598,8 @@ test/
 │   ├── init.bats                # init.sh のテスト
 │   ├── list.bats                # list.sh のテスト
 │   ├── nudge.bats               # nudge.sh のテスト
-│   ├── run-batch.bats           # run-batch.sh のテスト
 │   ├── run.bats                 # run.sh のテスト
+│   ├── run-batch.bats           # run-batch.sh のテスト
 │   ├── status.bats              # status.sh のテスト
 │   ├── stop.bats                # stop.sh のテスト
 │   ├── test.bats                # test.sh のテスト
