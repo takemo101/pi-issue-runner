@@ -1,5 +1,34 @@
 #!/usr/bin/env bash
-# next.sh - インテリジェントな次タスク提案
+# ============================================================================
+# next.sh - Intelligent next task recommendation
+#
+# Intelligently recommends the next GitHub Issue to work on based on
+# dependencies, priority, and blocker status. Considers dependency depth,
+# priority labels, and blocking issues.
+#
+# Usage: ./scripts/next.sh [options]
+#
+# Options:
+#   -n, --count <N>     Number of issues to recommend (default: 1)
+#   -l, --label <name>  Filter by specific label
+#   --json              Output in JSON format
+#   --dry-run           Show only recommendations (don't show run command)
+#   -v, --verbose       Show detailed reasoning
+#   -h, --help          Show help message
+#
+# Exit codes:
+#   0 - Success
+#   1 - No candidates found
+#   2 - GitHub API error
+#   3 - Invalid arguments
+#
+# Examples:
+#   ./scripts/next.sh
+#   ./scripts/next.sh -n 3
+#   ./scripts/next.sh -l feature
+#   ./scripts/next.sh --json
+#   ./scripts/next.sh -v
+# ============================================================================
 
 set -euo pipefail
 

@@ -1,6 +1,35 @@
 #!/usr/bin/env bash
-# improve.sh - Continuous improvement (2-phase approach)
-# Uses pi --print for review, GitHub API for issue retrieval
+# ============================================================================
+# improve.sh - Continuous improvement script
+#
+# Performs continuous improvement using a 2-phase approach:
+# 1. Review phase: Uses pi --print for code review
+# 2. Execution phase: Uses GitHub API for issue retrieval and execution
+#
+# Usage: ./scripts/improve.sh [options]
+#
+# Options:
+#   --max-iterations N   Max iteration count (default: 3)
+#   --max-issues N       Max issues per iteration (default: 5)
+#   --timeout N          Session completion timeout in seconds (default: 3600)
+#   --iteration N        Current iteration number (internal use)
+#   --log-dir DIR        Log directory (default: .improve-logs)
+#   --label LABEL        Session label for Issue filtering
+#   --dry-run            Review only, do not create Issues
+#   --review-only        Show problems only (no Issue creation or execution)
+#   --auto-continue      Auto-continue without approval
+#   -v, --verbose        Show verbose logs
+#   -h, --help           Show help message
+#
+# Exit codes:
+#   0 - Success
+#   1 - Error
+#
+# Examples:
+#   ./scripts/improve.sh
+#   ./scripts/improve.sh --max-iterations 1
+#   ./scripts/improve.sh --dry-run
+# ============================================================================
 
 set -euo pipefail
 

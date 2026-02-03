@@ -1,5 +1,29 @@
 #!/usr/bin/env bash
-# status.sh - タスク状態確認
+# ============================================================================
+# status.sh - Check task status
+#
+# Displays detailed status information for a pi-issue-runner session,
+# including issue details, session state, worktree path, and recent output.
+#
+# Usage: ./scripts/status.sh <session-name|issue-number> [options]
+#
+# Arguments:
+#   session-name    tmux session name (e.g., pi-issue-42)
+#   issue-number    GitHub Issue number (e.g., 42)
+#
+# Options:
+#   --output N      Show last N lines of session output (default: 20)
+#   -h, --help      Show help message
+#
+# Exit codes:
+#   0 - Success
+#   1 - Invalid arguments or options
+#
+# Examples:
+#   ./scripts/status.sh pi-issue-42
+#   ./scripts/status.sh 42
+#   ./scripts/status.sh 42 --output 50
+# ============================================================================
 
 set -euo pipefail
 

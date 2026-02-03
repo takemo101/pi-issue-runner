@@ -1,5 +1,30 @@
 #!/usr/bin/env bash
-# nudge.sh - tmuxセッションに続行を促すメッセージを送信
+# ============================================================================
+# nudge.sh - Send a continuation message to a tmux session
+#
+# Sends a message to an existing pi-issue-runner tmux session to prompt
+# the agent to continue working on the task.
+#
+# Usage: ./scripts/nudge.sh <session-name|issue-number> [options]
+#
+# Arguments:
+#   session-name    tmux session name (e.g., pi-issue-42)
+#   issue-number    GitHub Issue number (e.g., 42)
+#
+# Options:
+#   -m, --message TEXT  Custom message to send (default: "続けてください")
+#   -s, --session NAME  Explicitly specify session name
+#   -h, --help          Show help message
+#
+# Exit codes:
+#   0 - Message sent successfully
+#   1 - Session not found or error occurred
+#
+# Examples:
+#   ./scripts/nudge.sh 42
+#   ./scripts/nudge.sh pi-issue-42
+#   ./scripts/nudge.sh 42 --message "Please continue"
+# ============================================================================
 
 set -euo pipefail
 

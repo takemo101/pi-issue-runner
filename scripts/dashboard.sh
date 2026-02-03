@@ -1,5 +1,32 @@
 #!/usr/bin/env bash
-# dashboard.sh - プロジェクトダッシュボード
+# ============================================================================
+# dashboard.sh - Project dashboard
+#
+# Displays a comprehensive overview of the project status, including
+# running sessions, blocked issues, and ready-to-work issues.
+#
+# Usage: ./scripts/dashboard.sh [options]
+#
+# Options:
+#   --json              Output in JSON format
+#   --no-color          Disable colored output (for CI environments)
+#   --compact           Compact view (summary only)
+#   --section <name>    Show only specific section
+#                       (summary|progress|blocked|ready)
+#   -w, --watch         Auto-refresh mode (every 5 seconds)
+#   -v, --verbose       Show detailed information
+#   -h, --help          Show help message
+#
+# Exit codes:
+#   0 - Success
+#   1 - Error
+#
+# Examples:
+#   ./scripts/dashboard.sh
+#   ./scripts/dashboard.sh --compact
+#   ./scripts/dashboard.sh --json
+#   ./scripts/dashboard.sh --watch
+# ============================================================================
 
 set -euo pipefail
 

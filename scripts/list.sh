@@ -1,5 +1,24 @@
 #!/usr/bin/env bash
-# list.sh - 実行中セッション一覧
+# ============================================================================
+# list.sh - List active pi-issue-runner sessions
+#
+# Displays a list of all active tmux sessions created by pi-issue-runner,
+# including issue numbers, statuses, and error messages.
+#
+# Usage: ./scripts/list.sh [options]
+#
+# Options:
+#   -v, --verbose   Show detailed information
+#   -h, --help      Show help message
+#
+# Exit codes:
+#   0 - Success
+#   1 - Invalid option
+#
+# Examples:
+#   ./scripts/list.sh
+#   ./scripts/list.sh -v
+# ============================================================================
 
 set -euo pipefail
 

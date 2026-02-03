@@ -1,5 +1,32 @@
 #!/usr/bin/env bash
-# force-complete.sh - セッションを強制的に完了させる
+# ============================================================================
+# force-complete.sh - Forcefully complete a session
+#
+# Sends a completion or error marker to a tmux session to trigger
+# watch-session.sh cleanup. Useful when the AI forgets to output the
+# completion marker or when manually determining task completion.
+#
+# Usage: ./scripts/force-complete.sh <session-name|issue-number> [options]
+#
+# Arguments:
+#   session-name    tmux session name (e.g., pi-issue-42)
+#   issue-number    GitHub Issue number (e.g., 42)
+#
+# Options:
+#   --error             Send error marker instead of completion marker
+#   --message <msg>     Add custom message
+#   -h, --help          Show help message
+#
+# Exit codes:
+#   0 - Marker sent successfully
+#   1 - Session not found or error occurred
+#
+# Examples:
+#   ./scripts/force-complete.sh 42
+#   ./scripts/force-complete.sh pi-issue-42
+#   ./scripts/force-complete.sh 42 --error
+#   ./scripts/force-complete.sh 42 --message "Manual completion"
+# ============================================================================
 
 set -euo pipefail
 

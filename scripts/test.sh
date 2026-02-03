@@ -1,5 +1,38 @@
 #!/usr/bin/env bash
-# test.sh - テスト一括実行スクリプト
+# ============================================================================
+# test.sh - Test runner script
+#
+# Runs all tests including Bats tests and ShellCheck static analysis.
+# Supports parallel execution, verbose output, and fail-fast mode.
+#
+# Usage: ./scripts/test.sh [options] [target]
+#
+# Options:
+#   -v, --verbose     Show verbose logs
+#   -f, --fail-fast   Stop on first failure
+#   -s, --shellcheck  Run ShellCheck only
+#   -a, --all         Run all checks (bats + shellcheck)
+#   -j, --jobs N      Number of parallel jobs (default: 16)
+#   --fast            Fast mode (skip heavy tests)
+#   -h, --help        Show help message
+#
+# Target:
+#   lib               Run test/lib/*.bats only
+#   scripts           Run test/scripts/*.bats only
+#   (default)         Run all Bats tests
+#
+# Exit codes:
+#   0 - All tests passed
+#   1 - Some tests failed
+#
+# Examples:
+#   ./scripts/test.sh
+#   ./scripts/test.sh lib
+#   ./scripts/test.sh -v
+#   ./scripts/test.sh -f
+#   ./scripts/test.sh -s
+#   ./scripts/test.sh -a
+# ============================================================================
 
 set -euo pipefail
 

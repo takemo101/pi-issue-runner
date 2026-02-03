@@ -1,6 +1,42 @@
 #!/usr/bin/env bash
-# run.sh - GitHub Issueからworktreeを作成してコーディングエージェントを起動
-# 対応エージェント: pi, Claude Code, OpenCode, カスタム
+# ============================================================================
+# run.sh - Execute GitHub Issue in isolated worktree
+#
+# Creates a Git worktree from a GitHub Issue and launches a coding agent
+# in a tmux session. Supports multiple agent types including pi,
+# Claude Code, OpenCode, and custom agents.
+#
+# Usage: ./scripts/run.sh <issue-number> [options]
+#
+# Arguments:
+#   issue-number    GitHub Issue number to process
+#
+# Options:
+#   -b, --branch NAME   Custom branch name (default: issue-<num>-<title>)
+#   --base BRANCH       Base branch (default: HEAD)
+#   -w, --workflow NAME Workflow name (default: default)
+#   --no-attach         Don't attach to session after creation
+#   --no-cleanup        Disable auto-cleanup after agent exits
+#   --reattach          Attach to existing session if available
+#   --force             Remove and recreate existing session/worktree
+#   --agent-args ARGS   Additional arguments for the agent
+#   --pi-args ARGS      Alias for --agent-args (backward compatibility)
+#   --list-workflows    List available workflows
+#   --ignore-blockers   Skip dependency check and force execution
+#   -h, --help          Show help message
+#
+# Exit codes:
+#   0 - Success or attached to existing session
+#   1 - General error or invalid arguments
+#   2 - Issue blocked by dependencies
+#
+# Examples:
+#   ./scripts/run.sh 42
+#   ./scripts/run.sh 42 -w simple
+#   ./scripts/run.sh 42 --no-attach
+#   ./scripts/run.sh 42 --force
+#   ./scripts/run.sh 42 -b custom-feature
+# ============================================================================
 
 set -euo pipefail
 
