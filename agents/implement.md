@@ -9,6 +9,12 @@ GitHub Issue #{{issue_number}} の実装を行います。
 > - `git merge` は `--no-edit` オプションを使用
 > - 対話的なプロンプトが出るコマンドは使用しない
 
+> **🚫 禁止事項**
+> - **`gh issue close` を絶対に実行しないでください**
+> - **`gh pr create` はこのステップでは実行しないでください**（mergeステップで行います）
+> - IssueのCloseはPRマージ時に `Closes #xxx` で自動的に行われます
+> - このステップはワークフローの一部です。完了マーカーを出力すると次のステップ（review）に進みます
+
 ## コンテキスト
 
 - **Issue番号**: #{{issue_number}}
