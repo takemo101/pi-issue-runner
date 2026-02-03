@@ -24,6 +24,11 @@ CONFIG_PLANS_DIR="${CONFIG_PLANS_DIR:-docs/plans}"  # 計画書ディレクト�
 CONFIG_GITHUB_INCLUDE_COMMENTS="${CONFIG_GITHUB_INCLUDE_COMMENTS:-true}"  # Issueコメントを含める
 CONFIG_GITHUB_MAX_COMMENTS="${CONFIG_GITHUB_MAX_COMMENTS:-10}"  # 最大コメント数（0 = 無制限）
 
+# improve-logs クリーンアップ設定
+CONFIG_IMPROVE_LOGS_KEEP_RECENT="${CONFIG_IMPROVE_LOGS_KEEP_RECENT:-10}"  # 直近N件のログを保持（0=全て保持）
+CONFIG_IMPROVE_LOGS_KEEP_DAYS="${CONFIG_IMPROVE_LOGS_KEEP_DAYS:-7}"      # N日以内のログを保持（0=日数制限なし）
+CONFIG_IMPROVE_LOGS_DIR="${CONFIG_IMPROVE_LOGS_DIR:-.improve-logs}"      # ログディレクトリ
+
 # エージェント設定（マルチエージェント対応）
 CONFIG_AGENT_TYPE="${CONFIG_AGENT_TYPE:-}"       # pi | claude | opencode | custom (空 = pi.commandを使用)
 CONFIG_AGENT_COMMAND="${CONFIG_AGENT_COMMAND:-}" # カスタムコマンド（空 = プリセットまたはpi.commandを使用）
@@ -222,6 +227,22 @@ _parse_config_file() {
         CONFIG_AGENTS_CI_FIX="$value"
     fi
     
+    # improve_logs セクションのパース
+    value="$(yaml_get "$config_file" ".improve_logs.keep_recent" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_IMPROVE_LOGS_KEEP_RECENT="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".improve_logs.keep_days" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_IMPROVE_LOGS_KEEP_DAYS="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".improve_logs.dir" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_IMPROVE_LOGS_DIR="$value"
+    fi
+    
     # 配列値の取得
     _parse_array_configs "$config_file"
 }
@@ -347,6 +368,17 @@ _apply_env_overrides() {
     if [[ -n "${PI_RUNNER_AGENTS_CI_FIX:-}" ]]; then
         CONFIG_AGENTS_CI_FIX="$PI_RUNNER_AGENTS_CI_FIX"
     fi
+    
+    # improve_logs セクションの環境変数オーバーライド
+    if [[ -n "${PI_RUNNER_IMPROVE_LOGS_KEEP_RECENT:-}" ]]; then
+        CONFIG_IMPROVE_LOGS_KEEP_RECENT="$PI_RUNNER_IMPROVE_LOGS_KEEP_RECENT"
+    fi
+    if [[ -n "${PI_RUNNER_IMPROVE_LOGS_KEEP_DAYS:-}" ]]; then
+        CONFIG_IMPROVE_LOGS_KEEP_DAYS="$PI_RUNNER_IMPROVE_LOGS_KEEP_DAYS"
+    fi
+    if [[ -n "${PI_RUNNER_IMPROVE_LOGS_DIR:-}" ]]; then
+        CONFIG_IMPROVE_LOGS_DIR="$PI_RUNNER_IMPROVE_LOGS_DIR"
+    fi
 }
 
 # 設定値を取得
@@ -416,6 +448,15 @@ get_config() {
         agents_ci_fix)
             echo "$CONFIG_AGENTS_CI_FIX"
             ;;
+        improve_logs_keep_recent)
+            echo "$CONFIG_IMPROVE_LOGS_KEEP_RECENT"
+            ;;
+        improve_logs_keep_days)
+            echo "$CONFIG_IMPROVE_LOGS_KEEP_DAYS"
+            ;;
+        improve_logs_dir)
+            echo "$CONFIG_IMPROVE_LOGS_DIR"
+            ;;
         *)
             echo ""
             ;;
@@ -452,4 +493,7 @@ show_config() {
     echo "agents_merge: $CONFIG_AGENTS_MERGE"
     echo "agents_test: $CONFIG_AGENTS_TEST"
     echo "agents_ci_fix: $CONFIG_AGENTS_CI_FIX"
+    echo "improve_logs_keep_recent: $CONFIG_IMPROVE_LOGS_KEEP_RECENT"
+    echo "improve_logs_keep_days: $CONFIG_IMPROVE_LOGS_KEEP_DAYS"
+    echo "improve_logs_dir: $CONFIG_IMPROVE_LOGS_DIR"
 }

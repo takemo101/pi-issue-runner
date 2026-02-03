@@ -12,6 +12,7 @@ source "$SCRIPT_DIR/../lib/status.sh"
 source "$SCRIPT_DIR/../lib/hooks.sh"
 source "$SCRIPT_DIR/../lib/cleanup-plans.sh"
 source "$SCRIPT_DIR/../lib/cleanup-orphans.sh"
+source "$SCRIPT_DIR/../lib/cleanup-improve-logs.sh"
 
 usage() {
     cat << EOF
@@ -33,7 +34,8 @@ Options:
     --orphan-worktrees  complete状態だがworktreeが残存しているケースをクリーンアップ
     --delete-plans    クローズ済みIssueの計画書を削除
     --rotate-plans    古い計画書を削除（直近N件を保持、設定: plans.keep_recent）
-    --all             全てのクリーンアップを実行（--orphans + --rotate-plans + --orphan-worktrees）
+    --improve-logs    .improve-logsディレクトリをクリーンアップ
+    --all             全てのクリーンアップを実行（--orphans + --rotate-plans + --orphan-worktrees + --improve-logs）
     --age <days>      指定日数より古いステータスファイルを削除（--orphansと併用）
     --dry-run         削除せずに対象を表示（--orphans/--delete-plans/--rotate-plans/--allと使用）
     -h, --help        このヘルプを表示
@@ -52,6 +54,9 @@ Examples:
     $(basename "$0") --delete-plans --dry-run
     $(basename "$0") --rotate-plans         # 古い計画書を削除（直近N件を保持）
     $(basename "$0") --rotate-plans --dry-run
+    $(basename "$0") --improve-logs         # improve-logsをクリーンアップ
+    $(basename "$0") --improve-logs --age 7 # 7日以上前のログを削除
+    $(basename "$0") --improve-logs --dry-run
     $(basename "$0") --all                  # 全てのクリーンアップを実行
     $(basename "$0") --all --dry-run        # 削除対象を確認
 EOF
@@ -67,6 +72,7 @@ main() {
     local orphan_worktrees=false
     local delete_plans=false
     local rotate_plans=false
+    local improve_logs=false
     local all_cleanup=false
     local age_days=""
     local dry_run=false
@@ -103,6 +109,10 @@ main() {
                 ;;
             --rotate-plans)
                 rotate_plans=true
+                shift
+                ;;
+            --improve-logs)
+                improve_logs=true
                 shift
                 ;;
             --all)
@@ -151,6 +161,9 @@ main() {
         log_info ""
         log_info "Rotating old plans (keeping recent)..."
         cleanup_old_plans "$dry_run"
+        log_info ""
+        log_info "Cleaning up improve-logs..."
+        cleanup_improve_logs "$dry_run" "$age_days"
         exit 0
     fi
 
@@ -175,6 +188,12 @@ main() {
     # --rotate-plans モード: 古い計画書のクリーンアップ（直近N件を保持）
     if [[ "$rotate_plans" == "true" ]]; then
         cleanup_old_plans "$dry_run"
+        exit 0
+    fi
+
+    # --improve-logs モード: improve-logsディレクトリのクリーンアップ
+    if [[ "$improve_logs" == "true" ]]; then
+        cleanup_improve_logs "$dry_run" "$age_days"
         exit 0
     fi
 
