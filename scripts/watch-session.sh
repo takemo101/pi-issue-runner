@@ -150,6 +150,14 @@ handle_complete() {
     # on_success hookを実行（hook未設定時はデフォルト動作）
     run_hook "on_success" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "" "0" "" 2>/dev/null || true
     
+    # IssueをClose（既にCloseされている場合は無視）
+    log_info "Closing Issue #$issue_number..."
+    if gh issue close "$issue_number" 2>/dev/null; then
+        log_info "Issue #$issue_number closed successfully"
+    else
+        log_debug "Issue #$issue_number may already be closed or close failed"
+    fi
+    
     log_info "Running cleanup..."
     
     # 少し待機（AIが出力を完了するまで）
