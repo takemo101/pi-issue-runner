@@ -77,7 +77,6 @@ pi-issue-runner/
 │   ├── ci-retry.sh        # CI自動修正リトライ管理
 │   ├── cleanup-improve-logs.sh  # improve-logsのクリーンアップ
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
-│   ├── cleanup-improve-logs.sh  # improve-logsのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh      # 設定管理
 │   ├── daemon.sh      # プロセスデーモン化
