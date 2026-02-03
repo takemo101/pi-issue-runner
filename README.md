@@ -459,6 +459,8 @@ pi-issue-runner/
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh           # 設定読み込み
+│   ├── daemon.sh           # プロセスデーモン化
+│   ├── dependency.sh       # 依存関係解析・レイヤー計算
 │   ├── github.sh           # GitHub API操作
 │   ├── hooks.sh            # イベントhook機能
 │   ├── log.sh              # ログ出力
@@ -482,6 +484,7 @@ pi-issue-runner/
 │   ├── plan.md             # 計画エージェント
 │   ├── implement.md        # 実装エージェント
 │   ├── review.md           # レビューエージェント
+│   ├── test.md             # テストエージェント
 │   └── merge.md            # マージエージェント
 ├── docs/                    # ドキュメント
 ├── test/                    # Batsテスト（*.bats形式）
@@ -585,7 +588,9 @@ test/
 │   ├── improve.bats             # improve.sh のテスト
 │   ├── init.bats                # init.sh のテスト
 │   ├── list.bats                # list.sh のテスト
+│   ├── nudge.bats               # nudge.sh のテスト
 │   ├── run.bats                 # run.sh のテスト
+│   ├── run-batch.bats           # run-batch.sh のテスト
 │   ├── status.bats              # status.sh のテスト
 │   ├── stop.bats                # stop.sh のテスト
 │   ├── test.bats                # test.sh のテスト
