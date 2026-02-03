@@ -86,7 +86,7 @@ pi-issue-runner/
 │   │   ├── config.bats
 │   │   ├── daemon.bats
 │   │   ├── dependency.bats       # dependency.sh のテスト
-│   │   ├── github.bats
+│   │   ├── github.bats      # github.sh のテスト
 │   │   ├── hooks.bats
 │   │   ├── log.bats
 │   │   ├── notify.bats
