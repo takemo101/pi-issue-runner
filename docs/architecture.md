@@ -17,23 +17,26 @@
 │  │    ci-fix.sh       │  ci-monitor.sh     │  ci-retry.sh │ │
 │  │  - CI自動修正      │  - CI状態監視      │  - リトライ  │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │ cleanup-orphans.sh │ cleanup-plans.sh   │  config.sh   │ │
-│  │  - 孤立削除        │  - 計画ローテーション│ - 設定読込 │ │
+│  │cleanup-improve-logs│ cleanup-orphans.sh │cleanup-plans │ │
+│  │  - improve-logs削除│  - 孤立削除        │ - 計画ローテ │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │    daemon.sh       │  dependency.sh     │  github.sh   │ │
-│  │  - デーモン化      │  - 依存関係解析    │  - GitHub CLI│ │
+│  │    config.sh       │   daemon.sh        │dependency.sh │ │
+│  │  - 設定読込        │  - デーモン化      │  - 依存解析  │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │    hooks.sh        │     log.sh         │  notify.sh   │ │
-│  │  - Hook機能        │  - ログ出力        │  - 通知機能  │ │
+│  │    github.sh       │     hooks.sh       │    log.sh    │ │
+│  │  - GitHub CLI      │  - Hook機能        │  - ログ出力  │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │    status.sh       │   template.sh      │   tmux.sh    │ │
-│  │  - 状態管理        │  - テンプレート    │  - セッション│ │
+│  │    notify.sh       │    status.sh       │ template.sh  │ │
+│  │  - 通知機能        │  - 状態管理        │  - テンプレ  │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │   workflow.sh      │ workflow-finder.sh │workflow-loader│ │
-│  │  - ワークフロー    │  - ワークフロー検索│  - 読み込み  │ │
+│  │    tmux.sh         │   workflow.sh      │workflow-finder│ │
+│  │  - セッション      │  - ワークフロー    │  - WF検索    │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │workflow-prompt.sh  │   worktree.sh      │   yaml.sh    │ │
-│  │  - プロンプト      │  - worktree操作    │  - YAMLパーサ│ │
+│  │ workflow-loader.sh │workflow-prompt.sh  │ worktree.sh  │ │
+│  │  - WF読み込み      │  - プロンプト      │  - worktree  │ │
+│  ├────────────────────┼────────────────────┼──────────────┤ │
+│  │    yaml.sh         │                    │              │ │
+│  │  - YAMLパーサ      │                    │              │ │
 │  └────────────────────┴────────────────────┴──────────────┘ │
 └──────────────────────────────────────────────────────────────┘
          │                    │                    │
@@ -72,6 +75,7 @@ pi-issue-runner/
 │   ├── ci-fix.sh      # CI失敗検出・自動修正
 │   ├── ci-monitor.sh      # CI状態監視
 │   ├── ci-retry.sh        # CI自動修正リトライ管理
+│   ├── cleanup-improve-logs.sh  # improve-logsのクリーンアップ
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh      # 設定管理
