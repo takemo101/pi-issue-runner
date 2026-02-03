@@ -42,9 +42,9 @@ agent:
   # エージェントに渡す追加引数
   args:
     - --provider
-    - anthropic
+    - kimi-coding
     - --model
-    - claude-sonnet-4-5-20250929
+    - k2p5
 
 # =====================================
 # piコマンド設定（後方互換性のため残存）
