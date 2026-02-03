@@ -67,15 +67,22 @@ scripts/wait-for-sessions.sh 42 43    # 複数セッション完了待機
 
 ## 自動クリーンアップ
 
-タスク完了時にAIが `###TASK_COMPLETE_<issue_number>###` マーカーを出力すると、
-`watch-session.sh` が検出して自動的にクリーンアップを実行します。
+タスク完了時またはエラー発生時にAIが特定のマーカーを出力すると、
+`watch-session.sh` が検出して適切な処理を実行します。
+
+### マーカー形式
+
+| マーカー | 説明 | 動作 |
+|----------|------|------|
+| `###TASK_COMPLETE_<issue_number>###` | 正常完了 | 自動クリーンアップ実行 |
+| `###TASK_ERROR_<issue_number>###` | エラー発生 | 通知送信、手動対応待ち |
 
 ### 動作フロー
 
 1. `run.sh` がバックグラウンドで `watch-session.sh` を起動
 2. `watch-session.sh` がtmuxセッションの出力を監視
-3. 完了マーカー（例: `###TASK_COMPLETE_42###`）を検出
-4. 自動的に `cleanup.sh` を実行してworktreeとセッションを削除
+3. マーカー（例: `###TASK_COMPLETE_42###` または `###TASK_ERROR_42###`）を検出
+4. 完了マーカーの場合は自動的に `cleanup.sh` を実行、エラーマーカーの場合は通知を送信
 
 ### 自動クリーンアップの無効化
 
