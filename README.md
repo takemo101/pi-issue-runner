@@ -481,6 +481,7 @@ pi-issue-runner/
 │   ├── ci-fix.md           # CI修正エージェント
 │   ├── plan.md             # 計画エージェント
 │   ├── implement.md        # 実装エージェント
+│   ├── test.md             # テストエージェント
 │   ├── review.md           # レビューエージェント
 │   └── merge.md            # マージエージェント
 ├── docs/                    # ドキュメント
