@@ -344,6 +344,21 @@ workflow:
 
 詳細なワークフローの使い分けについては [ワークフロードキュメント](./workflows.md) を参照してください。
 
+### github
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `include_comments` | boolean | `true` | Issueコメントをプロンプトに含めるか |
+| `max_comments` | integer | `10` | 取り込むコメントの最大数（0 = 無制限） |
+
+#### 使用例
+
+```yaml
+github:
+  include_comments: true  # Issueコメントを含める
+  max_comments: 10        # 最新10件のコメントのみ
+```
+
 ### agents
 
 | キー | 型 | デフォルト | 説明 |
@@ -450,6 +465,8 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_PARALLEL_MAX_CONCURRENT` | `parallel.max_concurrent` |
 | `PI_RUNNER_PLANS_KEEP_RECENT` | `plans.keep_recent` |
 | `PI_RUNNER_PLANS_DIR` | `plans.dir` |
+| `PI_RUNNER_GITHUB_INCLUDE_COMMENTS` | `github.include_comments` |
+| `PI_RUNNER_GITHUB_MAX_COMMENTS` | `github.max_comments` |
 
 ### 例: CI環境での使用
 
