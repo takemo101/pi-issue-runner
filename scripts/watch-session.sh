@@ -36,6 +36,50 @@ Description:
 EOF
 }
 
+# コードブロック外のマーカー数をカウント
+# コードブロック内（前後1行に```がある）のマーカーは除外
+# Usage: count_markers_outside_codeblock <output> <marker>
+# Returns: コードブロック外のマーカー数
+count_markers_outside_codeblock() {
+    local output="$1"
+    local marker="$2"
+    local count=0
+    
+    # 出力を行番号付きで処理
+    local line_numbers
+    line_numbers=$(echo "$output" | grep -nE "^[[:space:]]*${marker}$" 2>/dev/null | cut -d: -f1) || true
+    
+    if [[ -z "$line_numbers" ]]; then
+        echo "0"
+        return
+    fi
+    
+    # 各マーカー行について、前後1行にコードブロックマーカーがあるかチェック
+    local total_lines
+    total_lines=$(echo "$output" | wc -l)
+    
+    while IFS= read -r line_num; do
+        [[ -z "$line_num" ]] && continue
+        
+        # 前後1行の範囲を計算
+        local start=$((line_num - 1))
+        local end=$((line_num + 1))
+        [[ $start -lt 1 ]] && start=1
+        [[ $end -gt $total_lines ]] && end=$total_lines
+        
+        # 前後1行を取得（マーカー行自体は除く）
+        local context
+        context=$(echo "$output" | sed -n "${start},${end}p" | grep -v -E "^[[:space:]]*${marker}$") || context=""
+        
+        # コンテキストにコードブロックマーカー（```）が含まれていなければカウント
+        if ! echo "$context" | grep -qF '```'; then
+            count=$((count + 1))
+        fi
+    done <<< "$line_numbers"
+    
+    echo "$count"
+}
+
 # エラーハンドリング関数
 # Usage: handle_error <session_name> <issue_number> <error_message> <auto_attach> <cleanup_args>
 handle_error() {
@@ -268,19 +312,27 @@ main() {
     
     # 初期化時点でマーカーが既にあるか確認（高速完了タスク対応）
     # Issue #281: 初期化中（10秒待機中）にマーカーが出力された場合の検出
-    # Issue #393, #648, #651: コードブロック内のマーカーを誤検出しないよう、行頭から最大2空白まで許可
-    if echo "$baseline_output" | grep -qE "^[[:space:]]{0,2}${error_marker}$" 2>/dev/null; then
-        log_warn "Error marker already present at startup"
+    # Issue #393, #648, #651: コードブロック内のマーカーを誤検出しないよう除外
+    local initial_error_count
+    initial_error_count=$(count_markers_outside_codeblock "$baseline_output" "$error_marker")
+    
+    if [[ "$initial_error_count" -gt 0 ]]; then
+        log_warn "Error marker already present at startup (outside codeblock)"
         
         # エラーメッセージを抽出（マーカー行の次の行）
         local error_message
-        error_message=$(echo "$baseline_output" | grep -A 1 -E "^[[:space:]]{0,2}${error_marker}$" | tail -n 1 | head -c 200) || error_message="Unknown error"
+        error_message=$(echo "$baseline_output" | grep -A 1 -E "^[[:space:]]*${error_marker}$" | tail -n 1 | head -c 200) || error_message="Unknown error"
         
         handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
         log_warn "Error notification sent. Session is still running for manual intervention."
         # エラーの場合は監視を続行（ユーザーが修正する可能性があるため）
-    elif echo "$baseline_output" | grep -qE "^[[:space:]]{0,2}${marker}$" 2>/dev/null; then
-        log_info "Completion marker already present at startup"
+    fi
+    
+    local initial_complete_count
+    initial_complete_count=$(count_markers_outside_codeblock "$baseline_output" "$marker")
+    
+    if [[ "$initial_complete_count" -gt 0 ]]; then
+        log_info "Completion marker already present at startup (outside codeblock)"
         
         if handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"; then
             log_info "Cleanup completed successfully"
@@ -310,18 +362,18 @@ main() {
         }
 
         # エラーマーカー検出（完了マーカーより先にチェック）
-        # Issue #393, #648, #651: コードブロック内のマーカーを誤検出しないよう、行頭から最大2空白まで許可
+        # Issue #393, #648, #651: コードブロック内のマーカーを誤検出しないよう除外
         local error_count_baseline
         local error_count_current
-        error_count_baseline=$(echo "$baseline_output" | grep -cE "^[[:space:]]{0,2}${error_marker}$" 2>/dev/null) || error_count_baseline=0
-        error_count_current=$(echo "$output" | grep -cE "^[[:space:]]{0,2}${error_marker}$" 2>/dev/null) || error_count_current=0
+        error_count_baseline=$(count_markers_outside_codeblock "$baseline_output" "$error_marker")
+        error_count_current=$(count_markers_outside_codeblock "$output" "$error_marker")
         
         if [[ "$error_count_current" -gt "$error_count_baseline" ]]; then
-            log_warn "Error marker detected! (baseline: $error_count_baseline, current: $error_count_current)"
+            log_warn "Error marker detected outside codeblock! (baseline: $error_count_baseline, current: $error_count_current)"
             
             # エラーメッセージを抽出（マーカー行の次の行）
             local error_message
-            error_message=$(echo "$output" | grep -A 1 -E "^[[:space:]]{0,2}${error_marker}$" | tail -n 1 | head -c 200) || error_message="Unknown error"
+            error_message=$(echo "$output" | grep -A 1 -E "^[[:space:]]*${error_marker}$" | tail -n 1 | head -c 200) || error_message="Unknown error"
             
             handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
             
@@ -332,14 +384,14 @@ main() {
         fi
         
         # 完了マーカー検出
-        # Issue #393, #648, #651: コードブロック内のマーカーを誤検出しないよう、行頭から最大2空白まで許可
+        # Issue #393, #648, #651: コードブロック内のマーカーを誤検出しないよう除外
         local marker_count_baseline
         local marker_count_current
-        marker_count_baseline=$(echo "$baseline_output" | grep -cE "^[[:space:]]{0,2}${marker}$" 2>/dev/null) || marker_count_baseline=0
-        marker_count_current=$(echo "$output" | grep -cE "^[[:space:]]{0,2}${marker}$" 2>/dev/null) || marker_count_current=0
+        marker_count_baseline=$(count_markers_outside_codeblock "$baseline_output" "$marker")
+        marker_count_current=$(count_markers_outside_codeblock "$output" "$marker")
         
         if [[ "$marker_count_current" -gt "$marker_count_baseline" ]]; then
-            log_info "Completion marker detected! (baseline: $marker_count_baseline, current: $marker_count_current)"
+            log_info "Completion marker detected outside codeblock! (baseline: $marker_count_baseline, current: $marker_count_current)"
             
             if handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"; then
                 log_info "Cleanup completed successfully"
