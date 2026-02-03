@@ -80,6 +80,7 @@ get_agent_prompt() {
     local worktree_path="${4:-}"
     local step_name="${5:-}"
     local issue_title="${6:-}"
+    local pr_number="${7:-}"
     
     local prompt
     
@@ -114,5 +115,5 @@ get_agent_prompt() {
     fi
     
     # テンプレート変数展開
-    render_template "$prompt" "$issue_number" "$branch_name" "$worktree_path" "$step_name" "default" "$issue_title"
+    render_template "$prompt" "$issue_number" "$branch_name" "$worktree_path" "$step_name" "default" "$issue_title" "$pr_number"
 }
