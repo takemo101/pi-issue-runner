@@ -23,6 +23,7 @@ Options:
 Target:
     lib               test/lib/*.bats のみ実行
     scripts           test/scripts/*.bats のみ実行
+    skills            test/skills/**/*.bats のみ実行
     (default)         全Batsテストを実行
 
 Environment:
@@ -133,8 +134,11 @@ run_bats_tests() {
         scripts)
             test_files=("$TEST_DIR"/scripts/*.bats)
             ;;
+        skills)
+            test_files=("$TEST_DIR"/skills/**/*.bats)
+            ;;
         *)
-            test_files=("$TEST_DIR"/lib/*.bats "$TEST_DIR"/scripts/*.bats)
+            test_files=("$TEST_DIR"/lib/*.bats "$TEST_DIR"/scripts/*.bats "$TEST_DIR"/skills/**/*.bats)
             ;;
     esac
     
