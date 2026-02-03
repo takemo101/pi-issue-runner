@@ -5,6 +5,16 @@ Pi Issue Runnerの主要な変更履歴です。
 ## [Unreleased]
 
 ### Added
+- **CI自動修正機能** (`lib/ci-fix.sh`, `lib/ci-monitor.sh`, `lib/ci-retry.sh`, `lib/ci-classifier.sh`)
+  - CI失敗の自動検出と分類
+  - 自動修正リトライ管理
+  - CI状態監視
+- **バッチ実行機能** (`scripts/run-batch.sh`, `lib/batch.sh`, `lib/dependency.sh`)
+  - 複数Issueの依存関係順実行
+  - レイヤー計算とトポロジカルソート
+- **セッション管理強化**
+  - `scripts/force-complete.sh` - セッション強制完了
+  - `scripts/nudge.sh` - セッションへメッセージ送信
 - `docs/overview.md` - プロジェクトの設計思想と価値を文書化
 - `docs/CHANGELOG.md` - 変更履歴の追跡
 
