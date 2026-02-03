@@ -46,18 +46,7 @@ Exit codes:
 EOF
 }
 
-# ライブラリ読み込み
-source "$SCRIPT_DIR/../lib/config.sh"
-source "$SCRIPT_DIR/../lib/log.sh"
-source "$SCRIPT_DIR/../lib/github.sh"
-source "$SCRIPT_DIR/../lib/dependency.sh"
-source "$SCRIPT_DIR/../lib/status.sh"
-source "$SCRIPT_DIR/../lib/batch.sh"    # バッチ処理コア機能
-
-# 設定ファイルの存在チェック（必須）
-require_config_file "pi-run-batch" || exit 1
-
-# グローバル設定（lib/batch.sh と共有）
+# グローバル設定（lib/batch.sh と共有）- sourceの前に定義
 DRY_RUN=false
 # shellcheck disable=SC2034
 SEQUENTIAL=false
@@ -72,6 +61,17 @@ WORKFLOW_NAME="default"
 # shellcheck disable=SC2034
 BASE_BRANCH="HEAD"
 QUIET=false
+
+# ライブラリ読み込み
+source "$SCRIPT_DIR/../lib/config.sh"
+source "$SCRIPT_DIR/../lib/log.sh"
+source "$SCRIPT_DIR/../lib/github.sh"
+source "$SCRIPT_DIR/../lib/dependency.sh"
+source "$SCRIPT_DIR/../lib/status.sh"
+source "$SCRIPT_DIR/../lib/batch.sh"    # バッチ処理コア機能
+
+# 設定ファイルの存在チェック（必須）
+require_config_file "pi-run-batch" || exit 1
 
 # 統計情報（lib/batch.sh と共有）
 # shellcheck disable=SC2034
