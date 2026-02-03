@@ -34,6 +34,10 @@ scripts/run-batch.sh 42 43 44 --sequential  # 順次実行
 
 # セッション管理
 scripts/list.sh                          # セッション一覧
+scripts/dashboard.sh                     # プロジェクトダッシュボード
+scripts/dashboard.sh --compact           # サマリーのみ表示
+scripts/dashboard.sh --json              # JSON出力
+scripts/dashboard.sh --watch             # 自動更新（5秒ごと）
 scripts/attach.sh <session>              # セッションにアタッチ
 scripts/status.sh <session>              # 状態確認
 scripts/stop.sh <session>                # セッション停止
@@ -59,6 +63,7 @@ scripts/wait-for-sessions.sh 42 43    # 複数セッション完了待機
 
 ## 前提条件
 
+- **Bash 4.0以上** (macOSの場合: `brew install bash`)
 - `gh` (GitHub CLI、認証済み)
 - `tmux`
 - `pi`
