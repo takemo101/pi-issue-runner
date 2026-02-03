@@ -98,14 +98,30 @@ project-root/
 │   ├── test.md              # テストエージェント
 │   └── merge.md             # マージエージェント
 ├── lib/                     # シェルスクリプトライブラリ
+│   ├── agent.sh             # マルチエージェント対応
+│   ├── batch.sh             # バッチ処理コア機能
+│   ├── ci-classifier.sh     # CI失敗タイプ分類
+│   ├── ci-fix.sh            # CI失敗検出・自動修正
+│   ├── ci-monitor.sh        # CI状態監視
+│   ├── ci-retry.sh          # CI自動修正リトライ管理
+│   ├── cleanup-orphans.sh   # 孤立ステータスのクリーンアップ
+│   ├── cleanup-plans.sh     # 計画書のローテーション
 │   ├── config.sh            # 設定管理
+│   ├── daemon.sh            # プロセスデーモン化
+│   ├── dependency.sh        # 依存関係解析・レイヤー計算
 │   ├── github.sh            # GitHub CLI操作
+│   ├── hooks.sh             # Hook機能
 │   ├── log.sh               # ログ出力
 │   ├── notify.sh            # 通知機能
 │   ├── status.sh            # ステータスファイル管理
+│   ├── template.sh          # テンプレート処理
 │   ├── tmux.sh              # tmux操作
 │   ├── workflow.sh          # ワークフローエンジン
-│   └── worktree.sh          # Git worktree操作
+│   ├── workflow-finder.sh   # ワークフロー検索
+│   ├── workflow-loader.sh   # ワークフロー読み込み
+│   ├── workflow-prompt.sh   # プロンプト処理
+│   ├── worktree.sh          # Git worktree操作
+│   └── yaml.sh              # YAMLパーサー
 └── scripts/                 # 実行スクリプト
     ├── run.sh               # タスク起動
     ├── list.sh              # セッション一覧

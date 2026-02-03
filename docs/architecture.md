@@ -99,8 +99,8 @@ pi-issue-runner/
 │   ├── ci-fix.md      # CI修正エージェント
 │   ├── plan.md        # 計画エージェント
 │   ├── implement.md   # 実装エージェント
-│   ├── test.md        # テストエージェント
 │   ├── review.md      # レビューエージェント
+│   ├── test.md        # テストエージェント
 │   └── merge.md       # マージエージェント
 ├── test/              # Batsテスト
 │   ├── lib/           # ライブラリテスト
@@ -123,9 +123,12 @@ pi-issue-runner/
 | スクリプト | 機能 |
 |-----------|------|
 | `run.sh` | Issue番号を受け取り、worktree作成からpi起動まで実行 |
+| `run-batch.sh` | 複数Issueを依存関係順にバッチ実行 |
 | `list.sh` | 実行中のセッション一覧を表示 |
 | `status.sh` | 特定Issueの状態を確認 |
 | `attach.sh` | 実行中セッションにアタッチ |
+| `nudge.sh` | セッションへメッセージ送信 |
+| `force-complete.sh` | セッション強制完了 |
 | `cleanup.sh` | worktreeとセッションをクリーンアップ |
 
 **共通パターン**:
