@@ -729,5 +729,3 @@ gh auth login
 ## ライセンス
 
 MIT License - [LICENSE](LICENSE) を参照
-
-<!-- Test comment for auto-cleanup feature verification (Issue #129) -->
