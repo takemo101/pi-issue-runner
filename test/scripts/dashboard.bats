@@ -79,7 +79,7 @@ MOCK_EOF
     # PATHからghを除外（実際のghコマンドを使わない）
     export PATH="$MOCK_DIR"
     
-    run bash -c "command -v gh"
+    run -127 bash -c "command -v gh"
     # ghが見つからないことを確認
     [ "$status" -ne 0 ]
 }
@@ -102,7 +102,7 @@ MOCK_EOF
     # PATHからjqを除外
     export PATH="$MOCK_DIR"
     
-    run bash -c "command -v jq"
+    run -127 bash -c "command -v jq"
     # jqが見つからないことを確認
     [ "$status" -ne 0 ]
 }
