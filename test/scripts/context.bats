@@ -13,22 +13,30 @@ setup() {
     export TEST_WORKTREE_BASE="$BATS_TEST_TMPDIR/.worktrees"
     mkdir -p "$TEST_WORKTREE_BASE"
     
-    # テスト用設定ファイル作成
-    export TEST_CONFIG_FILE="$BATS_TEST_TMPDIR/.pi-runner.yaml"
-    cat > "$TEST_CONFIG_FILE" << EOF
-worktree:
-  base_dir: "$TEST_WORKTREE_BASE"
-EOF
+    # 環境変数でworktreeベースディレクトリを上書き（設定ファイルより優先）
+    export PI_RUNNER_WORKTREE_BASE_DIR="$TEST_WORKTREE_BASE"
     
-    # プロジェクトルートに設定ファイルがあるように見せかける
-    # (スクリプトは現在のディレクトリから設定を探す)
+    # 設定の再読み込みを強制
+    unset _CONFIG_LOADED
+    
+    # プロジェクトルートに移動
     cd "$PROJECT_ROOT"
     
-    # ログを抑制
-    export LOG_LEVEL="ERROR"
+    # ログレベルを設定（INFOレベルでテストの出力確認ができるように）
+    export LOG_LEVEL="INFO"
 }
 
+# テスト間で状態を共有しないように、各テスト後にクリーンアップ
 teardown() {
+    # テストで作成されたコンテキストをクリーンアップ
+    if [[ -d "${TEST_WORKTREE_BASE:-}" ]]; then
+        rm -rf "$TEST_WORKTREE_BASE"
+    fi
+    
+    # 設定のキャッシュをクリア
+    unset _CONFIG_LOADED
+    
+    # Bats標準のteardownを呼び出す（test_helper.bashのteardown）
     if [[ "${_CLEANUP_TMPDIR:-}" == "1" && -d "${BATS_TEST_TMPDIR:-}" ]]; then
         rm -rf "$BATS_TEST_TMPDIR"
     fi
