@@ -438,16 +438,18 @@ pi-issue-runner/
 ├── README.md                # このファイル
 ├── scripts/
 │   ├── run.sh              # Issue実行
+│   ├── run-batch.sh        # 複数Issueを依存関係順にバッチ実行
+│   ├── init.sh             # プロジェクト初期化
 │   ├── list.sh             # セッション一覧
 │   ├── status.sh           # 状態確認
 │   ├── attach.sh           # セッションアタッチ
 │   ├── stop.sh             # セッション停止
 │   ├── cleanup.sh          # クリーンアップ
 │   ├── force-complete.sh   # セッション強制完了
-│   ├── watch-session.sh    # セッション監視と自動クリーンアップ
+│   ├── nudge.sh            # セッションにメッセージ送信
 │   ├── wait-for-sessions.sh # 複数セッション完了待機
+│   ├── watch-session.sh    # セッション監視と自動クリーンアップ
 │   ├── improve.sh          # 継続的改善スクリプト
-│   ├── init.sh             # プロジェクト初期化
 │   └── test.sh             # テスト一括実行
 ├── lib/
 │   ├── agent.sh            # マルチエージェント対応
