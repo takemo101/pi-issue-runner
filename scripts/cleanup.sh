@@ -1,5 +1,43 @@
 #!/usr/bin/env bash
-# cleanup.sh - worktree + セッション削除
+# ============================================================================
+# cleanup.sh - Cleanup worktree and session
+#
+# Removes worktrees and stops tmux sessions created by pi-issue-runner.
+# Supports various cleanup modes including orphan cleanup and batch operations.
+#
+# Usage: ./scripts/cleanup.sh <session-name|issue-number> [options]
+#        ./scripts/cleanup.sh --orphans [--dry-run]
+#        ./scripts/cleanup.sh --all [--dry-run]
+#
+# Arguments:
+#   session-name    tmux session name (e.g., pi-issue-42)
+#   issue-number    GitHub Issue number (e.g., 42)
+#
+# Options:
+#   --force, -f         Force removal (even with uncommitted changes)
+#   --delete-branch     Also delete the corresponding Git branch
+#   --keep-session      Keep the session (remove worktree only)
+#   --keep-worktree     Keep the worktree (stop session only)
+#   --orphans           Clean up orphaned status files
+#   --orphan-worktrees  Clean up worktrees with 'complete' status
+#   --delete-plans      Delete plans for closed issues
+#   --rotate-plans      Rotate old plans (keep recent N)
+#   --improve-logs      Clean up .improve-logs directory
+#   --all               Run all cleanup operations
+#   --age <days>        Delete status files older than N days
+#   --dry-run           Show what would be deleted without deleting
+#   -h, --help          Show help message
+#
+# Exit codes:
+#   0 - Success
+#   1 - Error
+#
+# Examples:
+#   ./scripts/cleanup.sh pi-issue-42
+#   ./scripts/cleanup.sh 42
+#   ./scripts/cleanup.sh --orphans
+#   ./scripts/cleanup.sh --all --dry-run
+# ============================================================================
 
 set -euo pipefail
 

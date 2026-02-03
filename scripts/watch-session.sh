@@ -1,5 +1,31 @@
 #!/usr/bin/env bash
-# watch-session.sh - セッション出力を監視し、完了/エラーマーカーでアクションを実行
+# ============================================================================
+# watch-session.sh - Monitor session output and execute actions on markers
+#
+# Monitors tmux session output and automatically runs cleanup.sh when
+# a completion marker is detected. Shows notifications and opens Terminal.app
+# when an error marker is detected.
+#
+# Usage: ./scripts/watch-session.sh <session-name> [options]
+#
+# Arguments:
+#   session-name    tmux session name to watch
+#
+# Options:
+#   --marker <text>       Custom completion marker (default: ###TASK_COMPLETE_<issue>###)
+#   --interval <sec>      Check interval in seconds (default: 2)
+#   --cleanup-args        Additional arguments to pass to cleanup.sh
+#   --no-auto-attach      Don't auto-open Terminal on error detection
+#   -h, --help            Show help message
+#
+# Exit codes:
+#   0 - Success
+#   1 - Error
+#
+# Examples:
+#   ./scripts/watch-session.sh pi-issue-42
+#   ./scripts/watch-session.sh pi-issue-42 --interval 5
+# ============================================================================
 
 set -euo pipefail
 

@@ -1,11 +1,42 @@
 #!/usr/bin/env bash
-# run-batch.sh - 複数Issueを依存関係順に自動実行
+# ============================================================================
+# run-batch.sh - Execute multiple issues in dependency order
 #
-# このスクリプトはバッチ処理のオーケストレーションを行い、
-# コア機能は lib/batch.sh に委譲しています。
+# Orchestrates batch processing of multiple GitHub Issues, respecting
+# dependency relationships. Delegates core functionality to lib/batch.sh.
 #
+# Usage: ./scripts/run-batch.sh <issue-number>... [options]
+#
+# Arguments:
+#   issue-number...   Issue numbers to execute (multiple allowed)
+#
+# Options:
+#   --dry-run           Show execution plan only (don't execute)
+#   --sequential        Execute sequentially without parallelization
+#   --continue-on-error Continue to next layer even if errors occur
+#   --timeout <sec>     Completion wait timeout (default: 3600)
+#   --interval <sec>    Check interval in seconds (default: 5)
+#   --workflow <name>   Workflow name to use (default: default)
+#   --base <branch>     Base branch (default: HEAD)
+#   -q, --quiet         Suppress progress display
+#   -v, --verbose       Enable verbose logging
+#   -h, --help          Show help message
+#
+# Exit codes:
+#   0 - All issues succeeded
+#   1 - Some issues failed
+#   2 - Circular dependency detected
+#   3 - Argument error
+#
+# Examples:
+#   ./scripts/run-batch.sh 482 483 484 485 486
+#   ./scripts/run-batch.sh 482 483 --dry-run
+#   ./scripts/run-batch.sh 482 483 --sequential
+#   ./scripts/run-batch.sh 482 483 --continue-on-error
+# ============================================================================
+
 # shellcheck disable=SC2034
-# 上記: グローバル変数は lib/batch.sh で使用される
+# Global variables are used in lib/batch.sh
 
 set -euo pipefail
 

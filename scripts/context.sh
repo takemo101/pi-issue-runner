@@ -1,5 +1,39 @@
 #!/usr/bin/env bash
-# context.sh - コンテキスト管理CLI
+# ============================================================================
+# context.sh - Context management CLI
+#
+# Manages context persistence for GitHub Issues. Allows storing and
+# retrieving issue-specific and project-wide context information.
+#
+# Usage: ./scripts/context.sh <subcommand> [options]
+#
+# Subcommands:
+#   show <issue>          Show issue-specific context
+#   show-project          Show project-wide context
+#   add <issue> <text>    Add text to issue context
+#   add-project <text>    Add text to project context
+#   edit <issue>          Edit issue context in editor
+#   edit-project          Edit project context in editor
+#   list                  List issues with context
+#   clean [--days N]      Remove old contexts (default: 30 days)
+#   export <issue>        Export context as Markdown
+#   remove <issue>        Remove issue context
+#   remove-project        Remove project context
+#   init <issue> [title]  Initialize issue context
+#   init-project          Initialize project context
+#
+# Options:
+#   -h, --help            Show help message
+#
+# Exit codes:
+#   0 - Success
+#   1 - Error
+#
+# Examples:
+#   ./scripts/context.sh show 42
+#   ./scripts/context.sh add 42 "Important note about implementation"
+#   ./scripts/context.sh list
+# ============================================================================
 
 set -euo pipefail
 

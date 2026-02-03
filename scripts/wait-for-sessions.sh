@@ -1,5 +1,34 @@
 #!/usr/bin/env bash
-# wait-for-sessions.sh - 複数セッションの完了を待機
+# ============================================================================
+# wait-for-sessions.sh - Wait for multiple sessions to complete
+#
+# Waits for all specified issue sessions to complete by monitoring
+# status files (.worktrees/.status/<issue>.json).
+#
+# Usage: ./scripts/wait-for-sessions.sh <issue-number>... [options]
+#
+# Arguments:
+#   issue-number...   Issue numbers to wait for (multiple allowed)
+#
+# Options:
+#   --timeout <sec>   Timeout in seconds (default: 3600 = 1 hour)
+#   --interval <sec>  Check interval in seconds (default: 5)
+#   --fail-fast       Exit immediately if any session errors
+#   --cleanup         Auto-cleanup worktrees after completion
+#   --quiet           Suppress progress display
+#   -h, --help        Show help message
+#
+# Exit codes:
+#   0 - All sessions completed successfully
+#   1 - One or more sessions failed
+#   2 - Timeout
+#   3 - Argument error
+#
+# Examples:
+#   ./scripts/wait-for-sessions.sh 140 141 144
+#   ./scripts/wait-for-sessions.sh 140 141 --timeout 1800
+#   ./scripts/wait-for-sessions.sh 140 141 --fail-fast
+# ============================================================================
 
 set -euo pipefail
 
