@@ -5,6 +5,8 @@ load '../test_helper'
 
 # Bash 4.0+が必要なため、ファイルレベルでチェック
 setup_file() {
+    bats_require_minimum_version 1.5.0
+    
     if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
         skip "Bash 4.0 or higher is required for dashboard tests (current: ${BASH_VERSION})"
     fi
