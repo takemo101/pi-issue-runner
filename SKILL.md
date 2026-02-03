@@ -23,7 +23,8 @@ Options:
   --force                強制再作成
   -b, --branch <name>    カスタムブランチ名
   --base <branch>        ベースブランチ
-  --pi-args <args>       piへの追加引数
+  --agent-args <args>    エージェントに渡す追加の引数
+  --pi-args <args>       --agent-args のエイリアス（後方互換性）
   --ignore-blockers      依存関係チェックをスキップして強制実行
 
 # バッチ実行（依存関係順）
