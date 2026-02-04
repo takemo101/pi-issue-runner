@@ -23,6 +23,7 @@ pi-issue-runner/
 ├── scripts/           # 実行スクリプト
 │   ├── run.sh         # メインエントリーポイント
 │   ├── run-batch.sh   # 複数Issueを依存関係順にバッチ実行
+│   ├── restart-watcher.sh  # Watcher再起動
 │   ├── init.sh        # プロジェクト初期化
 │   ├── list.sh        # セッション一覧
 │   ├── status.sh      # 状態確認
@@ -39,6 +40,7 @@ pi-issue-runner/
 │   ├── restart-watcher.sh  # ウォッチャー再起動
 │   ├── wait-for-sessions.sh  # 複数セッション完了待機
 │   ├── watch-session.sh  # セッション監視
+│   ├── restart-watcher.sh  # ウォッチャー再起動
 │   └── test.sh        # テスト一括実行
 ├── lib/               # 共通ライブラリ
 │   ├── agent.sh       # マルチエージェント対応
@@ -127,11 +129,13 @@ pi-issue-runner/
 │   │   ├── restart-watcher.bats
 │   │   ├── run.bats
 │   │   ├── run-batch.bats        # run-batch.sh のテスト
+│   │   ├── restart-watcher.bats  # restart-watcher.sh のテスト
 │   │   ├── status.bats
 │   │   ├── stop.bats
 │   │   ├── test.bats
 │   │   ├── wait-for-sessions.bats
-│   │   └── watch-session.bats
+│   │   ├── watch-session.bats
+│   │   └── restart-watcher.bats
 │   ├── regression/    # 回帰テスト
 │   │   └── critical-fixes.bats
 │   ├── fixtures/      # テスト用フィクスチャ

@@ -520,6 +520,7 @@ pi-issue-runner/
 ├── scripts/
 │   ├── run.sh              # Issue実行
 │   ├── run-batch.sh        # 複数Issueを依存関係順にバッチ実行
+│   ├── restart-watcher.sh  # Watcher再起動
 │   ├── list.sh             # セッション一覧
 │   ├── status.sh           # 状態確認
 │   ├── attach.sh           # セッションアタッチ
@@ -544,7 +545,7 @@ pi-issue-runner/
 │   ├── ci-fix.sh           # CI失敗検出・自動修正（ci-fix-helper.sh経由で使用）
 │   ├── ci-monitor.sh       # CI状態監視
 │   ├── ci-retry.sh         # CI自動修正リトライ管理
-│   ├── cleanup-improve-logs.sh  # improve-logsクリーンアップ
+│   ├── cleanup-improve-logs.sh  # improve-logsのクリーンアップ
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh           # 設定読み込み
@@ -552,7 +553,7 @@ pi-issue-runner/
 │   ├── daemon.sh           # プロセスデーモン化
 │   ├── dashboard.sh        # ダッシュボード機能
 │   ├── dependency.sh       # 依存関係解析・レイヤー計算
-│   ├── github.sh           # GitHub API操作
+│   ├── github.sh           # GitHub CLI操作
 │   ├── hooks.sh            # イベントhook機能
 │   ├── log.sh              # ログ出力
 │   ├── notify.sh           # 通知機能
