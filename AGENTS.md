@@ -180,6 +180,9 @@ shellcheck -x scripts/*.sh lib/*.sh  # 直接実行
 
 1. **shebang**: `#!/usr/bin/env bash`
 2. **strict mode**: `set -euo pipefail`
+   - **全てのファイル**（`scripts/` と `lib/` の両方）で使用する
+   - `lib/` ファイルでも設定し、source先の環境に適用することで一貫性を保証する
+   - これによりエラーの早期検出とデバッグの容易化を実現する
 3. **関数定義**: 小文字のスネークケース
 4. **変数**: ローカル変数は `local` を使用
 5. **引数チェック**: 必須引数は明示的にチェック

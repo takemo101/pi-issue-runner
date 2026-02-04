@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # cleanup-improve-logs.sh - .improve-logs ディレクトリのクリーンアップ関数
 
-# Note: set -euo pipefail はsource先の環境に影響するため、
-# このファイルでは設定しない（呼び出し元で設定）
+set -euo pipefail
 
 # 自身のディレクトリを取得
 _CLEANUP_IMPROVE_LOGS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

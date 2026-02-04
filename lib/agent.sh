@@ -2,8 +2,7 @@
 # agent.sh - エージェント実行ロジック
 # 複数のコーディングエージェント（pi, Claude Code, OpenCode等）に対応
 
-# Note: set -euo pipefail はsource先の環境に影響するため、
-# このファイルでは設定しない（呼び出し元で設定）
+set -euo pipefail
 
 _AGENT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_AGENT_LIB_DIR/config.sh"

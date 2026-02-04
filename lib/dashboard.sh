@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # dashboard.sh - ダッシュボード表示ロジック
 
-# Note: set -euo pipefail はsource先の環境に影響するため、
-# このファイルでは設定しない（呼び出し元で設定）
+set -euo pipefail
 
 _DASHBOARD_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
