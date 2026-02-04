@@ -16,6 +16,11 @@ if ! declare -f find_worktree_by_issue > /dev/null 2>&1; then
     source "$_CLEANUP_ORPHANS_LIB_DIR/worktree.sh"
 fi
 
+# tmux.shがまだロードされていなければロード（session_exists関数用）
+if ! declare -f session_exists > /dev/null 2>&1; then
+    source "$_CLEANUP_ORPHANS_LIB_DIR/tmux.sh"
+fi
+
 # ログ関数（log.shがロードされていなければダミー）
 if ! declare -f log_debug > /dev/null 2>&1; then
     log_debug() { :; }
@@ -112,8 +117,8 @@ find_complete_with_existing_worktrees() {
         # Issue #549: 並列実行時に他のセッションのworktreeが誤削除される問題を防止
         local session_name
         session_name="$(get_session_name_for_issue "$issue_number")"
-        if [[ -n "$session_name" ]] && tmux has-session -t "$session_name" 2>/dev/null; then
-            log_debug "Skipping Issue #$issue_number - tmux session still active: $session_name"
+        if [[ -n "$session_name" ]] && session_exists "$session_name"; then
+            log_debug "Skipping Issue #$issue_number - session still active: $session_name"
             continue
         fi
 

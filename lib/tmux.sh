@@ -1,261 +1,85 @@
 #!/usr/bin/env bash
-# tmux.sh - tmux操作
+# tmux.sh - マルチプレクサ操作（後方互換性ラッパー）
+#
+# このファイルは後方互換性のために維持されています。
+# 新しいコードでは lib/multiplexer.sh を直接使用してください。
+#
+# 設定で multiplexer.type を変更することで、
+# tmux または zellij を使用できます。
 
 set -euo pipefail
 
 _TMUX_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$_TMUX_LIB_DIR/config.sh"
-source "$_TMUX_LIB_DIR/log.sh"
 
-# tmuxがインストールされているか確認
+# multiplexer.sh をロード（これが実際の実装を提供）
+source "$_TMUX_LIB_DIR/multiplexer.sh"
+
+# ============================================================================
+# 後方互換性のためのエイリアス関数
+# 既存のスクリプトはこれらの関数名を使用しています
+# ============================================================================
+
+# マルチプレクサがインストールされているか確認
 check_tmux() {
-    if ! command -v tmux &> /dev/null; then
-        log_error "tmux is not installed"
-        return 1
-    fi
+    mux_check
 }
 
 # セッション名を生成
-# 形式: {prefix}-issue-{number} (例: pi-issue-42)
 generate_session_name() {
-    local issue_number="$1"
-    
-    load_config
-    local prefix
-    prefix="$(get_config tmux_session_prefix)"
-    # prefixに既に"-issue"が含まれている場合は追加しない
-    if [[ "$prefix" == *"-issue" ]]; then
-        echo "${prefix}-${issue_number}"
-    else
-        echo "${prefix}-issue-${issue_number}"
-    fi
+    mux_generate_session_name "$@"
 }
 
 # セッション名からIssue番号を抽出
-# 例: "pi-issue-42" -> "42", "pi-issue-42-feature" -> "42"
 extract_issue_number() {
-    local session_name="$1"
-    
-    # パターン: -issue-{数字} を探す
-    if [[ "$session_name" =~ -issue-([0-9]+) ]]; then
-        echo "${BASH_REMATCH[1]}"
-        return 0
-    fi
-    
-    # フォールバック: 最後のハイフン以降の数字
-    if [[ "$session_name" =~ -([0-9]+)$ ]]; then
-        echo "${BASH_REMATCH[1]}"
-        return 0
-    fi
-    
-    # さらにフォールバック: 最初に見つかる数字列
-    if [[ "$session_name" =~ ([0-9]+) ]]; then
-        echo "${BASH_REMATCH[1]}"
-        return 0
-    fi
-    
-    echo ""
-    return 1
+    mux_extract_issue_number "$@"
 }
 
 # セッションを作成してコマンドを実行
-# 引数:
-#   $1 - session_name: セッション名
-#   $2 - working_dir: 作業ディレクトリ
-#   $3 - command: 実行するコマンド
-# Note: 自動クリーンアップはwatch-session.shによって処理される
 create_session() {
-    local session_name="$1"
-    local working_dir="$2"
-    local command="$3"
-    
-    check_tmux || return 1
-    
-    if session_exists "$session_name"; then
-        log_error "Session already exists: $session_name"
-        return 1
-    fi
-    
-    log_info "Creating tmux session: $session_name"
-    log_debug "Working directory: $working_dir"
-    log_debug "Command: $command"
-    
-    # デタッチ状態でセッション作成
-    tmux new-session -d -s "$session_name" -c "$working_dir"
-    
-    # エディタを無効化する環境変数を設定（vimがバックグラウンドで開くのを防ぐ）
-    # GIT_EDITOR=true はgitがエディタを開こうとしても何もしない
-    tmux send-keys -t "$session_name" "export GIT_EDITOR=true EDITOR=true VISUAL=true" Enter
-    
-    # コマンドを実行
-    tmux send-keys -t "$session_name" "$command" Enter
-    
-    log_info "Session created: $session_name"
+    mux_create_session "$@"
 }
 
 # セッションが存在するか確認
 session_exists() {
-    local session_name="$1"
-    
-    tmux has-session -t "$session_name" 2>/dev/null
+    mux_session_exists "$@"
 }
 
 # セッションにアタッチ
 attach_session() {
-    local session_name="$1"
-    
-    check_tmux || return 1
-    
-    if ! session_exists "$session_name"; then
-        log_error "Session not found: $session_name"
-        return 1
-    fi
-    
-    tmux attach-session -t "$session_name"
+    mux_attach_session "$@"
 }
 
 # セッションを終了
-# セッションが完全に終了するまで待機する
 kill_session() {
-    local session_name="$1"
-    local max_wait="${2:-30}"  # 最大待機秒数（デフォルト30秒）
-    
-    check_tmux || return 1
-    
-    if ! session_exists "$session_name"; then
-        log_warn "Session not found: $session_name"
-        return 0
-    fi
-    
-    log_info "Killing session: $session_name"
-    
-    # Fix for Issue #585: Move session to safe directory before killing
-    # This prevents ENOENT errors when worktree is deleted while session
-    # still has it as current working directory
-    # /tmpを使用（存在確実かつ書き込み可能）
-    tmux send-keys -t "$session_name" "cd /tmp" Enter 2>/dev/null || true
-    sleep 1  # ディレクトリ変更が反映されるまで待機
-    
-    # セッション内の全paneのPIDを取得（終了確認用）
-    local pane_pids
-    pane_pids=$(tmux list-panes -t "$session_name" -F '#{pane_pid}' 2>/dev/null || true)
-    
-    # セッションを終了
-    tmux kill-session -t "$session_name" 2>/dev/null || true
-    
-    # セッションが完全に終了するまで待機（tmuxの確認）
-    local waited=0
-    while session_exists "$session_name" && [[ "$waited" -lt "$max_wait" ]]; do
-        sleep 0.5
-        waited=$((waited + 1))
-    done
-    
-    # PIDベースでの追加確認（セッションは消えたがプロセスが残っている場合）
-    if [[ -n "$pane_pids" ]]; then
-        local pid_waited=0
-        local pid_max_wait=10
-        local any_running=true
-        
-        while [[ "$any_running" == "true" && "$pid_waited" -lt "$pid_max_wait" ]]; do
-            any_running=false
-            while IFS= read -r pid; do
-                [[ -z "$pid" ]] && continue
-                if kill -0 "$pid" 2>/dev/null; then
-                    any_running=true
-                    break
-                fi
-            done <<< "$pane_pids"
-            
-            if [[ "$any_running" == "true" ]]; then
-                sleep 0.5
-                pid_waited=$((pid_waited + 1))
-            fi
-        done
-        
-        if [[ "$any_running" == "true" ]]; then
-            log_warn "Some processes in session $session_name are still running after ${pid_max_wait}s"
-        fi
-    fi
-    
-    if session_exists "$session_name"; then
-        log_warn "Session $session_name still exists after ${max_wait}s wait"
-        return 1
-    fi
-    
-    log_debug "Session $session_name terminated successfully"
-    return 0
+    mux_kill_session "$@"
 }
 
 # セッション一覧を取得
 list_sessions() {
-    check_tmux || return 1
-    
-    load_config
-    local prefix
-    prefix="$(get_config tmux_session_prefix)"
-    
-    tmux list-sessions -F "#{session_name}" 2>/dev/null | grep "^${prefix}" || true
+    mux_list_sessions
 }
 
 # セッションの状態を取得
 get_session_info() {
-    local session_name="$1"
-    
-    check_tmux || return 1
-    
-    if ! session_exists "$session_name"; then
-        echo "Status: Not running"
-        return 1
-    fi
-    
-    tmux list-sessions -F "Name: #{session_name}, Created: #{session_created}, Windows: #{session_windows}" \
-        | grep "^Name: $session_name"
+    mux_get_session_info "$@"
 }
 
 # セッションのペインの内容を取得（最新N行）
 get_session_output() {
-    local session_name="$1"
-    local lines="${2:-50}"
-    
-    check_tmux || return 1
-    
-    if ! session_exists "$session_name"; then
-        log_error "Session not found: $session_name"
-        return 1
-    fi
-    
-    tmux capture-pane -t "$session_name" -p -S "-$lines"
+    mux_get_session_output "$@"
 }
 
 # アクティブなセッション数をカウント
 count_active_sessions() {
-    local count
-    count="$(list_sessions | wc -l | tr -d ' ')"
-    echo "$count"
+    mux_count_active_sessions
 }
 
 # 並列実行数の制限をチェック
-# 戻り値: 0=OK, 1=制限超過
 check_concurrent_limit() {
-    load_config
-    local max_concurrent
-    max_concurrent="$(get_config parallel_max_concurrent)"
-    
-    # 0または空は無制限
-    if [[ -z "$max_concurrent" || "$max_concurrent" == "0" ]]; then
-        return 0
-    fi
-    
-    local current_count
-    current_count="$(count_active_sessions)"
-    
-    if [[ "$current_count" -ge "$max_concurrent" ]]; then
-        log_error "Maximum concurrent sessions ($max_concurrent) reached."
-        log_info "Currently running ($current_count sessions):"
-        list_sessions | sed 's/^/  - /' >&2
-        log_info "Use --force to override or cleanup existing sessions."
-        return 1
-    fi
-    
-    return 0
+    mux_check_concurrent_limit
+}
+
+# キーを送信
+send_keys() {
+    mux_send_keys "$@"
 }

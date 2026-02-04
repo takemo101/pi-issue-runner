@@ -149,12 +149,12 @@ main() {
 
     # セッションにマーカーを送信
     # echoコマンドを送信して改行を含む出力を強制
-    tmux send-keys -t "$session_name" "echo '$marker'" Enter
+    send_keys "$session_name" "echo '$marker'"
 
     # カスタムメッセージがある場合は追加送信
     if [[ -n "$custom_message" ]]; then
         log_info "Sending custom message: $custom_message"
-        tmux send-keys -t "$session_name" "echo '$custom_message'" Enter
+        send_keys "$session_name" "echo '$custom_message'"
     fi
 
     log_info "Marker sent. watch-session.sh will detect and cleanup."

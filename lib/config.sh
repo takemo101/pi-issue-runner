@@ -15,6 +15,7 @@ CONFIG_WORKTREE_BASE_DIR="${CONFIG_WORKTREE_BASE_DIR:-.worktrees}"
 CONFIG_WORKTREE_COPY_FILES="${CONFIG_WORKTREE_COPY_FILES:-.env .env.local .envrc}"
 CONFIG_TMUX_SESSION_PREFIX="${CONFIG_TMUX_SESSION_PREFIX:-pi}"
 CONFIG_TMUX_START_IN_SESSION="${CONFIG_TMUX_START_IN_SESSION:-true}"
+CONFIG_MULTIPLEXER_TYPE="${CONFIG_MULTIPLEXER_TYPE:-tmux}"  # tmux | zellij
 CONFIG_PI_COMMAND="${CONFIG_PI_COMMAND:-pi}"
 CONFIG_PI_ARGS="${CONFIG_PI_ARGS:-}"
 CONFIG_PARALLEL_MAX_CONCURRENT="${CONFIG_PARALLEL_MAX_CONCURRENT:-0}"  # 0 = unlimited
@@ -147,6 +148,11 @@ _parse_config_file() {
     value="$(yaml_get "$config_file" ".tmux.start_in_session" "")"
     if [[ -n "$value" ]]; then
         CONFIG_TMUX_START_IN_SESSION="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".multiplexer.type" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_MULTIPLEXER_TYPE="$value"
     fi
     
     value="$(yaml_get "$config_file" ".pi.command" "")"
@@ -313,6 +319,9 @@ _apply_env_overrides() {
     if [[ -n "${PI_RUNNER_TMUX_START_IN_SESSION:-}" ]]; then
         CONFIG_TMUX_START_IN_SESSION="$PI_RUNNER_TMUX_START_IN_SESSION"
     fi
+    if [[ -n "${PI_RUNNER_MULTIPLEXER_TYPE:-}" ]]; then
+        CONFIG_MULTIPLEXER_TYPE="$PI_RUNNER_MULTIPLEXER_TYPE"
+    fi
     if [[ -n "${PI_RUNNER_PI_COMMAND:-}" ]]; then
         CONFIG_PI_COMMAND="$PI_RUNNER_PI_COMMAND"
     fi
@@ -396,6 +405,9 @@ get_config() {
         tmux_start_in_session)
             echo "$CONFIG_TMUX_START_IN_SESSION"
             ;;
+        multiplexer_type)
+            echo "$CONFIG_MULTIPLEXER_TYPE"
+            ;;
         pi_command)
             echo "$CONFIG_PI_COMMAND"
             ;;
@@ -475,6 +487,7 @@ show_config() {
     echo "worktree_copy_files: $CONFIG_WORKTREE_COPY_FILES"
     echo "tmux_session_prefix: $CONFIG_TMUX_SESSION_PREFIX"
     echo "tmux_start_in_session: $CONFIG_TMUX_START_IN_SESSION"
+    echo "multiplexer_type: $CONFIG_MULTIPLEXER_TYPE"
     echo "pi_command: $CONFIG_PI_COMMAND"
     echo "pi_args: $CONFIG_PI_ARGS"
     echo "parallel_max_concurrent: $CONFIG_PARALLEL_MAX_CONCURRENT"

@@ -211,7 +211,7 @@ wait_for_sessions() {
                 unknown)
                     # tmuxセッションが存在するか確認
                     local session_name="pi-issue-$issue"
-                    if tmux has-session -t "$session_name" 2>/dev/null; then
+                    if session_exists "$session_name"; then
                         # セッションはあるがステータス不明 → まだ開始中
                         all_done=false
                     else

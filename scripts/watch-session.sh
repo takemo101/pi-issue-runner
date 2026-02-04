@@ -330,7 +330,7 @@ main() {
     fi
 
     # セッション存在確認
-    if ! tmux has-session -t "$session_name" 2>/dev/null; then
+    if ! session_exists "$session_name"; then
         log_error "Session not found: $session_name"
         exit 1
     fi
@@ -366,7 +366,7 @@ main() {
 
     # 初期出力をキャプチャ（ベースライン）
     local baseline_output
-    baseline_output=$(tmux capture-pane -t "$session_name" -p -S -1000 2>/dev/null) || baseline_output=""
+    baseline_output=$(get_session_output "$session_name" 1000 2>/dev/null) || baseline_output=""
     
     # 初期化時点でマーカーが既にあるか確認（高速完了タスク対応）
     # Issue #281: 初期化中（10秒待機中）にマーカーが出力された場合の検出
@@ -406,14 +406,14 @@ main() {
     # 監視ループ
     while true; do
         # セッションが存在しなくなったら終了
-        if ! tmux has-session -t "$session_name" 2>/dev/null; then
+        if ! session_exists "$session_name"; then
             log_info "Session ended: $session_name"
             break
         fi
 
         # 最新の出力をキャプチャ（最後の100行）
         local output
-        output=$(tmux capture-pane -t "$session_name" -p -S -100 2>/dev/null) || {
+        output=$(get_session_output "$session_name" 100 2>/dev/null) || {
             log_warn "Failed to capture pane output"
             sleep "$interval"
             continue

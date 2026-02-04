@@ -73,7 +73,7 @@ send_nudge() {
     log_info "Message: $message"
     
     # メッセージを送信してEnterキーを押す
-    tmux send-keys -t "$session_name" "$message" Enter
+    send_keys "$session_name" "$message"
     
     log_info "Nudge sent successfully"
 }
