@@ -245,6 +245,9 @@ build_agent_command() {
 # ユーティリティ関数
 # ======================
 
+# NOTE: 将来のCLIオプション追加やデバッグ用途のため保持
+# 使用例: scripts/run.sh --list-presets
+
 # 利用可能なプリセット一覧を表示
 list_agent_presets() {
     echo "Available agent presets:"
@@ -253,6 +256,9 @@ list_agent_presets() {
     echo "  opencode - OpenCode (stdin)"
     echo "  custom   - Custom agent (requires template)"
 }
+
+# NOTE: 将来のCLIオプション追加やデバッグ用途のため保持
+# 使用例: scripts/run.sh --show-config
 
 # エージェント設定を表示（デバッグ用）
 show_agent_config() {
