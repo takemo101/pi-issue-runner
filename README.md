@@ -526,8 +526,12 @@ pi-issue-runner/
 │   ├── stop.sh             # セッション停止
 │   ├── cleanup.sh          # クリーンアップ
 │   ├── ci-fix-helper.sh    # CI修正ヘルパー（lib/ci-fix.shのラッパー）
+│   ├── context.sh          # コンテキスト管理
+│   ├── dashboard.sh        # ダッシュボード表示
 │   ├── force-complete.sh   # セッション強制完了
+│   ├── next.sh             # 次のタスク取得
 │   ├── nudge.sh            # セッションへメッセージ送信
+│   ├── restart-watcher.sh  # ウォッチャー再起動
 │   ├── watch-session.sh    # セッション監視と自動クリーンアップ
 │   ├── wait-for-sessions.sh # 複数セッション完了待機
 │   ├── improve.sh          # 継続的改善スクリプト
@@ -542,15 +546,17 @@ pi-issue-runner/
 │   ├── ci-retry.sh         # CI自動修正リトライ管理
 │   ├── cleanup-improve-logs.sh  # improve-logsクリーンアップ
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
-│   ├── cleanup-improve-logs.sh  # improve-logsのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh           # 設定読み込み
+│   ├── context.sh          # コンテキスト管理
 │   ├── daemon.sh           # プロセスデーモン化
+│   ├── dashboard.sh        # ダッシュボード機能
 │   ├── dependency.sh       # 依存関係解析・レイヤー計算
 │   ├── github.sh           # GitHub API操作
 │   ├── hooks.sh            # イベントhook機能
 │   ├── log.sh              # ログ出力
 │   ├── notify.sh           # 通知機能
+│   ├── priority.sh         # 優先度計算
 │   ├── status.sh           # ステータスファイル管理
 │   ├── template.sh         # テンプレート処理
 │   ├── tmux.sh             # tmux操作
@@ -583,15 +589,17 @@ pi-issue-runner/
 │   │   ├── ci-retry.bats        # ci-retry.sh のテスト
 │   │   ├── cleanup-improve-logs.bats  # cleanup-improve-logs.sh のテスト
 │   │   ├── cleanup-orphans.bats  # cleanup-orphans.sh のテスト
-│   │   ├── cleanup-improve-logs.bats  # cleanup-improve-logs.sh のテスト
 │   │   ├── cleanup-plans.bats    # cleanup-plans.sh のテスト
 │   │   ├── config.bats      # config.sh のテスト
+│   │   ├── context.bats     # context.sh のテスト
 │   │   ├── daemon.bats      # daemon.sh のテスト
+│   │   ├── dashboard.bats   # dashboard.sh のテスト
 │   │   ├── dependency.bats  # dependency.sh のテスト
 │   │   ├── github.bats      # github.sh のテスト
 │   │   ├── hooks.bats       # hooks.sh のテスト
 │   │   ├── log.bats         # log.sh のテスト
 │   │   ├── notify.bats      # notify.sh のテスト
+│   │   ├── priority.bats    # priority.sh のテスト
 │   │   ├── status.bats      # status.sh のテスト
 │   │   ├── template.bats    # template.sh のテスト
 │   │   ├── tmux.bats        # tmux.sh のテスト
@@ -657,15 +665,19 @@ test/
 │   ├── ci-fix.bats              # ci-fix.sh のテスト
 │   ├── ci-monitor.bats          # ci-monitor.sh のテスト
 │   ├── ci-retry.bats            # ci-retry.sh のテスト
+│   ├── cleanup-improve-logs.bats # cleanup-improve-logs.sh のテスト
 │   ├── cleanup-orphans.bats     # cleanup-orphans.sh のテスト
 │   ├── cleanup-plans.bats       # cleanup-plans.sh のテスト
 │   ├── config.bats              # config.sh のテスト
+│   ├── context.bats             # context.sh のテスト
 │   ├── daemon.bats              # daemon.sh のテスト
+│   ├── dashboard.bats           # dashboard.sh のテスト
 │   ├── dependency.bats          # dependency.sh のテスト
 │   ├── github.bats              # github.sh のテスト
 │   ├── hooks.bats               # hooks.sh のテスト
 │   ├── log.bats                 # log.sh のテスト
 │   ├── notify.bats              # notify.sh のテスト
+│   ├── priority.bats            # priority.sh のテスト
 │   ├── status.bats              # status.sh のテスト
 │   ├── template.bats            # template.sh のテスト
 │   ├── tmux.bats                # tmux.sh のテスト
@@ -677,12 +689,17 @@ test/
 │   └── yaml.bats                # yaml.sh のテスト
 ├── scripts/                     # スクリプトの統合テスト
 │   ├── attach.bats              # attach.sh のテスト
+│   ├── ci-fix-helper.bats       # ci-fix-helper.sh のテスト
 │   ├── cleanup.bats             # cleanup.sh のテスト
+│   ├── context.bats             # context.sh のテスト
+│   ├── dashboard.bats           # dashboard.sh のテスト
 │   ├── force-complete.bats      # force-complete.sh のテスト
 │   ├── improve.bats             # improve.sh のテスト
 │   ├── init.bats                # init.sh のテスト
 │   ├── list.bats                # list.sh のテスト
+│   ├── next.bats                # next.sh のテスト
 │   ├── nudge.bats               # nudge.sh のテスト
+│   ├── restart-watcher.bats     # restart-watcher.sh のテスト
 │   ├── run.bats                 # run.sh のテスト
 │   ├── run-batch.bats           # run-batch.sh のテスト
 │   ├── status.bats              # status.sh のテスト
