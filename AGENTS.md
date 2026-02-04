@@ -30,7 +30,6 @@ pi-issue-runner/
 │   ├── attach.sh      # セッションアタッチ
 │   ├── stop.sh        # セッション停止
 │   ├── mux-all.sh     # 全セッション表示（マルチプレクサ対応）
-│   ├── tmux-all.sh    # mux-all.shへのシンボリックリンク（後方互換）
 │   ├── cleanup.sh     # クリーンアップ
 │   ├── ci-fix-helper.sh  # CI修正ヘルパー（lib/ci-fix.shのラッパー）
 │   ├── context.sh     # コンテキスト管理
