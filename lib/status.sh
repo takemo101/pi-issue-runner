@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # status.sh - ステータスファイル管理
 
-# Note: set -euo pipefail はsource先の環境に影響するため、
-# このファイルでは設定しない（呼び出し元で設定）
+set -euo pipefail
 
 # 自身のディレクトリを取得（SCRIPT_DIRとは別に保存）
 _STATUS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

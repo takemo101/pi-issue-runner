@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # cleanup-orphans.sh - 孤立したステータスファイルのクリーンアップ関数
 
-# Note: set -euo pipefail はsource先の環境に影響するため、
-# このファイルでは設定しない（呼び出し元で設定）
+set -euo pipefail
 
 # 自身のディレクトリを取得
 _CLEANUP_ORPHANS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
