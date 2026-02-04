@@ -135,3 +135,21 @@ teardown() {
     result="$(render_template "$template" "99" "fix/bug" "/tmp/wt" "implement" "default" "Fix Bug" "555")"
     [ "$result" = "Issue #99: Fix Bug on fix/bug at /tmp/wt, step implement of default, PR #555" ]
 }
+
+@test "render_template renders plans_dir with default value" {
+    template="Plan path: {{plans_dir}}/issue-{{issue_number}}-plan.md"
+    result="$(render_template "$template" "42")"
+    [ "$result" = "Plan path: docs/plans/issue-42-plan.md" ]
+}
+
+@test "render_template renders plans_dir with custom value" {
+    template="Plan path: {{plans_dir}}/issue-{{issue_number}}-plan.md"
+    result="$(render_template "$template" "42" "" "" "" "" "" "" "custom/plans")"
+    [ "$result" = "Plan path: custom/plans/issue-42-plan.md" ]
+}
+
+@test "render_template renders all variables including plans_dir" {
+    template="Issue #{{issue_number}}: {{issue_title}} on {{branch_name}} at {{worktree_path}}, step {{step_name}} of {{workflow_name}}, PR #{{pr_number}}, plans at {{plans_dir}}"
+    result="$(render_template "$template" "99" "fix/bug" "/tmp/wt" "implement" "default" "Fix Bug" "555" "my/plans")"
+    [ "$result" = "Issue #99: Fix Bug on fix/bug at /tmp/wt, step implement of default, PR #555, plans at my/plans" ]
+}

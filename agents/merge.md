@@ -199,7 +199,7 @@ fi
 
 > **Note**: 以下のクリーンアップは `watch-session.sh` により自動的に行われます：
 > - Worktree の削除
-> - 計画書（`docs/plans/issue-{{issue_number}}-plan.md`）の削除
+> - 計画書（`{{plans_dir}}/issue-{{issue_number}}-plan.md`）の削除
 > 
 > 手動でクリーンアップが必要な場合は `scripts/cleanup.sh` を使用してください。
 

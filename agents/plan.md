@@ -36,7 +36,7 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 5. **リスクと対策**: 潜在的な問題とその対処法
 
 ### 3. 出力
-ディレクトリがない場合は作成してから、計画書を `docs/plans/issue-{{issue_number}}-plan.md` に保存してください。
+ディレクトリがない場合は作成してから、計画書を `{{plans_dir}}/issue-{{issue_number}}-plan.md` に保存してください。
 
 ## 完了条件
 
