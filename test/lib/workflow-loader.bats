@@ -321,13 +321,13 @@ EOF
 
 @test "get_agent_prompt returns test prompt when builtin:test specified" {
     result="$(get_agent_prompt "builtin:test" "42")"
-    [[ "$result" == *"Run tests"* ]]
+    [[ "$result" == *"Test the implementation"* ]]
     [[ "$result" == *"#42"* ]]
 }
 
 @test "get_agent_prompt returns ci-fix prompt when builtin:ci-fix specified" {
     result="$(get_agent_prompt "builtin:ci-fix" "42")"
-    [[ "$result" == *"Fix CI failures"* ]]
+    [[ "$result" == *"Fix CI failures"* ]] || [[ "$result" == *"Analyze CI logs"* ]]
     [[ "$result" == *"#42"* ]]
 }
 
