@@ -532,7 +532,6 @@ pi-issue-runner/
 │   ├── force-complete.sh   # セッション強制完了
 │   ├── next.sh             # 次のタスク取得
 │   ├── nudge.sh            # セッションへメッセージ送信
-│   ├── restart-watcher.sh  # ウォッチャー再起動
 │   ├── watch-session.sh    # セッション監視と自動クリーンアップ
 │   ├── wait-for-sessions.sh # 複数セッション完了待機
 │   ├── improve.sh          # 継続的改善スクリプト
