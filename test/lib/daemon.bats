@@ -228,11 +228,10 @@ EOF
     
     # テスト用の一意なパターンを持つプロセスを起動
     local unique_pattern
-    unique_pattern="test_daemon_$$_$(date +%s)_unique"
-    local test_script="$BATS_TEST_TMPDIR/test_find.sh"
-    cat > "$test_script" << EOF
+    unique_pattern="test_daemon_$$_$(date +%s)"
+    local test_script="$BATS_TEST_TMPDIR/${unique_pattern}_script.sh"
+    cat > "$test_script" << 'EOF'
 #!/usr/bin/env bash
-# $unique_pattern
 sleep 5
 EOF
     chmod +x "$test_script"
