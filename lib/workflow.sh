@@ -124,8 +124,11 @@ get_workflow_steps_array() {
 list_available_workflows() {
     local project_root="${1:-.}"
     
-    echo "default: 完全ワークフロー（計画・実装・レビュー・マージ）"
+    # ビルトインワークフローを明示的に表示
+    echo "default: 完全なワークフロー（計画・実装・レビュー・マージ）"
     echo "simple: 簡易ワークフロー（実装・マージのみ）"
+    echo "thorough: 徹底ワークフロー（計画・実装・テスト・レビュー・マージ）"
+    echo "ci-fix: CI失敗を検出し自動修正を試行"
     
     # プロジェクト固有のワークフロー
     if [[ -d "$project_root/workflows" ]]; then
@@ -133,7 +136,8 @@ list_available_workflows() {
             if [[ -f "$f" ]]; then
                 local name
                 name="$(basename "$f" .yaml)"
-                if [[ "$name" != "default" && "$name" != "simple" ]]; then
+                # ビルトインワークフローを除外
+                if [[ "$name" != "default" && "$name" != "simple" && "$name" != "thorough" && "$name" != "ci-fix" ]]; then
                     echo "$name: (custom workflow)"
                 fi
             fi
