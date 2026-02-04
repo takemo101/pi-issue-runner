@@ -79,6 +79,12 @@ teardown() {
     grep -q '\.pi-runner\.yaml' ".gitignore"
 }
 
+@test "init.sh adds .pi-runner.yml to .gitignore" {
+    run "$PROJECT_ROOT/scripts/init.sh"
+    [ "$status" -eq 0 ]
+    grep -q '\.pi-runner\.yml' ".gitignore"
+}
+
 @test "init.sh adds .pi-prompt.md to .gitignore" {
     run "$PROJECT_ROOT/scripts/init.sh"
     [ "$status" -eq 0 ]
