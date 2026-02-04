@@ -538,6 +538,9 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_PLANS_DIR` | `plans.dir` |
 | `PI_RUNNER_GITHUB_INCLUDE_COMMENTS` | `github.include_comments` |
 | `PI_RUNNER_GITHUB_MAX_COMMENTS` | `github.max_comments` |
+| `PI_RUNNER_IMPROVE_LOGS_KEEP_RECENT` | `improve_logs.keep_recent` |
+| `PI_RUNNER_IMPROVE_LOGS_KEEP_DAYS` | `improve_logs.keep_days` |
+| `PI_RUNNER_IMPROVE_LOGS_DIR` | `improve_logs.dir` |
 
 ### 例: CI環境での使用
 
