@@ -143,6 +143,10 @@ pi-watch:scripts/watch-session.sh
 pi-init:scripts/init.sh
 pi-nudge:scripts/nudge.sh
 pi-context:scripts/context.sh
+pi-dashboard:scripts/dashboard.sh
+pi-ci-fix:scripts/ci-fix-helper.sh
+pi-next:scripts/next.sh
+pi-restart-watcher:scripts/restart-watcher.sh
 "
 
 echo "Installing pi-issue-runner to $INSTALL_DIR..."
