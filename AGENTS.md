@@ -23,6 +23,7 @@ pi-issue-runner/
 ├── scripts/           # 実行スクリプト
 │   ├── run.sh         # メインエントリーポイント
 │   ├── run-batch.sh   # 複数Issueを依存関係順にバッチ実行
+│   ├── restart-watcher.sh  # Watcher再起動
 │   ├── init.sh        # プロジェクト初期化
 │   ├── list.sh        # セッション一覧
 │   ├── status.sh      # 状態確認
@@ -125,6 +126,7 @@ pi-issue-runner/
 │   │   ├── nudge.bats
 │   │   ├── run.bats
 │   │   ├── run-batch.bats        # run-batch.sh のテスト
+│   │   ├── restart-watcher.bats  # restart-watcher.sh のテスト
 │   │   ├── status.bats
 │   │   ├── stop.bats
 │   │   ├── test.bats
