@@ -101,6 +101,12 @@ get_agent_prompt() {
             merge)
                 prompt="$_BUILTIN_AGENT_MERGE"
                 ;;
+            test)
+                prompt="$_BUILTIN_AGENT_TEST"
+                ;;
+            ci-fix)
+                prompt="$_BUILTIN_AGENT_CI_FIX"
+                ;;
             *)
                 log_warn "Unknown builtin agent: $agent_name, using implement"
                 prompt="$_BUILTIN_AGENT_IMPLEMENT"
