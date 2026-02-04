@@ -13,22 +13,12 @@ GitHub Issueを入力として、Git worktreeを作成し、tmuxセッション�
 
 ## 前提条件
 
-```bash
-# GitHub CLI（認証済み）
-gh auth status
-
-# tmux
-which tmux
-
-# pi
-which pi
-
-# jq (JSON処理)
-which jq
-
-# yq (YAML処理、オプション - なくてもフォールバックで動作)
-which yq  # オプション
-```
+- **Bash 4.0以上** (macOSの場合: `brew install bash`)
+- `gh` (GitHub CLI、認証済み)
+- `tmux`
+- `pi`
+- `jq` (JSON処理)
+- `yq` (オプション - ワークフローのカスタマイズに必要)
 
 ## インストール
 
