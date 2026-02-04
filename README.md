@@ -315,6 +315,12 @@ github:
   include_comments: true  # Issueコメントを含める（デフォルト: true）
   max_comments: 10        # 最大コメント数（0 = 無制限）
 
+# improve-logs クリーンアップ設定
+improve_logs:
+  keep_recent: 10    # 直近N件のログを保持（0=全て保持）
+  keep_days: 7       # N日以内のログを保持（0=日数制限なし）
+  dir: .improve-logs # ログディレクトリ
+
 # エージェント設定（複数エージェント対応）
 agent:
   type: pi  # pi, claude, opencode, custom
