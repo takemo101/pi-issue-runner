@@ -38,9 +38,10 @@ pi-issue-runner/
 │   ├── improve.sh     # 継続的改善スクリプト
 │   ├── next.sh        # 次のタスク取得
 │   ├── nudge.sh       # セッションへメッセージ送信
+│   ├── test.sh        # テスト一括実行
+│   ├── verify-config-docs.sh  # 設定ドキュメントの整合性検証
 │   ├── wait-for-sessions.sh  # 複数セッション完了待機
-│   ├── watch-session.sh  # セッション監視
-│   └── test.sh        # テスト一括実行
+│   └── watch-session.sh  # セッション監視
 ├── lib/               # 共通ライブラリ
 │   ├── agent.sh       # マルチエージェント対応
 │   ├── batch.sh       # バッチ処理コア機能
@@ -134,6 +135,7 @@ pi-issue-runner/
 │   │   ├── status.bats
 │   │   ├── stop.bats
 │   │   ├── test.bats
+│   │   ├── verify-config-docs.bats
 │   │   ├── wait-for-sessions.bats
 │   │   └── watch-session.bats
 │   ├── regression/    # 回帰テスト
