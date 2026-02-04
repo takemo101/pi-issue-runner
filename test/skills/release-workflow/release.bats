@@ -10,6 +10,9 @@ setup() {
         export _CLEANUP_TMPDIR=1
     fi
     
+    # モックディレクトリをセットアップ
+    export MOCK_DIR="${BATS_TEST_TMPDIR}/mocks"
+    mkdir -p "$MOCK_DIR"
     export ORIGINAL_PATH="$PATH"
     
     # Gitリポジトリをセットアップ
