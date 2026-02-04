@@ -528,6 +528,9 @@ pi-issue-runner/
 │   ├── ci-fix-helper.sh    # CI修正ヘルパー（lib/ci-fix.shのラッパー）
 │   ├── force-complete.sh   # セッション強制完了
 │   ├── nudge.sh            # セッションへメッセージ送信
+│   ├── restart-watcher.sh  # ウォッチャー再起動
+│   ├── context.sh          # コンテキスト管理
+│   ├── dashboard.sh        # ダッシュボード表示
 │   ├── watch-session.sh    # セッション監視と自動クリーンアップ
 │   ├── wait-for-sessions.sh # 複数セッション完了待機
 │   ├── improve.sh          # 継続的改善スクリプト
@@ -542,15 +545,17 @@ pi-issue-runner/
 │   ├── ci-retry.sh         # CI自動修正リトライ管理
 │   ├── cleanup-improve-logs.sh  # improve-logsクリーンアップ
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
-│   ├── cleanup-improve-logs.sh  # improve-logsのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh           # 設定読み込み
+│   ├── context.sh          # コンテキスト管理
 │   ├── daemon.sh           # プロセスデーモン化
+│   ├── dashboard.sh        # ダッシュボード機能
 │   ├── dependency.sh       # 依存関係解析・レイヤー計算
 │   ├── github.sh           # GitHub API操作
 │   ├── hooks.sh            # イベントhook機能
 │   ├── log.sh              # ログ出力
 │   ├── notify.sh           # 通知機能
+│   ├── priority.sh         # 優先度計算
 │   ├── status.sh           # ステータスファイル管理
 │   ├── template.sh         # テンプレート処理
 │   ├── tmux.sh             # tmux操作
@@ -583,7 +588,6 @@ pi-issue-runner/
 │   │   ├── ci-retry.bats        # ci-retry.sh のテスト
 │   │   ├── cleanup-improve-logs.bats  # cleanup-improve-logs.sh のテスト
 │   │   ├── cleanup-orphans.bats  # cleanup-orphans.sh のテスト
-│   │   ├── cleanup-improve-logs.bats  # cleanup-improve-logs.sh のテスト
 │   │   ├── cleanup-plans.bats    # cleanup-plans.sh のテスト
 │   │   ├── config.bats      # config.sh のテスト
 │   │   ├── daemon.bats      # daemon.sh のテスト
