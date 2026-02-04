@@ -547,11 +547,13 @@ pi-issue-runner/
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh           # 設定読み込み
 │   ├── daemon.sh           # プロセスデーモン化
+│   ├── dashboard.sh        # ダッシュボード機能
 │   ├── dependency.sh       # 依存関係解析・レイヤー計算
 │   ├── github.sh           # GitHub CLI操作
 │   ├── hooks.sh            # イベントhook機能
 │   ├── log.sh              # ログ出力
 │   ├── notify.sh           # 通知機能
+│   ├── priority.sh         # 優先度計算
 │   ├── status.sh           # ステータスファイル管理
 │   ├── template.sh         # テンプレート処理
 │   ├── tmux.sh             # tmux操作
