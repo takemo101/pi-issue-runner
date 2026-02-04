@@ -44,6 +44,103 @@ source "$__CI_FIX_LIB_DIR/ci-classifier.sh"
 source "$__CI_FIX_LIB_DIR/ci-retry.sh"
 
 # ===================
+# プロジェクトタイプ検出
+# ===================
+
+# プロジェクトタイプを検出
+# Usage: detect_project_type [path]
+# Returns: rust|node|python|bash-bats|unknown
+detect_project_type() {
+    local path="${1:-.}"
+    
+    if [[ -f "$path/Cargo.toml" ]]; then
+        echo "rust"
+    elif [[ -f "$path/package.json" ]]; then
+        echo "node"
+    elif [[ -f "$path/pyproject.toml" ]] || [[ -f "$path/setup.py" ]]; then
+        echo "python"
+    elif [[ -f "$path/test/test_helper.bash" ]] && [[ -d "$path/test" ]]; then
+        # Batsテストを使用しているプロジェクト
+        echo "bash-bats"
+    else
+        echo "unknown"
+    fi
+}
+
+# プロジェクトタイプ別のlint修正コマンドを取得
+# Usage: get_lint_fix_command <project_type>
+get_lint_fix_command() {
+    local project_type="$1"
+    
+    case "$project_type" in
+        rust)
+            echo "cargo clippy --fix --allow-dirty --allow-staged --all-targets --all-features"
+            ;;
+        node)
+            echo "npm run lint:fix || npx eslint --fix . || true"
+            ;;
+        python)
+            echo "pylint --fix . || flake8 --fix . || true"
+            ;;
+        bash-bats)
+            echo "shellcheck -x scripts/*.sh lib/*.sh 2>&1 || true"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# プロジェクトタイプ別のformat修正コマンドを取得
+# Usage: get_format_fix_command <project_type>
+get_format_fix_command() {
+    local project_type="$1"
+    
+    case "$project_type" in
+        rust)
+            echo "cargo fmt --all"
+            ;;
+        node)
+            echo "npm run format || npx prettier --write . || true"
+            ;;
+        python)
+            echo "black . || autopep8 --in-place --recursive . || true"
+            ;;
+        bash-bats)
+            # Bashは通常フォーマッタを使わないが、shfmtがあれば使用
+            echo "shfmt -w -i 4 scripts/*.sh lib/*.sh 2>&1 || true"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# プロジェクトタイプ別の検証コマンドを取得
+# Usage: get_validation_command <project_type>
+get_validation_command() {
+    local project_type="$1"
+    
+    case "$project_type" in
+        rust)
+            echo "cargo clippy --all-targets --all-features -- -D warnings && cargo test --lib"
+            ;;
+        node)
+            echo "npm run lint && npm test"
+            ;;
+        python)
+            echo "pylint . && pytest"
+            ;;
+        bash-bats)
+            echo "shellcheck -x scripts/*.sh lib/*.sh && bats test/**/*.bats"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# ===================
 # 自動修正実行
 # ===================
 
@@ -82,53 +179,77 @@ try_auto_fix() {
     esac
 }
 
-# Lint/Clippy修正を試行
+# Lint修正を試行（プロジェクト非依存）
 # Usage: try_fix_lint [worktree_path]
 try_fix_lint() {
     local worktree_path="${1:-.}"
     
-    log_info "Trying to fix lint/clippy issues..."
+    log_info "Trying to fix lint issues..."
     
-    # cargoがインストールされているか確認
-    if ! command -v cargo &> /dev/null; then
-        log_error "cargo not found. Cannot auto-fix lint issues."
-        return 1
+    # プロジェクトタイプを検出
+    local project_type
+    project_type=$(detect_project_type "$worktree_path")
+    
+    if [[ "$project_type" == "unknown" ]]; then
+        log_warn "Unknown project type. Cannot auto-fix lint issues."
+        return 2
     fi
+    
+    # lint修正コマンドを取得
+    local fix_command
+    if ! fix_command=$(get_lint_fix_command "$project_type"); then
+        log_warn "No lint fix command available for project type: $project_type"
+        return 2
+    fi
+    
+    log_info "Detected project type: $project_type"
+    log_info "Running: $fix_command"
     
     # worktreeパスに移動して実行
     (
         cd "$worktree_path" || return 1
         
-        # clippy --fix を実行
-        if cargo clippy --fix --allow-dirty --allow-staged --all-targets --all-features 2>&1; then
-            log_info "Clippy fix applied successfully"
+        if eval "$fix_command" 2>&1; then
+            log_info "Lint fix applied successfully"
             return 0
         else
-            log_error "Clippy fix failed"
+            log_error "Lint fix failed"
             return 1
         fi
     )
 }
 
-# フォーマット修正を試行
+# フォーマット修正を試行（プロジェクト非依存）
 # Usage: try_fix_format [worktree_path]
 try_fix_format() {
     local worktree_path="${1:-.}"
     
     log_info "Trying to fix format issues..."
     
-    # cargoがインストールされているか確認
-    if ! command -v cargo &> /dev/null; then
-        log_error "cargo not found. Cannot auto-fix format issues."
-        return 1
+    # プロジェクトタイプを検出
+    local project_type
+    project_type=$(detect_project_type "$worktree_path")
+    
+    if [[ "$project_type" == "unknown" ]]; then
+        log_warn "Unknown project type. Cannot auto-fix format issues."
+        return 2
     fi
+    
+    # format修正コマンドを取得
+    local fix_command
+    if ! fix_command=$(get_format_fix_command "$project_type"); then
+        log_warn "No format fix command available for project type: $project_type"
+        return 2
+    fi
+    
+    log_info "Detected project type: $project_type"
+    log_info "Running: $fix_command"
     
     # worktreeパスに移動して実行
     (
         cd "$worktree_path" || return 1
         
-        # fmt を実行
-        if cargo fmt --all 2>&1; then
+        if eval "$fix_command" 2>&1; then
             log_info "Format fix applied successfully"
             return 0
         else
@@ -138,7 +259,7 @@ try_fix_format() {
     )
 }
 
-# ローカル検証を実行
+# ローカル検証を実行（プロジェクト非依存）
 # Usage: run_local_validation [worktree_path]
 # Returns: 0=検証成功, 1=検証失敗
 run_local_validation() {
@@ -146,30 +267,35 @@ run_local_validation() {
     
     log_info "Running local validation..."
     
-    if ! command -v cargo &> /dev/null; then
-        log_warn "cargo not found. Skipping local validation."
+    # プロジェクトタイプを検出
+    local project_type
+    project_type=$(detect_project_type "$worktree_path")
+    
+    if [[ "$project_type" == "unknown" ]]; then
+        log_warn "Unknown project type. Skipping local validation."
         return 0
     fi
+    
+    # 検証コマンドを取得
+    local validation_command
+    if ! validation_command=$(get_validation_command "$project_type"); then
+        log_warn "No validation command available for project type: $project_type"
+        return 0
+    fi
+    
+    log_info "Detected project type: $project_type"
+    log_info "Running: $validation_command"
     
     (
         cd "$worktree_path" || return 1
         
-        # clippyチェック
-        log_info "Running cargo clippy..."
-        if ! cargo clippy --all-targets --all-features -- -D warnings 2>&1; then
-            log_error "Clippy check failed"
+        if eval "$validation_command" 2>&1; then
+            log_info "Local validation passed"
+            return 0
+        else
+            log_error "Local validation failed"
             return 1
         fi
-        
-        # テスト実行（簡易版）
-        log_info "Running cargo test..."
-        if ! cargo test --lib 2>&1; then
-            log_error "Test failed"
-            return 1
-        fi
-        
-        log_info "Local validation passed"
-        return 0
     )
 }
 

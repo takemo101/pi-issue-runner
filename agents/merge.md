@@ -118,36 +118,67 @@ $FAILED_LOGS
     
     echo "Detected failure type: $FAILURE_TYPE"
     
-    # 自動修正を試行
+    # 自動修正を試行（プロジェクト非依存）
+    # ci-fix-helper.sh を使用してCI修正を実行
     FIX_APPLIED=false
     
-    case "$FAILURE_TYPE" in
-      "format")
-        echo "🛠️ Attempting format fix..."
-        if cargo fmt --all 2>/dev/null; then
+    echo "🛠️ Attempting auto-fix for failure type: $FAILURE_TYPE"
+    
+    # ci-fix-helper.sh のパスを解決
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    CI_FIX_HELPER="$SCRIPT_DIR/scripts/ci-fix-helper.sh"
+    
+    if [[ -f "$CI_FIX_HELPER" ]]; then
+      # ci-fix-helper.sh を使用（プロジェクトタイプを自動検出）
+      if "$CI_FIX_HELPER" fix "$FAILURE_TYPE" "{{worktree_path}}" 2>&1; then
+        # 修正が適用された場合、コミット
+        if [[ -n "$(git status --porcelain)" ]]; then
           git add -A
-          git commit -m "fix: CI修正 - フォーマット対応
+          git commit -m "fix: CI修正 - $FAILURE_TYPE 対応
 
 Refs #{{issue_number}}" || true
           FIX_APPLIED=true
+          echo "✅ Auto-fix applied successfully"
+        else
+          echo "ℹ️ No changes to commit"
         fi
-        ;;
-      "lint")
-        echo "🛠️ Attempting clippy fix..."
-        if cargo clippy --fix --allow-dirty --allow-staged --all-targets --all-features 2>/dev/null; then
-          git add -A
-          git commit -m "fix: CI修正 - Lint対応
+      else
+        echo "⚠️ Auto-fix failed or not available for this failure type"
+        # test/buildの場合はAI修正が必要
+        if [[ "$FAILURE_TYPE" == "test" ]] || [[ "$FAILURE_TYPE" == "build" ]]; then
+          echo "🤖 AI-based fixing required for $FAILURE_TYPE failure..."
+          # このケースはAIによる修正が必要
+        fi
+      fi
+    else
+      echo "⚠️ ci-fix-helper.sh not found. Falling back to legacy method..."
+      # フォールバック: 旧来の方法（後方互換性のため残す）
+      case "$FAILURE_TYPE" in
+        "format")
+          echo "🛠️ Attempting format fix..."
+          if command -v cargo &> /dev/null && cargo fmt --all 2>/dev/null; then
+            git add -A
+            git commit -m "fix: CI修正 - フォーマット対応
 
 Refs #{{issue_number}}" || true
-          FIX_APPLIED=true
-        fi
-        ;;
-      "test"|"build")
-        echo "🤖 AI-based fixing required for $FAILURE_TYPE failure..."
-        # このケースはAIによる修正が必要
-        # 失敗したテスト/ファイルを特定して修正
-        ;;
-    esac
+            FIX_APPLIED=true
+          fi
+          ;;
+        "lint")
+          echo "🛠️ Attempting lint fix..."
+          if command -v cargo &> /dev/null && cargo clippy --fix --allow-dirty --allow-staged --all-targets --all-features 2>/dev/null; then
+            git add -A
+            git commit -m "fix: CI修正 - Lint対応
+
+Refs #{{issue_number}}" || true
+            FIX_APPLIED=true
+          fi
+          ;;
+        "test"|"build")
+          echo "🤖 AI-based fixing required for $FAILURE_TYPE failure..."
+          ;;
+      esac
+    fi
     
     if [[ "$FIX_APPLIED" == "true" ]]; then
       # リトライ回数をインクリメント
