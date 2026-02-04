@@ -290,3 +290,49 @@ EOF
 @test "_BUILTIN_WORKFLOW_SIMPLE does not contain plan" {
     [[ "$_BUILTIN_WORKFLOW_SIMPLE" != *"plan"* ]]
 }
+
+# ====================
+# ビルトインプロンプトフォールバック動作テスト
+# ====================
+
+@test "get_agent_prompt returns plan prompt when builtin:plan specified" {
+    result="$(get_agent_prompt "builtin:plan" "42")"
+    [[ "$result" == *"Plan the implementation"* ]]
+    [[ "$result" == *"#42"* ]]
+}
+
+@test "get_agent_prompt returns implement prompt when builtin:implement specified" {
+    result="$(get_agent_prompt "builtin:implement" "42")"
+    [[ "$result" == *"Implement the changes"* ]]
+    [[ "$result" == *"#42"* ]]
+}
+
+@test "get_agent_prompt returns review prompt when builtin:review specified" {
+    result="$(get_agent_prompt "builtin:review" "42")"
+    [[ "$result" == *"Review the implementation"* ]]
+    [[ "$result" == *"#42"* ]]
+}
+
+@test "get_agent_prompt returns merge prompt when builtin:merge specified" {
+    result="$(get_agent_prompt "builtin:merge" "42")"
+    [[ "$result" == *"Create a PR and merge"* ]]
+    [[ "$result" == *"#42"* ]]
+}
+
+@test "get_agent_prompt returns test prompt when builtin:test specified" {
+    result="$(get_agent_prompt "builtin:test" "42")"
+    [[ "$result" == *"Test the implementation"* ]]
+    [[ "$result" == *"#42"* ]]
+}
+
+@test "get_agent_prompt returns ci-fix prompt when builtin:ci-fix specified" {
+    result="$(get_agent_prompt "builtin:ci-fix" "42")"
+    [[ "$result" == *"Fix CI failures"* ]] || [[ "$result" == *"Analyze CI logs"* ]]
+    [[ "$result" == *"#42"* ]]
+}
+
+@test "get_agent_prompt uses implement as fallback for unknown step" {
+    result="$(get_agent_prompt "builtin:unknown" "42")"
+    [[ "$result" == *"Implement the changes"* ]]
+    [[ "$result" == *"#42"* ]]
+}

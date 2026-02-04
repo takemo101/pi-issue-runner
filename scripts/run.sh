@@ -1,6 +1,42 @@
 #!/usr/bin/env bash
-# run.sh - GitHub Issueからworktreeを作成してコーディングエージェントを起動
-# 対応エージェント: pi, Claude Code, OpenCode, カスタム
+# ============================================================================
+# run.sh - Execute GitHub Issue in isolated worktree
+#
+# Creates a Git worktree from a GitHub Issue and launches a coding agent
+# in a tmux session. Supports multiple agent types including pi,
+# Claude Code, OpenCode, and custom agents.
+#
+# Usage: ./scripts/run.sh <issue-number> [options]
+#
+# Arguments:
+#   issue-number    GitHub Issue number to process
+#
+# Options:
+#   -b, --branch NAME   Custom branch name (default: issue-<num>-<title>)
+#   --base BRANCH       Base branch (default: HEAD)
+#   -w, --workflow NAME Workflow name (default: default)
+#   --no-attach         Don't attach to session after creation
+#   --no-cleanup        Disable auto-cleanup after agent exits
+#   --reattach          Attach to existing session if available
+#   --force             Remove and recreate existing session/worktree
+#   --agent-args ARGS   Additional arguments for the agent
+#   --pi-args ARGS      Alias for --agent-args (backward compatibility)
+#   --list-workflows    List available workflows
+#   --ignore-blockers   Skip dependency check and force execution
+#   -h, --help          Show help message
+#
+# Exit codes:
+#   0 - Success or attached to existing session
+#   1 - General error or invalid arguments
+#   2 - Issue blocked by dependencies
+#
+# Examples:
+#   ./scripts/run.sh 42
+#   ./scripts/run.sh 42 -w simple
+#   ./scripts/run.sh 42 --no-attach
+#   ./scripts/run.sh 42 --force
+#   ./scripts/run.sh 42 -b custom-feature
+# ============================================================================
 
 set -euo pipefail
 
@@ -26,6 +62,7 @@ Options:
     --agent-args ARGS   エージェントに渡す追加の引数
     --pi-args ARGS      --agent-args のエイリアス（後方互換性）
     --list-workflows    利用可能なワークフロー一覧を表示
+    --ignore-blockers   依存関係チェックをスキップして強制実行
     -h, --help          このヘルプを表示
 
 Examples:
@@ -67,6 +104,10 @@ source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/workflow.sh"
 source "$SCRIPT_DIR/../lib/hooks.sh"
 source "$SCRIPT_DIR/../lib/agent.sh"
+source "$SCRIPT_DIR/../lib/daemon.sh"
+
+# 設定ファイルの存在チェック（必須）
+require_config_file "pi-run" || exit 1
 
 # 依存関係チェック
 check_dependencies || exit 1
@@ -85,6 +126,7 @@ main() {
     local extra_agent_args=""
     local cleanup_mode="auto"  # デフォルト: 自動クリーンアップ
     local list_workflows=false
+    local ignore_blockers=false
 
     # 引数のパース
     while [[ $# -gt 0 ]]; do
@@ -125,6 +167,10 @@ main() {
                 cleanup_mode="none"
                 shift
                 ;;
+            --ignore-blockers)
+                ignore_blockers=true
+                shift
+                ;;
             --agent-args|--pi-args)
                 extra_agent_args="$2"
                 shift 2
@@ -161,6 +207,12 @@ main() {
     if [[ -z "$issue_number" ]]; then
         log_error "Issue number is required"
         usage >&2
+        exit 1
+    fi
+
+    # Issue番号が正の整数であることを検証
+    if [[ ! "$issue_number" =~ ^[0-9]+$ ]]; then
+        log_error "Issue number must be a positive integer: $issue_number"
         exit 1
     fi
 
@@ -206,6 +258,19 @@ main() {
     issue_body="$(get_issue_body "$issue_number" 2>/dev/null)" || issue_body=""
     # サニタイズ処理を適用（セキュリティ対策）
     issue_body="$(sanitize_issue_body "$issue_body")"
+    
+    # 依存関係チェック
+    if [[ "$ignore_blockers" != "true" ]]; then
+        local open_blockers
+        if ! open_blockers=$(check_issue_blocked "$issue_number"); then
+            log_error "Issue #$issue_number is blocked by the following issues:"
+            echo "$open_blockers" | jq -r '.[] | "  - #\(.number): \(.title) (\(.state))"'
+            log_info "Complete the blocking issues first, or use --ignore-blockers to force execution."
+            exit 2
+        fi
+    else
+        log_warn "Ignoring blockers and proceeding with Issue #$issue_number"
+    fi
     
     # コメント取得（設定に応じて）
     local issue_comments=""
@@ -279,10 +344,16 @@ main() {
         local watcher_log="/tmp/pi-watcher-${session_name}.log"
         local watcher_script
         watcher_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/watch-session.sh"
-        nohup "$watcher_script" "$session_name" \
-            > "$watcher_log" 2>&1 &
-        local watcher_pid=$!
-        disown "$watcher_pid" 2>/dev/null || true
+        
+        # Issue #553: daemonize関数を使用してプロセスグループを分離
+        # nohup + disown だけでは親プロセスグループ終了時に一緒に死ぬため、
+        # daemonizeで新しいセッションを作成して完全に分離する
+        local watcher_pid
+        watcher_pid=$(daemonize "$watcher_log" "$watcher_script" "$session_name")
+        
+        # Issue #693: Save watcher PID for restart functionality
+        save_watcher_pid "$issue_number" "$watcher_pid"
+        
         log_debug "Watcher PID: $watcher_pid, Log: $watcher_log"
     fi
 

@@ -6,6 +6,11 @@ set -euo pipefail
 _WORKFLOW_PROMPT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_WORKFLOW_PROMPT_LIB_DIR/log.sh"
 
+# コンテキスト管理をロード（存在する場合）
+if [[ -f "$_WORKFLOW_PROMPT_LIB_DIR/context.sh" ]]; then
+    source "$_WORKFLOW_PROMPT_LIB_DIR/context.sh"
+fi
+
 # Note: find_agent_file, get_agent_prompt, find_workflow_file, get_workflow_steps
 # are expected to be loaded by workflow.sh before this file
 
@@ -14,7 +19,7 @@ source "$_WORKFLOW_PROMPT_LIB_DIR/log.sh"
 # ===================
 
 # ワークフロープロンプトを生成する
-# Usage: generate_workflow_prompt <workflow_name> <issue_number> <issue_title> <issue_body> <branch_name> <worktree_path> [project_root] [issue_comments]
+# Usage: generate_workflow_prompt <workflow_name> <issue_number> <issue_title> <issue_body> <branch_name> <worktree_path> [project_root] [issue_comments] [pr_number]
 generate_workflow_prompt() {
     local workflow_name="${1:-default}"
     local issue_number="$2"
@@ -24,6 +29,7 @@ generate_workflow_prompt() {
     local worktree_path="$6"
     local project_root="${7:-.}"
     local issue_comments="${8:-}"
+    local pr_number="${9:-}"
     
     # ワークフローファイル検索
     local workflow_file
@@ -43,6 +49,21 @@ $issue_title
 ## Description
 $issue_body
 EOF
+    
+    # コンテキストセクションを追加（コンテキストがある場合のみ）
+    if declare -f load_all_context > /dev/null 2>&1; then
+        local context_content
+        context_content="$(load_all_context "$issue_number" 2>/dev/null || true)"
+        
+        if [[ -n "$context_content" ]]; then
+            cat << EOF
+
+## 過去のコンテキスト
+
+$context_content
+EOF
+        fi
+    fi
     
     # コメントセクションを追加（コメントがある場合のみ）
     if [[ -n "$issue_comments" ]]; then
@@ -72,7 +93,7 @@ EOF
         agent_file=$(find_agent_file "$step" "$project_root")
         
         local agent_prompt
-        agent_prompt=$(get_agent_prompt "$agent_file" "$issue_number" "$branch_name" "$worktree_path" "$step" "$issue_title")
+        agent_prompt=$(get_agent_prompt "$agent_file" "$issue_number" "$branch_name" "$worktree_path" "$step" "$issue_title" "$pr_number")
         
         # ステップ名の最初を大文字に
         local step_name
@@ -125,7 +146,7 @@ EOF
 }
 
 # ワークフロープロンプトをファイルに書き出す
-# Usage: write_workflow_prompt <output_file> <workflow_name> <issue_number> <issue_title> <issue_body> <branch_name> <worktree_path> [project_root] [issue_comments]
+# Usage: write_workflow_prompt <output_file> <workflow_name> <issue_number> <issue_title> <issue_body> <branch_name> <worktree_path> [project_root] [issue_comments] [pr_number]
 write_workflow_prompt() {
     local output_file="$1"
     local workflow_name="$2"
@@ -136,8 +157,9 @@ write_workflow_prompt() {
     local worktree_path="$7"
     local project_root="${8:-.}"
     local issue_comments="${9:-}"
+    local pr_number="${10:-}"
     
-    generate_workflow_prompt "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$worktree_path" "$project_root" "$issue_comments" > "$output_file"
+    generate_workflow_prompt "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$worktree_path" "$project_root" "$issue_comments" "$pr_number" > "$output_file"
     
     log_debug "Workflow prompt written to: $output_file"
 }

@@ -1,5 +1,24 @@
 #!/usr/bin/env bash
-# list.sh - 実行中セッション一覧
+# ============================================================================
+# list.sh - List active pi-issue-runner sessions
+#
+# Displays a list of all active tmux sessions created by pi-issue-runner,
+# including issue numbers, statuses, and error messages.
+#
+# Usage: ./scripts/list.sh [options]
+#
+# Options:
+#   -v, --verbose   Show detailed information
+#   -h, --help      Show help message
+#
+# Exit codes:
+#   0 - Success
+#   1 - Invalid option
+#
+# Examples:
+#   ./scripts/list.sh
+#   ./scripts/list.sh -v
+# ============================================================================
 
 set -euo pipefail
 
@@ -98,6 +117,15 @@ main() {
                 local branch
                 branch="$(get_worktree_branch "$worktree" 2>/dev/null || echo 'unknown')"
                 echo "  Branch: $branch"
+            fi
+            
+            # Watcher情報 (Issue #693)
+            local watcher_pid
+            watcher_pid="$(load_watcher_pid "$issue_num" 2>/dev/null || echo '')"
+            if [[ -n "$watcher_pid" ]] && is_watcher_running "$issue_num"; then
+                echo "  Watcher: ✓ (PID: $watcher_pid)"
+            else
+                echo "  Watcher: ✗"
             fi
             
             # セッション情報

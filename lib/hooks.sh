@@ -4,8 +4,7 @@
 # セッションのライフサイクルイベントでカスタムスクリプトを実行する。
 # 対応イベント: on_start, on_success, on_error, on_cleanup
 
-# Note: set -euo pipefail はsource先の環境に影響するため、
-# このファイルでは設定しない（呼び出し元で設定）
+set -euo pipefail
 
 _HOOKS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -129,6 +128,7 @@ _execute_hook() {
     fi
     
     # インラインコマンドとして実行
+    log_warn "Executing inline hook command (security note: ensure this is from a trusted source)"
     log_debug "Executing inline hook"
     eval "$hook"
 }

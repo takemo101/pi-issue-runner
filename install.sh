@@ -16,8 +16,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 必須依存パッケージ
 REQUIRED_DEPS="gh tmux jq yq"
-# オプション依存パッケージ
-OPTIONAL_DEPS=""
 
 # 依存パッケージをインストール
 install_dependencies() {
@@ -132,15 +130,19 @@ fi
 # コマンドマッピング（command:script 形式）
 COMMANDS="
 pi-run:scripts/run.sh
+pi-batch:scripts/run-batch.sh
 pi-list:scripts/list.sh
 pi-attach:scripts/attach.sh
 pi-status:scripts/status.sh
 pi-stop:scripts/stop.sh
 pi-cleanup:scripts/cleanup.sh
+pi-force-complete:scripts/force-complete.sh
 pi-improve:scripts/improve.sh
 pi-wait:scripts/wait-for-sessions.sh
 pi-watch:scripts/watch-session.sh
 pi-init:scripts/init.sh
+pi-nudge:scripts/nudge.sh
+pi-context:scripts/context.sh
 "
 
 echo "Installing pi-issue-runner to $INSTALL_DIR..."

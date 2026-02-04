@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # config.sh - 設定ファイル読み込み（Bash 4.0以上）
 
-# Note: set -euo pipefail はsource先の環境に影響するため、
-# このファイルでは設定しない（呼び出し元で設定）
+set -euo pipefail
 
 # 共通YAMLパーサーを読み込み
 _CONFIG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,11 +23,24 @@ CONFIG_PLANS_DIR="${CONFIG_PLANS_DIR:-docs/plans}"  # 計画書ディレクト�
 CONFIG_GITHUB_INCLUDE_COMMENTS="${CONFIG_GITHUB_INCLUDE_COMMENTS:-true}"  # Issueコメントを含める
 CONFIG_GITHUB_MAX_COMMENTS="${CONFIG_GITHUB_MAX_COMMENTS:-10}"  # 最大コメント数（0 = 無制限）
 
+# improve-logs クリーンアップ設定
+CONFIG_IMPROVE_LOGS_KEEP_RECENT="${CONFIG_IMPROVE_LOGS_KEEP_RECENT:-10}"  # 直近N件のログを保持（0=全て保持）
+CONFIG_IMPROVE_LOGS_KEEP_DAYS="${CONFIG_IMPROVE_LOGS_KEEP_DAYS:-7}"      # N日以内のログを保持（0=日数制限なし）
+CONFIG_IMPROVE_LOGS_DIR="${CONFIG_IMPROVE_LOGS_DIR:-.improve-logs}"      # ログディレクトリ
+
 # エージェント設定（マルチエージェント対応）
 CONFIG_AGENT_TYPE="${CONFIG_AGENT_TYPE:-}"       # pi | claude | opencode | custom (空 = pi.commandを使用)
 CONFIG_AGENT_COMMAND="${CONFIG_AGENT_COMMAND:-}" # カスタムコマンド（空 = プリセットまたはpi.commandを使用）
 CONFIG_AGENT_ARGS="${CONFIG_AGENT_ARGS:-}"       # 追加引数（空 = pi.argsを使用）
 CONFIG_AGENT_TEMPLATE="${CONFIG_AGENT_TEMPLATE:-}" # カスタムテンプレート（空 = プリセットを使用）
+
+# エージェントテンプレートファイルパス設定
+CONFIG_AGENTS_PLAN="${CONFIG_AGENTS_PLAN:-}"         # planステップのエージェントファイルパス
+CONFIG_AGENTS_IMPLEMENT="${CONFIG_AGENTS_IMPLEMENT:-}" # implementステップのエージェントファイルパス
+CONFIG_AGENTS_REVIEW="${CONFIG_AGENTS_REVIEW:-}"     # reviewステップのエージェントファイルパス
+CONFIG_AGENTS_MERGE="${CONFIG_AGENTS_MERGE:-}"       # mergeステップのエージェントファイルパス
+CONFIG_AGENTS_TEST="${CONFIG_AGENTS_TEST:-}"         # testステップのエージェントファイルパス
+CONFIG_AGENTS_CI_FIX="${CONFIG_AGENTS_CI_FIX:-}"     # ci-fixステップのエージェントファイルパス
 
 # 設定ファイルを探す
 find_config_file() {
@@ -48,6 +60,9 @@ find_config_file() {
     return 1
 }
 
+# 設定ファイルが見つかったかどうかのフラグ
+_CONFIG_FILE_FOUND=""
+
 # YAML設定を読み込む
 load_config() {
     # 重複呼び出し防止
@@ -59,10 +74,13 @@ load_config() {
     
     if [[ -z "$config_file" ]]; then
         if config_file="$(find_config_file "$(pwd)" 2>/dev/null)"; then
-            :  # ファイルが見つかった
+            _CONFIG_FILE_FOUND="$config_file"
         else
             config_file=""
+            _CONFIG_FILE_FOUND=""
         fi
+    else
+        _CONFIG_FILE_FOUND="$config_file"
     fi
 
     if [[ -n "$config_file" && -f "$config_file" ]]; then
@@ -73,6 +91,40 @@ load_config() {
     _apply_env_overrides
     
     _CONFIG_LOADED="true"
+}
+
+# 設定ファイルが見つかったかチェック（必須チェック用）
+# 戻り値: 0=見つかった, 1=見つからない
+# 出力: 見つかった場合はファイルパス
+config_file_found() {
+    if [[ -n "$_CONFIG_FILE_FOUND" ]]; then
+        echo "$_CONFIG_FILE_FOUND"
+        return 0
+    fi
+    return 1
+}
+
+# 設定ファイルが必須であることを検証
+# 引数: エラー時に表示するコマンド名（オプション）
+# 戻り値: 0=OK, 1=設定ファイルなし（エラー終了）
+require_config_file() {
+    local command_name="${1:-pi-issue-runner}"
+    
+    load_config
+    
+    if ! config_file_found >/dev/null; then
+        echo "[ERROR] Configuration file '.pi-runner.yaml' not found." >&2
+        echo "" >&2
+        echo "This project has not been initialized for $command_name." >&2
+        echo "Please run the following command to initialize:" >&2
+        echo "" >&2
+        echo "    pi-init" >&2
+        echo "" >&2
+        echo "Or create '.pi-runner.yaml' manually in your project root." >&2
+        return 1
+    fi
+    
+    return 0
 }
 
 # 設定ファイルをパース（yaml.shを使用）
@@ -141,6 +193,53 @@ _parse_config_file() {
     value="$(yaml_get "$config_file" ".agent.template" "")"
     if [[ -n "$value" ]]; then
         CONFIG_AGENT_TEMPLATE="$value"
+    fi
+    
+    # agents セクションのパース（エージェントテンプレートファイルパス）
+    value="$(yaml_get "$config_file" ".agents.plan" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_AGENTS_PLAN="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".agents.implement" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_AGENTS_IMPLEMENT="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".agents.review" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_AGENTS_REVIEW="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".agents.merge" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_AGENTS_MERGE="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".agents.test" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_AGENTS_TEST="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".agents.ci-fix" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_AGENTS_CI_FIX="$value"
+    fi
+    
+    # improve_logs セクションのパース
+    value="$(yaml_get "$config_file" ".improve_logs.keep_recent" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_IMPROVE_LOGS_KEEP_RECENT="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".improve_logs.keep_days" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_IMPROVE_LOGS_KEEP_DAYS="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".improve_logs.dir" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_IMPROVE_LOGS_DIR="$value"
     fi
     
     # 配列値の取得
@@ -248,6 +347,37 @@ _apply_env_overrides() {
     if [[ -n "${PI_RUNNER_AGENT_TEMPLATE:-}" ]]; then
         CONFIG_AGENT_TEMPLATE="$PI_RUNNER_AGENT_TEMPLATE"
     fi
+    
+    # agents セクションの環境変数オーバーライド
+    if [[ -n "${PI_RUNNER_AGENTS_PLAN:-}" ]]; then
+        CONFIG_AGENTS_PLAN="$PI_RUNNER_AGENTS_PLAN"
+    fi
+    if [[ -n "${PI_RUNNER_AGENTS_IMPLEMENT:-}" ]]; then
+        CONFIG_AGENTS_IMPLEMENT="$PI_RUNNER_AGENTS_IMPLEMENT"
+    fi
+    if [[ -n "${PI_RUNNER_AGENTS_REVIEW:-}" ]]; then
+        CONFIG_AGENTS_REVIEW="$PI_RUNNER_AGENTS_REVIEW"
+    fi
+    if [[ -n "${PI_RUNNER_AGENTS_MERGE:-}" ]]; then
+        CONFIG_AGENTS_MERGE="$PI_RUNNER_AGENTS_MERGE"
+    fi
+    if [[ -n "${PI_RUNNER_AGENTS_TEST:-}" ]]; then
+        CONFIG_AGENTS_TEST="$PI_RUNNER_AGENTS_TEST"
+    fi
+    if [[ -n "${PI_RUNNER_AGENTS_CI_FIX:-}" ]]; then
+        CONFIG_AGENTS_CI_FIX="$PI_RUNNER_AGENTS_CI_FIX"
+    fi
+    
+    # improve_logs セクションの環境変数オーバーライド
+    if [[ -n "${PI_RUNNER_IMPROVE_LOGS_KEEP_RECENT:-}" ]]; then
+        CONFIG_IMPROVE_LOGS_KEEP_RECENT="$PI_RUNNER_IMPROVE_LOGS_KEEP_RECENT"
+    fi
+    if [[ -n "${PI_RUNNER_IMPROVE_LOGS_KEEP_DAYS:-}" ]]; then
+        CONFIG_IMPROVE_LOGS_KEEP_DAYS="$PI_RUNNER_IMPROVE_LOGS_KEEP_DAYS"
+    fi
+    if [[ -n "${PI_RUNNER_IMPROVE_LOGS_DIR:-}" ]]; then
+        CONFIG_IMPROVE_LOGS_DIR="$PI_RUNNER_IMPROVE_LOGS_DIR"
+    fi
 }
 
 # 設定値を取得
@@ -299,6 +429,33 @@ get_config() {
         agent_template)
             echo "$CONFIG_AGENT_TEMPLATE"
             ;;
+        agents_plan)
+            echo "$CONFIG_AGENTS_PLAN"
+            ;;
+        agents_implement)
+            echo "$CONFIG_AGENTS_IMPLEMENT"
+            ;;
+        agents_review)
+            echo "$CONFIG_AGENTS_REVIEW"
+            ;;
+        agents_merge)
+            echo "$CONFIG_AGENTS_MERGE"
+            ;;
+        agents_test)
+            echo "$CONFIG_AGENTS_TEST"
+            ;;
+        agents_ci_fix)
+            echo "$CONFIG_AGENTS_CI_FIX"
+            ;;
+        improve_logs_keep_recent)
+            echo "$CONFIG_IMPROVE_LOGS_KEEP_RECENT"
+            ;;
+        improve_logs_keep_days)
+            echo "$CONFIG_IMPROVE_LOGS_KEEP_DAYS"
+            ;;
+        improve_logs_dir)
+            echo "$CONFIG_IMPROVE_LOGS_DIR"
+            ;;
         *)
             echo ""
             ;;
@@ -320,10 +477,22 @@ show_config() {
     echo "tmux_start_in_session: $CONFIG_TMUX_START_IN_SESSION"
     echo "pi_command: $CONFIG_PI_COMMAND"
     echo "pi_args: $CONFIG_PI_ARGS"
+    echo "parallel_max_concurrent: $CONFIG_PARALLEL_MAX_CONCURRENT"
+    echo "plans_keep_recent: $CONFIG_PLANS_KEEP_RECENT"
+    echo "plans_dir: $CONFIG_PLANS_DIR"
     echo "github_include_comments: $CONFIG_GITHUB_INCLUDE_COMMENTS"
     echo "github_max_comments: $CONFIG_GITHUB_MAX_COMMENTS"
     echo "agent_type: $CONFIG_AGENT_TYPE"
     echo "agent_command: $CONFIG_AGENT_COMMAND"
     echo "agent_args: $CONFIG_AGENT_ARGS"
     echo "agent_template: $CONFIG_AGENT_TEMPLATE"
+    echo "agents_plan: $CONFIG_AGENTS_PLAN"
+    echo "agents_implement: $CONFIG_AGENTS_IMPLEMENT"
+    echo "agents_review: $CONFIG_AGENTS_REVIEW"
+    echo "agents_merge: $CONFIG_AGENTS_MERGE"
+    echo "agents_test: $CONFIG_AGENTS_TEST"
+    echo "agents_ci_fix: $CONFIG_AGENTS_CI_FIX"
+    echo "improve_logs_keep_recent: $CONFIG_IMPROVE_LOGS_KEEP_RECENT"
+    echo "improve_logs_keep_days: $CONFIG_IMPROVE_LOGS_KEEP_DAYS"
+    echo "improve_logs_dir: $CONFIG_IMPROVE_LOGS_DIR"
 }

@@ -32,8 +32,8 @@ worktree:
     - .env
     - .env.local
     - .envrc
-    - config/database.yml
-    - config/secrets.yml
+    - config/database.yml    # 例: Railsプロジェクトの場合
+    - config/secrets.yml     # 例: Railsプロジェクトの場合
 
 # =====================================
 # tmux設定
@@ -90,12 +90,11 @@ parallel:
   max_concurrent: 3
 
 # =====================================
-# ワークフロー設定
+# ワークフロー設定（デフォルト）
 # =====================================
+# 注: -w オプション未指定時に使用されるデフォルトワークフロー
+#     ワークフロー名を指定する場合は workflows/*.yaml を作成し、-w オプションを使用
 workflow:
-  # ワークフロー名
-  name: default
-  
   # 実行するステップ
   # ビルトイン: plan, implement, review, merge
   # カスタムステップも定義可能（対応するエージェントテンプレートが必要）
@@ -106,6 +105,34 @@ workflow:
     - merge
 
 # =====================================
+# 計画書設定
+# =====================================
+plans:
+  # 保持する計画書の件数（0 = 全て保持）
+  # デフォルト: 10
+  keep_recent: 10
+  
+  # 計画書ディレクトリ
+  # デフォルト: docs/plans
+  dir: "docs/plans"
+
+# =====================================
+# improve-logs クリーンアップ設定
+# =====================================
+improve_logs:
+  # 保持するログファイルの件数（0 = 全て保持）
+  # デフォルト: 10
+  keep_recent: 10
+  
+  # 保持するログファイルの日数（0 = 日数制限なし）
+  # デフォルト: 7
+  keep_days: 7
+  
+  # ログファイルの保存ディレクトリ
+  # デフォルト: .improve-logs
+  dir: ".improve-logs"
+
+# =====================================
 # エージェント設定（オプション）
 # =====================================
 agents:
@@ -114,6 +141,8 @@ agents:
   implement: agents/implement.md
   review: agents/review.md
   merge: agents/merge.md
+  test: agents/test.md
+  ci-fix: agents/ci-fix.md
 ```
 
 ## 設定項目詳細
@@ -211,13 +240,12 @@ agent:
 
 #### テンプレート変数
 
-テンプレートで使用可能な変数：
+カスタムテンプレートで使用可能な変数については、[テンプレート変数リファレンス](#テンプレート変数リファレンス)を参照してください。
 
-| 変数 | 説明 |
-|------|------|
-| `{{command}}` | エージェントコマンド |
-| `{{args}}` | 引数（agent.args + --agent-args） |
-| `{{prompt_file}}` | プロンプトファイルのパス |
+エージェントコマンドテンプレートでは以下の変数が使用できます：
+- `{{command}}` - エージェントコマンド
+- `{{args}}` - 引数（agent.args + --agent-args）
+- `{{prompt_file}}` - プロンプトファイルのパス
 
 #### 後方互換性
 
@@ -251,12 +279,103 @@ parallel:
   max_concurrent: 0
 ```
 
-### workflow
+### plans
 
 | キー | 型 | デフォルト | 説明 |
 |------|------|-----------|------|
-| `name` | string | `default` | ワークフロー名 |
+| `keep_recent` | integer | `10` | 保持する計画書の件数（0 = 全て保持） |
+| `dir` | string | `docs/plans` | 計画書の保存先ディレクトリ |
+
+#### 計画書のローテーション
+
+計画書は自動的にローテーションされ、古い計画書が削除されます。
+
+```yaml
+# 最新20件の計画書のみ保持
+plans:
+  keep_recent: 20
+  dir: "docs/plans"
+
+# 全ての計画書を保持（自動削除無効）
+plans:
+  keep_recent: 0
+```
+
+#### 計画書の保存場所
+
+計画書は `{dir}/issue-{number}-plan.md` という命名規則で保存されます。
+
+```
+docs/plans/
+├── issue-42-plan.md
+├── issue-43-plan.md
+└── issue-44-plan.md
+```
+
+### improve_logs
+
+`.improve-logs` ディレクトリの自動クリーンアップ設定
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `keep_recent` | integer | `10` | 直近何件のログを保持するか（0 = 全て保持） |
+| `keep_days` | integer | `7` | 何日以内のログを保持するか（0 = 日数制限なし） |
+| `dir` | string | `.improve-logs` | ログファイルの保存ディレクトリ |
+
+#### ログファイルのクリーンアップ
+
+`improve.sh` が生成するログファイルは、設定に基づいて自動的にクリーンアップできます。
+
+```yaml
+# 最新10件かつ7日以内のログを保持
+improve_logs:
+  keep_recent: 10
+  keep_days: 7
+  dir: .improve-logs
+
+# 全てのログを保持（自動削除無効）
+improve_logs:
+  keep_recent: 0
+  keep_days: 0
+```
+
+#### 使用方法
+
+```bash
+# 設定に従ってクリーンアップ
+./scripts/cleanup.sh --improve-logs
+
+# 特定の日数で上書き（7日以上前のログを削除）
+./scripts/cleanup.sh --improve-logs --age 7
+
+# ドライラン（削除せずに対象を表示）
+./scripts/cleanup.sh --improve-logs --dry-run
+
+# 全てのクリーンアップ（improve-logsも含む）
+./scripts/cleanup.sh --all
+```
+
+#### 削除条件
+
+ログファイルは以下の条件で削除されます：
+
+- **keep_recent**: 更新日時の新しい順に並べて、N件を超えるファイルを削除
+- **keep_days**: N日より古いファイルを削除
+- 両方が設定されている場合、いずれかの条件に該当すると削除
+
+**例**: `keep_recent: 10, keep_days: 7` の場合
+- 最新10件のログは保持（日時にかかわらず）
+- 11件目以降のログは、7日以内なら保持、7日より古ければ削除
+
+### workflow
+
+**重要**: `.pi-runner.yaml` の `workflow` セクションは、**`-w` オプションを指定しない場合に使用される「デフォルトワークフロー」**を定義します。
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
 | `steps` | string[] | `plan implement review merge` | 実行するステップ |
+
+> **注意**: `workflow.name` は `.pi-runner.yaml` では無視されます（後方互換性のために残されています）。ワークフロー名を指定する場合は `-w` オプションと `workflows/*.yaml` を使用してください。
 
 #### ビルトインステップ
 
@@ -266,27 +385,49 @@ parallel:
 | `implement` | コードを実装 |
 | `review` | コードレビュー |
 | `merge` | PRを作成してマージ |
+| `test` | テストを実行 |
+| `ci-fix` | CI失敗を修正 |
 
-#### カスタムワークフロー例
+#### デフォルトワークフローのカスタマイズ例
 
 ```yaml
-# 簡易ワークフロー
+# .pi-runner.yaml
+# この設定は `./scripts/run.sh 42` （-w オプションなし）で使用される
 workflow:
-  name: simple
-  steps:
-    - implement
-    - merge
-
-# カスタムワークフロー例
-# 注: カスタムステップ（test等）を使用する場合は、
-# 対応するエージェントテンプレート（agents/test.md）の作成が必要です
-workflow:
-  name: custom
   steps:
     - plan
     - implement
     - review
     - merge
+
+# 簡易ワークフローに変更する場合
+workflow:
+  steps:
+    - implement
+    - merge
+```
+
+**ワークフロー名を指定して実行する場合**:
+```bash
+# workflows/simple.yaml を使用
+./scripts/run.sh 42 -w simple
+```
+
+詳細なワークフローの使い分けについては [ワークフロードキュメント](./workflows.md) を参照してください。
+
+### github
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `include_comments` | boolean | `true` | Issueコメントをプロンプトに含めるか |
+| `max_comments` | integer | `10` | 取り込むコメントの最大数（0 = 無制限） |
+
+#### 使用例
+
+```yaml
+github:
+  include_comments: true  # Issueコメントを含める
+  max_comments: 10        # 最新10件のコメントのみ
 ```
 
 ### agents
@@ -316,14 +457,59 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 
 #### テンプレート変数
 
-| 変数 | 説明 |
-|------|------|
-| `{{issue_number}}` | GitHub Issue番号 |
-| `{{issue_title}}` | Issueタイトル |
-| `{{branch_name}}` | ブランチ名 |
-| `{{worktree_path}}` | worktreeのパス |
-| `{{step_name}}` | 現在のステップ名 |
-| `{{workflow_name}}` | ワークフロー名 |
+エージェントテンプレートで使用可能な変数については、[テンプレート変数リファレンス](#テンプレート変数リファレンス)を参照してください。
+
+## テンプレート変数リファレンス
+
+Pi Issue Runnerでは、2つの異なるコンテキストでテンプレート変数が使用されます。
+
+### エージェントコマンドテンプレート（`agent.template`）
+
+カスタムエージェント（`agent.type: custom`）のコマンド生成に使用されます。
+
+| 変数 | 説明 | 例 |
+|------|------|-----|
+| `{{command}}` | エージェントコマンド | `my-agent` |
+| `{{args}}` | 引数（agent.args + --agent-args） | `--verbose --timeout 60` |
+| `{{prompt_file}}` | プロンプトファイルのパス | `/tmp/prompt-plan.md` |
+
+**使用例**:
+```yaml
+agent:
+  type: custom
+  command: my-agent
+  template: '{{command}} {{args}} --file "{{prompt_file}}"'
+```
+
+### エージェントプロンプトテンプレート（`agents/*.md`）
+
+エージェントテンプレートファイル（Markdown）内で使用されます。
+
+| 変数 | 説明 | 例 |
+|------|------|-----|
+| `{{issue_number}}` | GitHub Issue番号 | `411` |
+| `{{issue_title}}` | Issueタイトル | `docs: テンプレート変数一覧の統合` |
+| `{{branch_name}}` | ブランチ名 | `issue-411-docs` |
+| `{{worktree_path}}` | worktreeのパス | `.worktrees/issue-411` |
+| `{{step_name}}` | 現在のステップ名 | `plan`, `implement` |
+| `{{workflow_name}}` | ワークフロー名 | `default`, `simple` |
+
+**使用例**:
+```markdown
+<!-- agents/plan.md -->
+# Plan Agent
+
+GitHub Issue #{{issue_number}} の実装計画を作成します。
+
+## コンテキスト
+- **Issue**: #{{issue_number}} - {{issue_title}}
+- **ブランチ**: {{branch_name}}
+- **Worktree**: {{worktree_path}}
+```
+
+### 実装との整合性
+
+テンプレート変数の実装は `lib/template.sh` の `render_template()` 関数で定義されています。新しい変数を追加する場合は、この関数も更新する必要があります。
 
 ## 環境変数による上書き
 
@@ -341,7 +527,20 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_AGENT_COMMAND` | `agent.command` |
 | `PI_RUNNER_AGENT_ARGS` | `agent.args` |
 | `PI_RUNNER_AGENT_TEMPLATE` | `agent.template` |
+| `PI_RUNNER_AGENTS_PLAN` | `agents.plan` |
+| `PI_RUNNER_AGENTS_IMPLEMENT` | `agents.implement` |
+| `PI_RUNNER_AGENTS_REVIEW` | `agents.review` |
+| `PI_RUNNER_AGENTS_MERGE` | `agents.merge` |
+| `PI_RUNNER_AGENTS_TEST` | `agents.test` |
+| `PI_RUNNER_AGENTS_CI_FIX` | `agents.ci-fix` |
 | `PI_RUNNER_PARALLEL_MAX_CONCURRENT` | `parallel.max_concurrent` |
+| `PI_RUNNER_PLANS_KEEP_RECENT` | `plans.keep_recent` |
+| `PI_RUNNER_PLANS_DIR` | `plans.dir` |
+| `PI_RUNNER_GITHUB_INCLUDE_COMMENTS` | `github.include_comments` |
+| `PI_RUNNER_GITHUB_MAX_COMMENTS` | `github.max_comments` |
+| `PI_RUNNER_IMPROVE_LOGS_KEEP_RECENT` | `improve_logs.keep_recent` |
+| `PI_RUNNER_IMPROVE_LOGS_KEEP_DAYS` | `improve_logs.keep_days` |
+| `PI_RUNNER_IMPROVE_LOGS_DIR` | `improve_logs.dir` |
 
 ### 例: CI環境での使用
 
@@ -355,6 +554,14 @@ export PI_RUNNER_PARALLEL_MAX_CONCURRENT=2
 
 ```bash
 export PI_RUNNER_AGENT_TYPE="claude"
+./scripts/run.sh 42
+```
+
+### 例: カスタムエージェントテンプレートを使用
+
+```bash
+export PI_RUNNER_AGENTS_PLAN="custom/plan.md"
+export PI_RUNNER_AGENTS_IMPLEMENT="custom/implement.md"
 ./scripts/run.sh 42
 ```
 
@@ -401,10 +608,38 @@ LOG_LEVEL=QUIET ./scripts/run.sh 42
 
 ## ワークフローファイルの検索順序
 
-1. `.pi-runner.yaml` の `workflow` セクション
+ワークフローの検索順序は、`-w` オプションの有無によって異なります。
+
+### `-w` オプション未指定時（デフォルトワークフロー）
+
+```bash
+./scripts/run.sh 42
+```
+
+1. `.pi-runner.yaml` の `workflow` セクション（推奨）
 2. `.pi/workflow.yaml`
-3. `workflows/{name}.yaml`
-4. ビルトイン（default/simple）
+3. `workflows/default.yaml`
+4. ビルトイン `default`
+
+### `-w` オプション指定時（名前付きワークフロー）
+
+```bash
+./scripts/run.sh 42 -w simple
+```
+
+1. `.pi/workflow.yaml`
+2. `workflows/{name}.yaml`（上記例では `workflows/simple.yaml`）
+3. ビルトイン `{name}`（上記例では `simple`）
+
+> **重要**: `-w` オプションを指定した場合、`.pi-runner.yaml` の `workflow` セクションは**無視**されます。これは、明示的なワークフロー指定が設定ファイルのデフォルトより優先されるためです。
+
+### 使い分けの指針
+
+| 方法 | 使用シナリオ |
+|------|-------------|
+| `.pi-runner.yaml` の `workflow` セクション | プロジェクト全体のデフォルトワークフローを定義。通常はこれを使用。 |
+| `workflows/*.yaml` | 複数のワークフローを切り替えて使用する場合。`-w` オプションで選択。 |
+| `.pi/workflow.yaml` | プロジェクト固有のワークフローを単一ファイルで管理する場合（どちらの方法でも使用可能）。 |
 
 ## エージェントファイルの検索順序
 
@@ -464,8 +699,8 @@ worktree:
 parallel:
   max_concurrent: 5
 
+# デフォルトワークフロー（-w オプション未指定時に使用）
 workflow:
-  name: default
   steps:
     - plan
     - implement
@@ -475,7 +710,18 @@ workflow:
 
 ## 設定の実装詳細
 
-設定は `lib/config.sh` でBashスクリプトとして実装されています。
+設定は複数のモジュールで処理されます:
+
+### 基本設定: lib/config.sh
+
+以下の設定は `lib/config.sh` で処理されます:
+- `worktree.*` - worktreeのベースディレクトリ、コピーするファイル
+- `tmux.*` - セッション名のプレフィックス、セッション内起動設定
+- `pi.*` - piコマンドのパス、追加引数（後方互換性）
+- `agent.*` - エージェントプリセット、カスタムコマンド、引数、テンプレート
+- `parallel.*` - 並列実行の最大同時実行数
+- `plans.*` - 計画書の保持数、ディレクトリ
+- `github.*` - Issueコメントの取り込み設定
 
 ### 主要な関数
 
@@ -511,6 +757,14 @@ echo "Worktree directory: $base_dir"
 # デバッグ: 全設定を表示
 show_config
 ```
+
+### ワークフロー設定: lib/workflow-loader.sh
+
+以下の設定は `lib/workflow-loader.sh` で処理されます:
+- `.pi-runner.yaml` 内の `workflow.steps` - 実行するステップの定義
+- `workflows/*.yaml` ファイル - カスタムワークフロー定義ファイル
+
+ワークフロー設定の詳細は [ワークフロードキュメント](workflows.md) を参照してください。
 
 ## トラブルシューティング
 
@@ -558,6 +812,31 @@ yqがない場合はビルトインワークフローにフォールバックし
 # 設定ファイルを削除
 rm .pi-runner.yaml
 ```
+
+## メンテナンス
+
+### ドキュメントと実装の整合性検証
+
+`lib/config.sh` の設定項目と `docs/configuration.md` の整合性を自動的に検証できます。
+
+```bash
+# 整合性チェック
+./scripts/verify-config-docs.sh
+
+# 詳細出力
+./scripts/verify-config-docs.sh --verbose
+```
+
+**検証内容**:
+- `lib/config.sh` で定義された全ての `CONFIG_*` 変数がドキュメントに記載されているか
+- デフォルト値が正確に記載されているか（サンプル抽出）
+- 主要なセクションが存在するか
+
+**終了コード**:
+- `0`: 全チェック成功
+- `1`: 不整合検出
+
+**CIでの使用**: このスクリプトをCI/CDパイプラインに組み込むことで、設定項目の追加時にドキュメントの更新漏れを防止できます。
 
 ## 将来の拡張予定
 

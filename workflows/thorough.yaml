@@ -1,0 +1,8 @@
+name: thorough
+description: 徹底ワークフロー（計画・実装・テスト・レビュー・マージ）
+steps:
+  - plan
+  - implement
+  - test
+  - review
+  - merge

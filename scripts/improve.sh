@@ -1,11 +1,39 @@
 #!/usr/bin/env bash
-# improve.sh - Continuous improvement (2-phase approach)
-# Uses pi --print for review, GitHub API for issue retrieval
+# ============================================================================
+# improve.sh - Continuous improvement script
+#
+# Performs continuous improvement using a 2-phase approach:
+# 1. Review phase: Uses pi --print for code review
+# 2. Execution phase: Uses GitHub API for issue retrieval and execution
+#
+# Usage: ./scripts/improve.sh [options]
+#
+# Options:
+#   --max-iterations N   Max iteration count (default: 3)
+#   --max-issues N       Max issues per iteration (default: 5)
+#   --timeout N          Session completion timeout in seconds (default: 3600)
+#   --iteration N        Current iteration number (internal use)
+#   --log-dir DIR        Log directory (default: .improve-logs)
+#   --label LABEL        Session label for Issue filtering
+#   --dry-run            Review only, do not create Issues
+#   --review-only        Show problems only (no Issue creation or execution)
+#   --auto-continue      Auto-continue without approval
+#   -v, --verbose        Show verbose logs
+#   -h, --help           Show help message
+#
+# Exit codes:
+#   0 - Success
+#   1 - Error
+#
+# Examples:
+#   ./scripts/improve.sh
+#   ./scripts/improve.sh --max-iterations 1
+#   ./scripts/improve.sh --dry-run
+# ============================================================================
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/github.sh"
@@ -14,7 +42,8 @@ source "$SCRIPT_DIR/../lib/github.sh"
 DEFAULT_MAX_ITERATIONS=3
 DEFAULT_MAX_ISSUES=5
 DEFAULT_TIMEOUT=3600
-LOG_DIR="$PROJECT_ROOT/.improve-logs"
+# shellcheck disable=SC2034
+LOG_DIR=""  # Set in main() after load_config to use current working directory
 
 # Global: Track active sessions for cleanup on exit
 declare -a ACTIVE_ISSUE_NUMBERS=()
@@ -40,6 +69,7 @@ cleanup_on_exit() {
 trap cleanup_on_exit EXIT INT TERM
 
 usage() {
+    local default_log_dir=".improve-logs"
     cat << EOF
 Usage: $(basename "$0") [options]
 
@@ -48,7 +78,7 @@ Options:
     --max-issues N       Max issues per iteration (default: $DEFAULT_MAX_ISSUES)
     --timeout N          Session completion timeout in seconds (default: $DEFAULT_TIMEOUT)
     --iteration N        Current iteration number (internal use)
-    --log-dir DIR        Log directory (default: $LOG_DIR)
+    --log-dir DIR        Log directory (default: $default_log_dir in current directory)
     --label LABEL        Session label for Issue filtering (auto-generated if not specified)
     --dry-run            Review only, do not create Issues
     --review-only        Show problems only (no Issue creation or execution)
@@ -68,7 +98,7 @@ Description:
     to ensure only Issues from this session are processed, enabling safe parallel runs.
 
 Log files:
-    Pi output is saved to: $LOG_DIR/iteration-N-YYYYMMDD-HHMMSS.log
+    Pi output is saved to: $default_log_dir/iteration-N-YYYYMMDD-HHMMSS.log
 
 Examples:
     $(basename "$0")
@@ -91,7 +121,8 @@ main() {
     local max_issues=$DEFAULT_MAX_ISSUES
     local timeout=$DEFAULT_TIMEOUT
     local iteration=1
-    local log_dir="$LOG_DIR"
+    # Default log directory: current working directory (the target project)
+    local log_dir=".improve-logs"
     local session_label=""
     local dry_run=false
     local review_only=false

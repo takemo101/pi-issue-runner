@@ -15,6 +15,8 @@ orch
 .pi-runner/
 .worktrees/
 .improve-logs/
+docs/plans/*.md
+!docs/plans/README.md
 
 # Environment
 .env
@@ -48,10 +50,15 @@ temp/
 feature/
 
 # Pi Agent
-.pi
+# .pi  # コメントアウト：ci-workflow skillを管理対象にする
 
 # Config file (user-specific)
 .pi-runner.yml
 .pi-prompt.md
 # pi-issue-runner
 .pi-runner.yaml.local
+
+# Pi Agent (but allow skills)
+!.pi/
+.pi/*
+!.pi/skills/

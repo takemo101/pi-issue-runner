@@ -62,23 +62,78 @@ copy_files_to_worktree() {
     done
 }
 
-# worktreeを削除
+# worktreeを削除（リトライ付き）
 remove_worktree() {
     local worktree_path="$1"
     local force="${2:-false}"
+    local max_retries=3
+    local retry_delay=2
+    local attempt=1
     
     if [[ ! -d "$worktree_path" ]]; then
         log_error "Worktree not found: $worktree_path"
         return 1
     fi
     
+    # パスを正規化（シンボリックリンクを解決）
+    local normalized_path
+    normalized_path="$(cd "$worktree_path" && pwd -P)" 2>/dev/null || normalized_path="$worktree_path"
+    
     log_info "Removing worktree: $worktree_path"
     
-    if [[ "$force" == "true" ]]; then
-        git worktree remove --force "$worktree_path"
-    else
-        git worktree remove "$worktree_path"
-    fi
+    while [[ $attempt -le $max_retries ]]; do
+        local cmd_result=0
+        
+        if [[ "$force" == "true" ]]; then
+            git worktree remove --force "$worktree_path" 2>&1 || cmd_result=$?
+        else
+            git worktree remove "$worktree_path" 2>&1 || cmd_result=$?
+        fi
+        
+        if [[ $cmd_result -eq 0 ]]; then
+            log_info "Worktree removed successfully on attempt $attempt"
+            return 0
+        fi
+        
+        log_warn "Worktree removal failed on attempt $attempt (exit code: $cmd_result)"
+        
+        # worktreeがまだ存在するか正規化されたパスで確認
+        local worktree_still_exists=false
+        while read -r line; do
+            if [[ "$line" =~ ^worktree ]]; then
+                local listed_path="${line#worktree }"
+                # パスを正規化して比較（シンボリックリンク対応）
+                local normalized_listed_path
+                if [[ -d "$listed_path" ]]; then
+                    normalized_listed_path="$(cd "$listed_path" && pwd -P)" 2>/dev/null || normalized_listed_path="$listed_path"
+                else
+                    normalized_listed_path="$listed_path"
+                fi
+                if [[ "$normalized_listed_path" == "$normalized_path" ]]; then
+                    worktree_still_exists=true
+                    break
+                fi
+            fi
+        done < <(git worktree list --porcelain 2>/dev/null)
+        
+        if [[ "$worktree_still_exists" == "true" ]] || [[ -d "$worktree_path" ]]; then
+            # worktreeがまだ存在する（gitの管理下または実際のディレクトリのいずれか）
+            if [[ $attempt -lt $max_retries ]]; then
+                log_info "Retrying in ${retry_delay} seconds..."
+                sleep $retry_delay
+            fi
+        else
+            # worktreeは既に削除されている
+            log_info "Worktree already removed"
+            return 0
+        fi
+        
+        attempt=$((attempt + 1))
+    done
+    
+    log_error "Failed to remove worktree after $max_retries attempts: $worktree_path"
+    log_error "You may need to manually run: git worktree remove --force '$worktree_path'"
+    return 1
 }
 
 # worktree一覧を取得
@@ -134,7 +189,7 @@ find_worktree_by_issue() {
     local base_dir
     base_dir="$(get_config worktree_base_dir)"
     
-    # issue-XXX-* パターンで検索
+    # issue-{number}* パターンで検索（ブランチ名にタイトルが含まれる場合に対応）
     local pattern="issue-${issue_number}"
     
     for dir in "$base_dir"/*; do
@@ -145,4 +200,68 @@ find_worktree_by_issue() {
     done
     
     return 1
+}
+
+# worktreeが使用中かどうかをチェック
+# 使用中のプロセスがある場合はtrueを返す
+# Usage: is_worktree_in_use <worktree_path>
+is_worktree_in_use() {
+    local worktree_path="$1"
+    
+    if [[ ! -d "$worktree_path" ]]; then
+        return 1  # 存在しない = 使用中ではない
+    fi
+    
+    # lsofで使用中かチェック（macOS/Linux両対応）
+    if command -v lsof >/dev/null 2>&1; then
+        if lsof +D "$worktree_path" 2>/dev/null | grep -q .; then
+            return 0  # 使用中
+        fi
+    fi
+    
+    # fuserで使用中かチェック（Linux中心）
+    if command -v fuser >/dev/null 2>&1; then
+        if fuser "$worktree_path" 2>/dev/null | grep -q '[0-9]'; then
+            return 0  # 使用中
+        fi
+    fi
+    
+    return 1  # 使用中ではない
+}
+
+# worktreeを安全に削除（使用中チェック付き）
+# Usage: safe_remove_worktree <worktree_path> [force]
+safe_remove_worktree() {
+    local worktree_path="$1"
+    local force="${2:-false}"
+    local max_wait=30
+    local waited=0
+    
+    if [[ ! -d "$worktree_path" ]]; then
+        log_debug "Worktree does not exist: $worktree_path"
+        return 0
+    fi
+    
+    log_info "Checking if worktree is in use: $worktree_path"
+    
+    # 使用中の場合は待機
+    while is_worktree_in_use "$worktree_path" && [[ "$waited" -lt "$max_wait" ]]; do
+        log_info "Worktree is in use, waiting... (${waited}s/${max_wait}s)"
+        sleep 1
+        waited=$((waited + 1))
+    done
+    
+    # それでも使用中の場合
+    if is_worktree_in_use "$worktree_path"; then
+        if [[ "$force" == "true" ]]; then
+            log_warn "Worktree still in use after ${max_wait}s, forcing removal..."
+        else
+            log_error "Worktree is still in use after ${max_wait}s: $worktree_path"
+            log_error "Please check running processes and try again, or use --force"
+            return 1
+        fi
+    fi
+    
+    # 削除実行
+    remove_worktree "$worktree_path" "$force"
 }

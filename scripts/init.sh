@@ -1,5 +1,28 @@
 #!/usr/bin/env bash
-# init.sh - プロジェクト初期化
+# ============================================================================
+# init.sh - Project initialization
+#
+# Initializes a project for use with pi-issue-runner by creating
+# configuration files, directories, and optional templates.
+#
+# Usage: ./scripts/init.sh [options]
+#
+# Options:
+#   --full          Full setup (creates agents/ and workflows/ directories)
+#   --minimal       Minimal setup (.pi-runner.yaml only)
+#   --force         Overwrite existing files
+#   -h, --help      Show help message
+#
+# Exit codes:
+#   0 - Success
+#   1 - Error
+#
+# Examples:
+#   ./scripts/init.sh              # Standard setup
+#   ./scripts/init.sh --full       # Full setup
+#   ./scripts/init.sh --minimal    # Minimal setup
+#   ./scripts/init.sh --force      # Force overwrite
+# ============================================================================
 
 set -euo pipefail
 
