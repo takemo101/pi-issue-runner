@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # log.sh - ログ出力とエラーハンドリング
 
-# Note: set -euo pipefail はsource先の環境に影響するため、
-# このファイルでは設定しない（呼び出し元で設定）
+set -euo pipefail
 
 # ログレベル: DEBUG < INFO < WARN < ERROR < QUIET
 LOG_LEVEL="${LOG_LEVEL:-INFO}"

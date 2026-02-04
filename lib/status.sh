@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # status.sh - ステータスファイル管理
 
-# Note: set -euo pipefail はsource先の環境に影響するため、
-# このファイルでは設定しない（呼び出し元で設定）
+set -euo pipefail
 
 # 自身のディレクトリを取得（SCRIPT_DIRとは別に保存）
 _STATUS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -389,4 +388,81 @@ count_orphaned_statuses() {
         count=$((count + 1))
     done < <(find_orphaned_statuses)
     echo "$count"
+}
+
+# =============================================================================
+# Watcher PID Management (Issue #693)
+# =============================================================================
+
+# Watcher PIDを保存
+# 引数:
+#   $1 - issue_number: Issue番号
+#   $2 - pid: Watcher プロセスID
+save_watcher_pid() {
+    local issue_number="$1"
+    local pid="$2"
+    
+    init_status_dir
+    
+    local status_dir
+    status_dir="$(get_status_dir)"
+    local pid_file="${status_dir}/${issue_number}.watcher.pid"
+    
+    echo "$pid" > "$pid_file"
+    log_debug "Saved watcher PID for issue #$issue_number: $pid"
+}
+
+# Watcher PIDを読み込み
+# 引数:
+#   $1 - issue_number: Issue番号
+# 出力: PID（存在しなければ空）
+load_watcher_pid() {
+    local issue_number="$1"
+    
+    local status_dir
+    status_dir="$(get_status_dir)"
+    local pid_file="${status_dir}/${issue_number}.watcher.pid"
+    
+    if [[ -f "$pid_file" ]]; then
+        cat "$pid_file"
+    fi
+}
+
+# Watcher PIDファイルを削除
+# 引数:
+#   $1 - issue_number: Issue番号
+remove_watcher_pid() {
+    local issue_number="$1"
+    
+    local status_dir
+    status_dir="$(get_status_dir)"
+    local pid_file="${status_dir}/${issue_number}.watcher.pid"
+    
+    if [[ -f "$pid_file" ]]; then
+        rm -f "$pid_file"
+        log_debug "Removed watcher PID file for issue #$issue_number"
+    fi
+}
+
+# Watcherが実行中かチェック
+# 引数:
+#   $1 - issue_number: Issue番号
+# 終了コード: 0 (実行中), 1 (停止中または不明)
+is_watcher_running() {
+    local issue_number="$1"
+    local pid
+    pid="$(load_watcher_pid "$issue_number")"
+    
+    if [[ -z "$pid" ]]; then
+        return 1
+    fi
+    
+    # daemon.shのis_daemon_running関数を使用
+    # Note: daemon.shがロードされていることを前提とする
+    if declare -f is_daemon_running > /dev/null 2>&1; then
+        is_daemon_running "$pid"
+    else
+        # フォールバック: killコマンドでチェック
+        kill -0 "$pid" 2>/dev/null
+    fi
 }

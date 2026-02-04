@@ -165,7 +165,9 @@ handle_complete() {
     save_status "$issue_number" "complete" "$session_name"
     
     # 計画書を削除（ホスト環境で実行するため確実に反映される）
-    local plan_file="docs/plans/issue-${issue_number}-plan.md"
+    local plans_dir
+    plans_dir="$(get_config plans_dir)"
+    local plan_file="${plans_dir}/issue-${issue_number}-plan.md"
     if [[ -f "$plan_file" ]]; then
         log_info "Deleting plan file: $plan_file"
         rm -f "$plan_file"

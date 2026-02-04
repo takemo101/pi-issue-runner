@@ -101,16 +101,17 @@ GitHub Issueを入力として、独立したworktree環境でpiインスタン�
 ### 開発者向け
 
 - [システム構成図](./architecture.md#システム構成)
-- [データモデル](./SPECIFICATION.md#データモデル)
-- [API設計](./architecture.md#core-service-layer)
+- [ディレクトリ構造](./SPECIFICATION.md#ディレクトリ構造)
+- [API設計](./architecture.md#2-library-layer-lib)
 - [エラーハンドリング](./architecture.md#エラーハンドリング)
+- [コーディング規約](./coding-standards.md)
 
 ### 運用者向け
 
 - [設定ガイド](./configuration.md)
 - [トラブルシューティング](./worktree-management.md#トラブルシューティング)
 - [パフォーマンスチューニング](./parallel-execution.md#パフォーマンス最適化)
-- [バックアップ戦略](./state-management.md#バックアップとリストア)
+- [クリーンアップ戦略](./state-management.md#クリーンアップ)
 
 ## 📖 ドキュメントの読み方
 
@@ -125,17 +126,22 @@ GitHub Issueを入力として、独立したworktree環境でpiインスタン�
 
 1. [architecture.md](./architecture.md) - レイヤー構成を確認
 2. 該当する機能のドキュメント（worktree, tmux, parallel, state）を参照
-3. [SPECIFICATION.md](./SPECIFICATION.md#データモデル) - データ構造を確認
+3. [SPECIFICATION.md](./SPECIFICATION.md#ディレクトリ構造) - データ構造を確認
 
 ### トラブルシューティング
 
 1. 該当する機能のドキュメント内の「トラブルシューティング」セクション
-2. [state-management.md](./state-management.md#復旧処理) - 復旧処理
+2. [state-management.md](./state-management.md#監視と復旧) - 監視と復旧
 3. [configuration.md](./configuration.md#トラブルシューティング) - 設定問題
 
 ## 🔄 ドキュメント更新履歴
 
 詳細は [CHANGELOG.md](./CHANGELOG.md) を参照してください。
+
+- **2026-02-03**: CI機能とバッチ処理
+  - CI自動修正機能（ci-fix, ci-monitor, ci-retry, ci-classifier）
+  - バッチ実行機能（run-batch.sh, dependency.sh）
+  - セッション管理強化（force-complete, nudge）
 
 - **2026-01-31**: Hook機能とセキュリティ強化
   - Hook機能（on_start, on_success, on_error, on_cleanup）

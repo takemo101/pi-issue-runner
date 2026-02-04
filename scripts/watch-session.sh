@@ -1,5 +1,31 @@
 #!/usr/bin/env bash
-# watch-session.sh - セッション出力を監視し、完了/エラーマーカーでアクションを実行
+# ============================================================================
+# watch-session.sh - Monitor session output and execute actions on markers
+#
+# Monitors tmux session output and automatically runs cleanup.sh when
+# a completion marker is detected. Shows notifications and opens Terminal.app
+# when an error marker is detected.
+#
+# Usage: ./scripts/watch-session.sh <session-name> [options]
+#
+# Arguments:
+#   session-name    tmux session name to watch
+#
+# Options:
+#   --marker <text>       Custom completion marker (default: ###TASK_COMPLETE_<issue>###)
+#   --interval <sec>      Check interval in seconds (default: 2)
+#   --cleanup-args        Additional arguments to pass to cleanup.sh
+#   --no-auto-attach      Don't auto-open Terminal on error detection
+#   -h, --help            Show help message
+#
+# Exit codes:
+#   0 - Success
+#   1 - Error
+#
+# Examples:
+#   ./scripts/watch-session.sh pi-issue-42
+#   ./scripts/watch-session.sh pi-issue-42 --interval 5
+# ============================================================================
 
 set -euo pipefail
 
@@ -11,6 +37,7 @@ source "$WATCHER_SCRIPT_DIR/../lib/tmux.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/notify.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/worktree.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/hooks.sh"
+source "$WATCHER_SCRIPT_DIR/../lib/cleanup-orphans.sh"
 
 usage() {
     cat << EOF
@@ -33,6 +60,224 @@ Description:
     エラーマーカー（###TASK_ERROR_<issue>###）を検出した場合は
     macOS通知を表示し、自動的にTerminal.appでセッションにアタッチします。
 EOF
+}
+
+# コードブロック外のマーカー数をカウント
+# コードブロック内（前後1行に```がある）のマーカーは除外
+# Usage: count_markers_outside_codeblock <output> <marker>
+# Returns: コードブロック外のマーカー数
+count_markers_outside_codeblock() {
+    local output="$1"
+    local marker="$2"
+    local count=0
+    
+    # 出力を行番号付きで処理
+    local line_numbers
+    line_numbers=$(echo "$output" | grep -nE "^[[:space:]]*${marker}$" 2>/dev/null | cut -d: -f1) || true
+    
+    if [[ -z "$line_numbers" ]]; then
+        echo "0"
+        return
+    fi
+    
+    # 各マーカー行について、前後1行にコードブロックマーカーがあるかチェック
+    local total_lines
+    total_lines=$(echo "$output" | wc -l)
+    
+    while IFS= read -r line_num; do
+        [[ -z "$line_num" ]] && continue
+        
+        # 前後1行の範囲を計算
+        local start=$((line_num - 1))
+        local end=$((line_num + 1))
+        [[ $start -lt 1 ]] && start=1
+        [[ $end -gt $total_lines ]] && end=$total_lines
+        
+        # 前後1行を取得（マーカー行自体は除く）
+        local context
+        context=$(echo "$output" | sed -n "${start},${end}p" | grep -v -E "^[[:space:]]*${marker}$") || context=""
+        
+        # コンテキストにコードブロックマーカー（```）が含まれていなければカウント
+        if ! echo "$context" | grep -qF '```'; then
+            count=$((count + 1))
+        fi
+    done <<< "$line_numbers"
+    
+    echo "$count"
+}
+
+# エラーハンドリング関数
+# Usage: handle_error <session_name> <issue_number> <error_message> <auto_attach> <cleanup_args>
+handle_error() {
+    # set -e を一時的に無効化（関数内のエラーでスクリプトが終了しないように）
+    local old_opts
+    old_opts="$(set +o)"
+    set +e
+    
+    local session_name="$1"
+    local issue_number="$2"
+    local error_message="$3"
+    local auto_attach="$4"
+    local cleanup_args="${5:-}"
+    
+    log_warn "Session error detected: $session_name (Issue #$issue_number)"
+    log_warn "Error: $error_message"
+    
+    # worktreeパスとブランチ名を取得
+    local worktree_path=""
+    local branch_name=""
+    worktree_path="$(find_worktree_by_issue "$issue_number" 2>/dev/null)" || worktree_path=""
+    if [[ -n "$worktree_path" ]]; then
+        branch_name="$(get_worktree_branch "$worktree_path" 2>/dev/null)" || branch_name=""
+    fi
+    
+    # ステータスを保存
+    save_status "$issue_number" "error" "$session_name" "$error_message" 2>/dev/null || true
+    
+    # on_error hookを実行（hook未設定時はデフォルト動作）
+    run_hook "on_error" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "$error_message" "1" "" 2>/dev/null || true
+    
+    # auto_attachが有効な場合はTerminalを開く
+    if [[ "$auto_attach" == "true" ]] && is_macos; then
+        open_terminal_and_attach "$session_name" 2>/dev/null || true
+    fi
+    
+    # set -e を復元
+    eval "$old_opts"
+}
+
+# 完了ハンドリング関数
+# Usage: handle_complete <session_name> <issue_number> <auto_attach> <cleanup_args>
+# Returns: 0 on success, 1 on cleanup failure
+handle_complete() {
+    # set -e を一時的に無効化（関数内のエラーでスクリプトが終了しないように）
+    local old_opts
+    old_opts="$(set +o)"
+    set +e
+    
+    local session_name="$1"
+    local issue_number="$2"
+    local auto_attach="$3"
+    local cleanup_args="${4:-}"
+    
+    log_info "Session completed: $session_name (Issue #$issue_number)"
+    
+    # worktreeパスとブランチ名を取得
+    local worktree_path=""
+    local branch_name=""
+    worktree_path="$(find_worktree_by_issue "$issue_number" 2>/dev/null)" || worktree_path=""
+    if [[ -n "$worktree_path" ]]; then
+        branch_name="$(get_worktree_branch "$worktree_path" 2>/dev/null)" || branch_name=""
+    fi
+    
+    # ステータスを保存
+    save_status "$issue_number" "complete" "$session_name" "" 2>/dev/null || true
+    
+    # on_success hookを実行（hook未設定時はデフォルト動作）
+    run_hook "on_success" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "" "0" "" 2>/dev/null || true
+    
+    # PRがマージされているか確認
+    # PRがマージされていない場合は、まだワークフローが完了していない可能性がある
+    local pr_number
+    local pr_state
+    pr_number=$(gh pr list --state all --head "$branch_name" --json number -q '.[0].number' 2>/dev/null) || pr_number=""
+    
+    if [[ -n "$pr_number" ]]; then
+        pr_state=$(gh pr view "$pr_number" --json state -q '.state' 2>/dev/null) || pr_state=""
+        
+        if [[ "$pr_state" == "MERGED" ]]; then
+            log_info "PR #$pr_number is MERGED - workflow completed successfully"
+        elif [[ "$pr_state" == "OPEN" ]]; then
+            log_warn "PR #$pr_number exists but is not merged yet"
+            log_warn "Completion marker detected but PR is still open - waiting for merge..."
+            log_warn "This may indicate the AI output the marker too early"
+            # PRがまだマージされていない場合は、クリーンアップをスキップ
+            # ユーザーに通知して手動対応を促す
+            send_notification "Warning" "PR #$pr_number is not merged yet for Issue #$issue_number"
+            return 1
+        else
+            log_info "PR #$pr_number state: $pr_state"
+        fi
+    else
+        log_warn "No PR found for Issue #$issue_number"
+        log_warn "Completion marker detected but no PR was created - workflow may not have completed correctly"
+        log_warn "Skipping cleanup. Please check the session manually."
+        send_notification "Warning" "No PR created for Issue #$issue_number - check session"
+        return 1
+    fi
+    
+    log_info "Running cleanup..."
+    
+    # セッションが完全に終了し、プロセスが解放されるまで待機
+    # Issue #585対策: worktree削除前に確実にセッションを終了させる
+    log_info "Waiting for session termination (5s)..."
+    sleep 5
+    
+    # cleanup実行（リトライ付き）
+    local cleanup_success=false
+    local cleanup_attempt=1
+    local max_cleanup_attempts=2
+    
+    while [[ $cleanup_attempt -le $max_cleanup_attempts ]]; do
+        log_info "Cleanup attempt $cleanup_attempt/$max_cleanup_attempts..."
+        
+        # 2回目以降は --force を追加（未コミットファイルがあっても削除）
+        local force_flag=""
+        if [[ $cleanup_attempt -gt 1 ]]; then
+            log_info "Adding --force flag for retry attempt"
+            force_flag="--force"
+        fi
+        
+        # shellcheck disable=SC2086
+        if "$WATCHER_SCRIPT_DIR/cleanup.sh" "$session_name" $cleanup_args $force_flag; then
+            cleanup_success=true
+            break
+        else
+            log_warn "Cleanup attempt $cleanup_attempt failed"
+            if [[ $cleanup_attempt -lt $max_cleanup_attempts ]]; then
+                log_info "Retrying in 3 seconds..."
+                sleep 3
+            fi
+        fi
+        cleanup_attempt=$((cleanup_attempt + 1))
+    done
+    
+    if [[ "$cleanup_success" == "false" ]]; then
+        log_error "Cleanup failed after $max_cleanup_attempts attempts"
+        
+        # orphaned worktreeとしてマーク
+        log_warn "This worktree may need manual cleanup. You can run:"
+        log_warn "  ./scripts/cleanup.sh --orphan-worktrees --force"
+        return 1
+    fi
+    
+    # orphaned worktreeの検出と修復
+    log_info "Checking for any orphaned worktrees with 'complete' status..."
+    local orphaned_count
+    orphaned_count=$(count_complete_with_existing_worktrees)
+    
+    if [[ "$orphaned_count" -gt 0 ]]; then
+        log_info "Found $orphaned_count orphaned worktree(s) with 'complete' status. Cleaning up..."
+        # shellcheck source=../lib/cleanup-orphans.sh
+        cleanup_complete_with_worktrees "false" "false" || {
+            log_warn "Some orphaned worktrees could not be cleaned up automatically"
+        }
+    else
+        log_debug "No orphaned worktrees found"
+    fi
+    
+    # 古い計画書をローテーション
+    log_info "Rotating old plans..."
+    "$WATCHER_SCRIPT_DIR/cleanup.sh" --rotate-plans 2>/dev/null || {
+        log_warn "Plan rotation failed (non-critical)"
+    }
+    
+    log_info "Cleanup completed successfully"
+    
+    # set -e を復元
+    eval "$old_opts"
+    
+    return 0
 }
 
 main() {
@@ -125,38 +370,35 @@ main() {
     
     # 初期化時点でマーカーが既にあるか確認（高速完了タスク対応）
     # Issue #281: 初期化中（10秒待機中）にマーカーが出力された場合の検出
-    if echo "$baseline_output" | grep -qF "$error_marker" 2>/dev/null; then
-        log_warn "Error marker already present at startup"
+    # Issue #393, #648, #651: コードブロック内のマーカーを誤検出しないよう除外
+    local initial_error_count
+    initial_error_count=$(count_markers_outside_codeblock "$baseline_output" "$error_marker")
+    
+    if [[ "$initial_error_count" -gt 0 ]]; then
+        log_warn "Error marker already present at startup (outside codeblock)"
         
-        # エラーメッセージを抽出
+        # エラーメッセージを抽出（マーカー行の次の行）
         local error_message
-        error_message=$(echo "$baseline_output" | grep -A 1 "$error_marker" | tail -n 1 | head -c 200) || error_message="Unknown error"
+        error_message=$(echo "$baseline_output" | grep -A 1 -E "^[[:space:]]*${error_marker}$" | tail -n 1 | head -c 200) || error_message="Unknown error"
         
-        handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach"
+        handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
         log_warn "Error notification sent. Session is still running for manual intervention."
         # エラーの場合は監視を続行（ユーザーが修正する可能性があるため）
-    elif echo "$baseline_output" | grep -qF "$marker" 2>/dev/null; then
-        log_info "Completion marker already present at startup"
+    fi
+    
+    local initial_complete_count
+    initial_complete_count=$(count_markers_outside_codeblock "$baseline_output" "$marker")
+    
+    if [[ "$initial_complete_count" -gt 0 ]]; then
+        log_info "Completion marker already present at startup (outside codeblock)"
         
-        handle_complete "$session_name" "$issue_number"
-        
-        log_info "Running cleanup..."
-        sleep 2
-        
-        # shellcheck disable=SC2086
-        "$WATCHER_SCRIPT_DIR/cleanup.sh" "$session_name" $cleanup_args || {
+        if handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"; then
+            log_info "Cleanup completed successfully"
+            exit 0
+        else
             log_error "Cleanup failed"
             exit 1
-        }
-        
-        # 古い計画書をローテーション
-        log_info "Rotating old plans..."
-        "$WATCHER_SCRIPT_DIR/cleanup.sh" --rotate-plans || {
-            log_warn "Plan rotation failed (non-critical)"
-        }
-        
-        log_info "Cleanup completed successfully"
-        exit 0
+        fi
     fi
     
     log_info "Starting marker detection..."
@@ -178,35 +420,20 @@ main() {
         }
 
         # エラーマーカー検出（完了マーカーより先にチェック）
+        # Issue #393, #648, #651: コードブロック内のマーカーを誤検出しないよう除外
         local error_count_baseline
         local error_count_current
-        error_count_baseline=$(echo "$baseline_output" | grep -cF "$error_marker" 2>/dev/null) || error_count_baseline=0
-        error_count_current=$(echo "$output" | grep -cF "$error_marker" 2>/dev/null) || error_count_current=0
+        error_count_baseline=$(count_markers_outside_codeblock "$baseline_output" "$error_marker")
+        error_count_current=$(count_markers_outside_codeblock "$output" "$error_marker")
         
         if [[ "$error_count_current" -gt "$error_count_baseline" ]]; then
-            log_warn "Error marker detected! (baseline: $error_count_baseline, current: $error_count_current)"
+            log_warn "Error marker detected outside codeblock! (baseline: $error_count_baseline, current: $error_count_current)"
             
-            # エラーメッセージを抽出（マーカーの次の行）
+            # エラーメッセージを抽出（マーカー行の次の行）
             local error_message
-            error_message=$(echo "$output" | grep -A 1 "$error_marker" | tail -n 1 | head -c 200) || error_message="Unknown error"
+            error_message=$(echo "$output" | grep -A 1 -E "^[[:space:]]*${error_marker}$" | tail -n 1 | head -c 200) || error_message="Unknown error"
             
-            # worktreeパスとブランチ名を取得
-            local worktree_path=""
-            local branch_name=""
-            if worktree_path="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
-                branch_name="$(get_worktree_branch "$worktree_path" 2>/dev/null)" || branch_name=""
-            fi
-            
-            # ステータスを保存
-            save_status "$issue_number" "error" "$session_name" "$error_message"
-            
-            # on_error hookを実行（hook未設定時はデフォルト動作）
-            run_hook "on_error" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "$error_message" "1" ""
-            
-            # auto_attachが有効な場合はTerminalを開く
-            if [[ "$auto_attach" == "true" ]] && is_macos; then
-                open_terminal_and_attach "$session_name"
-            fi
+            handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
             
             log_warn "Error notification sent. Session is still running for manual intervention."
             
@@ -215,47 +442,22 @@ main() {
         fi
         
         # 完了マーカー検出
+        # Issue #393, #648, #651: コードブロック内のマーカーを誤検出しないよう除外
         local marker_count_baseline
         local marker_count_current
-        marker_count_baseline=$(echo "$baseline_output" | grep -cF "$marker" 2>/dev/null) || marker_count_baseline=0
-        marker_count_current=$(echo "$output" | grep -cF "$marker" 2>/dev/null) || marker_count_current=0
+        marker_count_baseline=$(count_markers_outside_codeblock "$baseline_output" "$marker")
+        marker_count_current=$(count_markers_outside_codeblock "$output" "$marker")
         
         if [[ "$marker_count_current" -gt "$marker_count_baseline" ]]; then
-            log_info "Completion marker detected! (baseline: $marker_count_baseline, current: $marker_count_current)"
+            log_info "Completion marker detected outside codeblock! (baseline: $marker_count_baseline, current: $marker_count_current)"
             
-            # worktreeパスとブランチ名を取得
-            local worktree_path=""
-            local branch_name=""
-            if worktree_path="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
-                branch_name="$(get_worktree_branch "$worktree_path" 2>/dev/null)" || branch_name=""
-            fi
-            
-            # ステータスを保存
-            save_status "$issue_number" "complete" "$session_name"
-            
-            # on_success hookを実行（hook未設定時はデフォルト動作）
-            run_hook "on_success" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "" "0" ""
-            
-            log_info "Running cleanup..."
-            
-            # 少し待機（AIが出力を完了するまで）
-            sleep 2
-            
-            # cleanup実行
-            # shellcheck disable=SC2086
-            "$WATCHER_SCRIPT_DIR/cleanup.sh" "$session_name" $cleanup_args || {
+            if handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"; then
+                log_info "Cleanup completed successfully"
+                exit 0
+            else
                 log_error "Cleanup failed"
                 exit 1
-            }
-            
-            # 古い計画書をローテーション
-            log_info "Rotating old plans..."
-            "$WATCHER_SCRIPT_DIR/cleanup.sh" --rotate-plans || {
-                log_warn "Plan rotation failed (non-critical)"
-            }
-            
-            log_info "Cleanup completed successfully"
-            exit 0
+            fi
         fi
 
         sleep "$interval"

@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # cleanup-plans.sh - 計画書のクリーンアップ関数
 
-# Note: set -euo pipefail はsource先の環境に影響するため、
-# このファイルでは設定しない（呼び出し元で設定）
+set -euo pipefail
 
 # 自身のディレクトリを取得
 _CLEANUP_PLANS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -50,13 +49,28 @@ cleanup_old_plans() {
     fi
     
     # 計画書ファイルを更新日時の降順でソート
-    # macOS/BSD互換: stat -f '%m %N' を使用
-    local plan_files
-    plan_files=$(find "$plans_dir" -name "issue-*-plan.md" -type f -exec stat -f '%m %N' {} \; 2>/dev/null | sort -rn | awk '{print $2}')
+    # ファイルリストを取得してからソート（OS互換性のため）
+    local plan_files=""
+    local unsorted_files
+    unsorted_files=$(find "$plans_dir" -name "issue-*-plan.md" -type f 2>/dev/null)
     
-    # Linux/GNU互換: -printf を使用
-    if [[ -z "$plan_files" ]]; then
-        plan_files=$(find "$plans_dir" -name "issue-*-plan.md" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | cut -d' ' -f2- || true)
+    if [[ -n "$unsorted_files" ]]; then
+        # OSを検出して適切なstatコマンドを使用
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS/BSD: stat -f '%m %N' (modification time in seconds, filename)
+            plan_files=$(echo "$unsorted_files" | while IFS= read -r file; do
+                local mtime
+                mtime=$(stat -f '%m' "$file" 2>/dev/null)
+                echo "$mtime $file"
+            done | sort -rn | awk '{print $2}')
+        else
+            # Linux/GNU: stat -c '%Y %n' (modification time in seconds, filename)
+            plan_files=$(echo "$unsorted_files" | while IFS= read -r file; do
+                local mtime
+                mtime=$(stat -c '%Y' "$file" 2>/dev/null)
+                echo "$mtime $file"
+            done | sort -rn | awk '{print $2}')
+        fi
     fi
     
     if [[ -z "$plan_files" ]]; then
@@ -107,7 +121,11 @@ cleanup_old_plans() {
 #   $1 - dry_run: "true"の場合は削除せずに表示のみ
 cleanup_closed_issue_plans() {
     local dry_run="${1:-false}"
-    local plans_dir="docs/plans"
+    
+    load_config
+    
+    local plans_dir
+    plans_dir="$(get_config plans_dir)"
     
     if [[ ! -d "$plans_dir" ]]; then
         log_info "No plans directory found: $plans_dir"

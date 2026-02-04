@@ -7,6 +7,7 @@ _WORKFLOW_LOADER_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_WORKFLOW_LOADER_LIB_DIR/yaml.sh"
 source "$_WORKFLOW_LOADER_LIB_DIR/log.sh"
 source "$_WORKFLOW_LOADER_LIB_DIR/template.sh"
+source "$_WORKFLOW_LOADER_LIB_DIR/config.sh"
 
 # ビルトインワークフロー定義
 # workflows/ ディレクトリが存在しない場合に使用
@@ -80,6 +81,7 @@ get_agent_prompt() {
     local worktree_path="${4:-}"
     local step_name="${5:-}"
     local issue_title="${6:-}"
+    local pr_number="${7:-}"
     
     local prompt
     
@@ -99,6 +101,12 @@ get_agent_prompt() {
             merge)
                 prompt="$_BUILTIN_AGENT_MERGE"
                 ;;
+            test)
+                prompt="$_BUILTIN_AGENT_TEST"
+                ;;
+            ci-fix)
+                prompt="$_BUILTIN_AGENT_CI_FIX"
+                ;;
             *)
                 log_warn "Unknown builtin agent: $agent_name, using implement"
                 prompt="$_BUILTIN_AGENT_IMPLEMENT"
@@ -113,6 +121,11 @@ get_agent_prompt() {
         prompt=$(cat "$agent_file")
     fi
     
+    # 設定から plans_dir を取得
+    load_config
+    local plans_dir
+    plans_dir=$(get_config plans_dir)
+    
     # テンプレート変数展開
-    render_template "$prompt" "$issue_number" "$branch_name" "$worktree_path" "$step_name" "default" "$issue_title"
+    render_template "$prompt" "$issue_number" "$branch_name" "$worktree_path" "$step_name" "default" "$issue_title" "$pr_number" "$plans_dir"
 }

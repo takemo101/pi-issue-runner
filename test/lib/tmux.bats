@@ -9,6 +9,13 @@ setup() {
         export _CLEANUP_TMPDIR=1
     fi
     
+    # モックディレクトリをセットアップ
+    export MOCK_DIR="${BATS_TEST_TMPDIR}/mocks"
+    mkdir -p "$MOCK_DIR"
+    
+    # 元のPATHを保存
+    export ORIGINAL_PATH="$PATH"
+    
     # テスト用の空の設定ファイルパスを作成
     export TEST_CONFIG_FILE="${BATS_TEST_TMPDIR}/empty-config.yaml"
     touch "$TEST_CONFIG_FILE"
@@ -20,6 +27,11 @@ setup() {
 }
 
 teardown() {
+    # PATHを復元
+    if [[ -n "${ORIGINAL_PATH:-}" ]]; then
+        export PATH="$ORIGINAL_PATH"
+    fi
+    
     unset PI_RUNNER_TMUX_SESSION_PREFIX
     unset PI_RUNNER_PARALLEL_MAX_CONCURRENT
     
@@ -193,6 +205,84 @@ teardown() {
     
     run session_exists "nonexistent-session-name-xyz123"
     [ "$status" -ne 0 ]
+}
+
+# ====================
+# kill_session テスト
+# ====================
+
+@test "kill_session returns success for nonexistent session" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    run kill_session "nonexistent-session-name-xyz789"
+    [ "$status" -eq 0 ]
+}
+
+@test "kill_session accepts custom max_wait parameter" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    # カスタム待機時間（1秒）を指定して存在しないセッションを終了
+    run kill_session "nonexistent-session-name-xyz456" 1
+    [ "$status" -eq 0 ]
+}
+
+@test "kill_session sends cd / before killing session (Issue #585 fix)" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    # Create mock tmux command that records calls
+    mkdir -p "$MOCK_DIR"
+    cat > "$MOCK_DIR/tmux" << 'EOF'
+#!/bin/bash
+# Record the command for verification
+echo "$@" >> "${MOCK_DIR}/tmux_calls.log"
+
+# Mock behavior for different commands
+if [[ "$1" == "has-session" ]]; then
+    # First call returns success (session exists), second returns failure (killed)
+    if [[ ! -f "${MOCK_DIR}/session_killed" ]]; then
+        exit 0
+    else
+        exit 1
+    fi
+elif [[ "$1" == "send-keys" ]]; then
+    # Record that cd command was sent
+    if [[ "$*" == *"cd /"* ]]; then
+        touch "${MOCK_DIR}/cd_sent"
+    fi
+    exit 0
+elif [[ "$1" == "kill-session" ]]; then
+    touch "${MOCK_DIR}/session_killed"
+    exit 0
+fi
+exit 0
+EOF
+    chmod +x "$MOCK_DIR/tmux"
+    
+    # Use mock tmux
+    export PATH="$MOCK_DIR:$PATH"
+    
+    # Run kill_session
+    run kill_session "test-session" 1
+    
+    # Verify cd command was sent before kill
+    [ -f "${MOCK_DIR}/cd_sent" ]
+    [ -f "${MOCK_DIR}/session_killed" ]
+    
+    # Verify the order: send-keys with cd should come before kill-session
+    local cd_line
+    local kill_line
+    cd_line=$(grep -n "send-keys.*cd /" "${MOCK_DIR}/tmux_calls.log" | head -1 | cut -d: -f1)
+    kill_line=$(grep -n "kill-session" "${MOCK_DIR}/tmux_calls.log" | head -1 | cut -d: -f1)
+    [[ "$cd_line" -lt "$kill_line" ]]
 }
 
 # ====================

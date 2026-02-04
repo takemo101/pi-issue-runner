@@ -1,5 +1,26 @@
 #!/usr/bin/env bash
-# stop.sh - セッション停止
+# ============================================================================
+# stop.sh - Stop a running tmux session
+#
+# Terminates a pi-issue-runner tmux session by session name or issue number.
+#
+# Usage: ./scripts/stop.sh <session-name|issue-number>
+#
+# Arguments:
+#   session-name    tmux session name (e.g., pi-issue-42)
+#   issue-number    GitHub Issue number (e.g., 42)
+#
+# Options:
+#   -h, --help      Show help message
+#
+# Exit codes:
+#   0 - Session stopped successfully
+#   1 - Session not found or error occurred
+#
+# Examples:
+#   ./scripts/stop.sh pi-issue-42
+#   ./scripts/stop.sh 42
+# ============================================================================
 
 set -euo pipefail
 

@@ -1,5 +1,27 @@
 #!/usr/bin/env bash
-# attach.sh - セッションアタッチ
+# ============================================================================
+# attach.sh - Attach to a tmux session
+#
+# Connects to an existing pi-issue-runner tmux session by session name
+# or issue number.
+#
+# Usage: ./scripts/attach.sh <session-name|issue-number>
+#
+# Arguments:
+#   session-name    tmux session name (e.g., pi-issue-42)
+#   issue-number    GitHub Issue number (e.g., 42)
+#
+# Options:
+#   -h, --help      Show help message
+#
+# Exit codes:
+#   0 - Successfully attached to session
+#   1 - Session not found or error occurred
+#
+# Examples:
+#   ./scripts/attach.sh pi-issue-42
+#   ./scripts/attach.sh 42
+# ============================================================================
 
 set -euo pipefail
 

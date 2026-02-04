@@ -4,14 +4,16 @@
 # プロジェクトルートを設定
 # test_helper.bashはtest/にあるので、そこから親ディレクトリがプロジェクトルート
 _TEST_HELPER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export PROJECT_ROOT="$(cd "$_TEST_HELPER_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$_TEST_HELPER_DIR/.." && pwd)"
+export PROJECT_ROOT
 
 # テスト用一時ディレクトリ
 setup() {
     # Bats 1.5+の場合BATS_TEST_TMPDIRが自動設定される
     # それ以前の場合は手動で作成
     if [[ -z "${BATS_TEST_TMPDIR:-}" ]]; then
-        export BATS_TEST_TMPDIR="$(mktemp -d)"
+        BATS_TEST_TMPDIR="$(mktemp -d)"
+        export BATS_TEST_TMPDIR
         export _CLEANUP_TMPDIR=1
     fi
     

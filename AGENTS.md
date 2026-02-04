@@ -22,25 +22,44 @@ pi-issue-runner/
 ├── uninstall.sh       # アンインストール
 ├── scripts/           # 実行スクリプト
 │   ├── run.sh         # メインエントリーポイント
+│   ├── run-batch.sh   # 複数Issueを依存関係順にバッチ実行
+│   ├── restart-watcher.sh  # Watcher再起動
 │   ├── init.sh        # プロジェクト初期化
 │   ├── list.sh        # セッション一覧
 │   ├── status.sh      # 状態確認
 │   ├── attach.sh      # セッションアタッチ
 │   ├── stop.sh        # セッション停止
 │   ├── cleanup.sh     # クリーンアップ
+│   ├── ci-fix-helper.sh  # CI修正ヘルパー（lib/ci-fix.shのラッパー）
+│   ├── context.sh     # コンテキスト管理
+│   ├── dashboard.sh   # ダッシュボード表示
+│   ├── force-complete.sh  # セッション強制完了
 │   ├── improve.sh     # 継続的改善スクリプト
+│   ├── next.sh        # 次のタスク取得
+│   ├── nudge.sh       # セッションへメッセージ送信
 │   ├── wait-for-sessions.sh  # 複数セッション完了待機
 │   ├── watch-session.sh  # セッション監視
 │   └── test.sh        # テスト一括実行
 ├── lib/               # 共通ライブラリ
 │   ├── agent.sh       # マルチエージェント対応
+│   ├── batch.sh       # バッチ処理コア機能
+│   ├── ci-classifier.sh   # CI失敗タイプ分類
+│   ├── ci-fix.sh      # CI失敗検出・自動修正（※ci-fix-helper.sh経由で使用）
+│   ├── ci-monitor.sh      # CI状態監視
+│   ├── ci-retry.sh        # CI自動修正リトライ管理
+│   ├── cleanup-improve-logs.sh  # improve-logsのクリーンアップ
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh      # 設定読み込み
+│   ├── context.sh     # コンテキスト管理
+│   ├── daemon.sh      # プロセスデーモン化
+│   ├── dashboard.sh   # ダッシュボード機能
+│   ├── dependency.sh  # 依存関係解析・レイヤー計算
 │   ├── github.sh      # GitHub CLI操作
 │   ├── hooks.sh       # Hook機能
 │   ├── log.sh         # ログ出力
 │   ├── notify.sh      # 通知機能
+│   ├── priority.sh    # 優先度計算
 │   ├── status.sh      # 状態管理
 │   ├── template.sh    # テンプレート処理
 │   ├── tmux.sh        # tmux操作
@@ -51,22 +70,39 @@ pi-issue-runner/
 │   ├── worktree.sh    # Git worktree操作
 │   └── yaml.sh        # YAMLパーサー
 ├── workflows/         # ビルトインワークフロー定義
+│   ├── ci-fix.yaml    # CI修正ワークフロー
 │   ├── default.yaml   # 完全ワークフロー
-│   └── simple.yaml    # 簡易ワークフロー
+│   ├── simple.yaml    # 簡易ワークフロー
+│   └── thorough.yaml  # 徹底ワークフロー
 ├── agents/            # エージェントテンプレート
+│   ├── ci-fix.md      # CI修正エージェント
 │   ├── plan.md        # 計画エージェント
 │   ├── implement.md   # 実装エージェント
 │   ├── review.md      # レビューエージェント
+│   ├── test.md        # テストエージェント
 │   └── merge.md       # マージエージェント
 ├── docs/              # ドキュメント
 ├── test/              # Batsテスト（*.bats形式）
 │   ├── lib/           # ライブラリのユニットテスト
 │   │   ├── agent.bats
+│   │   ├── batch.bats
+│   │   ├── ci-classifier.bats  # ci-classifier.sh のテスト
+│   │   ├── ci-fix.bats
+│   │   ├── ci-monitor.bats     # ci-monitor.sh のテスト
+│   │   ├── ci-retry.bats       # ci-retry.sh のテスト
+│   │   ├── cleanup-orphans.bats
+│   │   ├── cleanup-improve-logs.bats  # cleanup-improve-logs.sh のテスト
+│   │   ├── cleanup-plans.bats
 │   │   ├── config.bats
-│   │   ├── github.bats
+│   │   ├── context.bats
+│   │   ├── daemon.bats
+│   │   ├── dashboard.bats
+│   │   ├── dependency.bats       # dependency.sh のテスト
+│   │   ├── github.bats      # github.sh のテスト
 │   │   ├── hooks.bats
 │   │   ├── log.bats
 │   │   ├── notify.bats
+│   │   ├── priority.bats
 │   │   ├── status.bats
 │   │   ├── template.bats
 │   │   ├── tmux.bats
@@ -78,11 +114,19 @@ pi-issue-runner/
 │   │   └── yaml.bats
 │   ├── scripts/       # スクリプトの統合テスト
 │   │   ├── attach.bats
+│   │   ├── ci-fix-helper.bats  # ci-fix-helper.sh のテスト
 │   │   ├── cleanup.bats
+│   │   ├── context.bats
+│   │   ├── dashboard.bats
+│   │   ├── force-complete.bats  # force-complete.sh のテスト
 │   │   ├── improve.bats
 │   │   ├── init.bats
 │   │   ├── list.bats
+│   │   ├── next.bats
+│   │   ├── nudge.bats
 │   │   ├── run.bats
+│   │   ├── run-batch.bats        # run-batch.sh のテスト
+│   │   ├── restart-watcher.bats  # restart-watcher.sh のテスト
 │   │   ├── status.bats
 │   │   ├── stop.bats
 │   │   ├── test.bats
@@ -137,6 +181,9 @@ shellcheck -x scripts/*.sh lib/*.sh  # 直接実行
 
 1. **shebang**: `#!/usr/bin/env bash`
 2. **strict mode**: `set -euo pipefail`
+   - **全てのファイル**（`scripts/` と `lib/` の両方）で使用する
+   - `lib/` ファイルでも設定し、source先の環境に適用することで一貫性を保証する
+   - これによりエラーの早期検出とデバッグの容易化を実現する
 3. **関数定義**: 小文字のスネークケース
 4. **変数**: ローカル変数は `local` を使用
 5. **引数チェック**: 必須引数は明示的にチェック
@@ -151,9 +198,11 @@ shellcheck -x scripts/*.sh lib/*.sh  # 直接実行
 
 ### Batsテストの書き方
 
+> **Note**: 以下はサンプルコードです。`your-module.bats` は実際には存在しません。
+
 ```bash
 #!/usr/bin/env bats
-# test/lib/example.bats
+# test/lib/your-module.bats（架空の例）
 
 load '../test_helper'
 
@@ -271,9 +320,11 @@ GitHub Issue #{{issue_number}} のテストを実行します。
 | 変数 | 説明 | ビルトイン使用 |
 |------|------|----------------|
 | `{{issue_number}}` | GitHub Issue番号 | ✅ |
+| `{{pr_number}}` | PR番号 | ✅（ci-fix） |
 | `{{issue_title}}` | Issueタイトル | ✅ |
 | `{{branch_name}}` | ブランチ名 | ✅ |
 | `{{worktree_path}}` | worktreeのパス | ✅ |
+| `{{plans_dir}}` | 計画書ディレクトリパス | ✅ |
 | `{{step_name}}` | 現在のステップ名 | *カスタム用 |
 | `{{workflow_name}}` | ワークフロー名 | *カスタム用 |
 

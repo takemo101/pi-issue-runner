@@ -9,6 +9,13 @@ setup() {
         export _CLEANUP_TMPDIR=1
     fi
     
+    # モックディレクトリをセットアップ
+    export MOCK_DIR="${BATS_TEST_TMPDIR}/mocks"
+    mkdir -p "$MOCK_DIR"
+    
+    # 元のPATHを保存（他のテストでモックが有効化されている場合に備える）
+    export ORIGINAL_PATH="$PATH"
+    
     # 必要なライブラリを読み込み
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
@@ -16,6 +23,11 @@ setup() {
 }
 
 teardown() {
+    # PATHを復元（他のテストへの影響を防ぐ）
+    if [[ -n "${ORIGINAL_PATH:-}" ]]; then
+        export PATH="$ORIGINAL_PATH"
+    fi
+    
     if [[ "${_CLEANUP_TMPDIR:-}" == "1" && -d "${BATS_TEST_TMPDIR:-}" ]]; then
         rm -rf "$BATS_TEST_TMPDIR"
     fi

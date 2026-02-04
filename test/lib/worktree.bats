@@ -46,6 +46,48 @@ teardown() {
     [ -z "$result" ] || ! find_worktree_by_issue "99999" 2>/dev/null
 }
 
+@test "find_worktree_by_issue finds worktree with issue-N format" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    # issue-N 形式のディレクトリを作成
+    mkdir -p "$TEST_WORKTREE_BASE/issue-123"
+    
+    result="$(find_worktree_by_issue "123")"
+    [ "$result" = "$TEST_WORKTREE_BASE/issue-123" ]
+}
+
+@test "find_worktree_by_issue finds worktree with issue-N-title format" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    # issue-N-title 形式のディレクトリを作成
+    mkdir -p "$TEST_WORKTREE_BASE/issue-456-refactor-worktree"
+    
+    result="$(find_worktree_by_issue "456")"
+    [ "$result" = "$TEST_WORKTREE_BASE/issue-456-refactor-worktree" ]
+}
+
+@test "find_worktree_by_issue returns first match when multiple exist" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    # 複数のディレクトリを作成（先頭一致するもの）
+    mkdir -p "$TEST_WORKTREE_BASE/issue-789"
+    mkdir -p "$TEST_WORKTREE_BASE/issue-789-another"
+    
+    result="$(find_worktree_by_issue "789")"
+    # 最初に見つかったものを返す
+    [ -n "$result" ]
+    [[ "$result" == *"issue-789"* ]]
+}
+
 # ====================
 # copy_files_to_worktree テスト
 # ====================
@@ -118,6 +160,97 @@ teardown() {
     
     run remove_worktree "/nonexistent/path/worktree"
     [ "$status" -ne 0 ] || [[ "$output" == *"not found"* ]]
+}
+
+@test "remove_worktree fails without force when untracked files exist" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    
+    # Gitリポジトリ内で実行されていることを確認
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        skip "Not in a git repository"
+    fi
+    
+    cd "$PROJECT_ROOT"
+    
+    _CONFIG_LOADED=""
+    export PI_RUNNER_WORKTREE_BASE_DIR="$TEST_WORKTREE_BASE"
+    export PI_RUNNER_WORKTREE_COPY_FILES=""
+    load_config "$TEST_CONFIG_FILE"
+    
+    TEST_BRANCH_NAME="issue-427-test-$(date +%s)"
+    
+    # worktreeを作成
+    worktree_path="$(create_worktree "$TEST_BRANCH_NAME" "HEAD" 2>/dev/null)" || {
+        skip "Failed to create worktree"
+    }
+    
+    if [[ -z "$worktree_path" || ! -d "$worktree_path" ]]; then
+        skip "Worktree creation returned empty path"
+    fi
+    
+    # untrackedファイルを作成
+    echo "untracked content" > "$worktree_path/untracked_file.txt"
+    
+    # force=falseで削除を試行（失敗すべき）
+    run remove_worktree "$worktree_path" "false"
+    
+    # 削除に失敗することを確認
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Failed to remove worktree"* ]]
+    
+    # worktreeがまだ存在することを確認
+    [ -d "$worktree_path" ]
+    
+    # クリーンアップ（forceで削除）
+    git worktree remove --force "$worktree_path" 2>/dev/null || rm -rf "$worktree_path"
+    git branch -D "feature/$TEST_BRANCH_NAME" 2>/dev/null || true
+}
+
+@test "remove_worktree succeeds with force when untracked files exist" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    
+    # Gitリポジトリ内で実行されていることを確認
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        skip "Not in a git repository"
+    fi
+    
+    cd "$PROJECT_ROOT"
+    
+    _CONFIG_LOADED=""
+    export PI_RUNNER_WORKTREE_BASE_DIR="$TEST_WORKTREE_BASE"
+    export PI_RUNNER_WORKTREE_COPY_FILES=""
+    load_config "$TEST_CONFIG_FILE"
+    
+    TEST_BRANCH_NAME="issue-427-test-force-$(date +%s)"
+    
+    # worktreeを作成
+    worktree_path="$(create_worktree "$TEST_BRANCH_NAME" "HEAD" 2>/dev/null)" || {
+        skip "Failed to create worktree"
+    }
+    
+    if [[ -z "$worktree_path" || ! -d "$worktree_path" ]]; then
+        skip "Worktree creation returned empty path"
+    fi
+    
+    # untrackedファイルを作成
+    echo "untracked content" > "$worktree_path/untracked_file.txt"
+    
+    # force=trueで削除を試行（成功すべき）
+    run remove_worktree "$worktree_path" "true"
+    
+    # 削除に成功することを確認
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"successfully"* ]]
+    
+    # worktreeが削除されていることを確認
+    [ ! -d "$worktree_path" ]
+    
+    # ブランチを削除
+    git branch -D "feature/$TEST_BRANCH_NAME" 2>/dev/null || true
 }
 
 # ====================

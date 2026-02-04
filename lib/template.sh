@@ -16,6 +16,12 @@ Check code quality, tests, and documentation.'
 _BUILTIN_AGENT_MERGE='Create a PR and merge for issue #{{issue_number}}.
 Push changes and create a pull request.'
 
+_BUILTIN_AGENT_TEST='Test the implementation for issue #{{issue_number}}.
+Run existing tests and verify all tests pass.'
+
+_BUILTIN_AGENT_CI_FIX='Fix CI failures for issue #{{issue_number}}.
+Analyze CI logs, identify the failure, and fix the code.'
+
 # ===================
 # テンプレート処理
 # ===================
@@ -28,6 +34,8 @@ Push changes and create a pull request.'
 #   {{worktree_path}} - ワークツリーパス
 #   {{step_name}} - 現在のステップ名
 #   {{workflow_name}} - ワークフロー名
+#   {{pr_number}} - PR番号
+#   {{plans_dir}} - 計画書ディレクトリパス
 render_template() {
     local template="$1"
     local issue_number="${2:-}"
@@ -36,6 +44,8 @@ render_template() {
     local step_name="${5:-}"
     local workflow_name="${6:-default}"
     local issue_title="${7:-}"
+    local pr_number="${8:-}"
+    local plans_dir="${9:-docs/plans}"
     
     local result="$template"
     
@@ -46,6 +56,8 @@ render_template() {
     result="${result//\{\{worktree_path\}\}/$worktree_path}"
     result="${result//\{\{step_name\}\}/$step_name}"
     result="${result//\{\{workflow_name\}\}/$workflow_name}"
+    result="${result//\{\{pr_number\}\}/$pr_number}"
+    result="${result//\{\{plans_dir\}\}/$plans_dir}"
     
     echo "$result"
 }

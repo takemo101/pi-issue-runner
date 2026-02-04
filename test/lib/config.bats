@@ -20,6 +20,12 @@ setup() {
     unset CONFIG_AGENT_COMMAND
     unset CONFIG_AGENT_ARGS
     unset CONFIG_AGENT_TEMPLATE
+    unset CONFIG_AGENTS_PLAN
+    unset CONFIG_AGENTS_IMPLEMENT
+    unset CONFIG_AGENTS_REVIEW
+    unset CONFIG_AGENTS_MERGE
+    unset CONFIG_AGENTS_TEST
+    unset CONFIG_AGENTS_CI_FIX
     unset CONFIG_GITHUB_INCLUDE_COMMENTS
     unset CONFIG_GITHUB_MAX_COMMENTS
     unset PI_RUNNER_WORKTREE_BASE_DIR
@@ -28,6 +34,12 @@ setup() {
     unset PI_RUNNER_AGENT_COMMAND
     unset PI_RUNNER_AGENT_ARGS
     unset PI_RUNNER_AGENT_TEMPLATE
+    unset PI_RUNNER_AGENTS_PLAN
+    unset PI_RUNNER_AGENTS_IMPLEMENT
+    unset PI_RUNNER_AGENTS_REVIEW
+    unset PI_RUNNER_AGENTS_MERGE
+    unset PI_RUNNER_AGENTS_TEST
+    unset PI_RUNNER_AGENTS_CI_FIX
     unset PI_RUNNER_GITHUB_INCLUDE_COMMENTS
     unset PI_RUNNER_GITHUB_MAX_COMMENTS
     
@@ -311,4 +323,219 @@ EOF
     load_config "$TEST_CONFIG_FILE"
     result="$(get_config agent_template)"
     [[ "$result" == *'--custom'* ]]
+}
+
+# ====================
+# agents設定テスト（エージェントテンプレートファイルパス）
+# ====================
+
+@test "get_config returns empty agents_plan by default" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config agents_plan)"
+    [ -z "$result" ]
+}
+
+@test "get_config returns empty agents_implement by default" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config agents_implement)"
+    [ -z "$result" ]
+}
+
+@test "get_config returns empty agents_review by default" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config agents_review)"
+    [ -z "$result" ]
+}
+
+@test "get_config returns empty agents_merge by default" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config agents_merge)"
+    [ -z "$result" ]
+}
+
+@test "get_config returns empty agents_test by default" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config agents_test)"
+    [ -z "$result" ]
+}
+
+@test "get_config returns empty agents_ci_fix by default" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config agents_ci_fix)"
+    [ -z "$result" ]
+}
+
+@test "load_config parses agents section from YAML" {
+    local test_config="${BATS_TEST_TMPDIR}/agents-config.yaml"
+    cat > "$test_config" << 'EOF'
+agents:
+  plan: custom/agents/my-plan.md
+  implement: custom/agents/my-implement.md
+  review: custom/agents/my-review.md
+  merge: custom/agents/my-merge.md
+  test: custom/agents/my-test.md
+  ci-fix: custom/agents/my-ci-fix.md
+EOF
+
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$test_config"
+    
+    [ "$(get_config agents_plan)" = "custom/agents/my-plan.md" ]
+    [ "$(get_config agents_implement)" = "custom/agents/my-implement.md" ]
+    [ "$(get_config agents_review)" = "custom/agents/my-review.md" ]
+    [ "$(get_config agents_merge)" = "custom/agents/my-merge.md" ]
+    [ "$(get_config agents_test)" = "custom/agents/my-test.md" ]
+    [ "$(get_config agents_ci_fix)" = "custom/agents/my-ci-fix.md" ]
+}
+
+@test "load_config parses partial agents section from YAML" {
+    local test_config="${BATS_TEST_TMPDIR}/partial-agents-config.yaml"
+    cat > "$test_config" << 'EOF'
+agents:
+  plan: custom/plan.md
+  review: custom/review.md
+EOF
+
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$test_config"
+    
+    [ "$(get_config agents_plan)" = "custom/plan.md" ]
+    [ -z "$(get_config agents_implement)" ]
+    [ "$(get_config agents_review)" = "custom/review.md" ]
+    [ -z "$(get_config agents_merge)" ]
+    [ -z "$(get_config agents_test)" ]
+    [ -z "$(get_config agents_ci_fix)" ]
+}
+
+@test "environment variable overrides agents_plan" {
+    export PI_RUNNER_AGENTS_PLAN="env/custom-plan.md"
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config agents_plan)"
+    [ "$result" = "env/custom-plan.md" ]
+}
+
+@test "environment variable overrides agents_implement" {
+    export PI_RUNNER_AGENTS_IMPLEMENT="env/custom-implement.md"
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config agents_implement)"
+    [ "$result" = "env/custom-implement.md" ]
+}
+
+@test "environment variable overrides agents_review" {
+    export PI_RUNNER_AGENTS_REVIEW="env/custom-review.md"
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config agents_review)"
+    [ "$result" = "env/custom-review.md" ]
+}
+
+@test "environment variable overrides agents_merge" {
+    export PI_RUNNER_AGENTS_MERGE="env/custom-merge.md"
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config agents_merge)"
+    [ "$result" = "env/custom-merge.md" ]
+}
+
+@test "environment variable overrides agents_test" {
+    export PI_RUNNER_AGENTS_TEST="env/custom-test.md"
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config agents_test)"
+    [ "$result" = "env/custom-test.md" ]
+}
+
+@test "environment variable overrides agents_ci_fix" {
+    export PI_RUNNER_AGENTS_CI_FIX="env/custom-ci-fix.md"
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    result="$(get_config agents_ci_fix)"
+    [ "$result" = "env/custom-ci-fix.md" ]
+}
+
+@test "environment variable overrides YAML config for agents" {
+    local test_config="${BATS_TEST_TMPDIR}/agents-config.yaml"
+    cat > "$test_config" << 'EOF'
+agents:
+  plan: yaml/plan.md
+  implement: yaml/implement.md
+EOF
+
+    export PI_RUNNER_AGENTS_PLAN="env/plan.md"
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$test_config"
+    
+    [ "$(get_config agents_plan)" = "env/plan.md" ]
+    [ "$(get_config agents_implement)" = "yaml/implement.md" ]
+}
+
+# ===================
+# config_file_found / require_config_file tests
+# ===================
+
+@test "config_file_found returns false when no config file" {
+    unset _CONFIG_LOADED
+    unset _CONFIG_FILE_FOUND
+    source "$PROJECT_ROOT/lib/config.sh"
+    
+    # 設定ファイルがないディレクトリで実行
+    cd "$BATS_TEST_TMPDIR"
+    git init -q
+    
+    load_config
+    
+    run config_file_found
+    [ "$status" -eq 1 ]
+}
+
+@test "config_file_found returns true when config file exists" {
+    unset _CONFIG_LOADED
+    unset _CONFIG_FILE_FOUND
+    source "$PROJECT_ROOT/lib/config.sh"
+    
+    # 設定ファイルがあるディレクトリで実行
+    cd "$BATS_TEST_TMPDIR"
+    git init -q
+    touch .pi-runner.yaml
+    
+    load_config
+    
+    run config_file_found
+    [ "$status" -eq 0 ]
+    [[ "$output" == *".pi-runner.yaml" ]]
+}
+
+@test "require_config_file fails when no config file" {
+    unset _CONFIG_LOADED
+    unset _CONFIG_FILE_FOUND
+    source "$PROJECT_ROOT/lib/config.sh"
+    
+    cd "$BATS_TEST_TMPDIR"
+    git init -q
+    
+    run require_config_file "test-command"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Configuration file '.pi-runner.yaml' not found"* ]]
+    [[ "$output" == *"test-command"* ]]
+}
+
+@test "require_config_file succeeds when config file exists" {
+    unset _CONFIG_LOADED
+    unset _CONFIG_FILE_FOUND
+    source "$PROJECT_ROOT/lib/config.sh"
+    
+    cd "$BATS_TEST_TMPDIR"
+    git init -q
+    touch .pi-runner.yaml
+    
+    run require_config_file "test-command"
+    [ "$status" -eq 0 ]
 }

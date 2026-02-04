@@ -115,8 +115,10 @@ attach_session() {
 }
 
 # セッションを終了
+# セッションが完全に終了するまで待機する
 kill_session() {
     local session_name="$1"
+    local max_wait="${2:-30}"  # 最大待機秒数（デフォルト30秒）
     
     check_tmux || return 1
     
@@ -126,7 +128,62 @@ kill_session() {
     fi
     
     log_info "Killing session: $session_name"
-    tmux kill-session -t "$session_name"
+    
+    # Fix for Issue #585: Move session to safe directory before killing
+    # This prevents ENOENT errors when worktree is deleted while session
+    # still has it as current working directory
+    # /tmpを使用（存在確実かつ書き込み可能）
+    tmux send-keys -t "$session_name" "cd /tmp" Enter 2>/dev/null || true
+    sleep 1  # ディレクトリ変更が反映されるまで待機
+    
+    # セッション内の全paneのPIDを取得（終了確認用）
+    local pane_pids
+    pane_pids=$(tmux list-panes -t "$session_name" -F '#{pane_pid}' 2>/dev/null || true)
+    
+    # セッションを終了
+    tmux kill-session -t "$session_name" 2>/dev/null || true
+    
+    # セッションが完全に終了するまで待機（tmuxの確認）
+    local waited=0
+    while session_exists "$session_name" && [[ "$waited" -lt "$max_wait" ]]; do
+        sleep 0.5
+        waited=$((waited + 1))
+    done
+    
+    # PIDベースでの追加確認（セッションは消えたがプロセスが残っている場合）
+    if [[ -n "$pane_pids" ]]; then
+        local pid_waited=0
+        local pid_max_wait=10
+        local any_running=true
+        
+        while [[ "$any_running" == "true" && "$pid_waited" -lt "$pid_max_wait" ]]; do
+            any_running=false
+            while IFS= read -r pid; do
+                [[ -z "$pid" ]] && continue
+                if kill -0 "$pid" 2>/dev/null; then
+                    any_running=true
+                    break
+                fi
+            done <<< "$pane_pids"
+            
+            if [[ "$any_running" == "true" ]]; then
+                sleep 0.5
+                pid_waited=$((pid_waited + 1))
+            fi
+        done
+        
+        if [[ "$any_running" == "true" ]]; then
+            log_warn "Some processes in session $session_name are still running after ${pid_max_wait}s"
+        fi
+    fi
+    
+    if session_exists "$session_name"; then
+        log_warn "Session $session_name still exists after ${max_wait}s wait"
+        return 1
+    fi
+    
+    log_debug "Session $session_name terminated successfully"
+    return 0
 }
 
 # セッション一覧を取得
