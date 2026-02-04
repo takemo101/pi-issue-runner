@@ -124,7 +124,6 @@ pi-issue-runner/
 │   │   ├── list.bats
 │   │   ├── next.bats
 │   │   ├── nudge.bats
-│   │   ├── restart-watcher.bats
 │   │   ├── run.bats
 │   │   ├── run-batch.bats        # run-batch.sh のテスト
 │   │   ├── status.bats
