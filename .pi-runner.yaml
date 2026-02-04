@@ -19,7 +19,7 @@ worktree:
 # =====================================
 multiplexer:
   # 使用するマルチプレクサ: tmux | zellij
-  type: "tmux"
+  type: "zellij"
 
   # セッション名のプレフィックス（例: pi-issue-42）
   session_prefix: "pi"
