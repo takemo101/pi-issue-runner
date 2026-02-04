@@ -38,6 +38,7 @@ pi-issue-runner/
 │   ├── nudge.sh       # セッションへメッセージ送信
 │   ├── wait-for-sessions.sh  # 複数セッション完了待機
 │   ├── watch-session.sh  # セッション監視
+│   ├── restart-watcher.sh  # ウォッチャー再起動
 │   └── test.sh        # テスト一括実行
 ├── lib/               # 共通ライブラリ
 │   ├── agent.sh       # マルチエージェント対応
