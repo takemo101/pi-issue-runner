@@ -838,6 +838,7 @@ gh auth login
 - [状態管理](docs/state-management.md) - ステータスファイル管理
 - [設定リファレンス](docs/configuration.md) - 設定オプション
 - [セキュリティ](docs/security.md) - 入力サニタイズとセキュリティ対策
+- [コーディング規約](docs/coding-standards.md) - 開発ガイドライン
 - [変更履歴](docs/CHANGELOG.md) - バージョン履歴
 
 ## 開発
