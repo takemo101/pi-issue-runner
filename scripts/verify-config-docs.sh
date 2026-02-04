@@ -191,4 +191,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# verbose mode は将来の拡張用に予約（現在は使用していない）
+if [[ "$VERBOSE" == "true" ]]; then
+    echo "Verbose mode enabled (reserved for future use)" >&2
+fi
+
 main
