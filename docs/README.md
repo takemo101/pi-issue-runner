@@ -104,6 +104,7 @@ GitHub Issueを入力として、独立したworktree環境でpiインスタン�
 - [ディレクトリ構造](./SPECIFICATION.md#ディレクトリ構造)
 - [API設計](./architecture.md#2-library-layer-lib)
 - [エラーハンドリング](./architecture.md#エラーハンドリング)
+- [コーディング規約](./coding-standards.md)
 
 ### 運用者向け
 
