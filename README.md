@@ -547,7 +547,7 @@ pi-issue-runner/
 │   ├── config.sh           # 設定読み込み
 │   ├── daemon.sh           # プロセスデーモン化
 │   ├── dependency.sh       # 依存関係解析・レイヤー計算
-│   ├── github.sh           # GitHub API操作
+│   ├── github.sh           # GitHub CLI操作
 │   ├── hooks.sh            # イベントhook機能
 │   ├── log.sh              # ログ出力
 │   ├── notify.sh           # 通知機能
