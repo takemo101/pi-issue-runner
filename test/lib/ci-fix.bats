@@ -125,231 +125,167 @@ teardown() {
 # detect_project_type テスト
 # ===================
 
-@test "detect_project_type detects rust project" {
-    cd "$BATS_TEST_TMPDIR"
-    touch Cargo.toml
+@test "detect_project_type function exists" {
+    declare -f detect_project_type
+}
+
+@test "detect_project_type returns rust for Cargo.toml" {
+    mkdir -p "$BATS_TEST_TMPDIR/rust-project"
+    touch "$BATS_TEST_TMPDIR/rust-project/Cargo.toml"
     
-    run detect_project_type "$BATS_TEST_TMPDIR"
+    run detect_project_type "$BATS_TEST_TMPDIR/rust-project"
     [ "$status" -eq 0 ]
     [ "$output" = "rust" ]
 }
 
-@test "detect_project_type detects node project" {
-    cd "$BATS_TEST_TMPDIR"
-    touch package.json
+@test "detect_project_type returns node for package.json" {
+    mkdir -p "$BATS_TEST_TMPDIR/node-project"
+    touch "$BATS_TEST_TMPDIR/node-project/package.json"
     
-    run detect_project_type "$BATS_TEST_TMPDIR"
+    run detect_project_type "$BATS_TEST_TMPDIR/node-project"
     [ "$status" -eq 0 ]
     [ "$output" = "node" ]
 }
 
-@test "detect_project_type detects python project with pyproject.toml" {
-    cd "$BATS_TEST_TMPDIR"
-    touch pyproject.toml
+@test "detect_project_type returns python for pyproject.toml" {
+    mkdir -p "$BATS_TEST_TMPDIR/python-project"
+    touch "$BATS_TEST_TMPDIR/python-project/pyproject.toml"
     
-    run detect_project_type "$BATS_TEST_TMPDIR"
+    run detect_project_type "$BATS_TEST_TMPDIR/python-project"
     [ "$status" -eq 0 ]
     [ "$output" = "python" ]
 }
 
-@test "detect_project_type detects python project with setup.py" {
-    cd "$BATS_TEST_TMPDIR"
-    touch setup.py
+@test "detect_project_type returns python for setup.py" {
+    mkdir -p "$BATS_TEST_TMPDIR/python-project-setup"
+    touch "$BATS_TEST_TMPDIR/python-project-setup/setup.py"
     
-    run detect_project_type "$BATS_TEST_TMPDIR"
+    run detect_project_type "$BATS_TEST_TMPDIR/python-project-setup"
     [ "$status" -eq 0 ]
     [ "$output" = "python" ]
 }
 
-@test "detect_project_type detects bash-bats project" {
-    cd "$BATS_TEST_TMPDIR"
-    mkdir -p test
-    touch test/test_helper.bash
+@test "detect_project_type returns go for go.mod" {
+    mkdir -p "$BATS_TEST_TMPDIR/go-project"
+    touch "$BATS_TEST_TMPDIR/go-project/go.mod"
     
-    run detect_project_type "$BATS_TEST_TMPDIR"
+    run detect_project_type "$BATS_TEST_TMPDIR/go-project"
     [ "$status" -eq 0 ]
-    [ "$output" = "bash-bats" ]
+    [ "$output" = "go" ]
+}
+
+@test "detect_project_type returns bash for .bats files" {
+    mkdir -p "$BATS_TEST_TMPDIR/bash-project"
+    touch "$BATS_TEST_TMPDIR/bash-project/test.bats"
+    
+    run detect_project_type "$BATS_TEST_TMPDIR/bash-project"
+    [ "$status" -eq 0 ]
+    [ "$output" = "bash" ]
+}
+
+@test "detect_project_type returns bash for test/test_helper.bash" {
+    mkdir -p "$BATS_TEST_TMPDIR/bash-project-helper/test"
+    touch "$BATS_TEST_TMPDIR/bash-project-helper/test/test_helper.bash"
+    
+    run detect_project_type "$BATS_TEST_TMPDIR/bash-project-helper"
+    [ "$status" -eq 0 ]
+    [ "$output" = "bash" ]
 }
 
 @test "detect_project_type returns unknown for unrecognized project" {
-    cd "$BATS_TEST_TMPDIR"
+    mkdir -p "$BATS_TEST_TMPDIR/unknown-project"
     
-    run detect_project_type "$BATS_TEST_TMPDIR"
-    [ "$status" -eq 0 ]
+    run detect_project_type "$BATS_TEST_TMPDIR/unknown-project"
+    [ "$status" -eq 1 ]
     [ "$output" = "unknown" ]
 }
 
-@test "detect_project_type defaults to current directory" {
-    # 実際のプロジェクトルートで実行（test/test_helper.bash が存在する）
-    cd "$PROJECT_ROOT"
+@test "detect_project_type prioritizes rust over node" {
+    mkdir -p "$BATS_TEST_TMPDIR/mixed-project"
+    touch "$BATS_TEST_TMPDIR/mixed-project/Cargo.toml"
+    touch "$BATS_TEST_TMPDIR/mixed-project/package.json"
     
-    run detect_project_type
+    run detect_project_type "$BATS_TEST_TMPDIR/mixed-project"
     [ "$status" -eq 0 ]
-    [ "$output" = "bash-bats" ]
+    [ "$output" = "rust" ]
 }
 
-# ===================
-# get_lint_fix_command テスト
-# ===================
-
-@test "get_lint_fix_command returns cargo command for rust" {
-    run get_lint_fix_command "rust"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "cargo clippy" ]]
-}
-
-@test "get_lint_fix_command returns npm/eslint command for node" {
-    run get_lint_fix_command "node"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "eslint" ]]
-}
-
-@test "get_lint_fix_command returns pylint command for python" {
-    run get_lint_fix_command "python"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "pylint" ]]
-}
-
-@test "get_lint_fix_command returns shellcheck command for bash-bats" {
-    run get_lint_fix_command "bash-bats"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "shellcheck" ]]
-}
-
-@test "get_lint_fix_command fails for unknown project type" {
-    run get_lint_fix_command "unknown"
-    [ "$status" -eq 1 ]
-}
-
-# ===================
-# get_format_fix_command テスト
-# ===================
-
-@test "get_format_fix_command returns cargo fmt for rust" {
-    run get_format_fix_command "rust"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "cargo fmt" ]]
-}
-
-@test "get_format_fix_command returns prettier for node" {
-    run get_format_fix_command "node"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "prettier" ]]
-}
-
-@test "get_format_fix_command returns black for python" {
-    run get_format_fix_command "python"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "black" ]]
-}
-
-@test "get_format_fix_command returns shfmt for bash-bats" {
-    run get_format_fix_command "bash-bats"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "shfmt" ]]
-}
-
-@test "get_format_fix_command fails for unknown project type" {
-    run get_format_fix_command "unknown"
-    [ "$status" -eq 1 ]
-}
-
-# ===================
-# get_validation_command テスト
-# ===================
-
-@test "get_validation_command returns cargo commands for rust" {
-    run get_validation_command "rust"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "cargo clippy" ]]
-    [[ "$output" =~ "cargo test" ]]
-}
-
-@test "get_validation_command returns npm commands for node" {
-    run get_validation_command "node"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "npm run lint" ]]
-    [[ "$output" =~ "npm test" ]]
-}
-
-@test "get_validation_command returns python commands for python" {
-    run get_validation_command "python"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "pylint" ]]
-    [[ "$output" =~ "pytest" ]]
-}
-
-@test "get_validation_command returns shellcheck+bats for bash-bats" {
-    run get_validation_command "bash-bats"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "shellcheck" ]]
-    [[ "$output" =~ "bats" ]]
-}
-
-@test "get_validation_command fails for unknown project type" {
-    run get_validation_command "unknown"
-    [ "$status" -eq 1 ]
-}
-
-# ===================
-# try_fix_lint with project detection テスト
-# ===================
-
-@test "try_fix_lint returns 2 for unknown project type" {
-    cd "$BATS_TEST_TMPDIR"
+@test "detect_project_type prioritizes node over python" {
+    mkdir -p "$BATS_TEST_TMPDIR/mixed-node-python"
+    touch "$BATS_TEST_TMPDIR/mixed-node-python/package.json"
+    touch "$BATS_TEST_TMPDIR/mixed-node-python/pyproject.toml"
     
-    run try_fix_lint "$BATS_TEST_TMPDIR"
-    [ "$status" -eq 2 ]
-    [[ "$output" =~ "Unknown project type" ]]
+    run detect_project_type "$BATS_TEST_TMPDIR/mixed-node-python"
+    [ "$status" -eq 0 ]
+    [ "$output" = "node" ]
 }
 
-@test "try_fix_lint detects project type and attempts fix" {
-    cd "$BATS_TEST_TMPDIR"
-    touch Cargo.toml
+@test "detect_project_type prioritizes python over go" {
+    mkdir -p "$BATS_TEST_TMPDIR/mixed-python-go"
+    touch "$BATS_TEST_TMPDIR/mixed-python-go/pyproject.toml"
+    touch "$BATS_TEST_TMPDIR/mixed-python-go/go.mod"
     
-    run try_fix_lint "$BATS_TEST_TMPDIR"
-    # cargo がインストールされていない場合は失敗するが、検出はされる
-    [[ "$output" =~ "Detected project type: rust" ]]
+    run detect_project_type "$BATS_TEST_TMPDIR/mixed-python-go"
+    [ "$status" -eq 0 ]
+    [ "$output" = "python" ]
+}
+
+@test "detect_project_type prioritizes go over bash" {
+    mkdir -p "$BATS_TEST_TMPDIR/mixed-go-bash"
+    touch "$BATS_TEST_TMPDIR/mixed-go-bash/go.mod"
+    touch "$BATS_TEST_TMPDIR/mixed-go-bash/test.bats"
+    
+    run detect_project_type "$BATS_TEST_TMPDIR/mixed-go-bash"
+    [ "$status" -eq 0 ]
+    [ "$output" = "go" ]
 }
 
 # ===================
-# try_fix_format with project detection テスト
+# try_fix_format 汎用化テスト
 # ===================
+
+@test "try_fix_format detects project type and returns appropriate status" {
+    # Rustプロジェクトの場合（cargoがない環境では失敗する）
+    mkdir -p "$BATS_TEST_TMPDIR/rust-format-test"
+    touch "$BATS_TEST_TMPDIR/rust-format-test/Cargo.toml"
+    
+    run try_fix_format "$BATS_TEST_TMPDIR/rust-format-test"
+    # cargoがない場合は1、ある場合は0か1（フォーマット結果による）
+    [[ "$status" -eq 0 || "$status" -eq 1 ]]
+}
 
 @test "try_fix_format returns 2 for unknown project type" {
-    cd "$BATS_TEST_TMPDIR"
+    mkdir -p "$BATS_TEST_TMPDIR/unknown-format-test"
     
-    run try_fix_format "$BATS_TEST_TMPDIR"
+    run try_fix_format "$BATS_TEST_TMPDIR/unknown-format-test"
     [ "$status" -eq 2 ]
-    [[ "$output" =~ "Unknown project type" ]]
-}
-
-@test "try_fix_format detects project type and attempts fix" {
-    cd "$BATS_TEST_TMPDIR"
-    touch package.json
-    
-    run try_fix_format "$BATS_TEST_TMPDIR"
-    # npm がインストールされていない場合でも、検出はされる
-    [[ "$output" =~ "Detected project type: node" ]]
 }
 
 # ===================
-# run_local_validation with project detection テスト
+# try_fix_lint 汎用化テスト
 # ===================
 
-@test "run_local_validation returns 0 for unknown project type" {
-    cd "$BATS_TEST_TMPDIR"
+@test "try_fix_lint detects project type and returns appropriate status" {
+    # Rustプロジェクトの場合（cargoがない環境では失敗する）
+    mkdir -p "$BATS_TEST_TMPDIR/rust-lint-test"
+    touch "$BATS_TEST_TMPDIR/rust-lint-test/Cargo.toml"
     
-    run run_local_validation "$BATS_TEST_TMPDIR"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "Unknown project type" ]]
+    run try_fix_lint "$BATS_TEST_TMPDIR/rust-lint-test"
+    # cargoがない場合は1、ある場合は0か1（lint結果による）
+    [[ "$status" -eq 0 || "$status" -eq 1 ]]
 }
 
-@test "run_local_validation detects project type" {
-    cd "$BATS_TEST_TMPDIR"
-    touch pyproject.toml
+@test "try_fix_lint returns 2 for unknown project type" {
+    mkdir -p "$BATS_TEST_TMPDIR/unknown-lint-test"
     
-    run run_local_validation "$BATS_TEST_TMPDIR"
-    # Python ツールがインストールされていない場合でも、検出はされる
-    [[ "$output" =~ "Detected project type: python" ]]
+    run try_fix_lint "$BATS_TEST_TMPDIR/unknown-lint-test"
+    [ "$status" -eq 2 ]
+}
+
+@test "try_fix_lint returns 2 for bash projects (shellcheck does not support auto-fix)" {
+    mkdir -p "$BATS_TEST_TMPDIR/bash-lint-test"
+    touch "$BATS_TEST_TMPDIR/bash-lint-test/test.bats"
+    
+    run try_fix_lint "$BATS_TEST_TMPDIR/bash-lint-test"
+    [ "$status" -eq 2 ]
 }

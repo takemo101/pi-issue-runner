@@ -29,6 +29,7 @@ Push changes and create a pull request.'
 #   {{step_name}} - 現在のステップ名
 #   {{workflow_name}} - ワークフロー名
 #   {{pr_number}} - PR番号
+#   {{plans_dir}} - 計画書ディレクトリパス
 render_template() {
     local template="$1"
     local issue_number="${2:-}"
@@ -38,6 +39,7 @@ render_template() {
     local workflow_name="${6:-default}"
     local issue_title="${7:-}"
     local pr_number="${8:-}"
+    local plans_dir="${9:-docs/plans}"
     
     local result="$template"
     
@@ -49,6 +51,7 @@ render_template() {
     result="${result//\{\{step_name\}\}/$step_name}"
     result="${result//\{\{workflow_name\}\}/$workflow_name}"
     result="${result//\{\{pr_number\}\}/$pr_number}"
+    result="${result//\{\{plans_dir\}\}/$plans_dir}"
     
     echo "$result"
 }

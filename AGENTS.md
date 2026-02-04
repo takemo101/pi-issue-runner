@@ -320,6 +320,7 @@ GitHub Issue #{{issue_number}} のテストを実行します。
 | `{{issue_title}}` | Issueタイトル | ✅ |
 | `{{branch_name}}` | ブランチ名 | ✅ |
 | `{{worktree_path}}` | worktreeのパス | ✅ |
+| `{{plans_dir}}` | 計画書ディレクトリパス | ✅ |
 | `{{step_name}}` | 現在のステップ名 | *カスタム用 |
 | `{{workflow_name}}` | ワークフロー名 | *カスタム用 |
 

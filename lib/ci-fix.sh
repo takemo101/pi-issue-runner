@@ -48,96 +48,44 @@ source "$__CI_FIX_LIB_DIR/ci-retry.sh"
 # ===================
 
 # プロジェクトタイプを検出
-# Usage: detect_project_type [path]
-# Returns: rust|node|python|bash-bats|unknown
+# Usage: detect_project_type [worktree_path]
+# Returns: rust | node | python | go | bash | unknown
 detect_project_type() {
-    local path="${1:-.}"
+    local worktree_path="${1:-.}"
     
-    if [[ -f "$path/Cargo.toml" ]]; then
+    # Rust: Cargo.toml の存在
+    if [[ -f "$worktree_path/Cargo.toml" ]]; then
         echo "rust"
-    elif [[ -f "$path/package.json" ]]; then
-        echo "node"
-    elif [[ -f "$path/pyproject.toml" ]] || [[ -f "$path/setup.py" ]]; then
-        echo "python"
-    elif [[ -f "$path/test/test_helper.bash" ]] && [[ -d "$path/test" ]]; then
-        # Batsテストを使用しているプロジェクト
-        echo "bash-bats"
-    else
-        echo "unknown"
+        return 0
     fi
-}
-
-# プロジェクトタイプ別のlint修正コマンドを取得
-# Usage: get_lint_fix_command <project_type>
-get_lint_fix_command() {
-    local project_type="$1"
     
-    case "$project_type" in
-        rust)
-            echo "cargo clippy --fix --allow-dirty --allow-staged --all-targets --all-features"
-            ;;
-        node)
-            echo "npm run lint:fix || npx eslint --fix . || true"
-            ;;
-        python)
-            echo "pylint --fix . || flake8 --fix . || true"
-            ;;
-        bash-bats)
-            echo "shellcheck -x scripts/*.sh lib/*.sh 2>&1 || true"
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-}
-
-# プロジェクトタイプ別のformat修正コマンドを取得
-# Usage: get_format_fix_command <project_type>
-get_format_fix_command() {
-    local project_type="$1"
+    # Node/JavaScript: package.json の存在
+    if [[ -f "$worktree_path/package.json" ]]; then
+        echo "node"
+        return 0
+    fi
     
-    case "$project_type" in
-        rust)
-            echo "cargo fmt --all"
-            ;;
-        node)
-            echo "npm run format || npx prettier --write . || true"
-            ;;
-        python)
-            echo "black . || autopep8 --in-place --recursive . || true"
-            ;;
-        bash-bats)
-            # Bashは通常フォーマッタを使わないが、shfmtがあれば使用
-            echo "shfmt -w -i 4 scripts/*.sh lib/*.sh 2>&1 || true"
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-}
-
-# プロジェクトタイプ別の検証コマンドを取得
-# Usage: get_validation_command <project_type>
-get_validation_command() {
-    local project_type="$1"
+    # Python: pyproject.toml または setup.py の存在
+    if [[ -f "$worktree_path/pyproject.toml" ]] || [[ -f "$worktree_path/setup.py" ]]; then
+        echo "python"
+        return 0
+    fi
     
-    case "$project_type" in
-        rust)
-            echo "cargo clippy --all-targets --all-features -- -D warnings && cargo test --lib"
-            ;;
-        node)
-            echo "npm run lint && npm test"
-            ;;
-        python)
-            echo "pylint . && pytest"
-            ;;
-        bash-bats)
-            echo "shellcheck -x scripts/*.sh lib/*.sh && bats test/**/*.bats"
-            ;;
-        *)
-            return 1
-            ;;
-    esac
+    # Go: go.mod の存在
+    if [[ -f "$worktree_path/go.mod" ]]; then
+        echo "go"
+        return 0
+    fi
+    
+    # Bash: *.bats ファイルまたは test/test_helper.bash の存在
+    # shellcheck disable=SC2144
+    if ls "$worktree_path"/*.bats &>/dev/null || [[ -f "$worktree_path/test/test_helper.bash" ]]; then
+        echo "bash"
+        return 0
+    fi
+    
+    echo "unknown"
+    return 1
 }
 
 # ===================
@@ -179,8 +127,9 @@ try_auto_fix() {
     esac
 }
 
-# Lint修正を試行（プロジェクト非依存）
+# Lint修正を試行（汎用版）
 # Usage: try_fix_lint [worktree_path]
+# Returns: 0=修正成功, 1=修正失敗, 2=自動修正不可
 try_fix_lint() {
     local worktree_path="${1:-.}"
     
@@ -190,37 +139,99 @@ try_fix_lint() {
     local project_type
     project_type=$(detect_project_type "$worktree_path")
     
-    if [[ "$project_type" == "unknown" ]]; then
-        log_warn "Unknown project type. Cannot auto-fix lint issues."
-        return 2
-    fi
-    
-    # lint修正コマンドを取得
-    local fix_command
-    if ! fix_command=$(get_lint_fix_command "$project_type"); then
-        log_warn "No lint fix command available for project type: $project_type"
-        return 2
-    fi
-    
     log_info "Detected project type: $project_type"
-    log_info "Running: $fix_command"
     
     # worktreeパスに移動して実行
     (
         cd "$worktree_path" || return 1
         
-        if eval "$fix_command" 2>&1; then
-            log_info "Lint fix applied successfully"
-            return 0
-        else
-            log_error "Lint fix failed"
-            return 1
-        fi
+        case "$project_type" in
+            rust)
+                if ! command -v cargo &> /dev/null; then
+                    log_error "cargo not found. Cannot auto-fix lint issues."
+                    return 1
+                fi
+                if cargo clippy --fix --allow-dirty --allow-staged --all-targets --all-features 2>&1; then
+                    log_info "Clippy fix applied successfully"
+                    return 0
+                else
+                    log_error "Clippy fix failed"
+                    return 1
+                fi
+                ;;
+            node)
+                # npm scriptsにlint:fixがあればそれを使用、なければeslintを試行
+                if grep -q '"lint:fix"' package.json 2>/dev/null; then
+                    log_info "Running npm run lint:fix..."
+                    if npm run lint:fix 2>&1; then
+                        log_info "Lint fix applied successfully"
+                        return 0
+                    else
+                        log_warn "npm run lint:fix failed"
+                        return 1
+                    fi
+                elif command -v npx &> /dev/null; then
+                    log_info "Trying npx eslint --fix..."
+                    if npx eslint --fix . 2>&1; then
+                        log_info "ESLint fix applied successfully"
+                        return 0
+                    else
+                        log_warn "ESLint fix failed or not configured"
+                        return 2  # 自動修正不可
+                    fi
+                else
+                    log_warn "No linter found for Node project"
+                    return 2  # 自動修正不可
+                fi
+                ;;
+            python)
+                # autopep8で自動修正を試行
+                if command -v autopep8 &> /dev/null; then
+                    log_info "Running autopep8..."
+                    if autopep8 --in-place --aggressive --aggressive --recursive . 2>&1; then
+                        log_info "autopep8 fix applied successfully"
+                        return 0
+                    else
+                        log_error "autopep8 fix failed"
+                        return 1
+                    fi
+                else
+                    log_warn "autopep8 not found. Install with: pip install autopep8"
+                    return 2  # 自動修正不可
+                fi
+                ;;
+            go)
+                # golangci-lintがあれば使用
+                if command -v golangci-lint &> /dev/null; then
+                    log_info "Running golangci-lint run --fix..."
+                    if golangci-lint run --fix 2>&1; then
+                        log_info "golangci-lint fix applied successfully"
+                        return 0
+                    else
+                        log_warn "golangci-lint fix failed"
+                        return 1
+                    fi
+                else
+                    log_warn "golangci-lint not found. Install from: https://golangci-lint.run/usage/install/"
+                    return 2  # 自動修正不可
+                fi
+                ;;
+            bash)
+                # ShellCheckは自動修正をサポートしていない
+                log_warn "Bash linting (shellcheck) does not support auto-fix"
+                return 2  # 自動修正不可
+                ;;
+            *)
+                log_warn "Unknown project type. Cannot auto-fix lint."
+                return 2  # 自動修正不可
+                ;;
+        esac
     )
 }
 
-# フォーマット修正を試行（プロジェクト非依存）
+# フォーマット修正を試行（汎用版）
 # Usage: try_fix_format [worktree_path]
+# Returns: 0=修正成功, 1=修正失敗, 2=自動修正不可
 try_fix_format() {
     local worktree_path="${1:-.}"
     
@@ -230,36 +241,114 @@ try_fix_format() {
     local project_type
     project_type=$(detect_project_type "$worktree_path")
     
-    if [[ "$project_type" == "unknown" ]]; then
-        log_warn "Unknown project type. Cannot auto-fix format issues."
-        return 2
-    fi
-    
-    # format修正コマンドを取得
-    local fix_command
-    if ! fix_command=$(get_format_fix_command "$project_type"); then
-        log_warn "No format fix command available for project type: $project_type"
-        return 2
-    fi
-    
     log_info "Detected project type: $project_type"
-    log_info "Running: $fix_command"
     
     # worktreeパスに移動して実行
     (
         cd "$worktree_path" || return 1
         
-        if eval "$fix_command" 2>&1; then
-            log_info "Format fix applied successfully"
-            return 0
-        else
-            log_error "Format fix failed"
-            return 1
-        fi
+        case "$project_type" in
+            rust)
+                if ! command -v cargo &> /dev/null; then
+                    log_error "cargo not found. Cannot auto-fix format issues."
+                    return 1
+                fi
+                if cargo fmt --all 2>&1; then
+                    log_info "Format fix applied successfully"
+                    return 0
+                else
+                    log_error "Format fix failed"
+                    return 1
+                fi
+                ;;
+            node)
+                # npm scriptsにformatがあればそれを使用、なければprettierを試行
+                if grep -q '"format"' package.json 2>/dev/null; then
+                    log_info "Running npm run format..."
+                    if npm run format 2>&1; then
+                        log_info "Format fix applied successfully"
+                        return 0
+                    else
+                        log_warn "npm run format failed"
+                        return 1
+                    fi
+                elif command -v npx &> /dev/null; then
+                    log_info "Trying npx prettier --write..."
+                    if npx prettier --write . 2>&1; then
+                        log_info "Prettier fix applied successfully"
+                        return 0
+                    else
+                        log_warn "Prettier fix failed or not configured"
+                        return 2  # 自動修正不可
+                    fi
+                else
+                    log_warn "No formatter found for Node project"
+                    return 2  # 自動修正不可
+                fi
+                ;;
+            python)
+                # blackを優先、なければautopep8
+                if command -v black &> /dev/null; then
+                    log_info "Running black..."
+                    if black . 2>&1; then
+                        log_info "black fix applied successfully"
+                        return 0
+                    else
+                        log_error "black fix failed"
+                        return 1
+                    fi
+                elif command -v autopep8 &> /dev/null; then
+                    log_info "Running autopep8..."
+                    if autopep8 --in-place --recursive . 2>&1; then
+                        log_info "autopep8 fix applied successfully"
+                        return 0
+                    else
+                        log_error "autopep8 fix failed"
+                        return 1
+                    fi
+                else
+                    log_warn "No formatter found for Python project (black or autopep8)"
+                    return 2  # 自動修正不可
+                fi
+                ;;
+            go)
+                if ! command -v gofmt &> /dev/null; then
+                    log_error "gofmt not found. Cannot auto-fix format issues."
+                    return 1
+                fi
+                if gofmt -w . 2>&1; then
+                    log_info "gofmt fix applied successfully"
+                    return 0
+                else
+                    log_error "gofmt fix failed"
+                    return 1
+                fi
+                ;;
+            bash)
+                # shfmtがあれば使用
+                if command -v shfmt &> /dev/null; then
+                    log_info "Running shfmt..."
+                    if shfmt -w -i 4 . 2>&1; then
+                        log_info "shfmt fix applied successfully"
+                        return 0
+                    else
+                        log_error "shfmt fix failed"
+                        return 1
+                    fi
+                else
+                    log_warn "shfmt not found. Install from: https://github.com/mvdan/sh"
+                    return 2  # 自動修正不可
+                fi
+                ;;
+            *)
+                log_warn "Unknown project type. Cannot auto-fix format."
+                return 2  # 自動修正不可
+                ;;
+        esac
     )
 }
 
-# ローカル検証を実行（プロジェクト非依存）
+# ローカル検証を実行
 # Usage: run_local_validation [worktree_path]
 # Returns: 0=検証成功, 1=検証失敗
 run_local_validation() {
@@ -267,35 +356,30 @@ run_local_validation() {
     
     log_info "Running local validation..."
     
-    # プロジェクトタイプを検出
-    local project_type
-    project_type=$(detect_project_type "$worktree_path")
-    
-    if [[ "$project_type" == "unknown" ]]; then
-        log_warn "Unknown project type. Skipping local validation."
+    if ! command -v cargo &> /dev/null; then
+        log_warn "cargo not found. Skipping local validation."
         return 0
     fi
-    
-    # 検証コマンドを取得
-    local validation_command
-    if ! validation_command=$(get_validation_command "$project_type"); then
-        log_warn "No validation command available for project type: $project_type"
-        return 0
-    fi
-    
-    log_info "Detected project type: $project_type"
-    log_info "Running: $validation_command"
     
     (
         cd "$worktree_path" || return 1
         
-        if eval "$validation_command" 2>&1; then
-            log_info "Local validation passed"
-            return 0
-        else
-            log_error "Local validation failed"
+        # clippyチェック
+        log_info "Running cargo clippy..."
+        if ! cargo clippy --all-targets --all-features -- -D warnings 2>&1; then
+            log_error "Clippy check failed"
             return 1
         fi
+        
+        # テスト実行（簡易版）
+        log_info "Running cargo test..."
+        if ! cargo test --lib 2>&1; then
+            log_error "Test failed"
+            return 1
+        fi
+        
+        log_info "Local validation passed"
+        return 0
     )
 }
 

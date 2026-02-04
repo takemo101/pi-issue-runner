@@ -108,11 +108,22 @@ Refs #{{issue_number}}"
 ```bash
 cd "{{worktree_path}}"
 
-# フォーマット修正
-cargo fmt --all 2>&1 && echo "Format fixed" || true
+# ヘルパースクリプトのパス
+HELPER_SCRIPT="${HELPER_SCRIPT:-./scripts/ci-fix-helper.sh}"
 
-# Clippy修正
-cargo clippy --fix --allow-dirty --allow-staged --all-targets --all-features 2>&1 && echo "Lint fixed" || true
+# プロジェクトタイプに応じたフォーマット修正
+if "$HELPER_SCRIPT" fix format "{{worktree_path}}" 2>&1; then
+    echo "Format fixed"
+else
+    echo "Format fix failed or not available"
+fi
+
+# プロジェクトタイプに応じたLint修正
+if "$HELPER_SCRIPT" fix lint "{{worktree_path}}" 2>&1; then
+    echo "Lint fixed"
+else
+    echo "Lint fix failed or not available"
+fi
 
 # 変更を確認
 if git diff --quiet && git diff --cached --quiet; then
@@ -174,6 +185,20 @@ CI修正が正常に完了し、CIがパスした場合は、以下の形式で�
 
 > **重要**: このマーカーは外部プロセス（`watch-session.sh`）によって監視されています。
 > マーカーは必ず行頭から出力してください。インデントやコードブロック内での出力は検出されません。
+
+## コンテキスト保存（オプション）
+
+タスク完了時または重要な学びがあった場合、以下のファイルを更新してください：
+
+### Issue固有の学び
+`.worktrees/.context/issues/{{issue_number}}.md`
+
+### 保存すべき内容
+- 試したアプローチと結果
+- 発見した問題と解決策
+- 今後の実行者への注意点
+
+**注意**: これは推奨事項です。必須ではありません。
 
 ## エスカレーション条件
 

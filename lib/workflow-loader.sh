@@ -7,6 +7,7 @@ _WORKFLOW_LOADER_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_WORKFLOW_LOADER_LIB_DIR/yaml.sh"
 source "$_WORKFLOW_LOADER_LIB_DIR/log.sh"
 source "$_WORKFLOW_LOADER_LIB_DIR/template.sh"
+source "$_WORKFLOW_LOADER_LIB_DIR/config.sh"
 
 # ビルトインワークフロー定義
 # workflows/ ディレクトリが存在しない場合に使用
@@ -114,6 +115,11 @@ get_agent_prompt() {
         prompt=$(cat "$agent_file")
     fi
     
+    # 設定から plans_dir を取得
+    load_config
+    local plans_dir
+    plans_dir=$(get_config plans_dir)
+    
     # テンプレート変数展開
-    render_template "$prompt" "$issue_number" "$branch_name" "$worktree_path" "$step_name" "default" "$issue_title" "$pr_number"
+    render_template "$prompt" "$issue_number" "$branch_name" "$worktree_path" "$step_name" "default" "$issue_title" "$pr_number" "$plans_dir"
 }
