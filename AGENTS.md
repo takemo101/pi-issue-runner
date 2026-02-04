@@ -37,10 +37,8 @@ pi-issue-runner/
 │   ├── improve.sh     # 継続的改善スクリプト
 │   ├── next.sh        # 次のタスク取得
 │   ├── nudge.sh       # セッションへメッセージ送信
-│   ├── restart-watcher.sh  # ウォッチャー再起動
 │   ├── wait-for-sessions.sh  # 複数セッション完了待機
 │   ├── watch-session.sh  # セッション監視
-│   ├── restart-watcher.sh  # ウォッチャー再起動
 │   └── test.sh        # テスト一括実行
 ├── lib/               # 共通ライブラリ
 │   ├── agent.sh       # マルチエージェント対応
@@ -126,7 +124,6 @@ pi-issue-runner/
 │   │   ├── list.bats
 │   │   ├── next.bats
 │   │   ├── nudge.bats
-│   │   ├── restart-watcher.bats
 │   │   ├── run.bats
 │   │   ├── run-batch.bats        # run-batch.sh のテスト
 │   │   ├── restart-watcher.bats  # restart-watcher.sh のテスト
@@ -134,8 +131,7 @@ pi-issue-runner/
 │   │   ├── stop.bats
 │   │   ├── test.bats
 │   │   ├── wait-for-sessions.bats
-│   │   ├── watch-session.bats
-│   │   └── restart-watcher.bats
+│   │   └── watch-session.bats
 │   ├── regression/    # 回帰テスト
 │   │   └── critical-fixes.bats
 │   ├── fixtures/      # テスト用フィクスチャ
