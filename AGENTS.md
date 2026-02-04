@@ -29,6 +29,7 @@ pi-issue-runner/
 │   ├── status.sh      # 状態確認
 │   ├── attach.sh      # セッションアタッチ
 │   ├── stop.sh        # セッション停止
+│   ├── tmux-all.sh    # 全セッション表示（xpanes/link-window）
 │   ├── cleanup.sh     # クリーンアップ
 │   ├── ci-fix-helper.sh  # CI修正ヘルパー（lib/ci-fix.shのラッパー）
 │   ├── context.sh     # コンテキスト管理
