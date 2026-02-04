@@ -429,3 +429,82 @@ teardown() {
     result="$(find_stale_statuses 0)"
     [[ "$result" != *"960"* ]] || [ -z "$result" ]
 }
+
+# ====================
+# Watcher PID Management テスト (Issue #693)
+# ====================
+
+@test "save_watcher_pid creates PID file" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    save_watcher_pid "693" "12345"
+    
+    local pid_file="$TEST_WORKTREE_DIR/.status/693.watcher.pid"
+    [ -f "$pid_file" ]
+    [ "$(cat "$pid_file")" = "12345" ]
+}
+
+@test "load_watcher_pid returns saved PID" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    save_watcher_pid "693" "54321"
+    result="$(load_watcher_pid "693")"
+    
+    [ "$result" = "54321" ]
+}
+
+@test "load_watcher_pid returns empty for non-existent PID file" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    result="$(load_watcher_pid "999")"
+    [ -z "$result" ]
+}
+
+@test "remove_watcher_pid deletes PID file" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    save_watcher_pid "693" "99999"
+    local pid_file="$TEST_WORKTREE_DIR/.status/693.watcher.pid"
+    [ -f "$pid_file" ]
+    
+    remove_watcher_pid "693"
+    [ ! -f "$pid_file" ]
+}
+
+@test "remove_watcher_pid handles non-existent file gracefully" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # Should not fail
+    run remove_watcher_pid "999"
+    [ "$status" -eq 0 ]
+}
+
+@test "is_watcher_running returns false for non-existent PID" {
+    source "$PROJECT_ROOT/lib/daemon.sh"
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    run is_watcher_running "999"
+    [ "$status" -eq 1 ]
+}
+
+@test "is_watcher_running checks actual process status" {
+    source "$PROJECT_ROOT/lib/daemon.sh"
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # Save PID of current shell (which is running)
+    save_watcher_pid "693" "$$"
+    
+    run is_watcher_running "693"
+    [ "$status" -eq 0 ]
+}
+
+@test "is_watcher_running returns false for invalid PID" {
+    source "$PROJECT_ROOT/lib/daemon.sh"
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # Use a PID that doesn't exist
+    save_watcher_pid "693" "999999"
+    
+    run is_watcher_running "693"
+    [ "$status" -eq 1 ]
+}

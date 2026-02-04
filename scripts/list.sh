@@ -119,6 +119,15 @@ main() {
                 echo "  Branch: $branch"
             fi
             
+            # Watcher情報 (Issue #693)
+            local watcher_pid
+            watcher_pid="$(load_watcher_pid "$issue_num" 2>/dev/null || echo '')"
+            if [[ -n "$watcher_pid" ]] && is_watcher_running "$issue_num"; then
+                echo "  Watcher: ✓ (PID: $watcher_pid)"
+            else
+                echo "  Watcher: ✗"
+            fi
+            
             # セッション情報
             get_session_info "$session" 2>/dev/null | sed 's/^/  /' || true
             echo ""

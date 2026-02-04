@@ -351,6 +351,9 @@ main() {
         local watcher_pid
         watcher_pid=$(daemonize "$watcher_log" "$watcher_script" "$session_name")
         
+        # Issue #693: Save watcher PID for restart functionality
+        save_watcher_pid "$issue_number" "$watcher_pid"
+        
         log_debug "Watcher PID: $watcher_pid, Log: $watcher_log"
     fi
 
