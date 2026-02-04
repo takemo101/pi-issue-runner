@@ -16,6 +16,12 @@ Check code quality, tests, and documentation.'
 _BUILTIN_AGENT_MERGE='Create a PR and merge for issue #{{issue_number}}.
 Push changes and create a pull request.'
 
+_BUILTIN_AGENT_TEST='Test the implementation for issue #{{issue_number}}.
+Run existing tests and verify all tests pass.'
+
+_BUILTIN_AGENT_CI_FIX='Fix CI failures for issue #{{issue_number}}.
+Analyze CI logs, identify the failure, and fix the code.'
+
 # ===================
 # テンプレート処理
 # ===================
