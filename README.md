@@ -583,7 +583,6 @@ pi-issue-runner/
 │   │   ├── ci-retry.bats        # ci-retry.sh のテスト
 │   │   ├── cleanup-improve-logs.bats  # cleanup-improve-logs.sh のテスト
 │   │   ├── cleanup-orphans.bats  # cleanup-orphans.sh のテスト
-│   │   ├── cleanup-improve-logs.bats  # cleanup-improve-logs.sh のテスト
 │   │   ├── cleanup-plans.bats    # cleanup-plans.sh のテスト
 │   │   ├── config.bats      # config.sh のテスト
 │   │   ├── daemon.bats      # daemon.sh のテスト
