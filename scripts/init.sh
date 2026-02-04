@@ -142,6 +142,7 @@ GITIGNORE_ENTRIES="
 .improve-logs/
 .pi-runner.yaml.local
 .pi-runner.yaml
+.pi-runner.yml
 .pi-prompt.md
 *.swp
 "
@@ -203,8 +204,8 @@ update_gitignore() {
             continue
         fi
         
-        # 既に存在するかチェック
-        if [[ -f "$gitignore" ]] && grep -qF "$entry" "$gitignore" 2>/dev/null; then
+        # 既に存在するかチェック（完全一致）
+        if [[ -f "$gitignore" ]] && grep -qFx "$entry" "$gitignore" 2>/dev/null; then
             continue
         fi
         
