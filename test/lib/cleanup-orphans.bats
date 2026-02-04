@@ -257,21 +257,18 @@ teardown() {
 # レースコンディション対策テスト (Issue #549)
 # ====================
 
-@test "find_complete_with_existing_worktrees skips if tmux session exists" {
+@test "find_complete_with_existing_worktrees skips if session exists" {
     # worktreeディレクトリを作成
     mkdir -p "$TEST_WORKTREE_DIR/issue-800-test"
     
     # completeステータスを作成（セッション名付き）
     save_status "800" "complete" "pi-issue-800"
     
-    # tmux has-session をモック（セッションが存在する場合）
-    tmux() {
-        if [[ "$1" == "has-session" ]]; then
-            return 0  # セッション存在
-        fi
-        command tmux "$@"
+    # session_exists をモック（セッションが存在する場合）
+    session_exists() {
+        return 0  # セッション存在
     }
-    export -f tmux
+    export -f session_exists
     
     # 検索を実行
     run find_complete_with_existing_worktrees
@@ -281,21 +278,18 @@ teardown() {
     [[ -z "$output" ]]
 }
 
-@test "find_complete_with_existing_worktrees includes worktree if tmux session not exists" {
+@test "find_complete_with_existing_worktrees includes worktree if session not exists" {
     # worktreeディレクトリを作成
     mkdir -p "$TEST_WORKTREE_DIR/issue-801-test"
     
     # completeステータスを作成（セッション名付き）
     save_status "801" "complete" "pi-issue-801"
     
-    # tmux has-session をモック（セッションが存在しない場合）
-    tmux() {
-        if [[ "$1" == "has-session" ]]; then
-            return 1  # セッション不存在
-        fi
-        command tmux "$@"
+    # session_exists をモック（セッションが存在しない場合）
+    session_exists() {
+        return 1  # セッション不存在
     }
-    export -f tmux
+    export -f session_exists
     
     # 検索を実行
     run find_complete_with_existing_worktrees
@@ -328,14 +322,11 @@ teardown() {
     # completeステータスを作成
     save_status "803" "complete" "pi-issue-803"
     
-    # tmux has-session をモック（セッションが存在する場合）
-    tmux() {
-        if [[ "$1" == "has-session" ]]; then
-            return 0  # セッション存在
-        fi
-        command tmux "$@"
+    # session_exists をモック（セッションが存在する場合）
+    session_exists() {
+        return 0  # セッション存在
     }
-    export -f tmux
+    export -f session_exists
     
     # クリーンアップを実行
     run cleanup_complete_with_worktrees "false" "false"

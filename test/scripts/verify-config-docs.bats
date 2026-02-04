@@ -28,8 +28,8 @@ VERIFY_SCRIPT="$PROJECT_ROOT/scripts/verify-config-docs.sh"
 @test "verify-config-docs.sh counts configuration items correctly" {
     run "$VERIFY_SCRIPT"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"lib/config.sh: 24 items"* ]]
-    [[ "$output" == *"docs/configuration.md: 24 items"* ]]
+    [[ "$output" == *"lib/config.sh: 25 items"* ]]
+    [[ "$output" == *"docs/configuration.md: 25 items"* ]]
 }
 
 @test "verify-config-docs.sh checks default values" {

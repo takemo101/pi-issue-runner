@@ -12,6 +12,11 @@ setup() {
     export MOCK_DIR="${BATS_TEST_TMPDIR}/mocks"
     mkdir -p "$MOCK_DIR"
     export ORIGINAL_PATH="$PATH"
+    
+    # テストではtmuxを使用
+    export PI_RUNNER_MULTIPLEXER_TYPE="tmux"
+    unset _CONFIG_LOADED
+    unset _MUX_TYPE
 }
 
 teardown() {
@@ -146,8 +151,8 @@ teardown() {
     grep -q "TASK_ERROR" "$PROJECT_ROOT/scripts/force-complete.sh"
 }
 
-@test "force-complete.sh uses tmux send-keys" {
-    grep -q "tmux send-keys" "$PROJECT_ROOT/scripts/force-complete.sh"
+@test "force-complete.sh uses send_keys function" {
+    grep -q "send_keys" "$PROJECT_ROOT/scripts/force-complete.sh"
 }
 
 # ====================

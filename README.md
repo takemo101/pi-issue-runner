@@ -1,12 +1,12 @@
 # Pi Issue Runner
 
-GitHub Issueを入力として、Git worktreeを作成し、tmuxセッション内で独立したpiインスタンスを起動するスキルです。並列開発に最適化されています。
+GitHub Issueを入力として、Git worktreeを作成し、ターミナルマルチプレクサ（tmux/Zellij）のセッション内で独立したpiインスタンスを起動するスキルです。並列開発に最適化されています。
 
 ## 特徴
 
 - **マルチエージェント対応**: Pi、Claude Code、OpenCode、カスタムエージェントに対応
 - **自動worktree作成**: Issue番号からブランチ名を自動生成
-- **tmux統合**: バックグラウンドでエージェントを実行、いつでもアタッチ可能
+- **マルチプレクサ対応**: tmuxとZellijの両方をサポート、設定で切り替え可能
 - **並列作業**: 複数のIssueを同時に処理
 - **簡単なクリーンアップ**: セッションとworktreeを一括削除
 - **自動クリーンアップ**: タスク完了時に `###TASK_COMPLETE_<issue_number>###` マーカーを出力すると、外部プロセスが自動的にworktreeとセッションをクリーンアップします
@@ -15,7 +15,7 @@ GitHub Issueを入力として、Git worktreeを作成し、tmuxセッション�
 
 - **Bash 4.0以上** (macOSの場合: `brew install bash`)
 - `gh` (GitHub CLI、認証済み)
-- `tmux`
+- `tmux` または `zellij` (ターミナルマルチプレクサ)
 - `pi`
 - `jq` (JSON処理)
 - `yq` (オプション - ワークフローのカスタマイズに必要)
@@ -61,6 +61,7 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | `pi-nudge` | セッションにメッセージ送信 |
 | `pi-init` | プロジェクト初期化 |
 | `pi-context` | コンテキスト管理 |
+| `pi-mux-all` | 全セッション表示（タイル表示） |
 
 | オプション | 説明 |
 |-----------|------|
@@ -290,7 +291,11 @@ worktree:
     - ".env"
     - ".env.local"
 
-# tmux設定
+# マルチプレクサ設定
+multiplexer:
+  type: "tmux"  # tmux または zellij
+
+# tmux/zellij共通設定
 tmux:
   session_prefix: "pi"
   start_in_session: true
@@ -317,6 +322,26 @@ agent:
   # command: /custom/path/pi
   # args:
   #   - --verbose
+```
+
+### マルチプレクサの切り替え
+
+tmuxとZellijを切り替えて使用できます：
+
+```yaml
+# .pi-runner.yaml
+multiplexer:
+  type: zellij  # tmux から zellij に切り替え
+```
+
+環境変数でも設定可能：
+
+```bash
+# Zellijを一時的に使用
+PI_RUNNER_MULTIPLEXER_TYPE=zellij scripts/run.sh 42
+
+# 全セッションをタイル表示
+pi-mux-all -w
 ```
 
 ### 複数エージェント対応
@@ -521,6 +546,7 @@ pi-issue-runner/
 │   ├── status.sh           # 状態確認
 │   ├── attach.sh           # セッションアタッチ
 │   ├── stop.sh             # セッション停止
+│   ├── mux-all.sh          # 全セッション表示（マルチプレクサ対応）
 │   ├── cleanup.sh          # クリーンアップ
 │   ├── ci-fix-helper.sh    # CI修正ヘルパー（lib/ci-fix.shのラッパー）
 │   ├── context.sh          # コンテキスト管理
@@ -555,7 +581,10 @@ pi-issue-runner/
 │   ├── priority.sh         # 優先度計算
 │   ├── status.sh           # ステータスファイル管理
 │   ├── template.sh         # テンプレート処理
-│   ├── tmux.sh             # tmux操作
+│   ├── tmux.sh             # マルチプレクサ操作（後方互換ラッパー）
+│   ├── multiplexer.sh      # マルチプレクサ抽象化レイヤー
+│   ├── multiplexer-tmux.sh # tmux実装
+│   ├── multiplexer-zellij.sh # Zellij実装
 │   ├── workflow-finder.sh  # ワークフロー検索
 │   ├── workflow-loader.sh  # ワークフロー読み込み
 │   ├── workflow-prompt.sh  # プロンプト処理
@@ -763,14 +792,20 @@ plans:
 
 ## トラブルシューティング
 
-### tmuxセッションが見つからない
+### セッションが見つからない
 
 ```bash
-# セッション一覧を確認
+# tmuxの場合
 tmux list-sessions
 
-# セッションを手動で作成
+# Zellijの場合
+zellij list-sessions
+
+# セッションを手動で作成（tmux）
 tmux new-session -s pi-issue-42 -d
+
+# セッションを手動で作成（Zellij）
+zellij -s pi-issue-42
 ```
 
 ### worktreeが残っている
@@ -801,7 +836,7 @@ gh auth login
 - [ワークフロー](docs/workflows.md) - ワークフロー定義の詳細
 - [Hook機能](docs/hooks.md) - イベントフック詳細
 - [Git Worktree管理](docs/worktree-management.md) - worktree運用
-- [tmux統合](docs/tmux-integration.md) - tmuxセッション管理
+- [マルチプレクサ統合](docs/tmux-integration.md) - tmux/Zellijセッション管理
 - [並列実行](docs/parallel-execution.md) - 複数タスクの並列処理
 - [状態管理](docs/state-management.md) - ステータスファイル管理
 - [設定リファレンス](docs/configuration.md) - 設定オプション

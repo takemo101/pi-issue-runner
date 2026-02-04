@@ -12,6 +12,11 @@ setup() {
     export MOCK_DIR="${BATS_TEST_TMPDIR}/mocks"
     mkdir -p "$MOCK_DIR"
     export ORIGINAL_PATH="$PATH"
+    
+    # テストではtmuxを使用
+    export PI_RUNNER_MULTIPLEXER_TYPE="tmux"
+    unset _CONFIG_LOADED
+    unset _MUX_TYPE
 }
 
 teardown() {
@@ -138,8 +143,8 @@ teardown() {
     grep -q "DEFAULT_MESSAGE" "$PROJECT_ROOT/scripts/nudge.sh"
 }
 
-@test "nudge.sh uses tmux send-keys" {
-    grep -q "tmux send-keys" "$PROJECT_ROOT/scripts/nudge.sh"
+@test "nudge.sh uses send_keys function" {
+    grep -q "send_keys" "$PROJECT_ROOT/scripts/nudge.sh"
 }
 
 # ====================

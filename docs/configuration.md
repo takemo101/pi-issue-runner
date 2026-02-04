@@ -38,6 +38,17 @@ worktree:
 # =====================================
 # tmux設定
 # =====================================
+# マルチプレクサ設定
+# =====================================
+multiplexer:
+  # 使用するマルチプレクサ
+  # tmux または zellij
+  # デフォルト: tmux
+  type: tmux
+
+# =====================================
+# tmux設定
+# =====================================
 tmux:
   # セッション名のプレフィックス
   # 実際のセッション名: {prefix}-issue-{number}
@@ -165,6 +176,24 @@ worktree:
     - .env.local              # ローカル環境変数
     - config/master.key       # Railsマスターキー
     - .npmrc                  # npm認証情報
+```
+
+### multiplexer
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `type` | string | `tmux` | 使用するマルチプレクサ（`tmux` または `zellij`） |
+
+#### Zellijを使用する場合
+
+```yaml
+multiplexer:
+  type: zellij
+```
+
+環境変数でも切り替え可能:
+```bash
+PI_RUNNER_MULTIPLEXER_TYPE=zellij pi-run 42
 ```
 
 ### tmux
@@ -519,6 +548,7 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 |---------|---------|
 | `PI_RUNNER_WORKTREE_BASE_DIR` | `worktree.base_dir` |
 | `PI_RUNNER_WORKTREE_COPY_FILES` | `worktree.copy_files` |
+| `PI_RUNNER_MULTIPLEXER_TYPE` | `multiplexer.type` |
 | `PI_RUNNER_TMUX_SESSION_PREFIX` | `tmux.session_prefix` |
 | `PI_RUNNER_TMUX_START_IN_SESSION` | `tmux.start_in_session` |
 | `PI_RUNNER_PI_COMMAND` | `pi.command` |
