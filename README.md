@@ -520,6 +520,7 @@ pi-issue-runner/
 ├── scripts/
 │   ├── run.sh              # Issue実行
 │   ├── run-batch.sh        # 複数Issueを依存関係順にバッチ実行
+│   ├── restart-watcher.sh  # Watcher再起動
 │   ├── list.sh             # セッション一覧
 │   ├── status.sh           # 状態確認
 │   ├── attach.sh           # セッションアタッチ
@@ -685,6 +686,7 @@ test/
 │   ├── nudge.bats               # nudge.sh のテスト
 │   ├── run.bats                 # run.sh のテスト
 │   ├── run-batch.bats           # run-batch.sh のテスト
+│   ├── restart-watcher.bats     # restart-watcher.sh のテスト
 │   ├── status.bats              # status.sh のテスト
 │   ├── stop.bats                # stop.sh のテスト
 │   ├── test.bats                # test.sh のテスト
