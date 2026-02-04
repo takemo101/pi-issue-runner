@@ -130,7 +130,8 @@ pi-issue-runner/
 │   │   ├── stop.bats
 │   │   ├── test.bats
 │   │   ├── wait-for-sessions.bats
-│   │   └── watch-session.bats
+│   │   ├── watch-session.bats
+│   │   └── restart-watcher.bats
 │   ├── regression/    # 回帰テスト
 │   │   └── critical-fixes.bats
 │   ├── fixtures/      # テスト用フィクスチャ
