@@ -13,8 +13,8 @@ _CONFIG_LOADED=""
 # デフォルト設定
 CONFIG_WORKTREE_BASE_DIR="${CONFIG_WORKTREE_BASE_DIR:-.worktrees}"
 CONFIG_WORKTREE_COPY_FILES="${CONFIG_WORKTREE_COPY_FILES:-.env .env.local .envrc}"
-CONFIG_TMUX_SESSION_PREFIX="${CONFIG_TMUX_SESSION_PREFIX:-pi}"
-CONFIG_TMUX_START_IN_SESSION="${CONFIG_TMUX_START_IN_SESSION:-true}"
+CONFIG_MULTIPLEXER_SESSION_PREFIX="${CONFIG_MULTIPLEXER_SESSION_PREFIX:-pi}"
+CONFIG_MULTIPLEXER_START_IN_SESSION="${CONFIG_MULTIPLEXER_START_IN_SESSION:-true}"
 CONFIG_MULTIPLEXER_TYPE="${CONFIG_MULTIPLEXER_TYPE:-tmux}"  # tmux | zellij
 CONFIG_PI_COMMAND="${CONFIG_PI_COMMAND:-pi}"
 CONFIG_PI_ARGS="${CONFIG_PI_ARGS:-}"
@@ -140,19 +140,20 @@ _parse_config_file() {
         CONFIG_WORKTREE_BASE_DIR="$value"
     fi
     
-    value="$(yaml_get "$config_file" ".tmux.session_prefix" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_TMUX_SESSION_PREFIX="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".tmux.start_in_session" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_TMUX_START_IN_SESSION="$value"
-    fi
-    
+    # multiplexer設定
     value="$(yaml_get "$config_file" ".multiplexer.type" "")"
     if [[ -n "$value" ]]; then
         CONFIG_MULTIPLEXER_TYPE="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".multiplexer.session_prefix" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_MULTIPLEXER_SESSION_PREFIX="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".multiplexer.start_in_session" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_MULTIPLEXER_START_IN_SESSION="$value"
     fi
     
     value="$(yaml_get "$config_file" ".pi.command" "")"
@@ -313,14 +314,14 @@ _apply_env_overrides() {
     if [[ -n "${PI_RUNNER_WORKTREE_COPY_FILES:-}" ]]; then
         CONFIG_WORKTREE_COPY_FILES="$PI_RUNNER_WORKTREE_COPY_FILES"
     fi
-    if [[ -n "${PI_RUNNER_TMUX_SESSION_PREFIX:-}" ]]; then
-        CONFIG_TMUX_SESSION_PREFIX="$PI_RUNNER_TMUX_SESSION_PREFIX"
-    fi
-    if [[ -n "${PI_RUNNER_TMUX_START_IN_SESSION:-}" ]]; then
-        CONFIG_TMUX_START_IN_SESSION="$PI_RUNNER_TMUX_START_IN_SESSION"
-    fi
     if [[ -n "${PI_RUNNER_MULTIPLEXER_TYPE:-}" ]]; then
         CONFIG_MULTIPLEXER_TYPE="$PI_RUNNER_MULTIPLEXER_TYPE"
+    fi
+    if [[ -n "${PI_RUNNER_MULTIPLEXER_SESSION_PREFIX:-}" ]]; then
+        CONFIG_MULTIPLEXER_SESSION_PREFIX="$PI_RUNNER_MULTIPLEXER_SESSION_PREFIX"
+    fi
+    if [[ -n "${PI_RUNNER_MULTIPLEXER_START_IN_SESSION:-}" ]]; then
+        CONFIG_MULTIPLEXER_START_IN_SESSION="$PI_RUNNER_MULTIPLEXER_START_IN_SESSION"
     fi
     if [[ -n "${PI_RUNNER_PI_COMMAND:-}" ]]; then
         CONFIG_PI_COMMAND="$PI_RUNNER_PI_COMMAND"
@@ -399,11 +400,11 @@ get_config() {
         worktree_copy_files)
             echo "$CONFIG_WORKTREE_COPY_FILES"
             ;;
-        tmux_session_prefix)
-            echo "$CONFIG_TMUX_SESSION_PREFIX"
+        tmux_session_prefix|multiplexer_session_prefix|session_prefix)
+            echo "$CONFIG_MULTIPLEXER_SESSION_PREFIX"
             ;;
-        tmux_start_in_session)
-            echo "$CONFIG_TMUX_START_IN_SESSION"
+        tmux_start_in_session|multiplexer_start_in_session|start_in_session)
+            echo "$CONFIG_MULTIPLEXER_START_IN_SESSION"
             ;;
         multiplexer_type)
             echo "$CONFIG_MULTIPLEXER_TYPE"
@@ -485,9 +486,9 @@ show_config() {
     echo "=== Configuration ==="
     echo "worktree_base_dir: $CONFIG_WORKTREE_BASE_DIR"
     echo "worktree_copy_files: $CONFIG_WORKTREE_COPY_FILES"
-    echo "tmux_session_prefix: $CONFIG_TMUX_SESSION_PREFIX"
-    echo "tmux_start_in_session: $CONFIG_TMUX_START_IN_SESSION"
     echo "multiplexer_type: $CONFIG_MULTIPLEXER_TYPE"
+    echo "multiplexer_session_prefix: $CONFIG_MULTIPLEXER_SESSION_PREFIX"
+    echo "multiplexer_start_in_session: $CONFIG_MULTIPLEXER_START_IN_SESSION"
     echo "pi_command: $CONFIG_PI_COMMAND"
     echo "pi_args: $CONFIG_PI_ARGS"
     echo "parallel_max_concurrent: $CONFIG_PARALLEL_MAX_CONCURRENT"

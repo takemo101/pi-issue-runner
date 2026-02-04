@@ -23,7 +23,7 @@ setup() {
     # 設定をリセット
     unset _CONFIG_LOADED
     unset _MUX_TYPE
-    unset PI_RUNNER_TMUX_SESSION_PREFIX
+    unset PI_RUNNER_MULTIPLEXER_SESSION_PREFIX
     unset PI_RUNNER_PARALLEL_MAX_CONCURRENT
     
     # テストでは tmux を使用
@@ -36,7 +36,7 @@ teardown() {
         export PATH="$ORIGINAL_PATH"
     fi
     
-    unset PI_RUNNER_TMUX_SESSION_PREFIX
+    unset PI_RUNNER_MULTIPLEXER_SESSION_PREFIX
     unset PI_RUNNER_PARALLEL_MAX_CONCURRENT
     
     if [[ "${_CLEANUP_TMPDIR:-}" == "1" && -d "${BATS_TEST_TMPDIR:-}" ]]; then
@@ -93,7 +93,7 @@ teardown() {
     source "$PROJECT_ROOT/lib/tmux.sh"
     
     _CONFIG_LOADED=""
-    export PI_RUNNER_TMUX_SESSION_PREFIX="myproject"
+    export PI_RUNNER_MULTIPLEXER_SESSION_PREFIX="myproject"
     load_config "$TEST_CONFIG_FILE"
     
     result="$(generate_session_name "99")"
@@ -106,7 +106,7 @@ teardown() {
     source "$PROJECT_ROOT/lib/tmux.sh"
     
     _CONFIG_LOADED=""
-    export PI_RUNNER_TMUX_SESSION_PREFIX="myproject-issue"
+    export PI_RUNNER_MULTIPLEXER_SESSION_PREFIX="myproject-issue"
     load_config "$TEST_CONFIG_FILE"
     
     result="$(generate_session_name "99")"

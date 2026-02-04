@@ -36,7 +36,7 @@ VERIFY_SCRIPT="$PROJECT_ROOT/scripts/verify-config-docs.sh"
     run "$VERIFY_SCRIPT"
     [ "$status" -eq 0 ]
     [[ "$output" == *"CONFIG_WORKTREE_BASE_DIR"* ]]
-    [[ "$output" == *"CONFIG_TMUX_SESSION_PREFIX"* ]]
+    [[ "$output" == *"CONFIG_MULTIPLEXER_SESSION_PREFIX"* ]]
     [[ "$output" == *"CONFIG_PARALLEL_MAX_CONCURRENT"* ]]
     [[ "$output" == *"CONFIG_PLANS_KEEP_RECENT"* ]]
 }
@@ -45,7 +45,7 @@ VERIFY_SCRIPT="$PROJECT_ROOT/scripts/verify-config-docs.sh"
     run "$VERIFY_SCRIPT"
     [ "$status" -eq 0 ]
     [[ "$output" == *'Section "worktree" found'* ]]
-    [[ "$output" == *'Section "tmux" found'* ]]
+    [[ "$output" == *'Section "multiplexer" found'* ]]
     [[ "$output" == *'Section "pi" found'* ]]
     [[ "$output" == *'Section "agent" found'* ]]
 }

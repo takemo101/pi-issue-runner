@@ -294,9 +294,6 @@ worktree:
 # マルチプレクサ設定
 multiplexer:
   type: "tmux"  # tmux または zellij
-
-# tmux/zellij共通設定
-tmux:
   session_prefix: "pi"
   start_in_session: true
 

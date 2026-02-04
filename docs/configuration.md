@@ -45,17 +45,13 @@ multiplexer:
   # tmux または zellij
   # デフォルト: tmux
   type: tmux
-
-# =====================================
-# tmux設定
-# =====================================
-tmux:
+  
   # セッション名のプレフィックス
   # 実際のセッション名: {prefix}-issue-{number}
   # デフォルト: pi
   session_prefix: pi
   
-  # tmuxセッション内で起動するか
+  # セッション内で起動するか
   # デフォルト: true
   start_in_session: true
 
@@ -183,25 +179,8 @@ worktree:
 | キー | 型 | デフォルト | 説明 |
 |------|------|-----------|------|
 | `type` | string | `tmux` | 使用するマルチプレクサ（`tmux` または `zellij`） |
-
-#### Zellijを使用する場合
-
-```yaml
-multiplexer:
-  type: zellij
-```
-
-環境変数でも切り替え可能:
-```bash
-PI_RUNNER_MULTIPLEXER_TYPE=zellij pi-run 42
-```
-
-### tmux
-
-| キー | 型 | デフォルト | 説明 |
-|------|------|-----------|------|
 | `session_prefix` | string | `pi` | セッション名のプレフィックス |
-| `start_in_session` | boolean | `true` | tmuxセッション内で起動するか |
+| `start_in_session` | boolean | `true` | セッション内で起動するか |
 
 #### セッション名の形式
 
@@ -210,6 +189,20 @@ PI_RUNNER_MULTIPLEXER_TYPE=zellij pi-run 42
 ```
 
 例: `pi-issue-42`
+
+#### Zellijを使用する場合
+
+```yaml
+multiplexer:
+  type: zellij
+  session_prefix: my-project
+```
+
+環境変数でも切り替え可能:
+```bash
+PI_RUNNER_MULTIPLEXER_TYPE=zellij pi-run 42
+PI_RUNNER_MULTIPLEXER_SESSION_PREFIX=my-project pi-run 42
+```
 
 ### pi
 
@@ -549,8 +542,8 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_WORKTREE_BASE_DIR` | `worktree.base_dir` |
 | `PI_RUNNER_WORKTREE_COPY_FILES` | `worktree.copy_files` |
 | `PI_RUNNER_MULTIPLEXER_TYPE` | `multiplexer.type` |
-| `PI_RUNNER_TMUX_SESSION_PREFIX` | `tmux.session_prefix` |
-| `PI_RUNNER_TMUX_START_IN_SESSION` | `tmux.start_in_session` |
+| `PI_RUNNER_MULTIPLEXER_SESSION_PREFIX` | `multiplexer.session_prefix` |
+| `PI_RUNNER_MULTIPLEXER_START_IN_SESSION` | `multiplexer.start_in_session` |
 | `PI_RUNNER_PI_COMMAND` | `pi.command` |
 | `PI_RUNNER_PI_ARGS` | `pi.args` |
 | `PI_RUNNER_AGENT_TYPE` | `agent.type` |

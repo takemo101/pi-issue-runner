@@ -29,7 +29,7 @@ setup() {
     unset CONFIG_GITHUB_INCLUDE_COMMENTS
     unset CONFIG_GITHUB_MAX_COMMENTS
     unset PI_RUNNER_WORKTREE_BASE_DIR
-    unset PI_RUNNER_TMUX_SESSION_PREFIX
+    unset PI_RUNNER_MULTIPLEXER_SESSION_PREFIX
     unset PI_RUNNER_AGENT_TYPE
     unset PI_RUNNER_AGENT_COMMAND
     unset PI_RUNNER_AGENT_ARGS
@@ -65,10 +65,10 @@ teardown() {
     [ "$result" = ".worktrees" ]
 }
 
-@test "get_config returns default tmux_session_prefix" {
+@test "get_config returns default session_prefix" {
     source "$PROJECT_ROOT/lib/config.sh"
     load_config "$TEST_CONFIG_FILE"
-    result="$(get_config tmux_session_prefix)"
+    result="$(get_config session_prefix)"
     [ "$result" = "pi" ]
 }
 
@@ -91,11 +91,11 @@ teardown() {
     [ "$result" = "custom_worktrees" ]
 }
 
-@test "environment variable overrides tmux_session_prefix" {
-    export PI_RUNNER_TMUX_SESSION_PREFIX="custom_prefix"
+@test "environment variable overrides session_prefix" {
+    export PI_RUNNER_MULTIPLEXER_SESSION_PREFIX="custom_prefix"
     source "$PROJECT_ROOT/lib/config.sh"
     load_config "$TEST_CONFIG_FILE"
-    result="$(get_config tmux_session_prefix)"
+    result="$(get_config session_prefix)"
     [ "$result" = "custom_prefix" ]
 }
 
@@ -147,7 +147,7 @@ teardown() {
 worktree:
   base_dir: ".custom-worktrees"
 
-tmux:
+multiplexer:
   session_prefix: "test-prefix"
 
 pi:
@@ -158,7 +158,7 @@ EOF
     load_config "$test_config"
     
     [ "$(get_config worktree_base_dir)" = ".custom-worktrees" ]
-    [ "$(get_config tmux_session_prefix)" = "test-prefix" ]
+    [ "$(get_config session_prefix)" = "test-prefix" ]
     [ "$(get_config pi_command)" = "/usr/local/bin/pi" ]
 }
 

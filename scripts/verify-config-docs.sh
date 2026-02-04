@@ -90,7 +90,7 @@ main() {
     
     local sample_vars=(
         "WORKTREE_BASE_DIR:.worktrees"
-        "TMUX_SESSION_PREFIX:pi"
+        "MULTIPLEXER_SESSION_PREFIX:pi"
         "PARALLEL_MAX_CONCURRENT:0"
         "PLANS_KEEP_RECENT:10"
     )
@@ -117,7 +117,7 @@ main() {
     
     local sections=(
         "worktree"
-        "tmux"
+        "multiplexer"
         "pi"
         "agent"
         "parallel"
