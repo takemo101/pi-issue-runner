@@ -260,16 +260,16 @@ sanitize_issue_body() {
     # 3. プレースホルダーを \$(( に置換（算術展開を無効化）
     sanitized=$(echo "$sanitized" | sed 's/__ARITH_OPEN__/\\$((/g')
     
-    # 3. バッククォートをエスケープ
+    # 4. バッククォートをエスケープ
     sanitized=$(echo "$sanitized" | sed 's/`/\\`/g')
     
-    # 4. ${ を \${ にエスケープ（変数展開を無効化）
+    # 5. ${ を \${ にエスケープ（変数展開を無効化）
     sanitized=$(echo "$sanitized" | sed 's/\${/\\${/g')
     
-    # 5. <( を \<( にエスケープ（プロセス置換を無効化）
+    # 6. <( を \<( にエスケープ（プロセス置換を無効化）
     sanitized=$(echo "$sanitized" | sed 's/<(/\\<( /g')
     
-    # 6. >( を \>( にエスケープ（プロセス置換を無効化）
+    # 7. >( を \>( にエスケープ（プロセス置換を無効化）
     sanitized=$(echo "$sanitized" | sed 's/>(/\\>(/g')
     
     echo "$sanitized"
