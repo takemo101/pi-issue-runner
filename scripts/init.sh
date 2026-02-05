@@ -27,6 +27,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/log.sh"
 
 # ヘルプを先に処理
 for arg in "$@"; do
@@ -51,24 +52,6 @@ HELP_EOF
             ;;
     esac
 done
-
-# 色付き出力
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
-
-log_success() {
-    echo -e "  ${GREEN}✓${NC} $1"
-}
-
-log_warning() {
-    echo -e "  ${YELLOW}⚠${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}Error:${NC} $1" >&2
-}
 
 # .pi-runner.yaml のテンプレート
 generate_config_content() {
@@ -158,7 +141,7 @@ create_file() {
             echo "$content" > "$file"
             log_success "$file を上書き"
         else
-            log_warning "$file は既に存在します（--force で上書き可能）"
+            log_warn "$file は既に存在します（--force で上書き可能）"
             return 1
         fi
     else
@@ -176,7 +159,7 @@ create_directory() {
     local dir="$1"
     
     if [[ -d "$dir" ]]; then
-        log_warning "$dir ディレクトリは既に存在します"
+        log_warn "$dir ディレクトリは既に存在します"
         return 1
     else
         mkdir -p "$dir"
@@ -217,7 +200,7 @@ update_gitignore() {
     if [[ "$added" == "true" ]]; then
         log_success ".gitignore を更新"
     else
-        log_warning ".gitignore は更新不要（エントリ済み）"
+        log_warn ".gitignore は更新不要（エントリ済み）"
     fi
 }
 
@@ -315,6 +298,11 @@ main() {
 
 # 孤立したステータスファイルをチェックして警告
 check_orphaned_statuses() {
+    # ローカル色定義（出力フォーマット用）
+    local GREEN='\033[0;32m'
+    local YELLOW='\033[0;33m'
+    local NC='\033[0m'
+    
     local status_dir=".worktrees/.status"
     
     # ステータスディレクトリが存在しない場合はスキップ
