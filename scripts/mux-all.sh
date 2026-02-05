@@ -159,64 +159,7 @@ tmux_link_mode() {
     tmux attach-session -t "$MONITOR_SESSION"
 }
 
-# Zellijレイアウトを生成
-generate_zellij_layout() {
-    local -a sessions=("$@")
-    local count=${#sessions[@]}
-    
-    # レイアウト開始
-    echo "layout {"
-    
-    if [[ "$count" -le 2 ]]; then
-        # 2つ以下: 横並び
-        echo '    pane split_direction="vertical" {'
-        for session in "${sessions[@]}"; do
-            cat << EOF
-        pane command="bash" {
-            args "-c" "ZELLIJ='' zellij attach '$session'"
-        }
-EOF
-        done
-        echo '    }'
-    elif [[ "$count" -le 4 ]]; then
-        # 3-4つ: 2x2グリッド
-        echo '    pane split_direction="horizontal" {'
-        echo '        pane split_direction="vertical" {'
-        for session in "${sessions[@]:0:2}"; do
-            cat << EOF
-            pane command="bash" {
-                args "-c" "ZELLIJ='' zellij attach '$session'"
-            }
-EOF
-        done
-        echo '        }'
-        echo '        pane split_direction="vertical" {'
-        for session in "${sessions[@]:2}"; do
-            cat << EOF
-            pane command="bash" {
-                args "-c" "ZELLIJ='' zellij attach '$session'"
-            }
-EOF
-        done
-        echo '        }'
-        echo '    }'
-    else
-        # 5つ以上: 縦に並べる
-        echo '    pane split_direction="horizontal" {'
-        for session in "${sessions[@]}"; do
-            cat << EOF
-        pane command="bash" {
-            args "-c" "ZELLIJ='' zellij attach '$session'"
-        }
-EOF
-        done
-        echo '    }'
-    fi
-    
-    echo "}"
-}
-
-# zellij: デフォルトモード（ネイティブレイアウト使用）
+# zellij: デフォルトモード（xpanesを使用）
 zellij_default_mode() {
     local sessions="$1"
     
@@ -230,38 +173,21 @@ zellij_default_mode() {
         # Single session: direct attach
         log_info "Attaching to session: ${session_array[0]}"
         zellij attach "${session_array[0]}"
-        return
-    fi
-    
-    # 既存のモニターセッションをチェック
-    if zellij list-sessions 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | grep -q "^$MONITOR_SESSION "; then
-        if [[ "$KILL_EXISTING" == "true" ]]; then
-            log_info "Killing existing monitor session..."
-            zellij delete-session "$MONITOR_SESSION" --force 2>/dev/null || true
-            sleep 1
-        else
-            log_info "Attaching to existing monitor session..."
-            log_info "Use -k to recreate"
-            zellij attach "$MONITOR_SESSION"
-            return
+    else
+        # Multiple sessions: use xpanes
+        if ! command -v xpanes &> /dev/null; then
+            log_error "xpanes is not installed (required for multiple Zellij sessions)"
+            log_info "Install with: brew install xpanes"
+            log_info ""
+            log_info "Available sessions:"
+            echo "$sessions" | sed 's/^/  /'
+            log_info ""
+            log_info "Attach manually: zellij attach <session-name>"
+            exit 1
         fi
+        
+        show_with_xpanes_zellij "${session_array[@]}"
     fi
-    
-    # Multiple sessions: use Zellij native layout
-    local layout_file
-    layout_file=$(mktemp /tmp/zellij-layout-XXXXXX.kdl)
-    
-    generate_zellij_layout "${session_array[@]}" > "$layout_file"
-    
-    log_info "Opening ${#session_array[@]} sessions with Zellij layout..."
-    log_debug "Layout file: $layout_file"
-    log_info "Press Ctrl+q to quit monitor session"
-    
-    # 新しいZellijセッションをレイアウトで開始
-    ZELLIJ='' zellij --layout "$layout_file" --session "$MONITOR_SESSION"
-    
-    # クリーンアップ
-    rm -f "$layout_file"
 }
 
 main() {
