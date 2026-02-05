@@ -169,7 +169,11 @@ fetch_and_filter_issues() {
     all_issues=$(echo "$open_issues_json" | jq -r '.[].number' | tr '\n' ' ')
     
     if [[ -z "$all_issues" ]]; then
-        [[ "$json_output" == "true" ]] && echo '{"recommended":[],"message":"No open issues found"}' || log_info "No open issues found."
+        if [[ "$json_output" == "true" ]]; then
+            echo '{"recommended":[],"message":"No open issues found"}'
+        else
+            log_info "No open issues found."
+        fi
         exit 1
     fi
     
@@ -181,7 +185,11 @@ fetch_and_filter_issues() {
     non_running_issues=$(filter_non_running_issues "$all_issues")
     
     if [[ -z "$non_running_issues" ]]; then
-        [[ "$json_output" == "true" ]] && echo '{"recommended":[],"message":"All issues are currently running"}' || log_info "All issues are currently running."
+        if [[ "$json_output" == "true" ]]; then
+            echo '{"recommended":[],"message":"All issues are currently running"}'
+        else
+            log_info "All issues are currently running."
+        fi
         exit 1
     fi
     
@@ -193,7 +201,11 @@ fetch_and_filter_issues() {
     unblocked_issues=$(filter_unblocked_issues "$non_running_issues")
     
     if [[ -z "$unblocked_issues" ]]; then
-        [[ "$json_output" == "true" ]] && echo '{"recommended":[],"message":"All non-running issues are blocked"}' || log_info "All non-running issues are blocked by dependencies."
+        if [[ "$json_output" == "true" ]]; then
+            echo '{"recommended":[],"message":"All non-running issues are blocked"}'
+        else
+            log_info "All non-running issues are blocked by dependencies."
+        fi
         exit 1
     fi
     
@@ -206,7 +218,11 @@ fetch_and_filter_issues() {
         candidate_issues=$(filter_by_label "$unblocked_issues" "$label_filter")
         
         if [[ -z "$candidate_issues" ]]; then
-            [[ "$json_output" == "true" ]] && echo "{\"recommended\":[],\"message\":\"No issues found with label: $label_filter\"}" || log_info "No issues found with label: $label_filter"
+            if [[ "$json_output" == "true" ]]; then
+                echo "{\"recommended\":[],\"message\":\"No issues found with label: $label_filter\"}"
+            else
+                log_info "No issues found with label: $label_filter"
+            fi
             exit 1
         fi
         
@@ -259,7 +275,11 @@ display_recommendations() {
     top_count=$(echo "$top_issues" | jq 'length')
     
     if [[ "$top_count" -eq 0 ]]; then
-        [[ "$json_output" == "true" ]] && echo '{"recommended":[],"message":"No candidates available"}' || log_info "No candidates available."
+        if [[ "$json_output" == "true" ]]; then
+            echo '{"recommended":[],"message":"No candidates available"}'
+        else
+            log_info "No candidates available."
+        fi
         exit 1
     fi
     
