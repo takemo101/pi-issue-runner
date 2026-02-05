@@ -78,6 +78,24 @@ scripts/wait-for-sessions.sh 42 43    # 複数セッション完了待機
 - `jq` (JSON処理)
 - `yq` (オプション - ワークフローのカスタマイズに必要)
 
+## 非同期実行について
+
+**重要**: `run.sh` を実行すると、バックグラウンドで `watch-session.sh` が自動起動し、完了を監視します。
+そのため、**`wait-for-sessions.sh` を呼ぶ必要はありません**。
+
+```bash
+# 推奨: --no-attach でバックグラウンド起動
+scripts/run.sh 42 --no-attach
+# → 即座に制御が返る
+# → 完了時に自動で通知が届く
+
+# 進捗確認が必要な場合
+scripts/status.sh 42
+scripts/list.sh
+```
+
+`wait-for-sessions.sh` は特殊なケース（複数セッションの同期待機が必要な場合など）にのみ使用してください。
+
 ## 自動クリーンアップ
 
 タスク完了時またはエラー発生時にAIが特定のマーカーを出力すると、
