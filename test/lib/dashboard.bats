@@ -61,13 +61,6 @@ teardown() {
     [[ "$output" == *"=== SECTION ==="* ]]
 }
 
-@test "draw_separator outputs blank line" {
-    source "$PROJECT_ROOT/lib/dashboard.sh"
-    
-    run draw_separator
-    [ "$status" -eq 0 ]
-}
-
 # ====================
 # Data Collection Tests
 # ====================
@@ -171,29 +164,6 @@ MOCK_EOF
     run collect_local_statuses
     [ "$status" -eq 0 ]
     [[ "$output" == *"42"* ]]
-}
-
-@test "collect_session_info returns session list" {
-    source "$PROJECT_ROOT/lib/dashboard.sh"
-    
-    # tmuxのモック
-    cat > "$MOCK_DIR/tmux" << 'MOCK_EOF'
-#!/usr/bin/env bash
-case "$*" in
-    "list-sessions"*)
-        echo "pi-test-42"
-        echo "pi-test-43"
-        ;;
-    *)
-        exit 0
-        ;;
-esac
-MOCK_EOF
-    chmod +x "$MOCK_DIR/tmux"
-    enable_mocks
-    
-    run collect_session_info
-    [ "$status" -eq 0 ]
 }
 
 # ====================

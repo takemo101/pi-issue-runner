@@ -262,10 +262,12 @@ error="$(get_error_message 42)"
 
 #### workflow.sh
 
-ワークフローとプロンプト生成:
+ワークフローとプロンプト生成（静的生成方式）:
+
+Pi Issue Runnerは**静的プロンプト生成方式**を採用しています。ワークフロー定義から全ステップのプロンプトを一度に生成し、`.pi-prompt.md` ファイルとして保存します。piエージェントはこのプロンプトファイルを読み込み、各ステップを順次実行します。
 
 ```bash
-# プロンプトファイル生成
+# プロンプトファイル生成（全ステップを含む）
 write_workflow_prompt \
     "$prompt_file" \
     "default" \
@@ -275,6 +277,8 @@ write_workflow_prompt \
     "$branch_name" \
     "$worktree_path"
 ```
+
+> **Note**: 過去には動的ワークフロー実行機能（`run_workflow`, `run_step`, `parse_step_result`）が実装されていましたが、静的プロンプト生成方式の方がシンプルで保守性が高いため、動的実行機能は削除されました（Issue #849）。
 
 ### 3. Infrastructure Layer
 
