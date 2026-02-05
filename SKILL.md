@@ -26,6 +26,9 @@ Options:
   --agent-args <args>    エージェントに渡す追加の引数
   --pi-args <args>       --agent-args のエイリアス（後方互換性）
   --ignore-blockers      依存関係チェックをスキップして強制実行
+  --show-config          現在の設定を表示（デバッグ用）
+  --list-agents          利用可能なエージェントプリセット一覧を表示
+  --show-agent-config    エージェント設定を表示（デバッグ用）
 
 # バッチ実行（依存関係順）
 scripts/run-batch.sh <issue>... [options]
