@@ -182,6 +182,11 @@ scripts/run.sh 42 --force
 scripts/run.sh 42 --agent-args "--verbose"
 # または従来のオプション（後方互換性）
 scripts/run.sh 42 --pi-args "--verbose"
+
+# デバッグオプション
+scripts/run.sh --show-config           # 現在の設定を表示
+scripts/run.sh --list-agents           # 利用可能なエージェント一覧
+scripts/run.sh 42 --show-agent-config  # エージェント設定を表示
 ```
 
 ### コンテキスト永続化
