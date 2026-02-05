@@ -44,6 +44,54 @@ steps:
   - merge     # PRの作成とマージ
 ```
 
+### thorough - 徹底ワークフロー
+
+大規模な変更や重要な機能向けに、計画・実装・テスト・レビュー・マージの5ステップを実行します。
+
+| ステップ | 説明 |
+|----------|------|
+| `plan` | Issue分析と実装計画の作成 |
+| `implement` | コード実装 |
+| `test` | テスト実行とカバレッジ確認 |
+| `review` | セルフレビューと品質確認 |
+| `merge` | PR作成とマージ |
+
+```yaml
+# workflows/thorough.yaml
+name: thorough
+description: 徹底ワークフロー（計画・実装・テスト・レビュー・マージ）
+steps:
+  - plan
+  - implement
+  - test
+  - review
+  - merge
+```
+
+### ci-fix - CI修正ワークフロー
+
+CI失敗を検出し、自動修正を試行します。マージエージェントから自動的に呼び出されることもあります。
+
+| ステップ | 説明 |
+|----------|------|
+| `ci-fix` | CI失敗を検出し自動修正を試行 |
+
+```yaml
+# workflows/ci-fix.yaml
+name: ci-fix
+description: CI失敗を検出し自動修正を試行
+steps:
+  - ci-fix
+```
+
+**使用例**:
+```bash
+# 手動でCI修正を実行
+./scripts/run.sh 42 --workflow ci-fix
+```
+
+> **注意**: このワークフローは通常、マージエージェントによって自動的に呼び出されます。手動実行は主にテストやデバッグ目的で使用します。
+
 ## 使用方法
 
 ### ワークフローの指定
@@ -66,13 +114,13 @@ steps:
 `workflows/` ディレクトリにYAMLファイルを作成します：
 
 ```yaml
-# workflows/thorough.yaml
-name: thorough
-description: 徹底ワークフロー（計画・実装・テスト・レビュー・マージ）
+# workflows/custom-example.yaml
+name: custom-example
+description: カスタムワークフロー例（計画・実装・検証・レビュー・マージ）
 steps:
   - plan
   - implement
-  - test
+  - validate  # カスタムステップ
   - review
   - merge
 ```
@@ -91,21 +139,21 @@ steps:
 `agents/` ディレクトリにMarkdownファイルを作成します：
 
 ```markdown
-# agents/test.md（カスタムステップの例）
-# Test Agent
+# agents/validate.md（カスタムステップの例）
+# Validate Agent
 
-GitHub Issue #{{issue_number}} のテストを実行します。
+GitHub Issue #{{issue_number}} の実装を検証します。
 
 ## タスク
-1. 単体テストを実行
-2. 結合テストを実行
-3. カバレッジレポートを確認
+1. コードスタイルをチェック
+2. セキュリティスキャンを実行
+3. パフォーマンステストを実行
 ```
 
 ### 3. カスタムワークフローの使用
 
 ```bash
-./scripts/run.sh 42 --workflow thorough
+./scripts/run.sh 42 --workflow custom-example
 ```
 
 > **注意**: カスタムワークフローで定義したステップに対応するエージェントテンプレートが存在しない場合、ビルトインのフォールバックプロンプトが使用されます。最適な結果を得るには、各ステップ用のテンプレートを作成してください。
