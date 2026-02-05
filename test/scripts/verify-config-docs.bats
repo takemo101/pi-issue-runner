@@ -78,25 +78,79 @@ VERIFY_SCRIPT="$PROJECT_ROOT/scripts/verify-config-docs.sh"
 }
 
 @test "verify-config-docs.sh checks hooks documentation exists" {
+    # 並列テスト実行時のファイル競合を防ぐためロックを取得
+    local lockfile="$BATS_TEST_TMPDIR/hooks-test.lock"
+    local max_wait=30
+    local waited=0
+    
+    while ! mkdir "$lockfile" 2>/dev/null; do
+        sleep 0.1
+        waited=$((waited + 1))
+        if [[ $waited -gt $((max_wait * 10)) ]]; then
+            skip "Could not acquire lock after ${max_wait}s"
+        fi
+    done
+    
     run "$VERIFY_SCRIPT"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Checking hooks configuration"* ]]
-    [[ "$output" == *"docs/hooks.md exists"* ]]
+    local result=$status
+    local test_output="$output"
+    
+    rmdir "$lockfile" 2>/dev/null || true
+    
+    [ "$result" -eq 0 ]
+    [[ "$test_output" == *"Checking hooks configuration"* ]]
+    [[ "$test_output" == *"docs/hooks.md exists"* ]]
 }
 
 @test "verify-config-docs.sh verifies hook events are documented" {
+    # 並列テスト実行時のファイル競合を防ぐためロックを取得
+    local lockfile="$BATS_TEST_TMPDIR/hooks-test.lock"
+    local max_wait=30
+    local waited=0
+    
+    while ! mkdir "$lockfile" 2>/dev/null; do
+        sleep 0.1
+        waited=$((waited + 1))
+        if [[ $waited -gt $((max_wait * 10)) ]]; then
+            skip "Could not acquire lock after ${max_wait}s"
+        fi
+    done
+    
     run "$VERIFY_SCRIPT"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *'Hook event "on_start" is documented'* ]]
-    [[ "$output" == *'Hook event "on_success" is documented'* ]]
-    [[ "$output" == *'Hook event "on_error" is documented'* ]]
-    [[ "$output" == *'Hook event "on_cleanup" is documented'* ]]
+    local result=$status
+    local test_output="$output"
+    
+    rmdir "$lockfile" 2>/dev/null || true
+    
+    [ "$result" -eq 0 ]
+    [[ "$test_output" == *'Hook event "on_start" is documented'* ]]
+    [[ "$test_output" == *'Hook event "on_success" is documented'* ]]
+    [[ "$test_output" == *'Hook event "on_error" is documented'* ]]
+    [[ "$test_output" == *'Hook event "on_cleanup" is documented'* ]]
 }
 
 @test "verify-config-docs.sh checks hooks configuration example" {
+    # 並列テスト実行時のファイル競合を防ぐためロックを取得
+    local lockfile="$BATS_TEST_TMPDIR/hooks-test.lock"
+    local max_wait=30
+    local waited=0
+    
+    while ! mkdir "$lockfile" 2>/dev/null; do
+        sleep 0.1
+        waited=$((waited + 1))
+        if [[ $waited -gt $((max_wait * 10)) ]]; then
+            skip "Could not acquire lock after ${max_wait}s"
+        fi
+    done
+    
     run "$VERIFY_SCRIPT"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Hooks configuration example found"* ]]
+    local result=$status
+    local test_output="$output"
+    
+    rmdir "$lockfile" 2>/dev/null || true
+    
+    [ "$result" -eq 0 ]
+    [[ "$test_output" == *"Hooks configuration example found"* ]]
 }
 
 @test "verify-config-docs.sh detects missing hooks documentation" {
