@@ -146,7 +146,8 @@ mux_kill_session() {
     
     log_info "Killing session: $session_name"
     
-    zellij kill-session "$session_name" 2>/dev/null || true
+    # --force でアクティブなセッションも強制終了
+    zellij delete-session "$session_name" --force 2>/dev/null || true
     
     # 終了を待機
     local waited=0
