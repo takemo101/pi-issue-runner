@@ -51,11 +51,6 @@ draw_header() {
     printf "\n=== %s ===\n" "$text"
 }
 
-# 区切り線を出力
-draw_separator() {
-    printf "\n"
-}
-
 # ====================
 # Data Collection Functions
 # ====================
@@ -101,11 +96,6 @@ collect_closed_issues_this_week() {
 collect_local_statuses() {
     # タブ区切りで issue_number<TAB>status を返す
     list_all_statuses 2>/dev/null || echo ""
-}
-
-# tmuxセッション情報を取得
-collect_session_info() {
-    list_sessions 2>/dev/null || echo ""
 }
 
 # ====================
