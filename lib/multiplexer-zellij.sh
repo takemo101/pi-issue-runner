@@ -70,26 +70,11 @@ mux_create_session() {
     log_debug "Command: $command"
     
     # Zellijをバックグラウンドで起動
-    # レイアウトファイルを使って適切なサイズで起動
-    local layout_file
-    layout_file=$(mktemp /tmp/zellij-init-XXXXXX.kdl)
-    
-    cat > "$layout_file" << 'LAYOUT_EOF'
-layout {
-    pane
-}
-LAYOUT_EOF
-    
     # サブシェルで実行して現在のディレクトリを変更しない
-    # 標準入力を/dev/nullからリダイレクトし、バックグラウンドで起動
     (
         cd "$working_dir"
-        zellij --layout "$layout_file" -s "$session_name" < /dev/null > /dev/null 2>&1 &
-        disown
+        nohup zellij -s "$session_name" </dev/null >/dev/null 2>&1 &
     )
-    
-    # レイアウトファイルは少し待ってから削除
-    (sleep 2 && rm -f "$layout_file") &
     
     # セッションが作成されるまで待機
     local waited=0
