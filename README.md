@@ -555,7 +555,8 @@ pi-issue-runner/
 │   ├── wait-for-sessions.sh # 複数セッション完了待機
 │   ├── improve.sh          # 継続的改善スクリプト
 │   ├── init.sh             # プロジェクト初期化
-│   └── test.sh             # テスト一括実行
+│   ├── test.sh             # テスト一括実行
+│   └── verify-config-docs.sh  # 設定ドキュメントの整合性検証
 ├── lib/
 │   ├── agent.sh            # マルチエージェント対応
 │   ├── batch.sh            # バッチ処理コア機能
@@ -703,6 +704,9 @@ test/
 │   ├── status.bats              # status.sh のテスト
 │   ├── template.bats            # template.sh のテスト
 │   ├── tmux.bats                # tmux.sh のテスト
+│   ├── multiplexer.bats         # multiplexer.sh のテスト
+│   ├── multiplexer-tmux.bats    # multiplexer-tmux.sh のテスト
+│   ├── multiplexer-zellij.bats  # multiplexer-zellij.sh のテスト
 │   ├── workflow-finder.bats     # workflow-finder.sh のテスト
 │   ├── workflow-loader.bats     # workflow-loader.sh のテスト
 │   ├── workflow-prompt.bats     # workflow-prompt.sh のテスト
@@ -719,6 +723,7 @@ test/
 │   ├── improve.bats             # improve.sh のテスト
 │   ├── init.bats                # init.sh のテスト
 │   ├── list.bats                # list.sh のテスト
+│   ├── mux-all.bats             # mux-all.sh のテスト
 │   ├── next.bats                # next.sh のテスト
 │   ├── nudge.bats               # nudge.sh のテスト
 │   ├── restart-watcher.bats     # restart-watcher.sh のテスト
@@ -727,6 +732,7 @@ test/
 │   ├── status.bats              # status.sh のテスト
 │   ├── stop.bats                # stop.sh のテスト
 │   ├── test.bats                # test.sh のテスト
+│   ├── verify-config-docs.bats  # verify-config-docs.sh のテスト
 │   ├── wait-for-sessions.bats   # wait-for-sessions.sh のテスト
 │   └── watch-session.bats       # watch-session.sh のテスト
 ├── regression/                  # 回帰テスト
