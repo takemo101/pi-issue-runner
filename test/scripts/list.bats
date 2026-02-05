@@ -74,6 +74,9 @@ MOCK_EOF
 # ====================
 
 @test "list.sh with sessions shows formatted output" {
+    # 環境変数でマルチプレクサをtmuxに固定（zellijへのフォールバックを防止）
+    export PI_RUNNER_MULTIPLEXER_TYPE="tmux"
+    
     # tmuxモック（セッションあり）
     cat > "$MOCK_DIR/tmux" << 'MOCK_EOF'
 #!/usr/bin/env bash
