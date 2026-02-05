@@ -122,7 +122,9 @@ VERIFY_SCRIPT="$PROJECT_ROOT/scripts/verify-config-docs.sh"
     # configuration.mdのhooksセクションをバックアップして削除
     local config_md="$PROJECT_ROOT/docs/configuration.md"
     cp "$config_md" "$config_md.bak.$$"
-    sed -i.tmp '/^### hooks$/,/^### /{ /^### hooks$/d; /^### /!d; }' "$config_md"
+    # hooksセクションを削除（次のセクションの前まで）
+    awk '/^### hooks$/,/^### / { if (/^### hooks$/) next; if (/^### / && !/^### hooks$/) print; next } 1' "$config_md" > "$config_md.tmp"
+    mv "$config_md.tmp" "$config_md"
     
     run "$VERIFY_SCRIPT"
     local result=$status
@@ -134,7 +136,6 @@ VERIFY_SCRIPT="$PROJECT_ROOT/scripts/verify-config-docs.sh"
     if [[ -f "$config_md.bak.$$" ]]; then
         mv "$config_md.bak.$$" "$config_md"
     fi
-    rm -f "$config_md.tmp"
     
     # ロック解放
     rmdir "$lockfile" 2>/dev/null || true
