@@ -3,6 +3,8 @@
 
 load '../test_helper'
 
+bats_require_minimum_version 1.5.0
+
 setup() {
     # TMPDIRセットアップ
     if [[ -z "${BATS_TEST_TMPDIR:-}" ]]; then
@@ -330,7 +332,7 @@ EOF
     source "$PROJECT_ROOT/lib/multiplexer-zellij.sh"
     
     # 短いタイムアウトで実行（タイムアウトするはず）
-    run timeout 5 mux_kill_session "persistent-session" 1
+    run -127 timeout 5 mux_kill_session "persistent-session" 1
     [ "$status" -ne 0 ]
 }
 
