@@ -303,7 +303,8 @@ EOF
     TEST_WATCHER_PID="$watcher_pid"
     
     # 親が終了してもwatcherが生きているか確認
-    sleep 0.5
+    # Note: daemon起動オーバーヘッド + ログ書き込み時間を考慮して1.0秒待機
+    sleep 1.0
     run is_daemon_running "$watcher_pid"
     [ "$status" -eq 0 ]
     
