@@ -408,13 +408,21 @@ fetch_created_issues() {
 # ============================================================================
 # Subfunction: execute_issues_in_parallel
 # Purpose: Start parallel execution of issues
-# Arguments: Issue numbers passed via stdin
+# Arguments: $1=newline-separated issue numbers
 # ============================================================================
 execute_issues_in_parallel() {
+    local issues="$1"
+    
     echo ""
     echo "[PHASE 3] Starting parallel execution..."
     
+    if [[ -z "$issues" ]]; then
+        echo "  No issues to execute"
+        return 0
+    fi
+    
     while IFS= read -r issue; do
+        [[ -z "$issue" ]] && continue
         echo "  Starting Issue #$issue..."
         if "$SCRIPT_DIR/run.sh" "$issue" --no-attach; then
             # Track active session for cleanup on interruption
@@ -422,7 +430,7 @@ execute_issues_in_parallel() {
         else
             log_warn "Failed to start session for Issue #$issue"
         fi
-    done
+    done <<< "$issues"
 }
 
 # ============================================================================
@@ -435,6 +443,13 @@ wait_for_completion() {
 
     echo ""
     echo "[PHASE 4] Waiting for sessions to complete..."
+    
+    if [[ ${#ACTIVE_ISSUE_NUMBERS[@]} -eq 0 ]]; then
+        echo "  No active sessions to wait for"
+        return 0
+    fi
+    
+    echo "  Waiting for: ${ACTIVE_ISSUE_NUMBERS[*]}"
     
     if ! "$SCRIPT_DIR/wait-for-sessions.sh" "${ACTIVE_ISSUE_NUMBERS[@]}" --timeout "$timeout" --cleanup; then
         log_warn "Some sessions failed or timed out"
@@ -505,7 +520,7 @@ main() {
     created_issues="$(fetch_created_issues "$start_time" "$max_issues" "$session_label")"
     
     # Phase 3: Execute in parallel
-    echo "$created_issues" | execute_issues_in_parallel
+    execute_issues_in_parallel "$created_issues"
     
     # Phase 4: Wait for completion
     wait_for_completion "$timeout"
