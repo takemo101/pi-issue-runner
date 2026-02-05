@@ -26,7 +26,7 @@ GitHub Issue #{{issue_number}} のPRを作成し、マージします。
 
 ### 1. プッシュ
 ```bash
-git push -u origin {{branch_name}}
+git push -u origin feature/{{branch_name}}
 ```
 
 ### 2. PR作成
