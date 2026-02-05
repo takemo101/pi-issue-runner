@@ -79,7 +79,13 @@ MOCK_EOF
 #!/usr/bin/env bash
 case "$1" in
     "list-sessions")
-        echo "pi-42: 1 windows (created Mon Jan  1 00:00:00 2024)"
+        # -F フラグがある場合はセッション名のみを出力
+        if [[ "$*" == *"-F"* ]]; then
+            echo "pi-issue-42"
+        else
+            # -F フラグなしの場合は完全な情報を出力
+            echo "pi-issue-42: 1 windows (created Mon Jan  1 00:00:00 2024)"
+        fi
         ;;
     *)
         exit 0
@@ -90,5 +96,9 @@ MOCK_EOF
     enable_mocks
     
     run "$PROJECT_ROOT/scripts/list.sh"
+    # デバッグ出力（CI失敗時のみ表示される）
+    echo "# Exit status: $status" >&3
+    echo "# Output:" >&3
+    echo "$output" | sed 's/^/# /' >&3
     [ "$status" -eq 0 ]
 }
