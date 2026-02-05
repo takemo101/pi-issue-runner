@@ -115,7 +115,12 @@ check_dependencies || exit 1
 # エラー時のクリーンアップを設定
 setup_cleanup_trap cleanup_worktree_on_error
 
-main() {
+# ============================================================================
+# Subfunction: parse_run_arguments
+# Purpose: Parse command-line arguments
+# Output: Shell variable assignments (eval-able)
+# ============================================================================
+parse_run_arguments() {
     local issue_number=""
     local custom_branch=""
     local base_branch="HEAD"
@@ -124,11 +129,10 @@ main() {
     local reattach=false
     local force=false
     local extra_agent_args=""
-    local cleanup_mode="auto"  # デフォルト: 自動クリーンアップ
+    local cleanup_mode="auto"
     local list_workflows=false
     local ignore_blockers=false
 
-    # 引数のパース
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --issue|-i)
@@ -197,6 +201,29 @@ main() {
         esac
     done
 
+    # Output variable assignments
+    echo "local issue_number='$issue_number'"
+    echo "local custom_branch='$custom_branch'"
+    echo "local base_branch='$base_branch'"
+    echo "local workflow_name='$workflow_name'"
+    echo "local no_attach=$no_attach"
+    echo "local reattach=$reattach"
+    echo "local force=$force"
+    echo "local extra_agent_args='$extra_agent_args'"
+    echo "local cleanup_mode='$cleanup_mode'"
+    echo "local list_workflows=$list_workflows"
+    echo "local ignore_blockers=$ignore_blockers"
+}
+
+# ============================================================================
+# Subfunction: validate_run_inputs
+# Purpose: Validate inputs and load configuration
+# Arguments: $1=issue_number, $2=list_workflows
+# ============================================================================
+validate_run_inputs() {
+    local issue_number="$1"
+    local list_workflows="$2"
+
     # --list-workflowsオプションの処理
     if [[ "$list_workflows" == "true" ]]; then
         log_info "Available workflows:"
@@ -218,12 +245,22 @@ main() {
 
     # 設定読み込み
     load_config
+}
 
-    # セッション名を早期に生成（既存チェック用）
+# ============================================================================
+# Subfunction: handle_existing_session
+# Purpose: Check and handle existing session
+# Arguments: $1=issue_number, $2=reattach, $3=force
+# Output: Session name (if continuing)
+# ============================================================================
+handle_existing_session() {
+    local issue_number="$1"
+    local reattach="$2"
+    local force="$3"
+
     local session_name
     session_name="$(generate_session_name "$issue_number")"
 
-    # 既存セッションのチェック
     if session_exists "$session_name"; then
         if [[ "$reattach" == "true" ]]; then
             log_info "Attaching to existing session: $session_name"
@@ -248,7 +285,19 @@ main() {
         fi
     fi
 
-    # Issue情報取得
+    echo "local session_name='$session_name'"
+}
+
+# ============================================================================
+# Subfunction: fetch_issue_data
+# Purpose: Fetch Issue information and check dependencies
+# Arguments: $1=issue_number, $2=ignore_blockers
+# Output: Shell variable assignments (eval-able)
+# ============================================================================
+fetch_issue_data() {
+    local issue_number="$1"
+    local ignore_blockers="$2"
+
     log_info "Fetching Issue #$issue_number..."
     local issue_title
     issue_title="$(get_issue_title "$issue_number")"
@@ -256,7 +305,6 @@ main() {
     
     local issue_body
     issue_body="$(get_issue_body "$issue_number" 2>/dev/null)" || issue_body=""
-    # サニタイズ処理を適用（セキュリティ対策）
     issue_body="$(sanitize_issue_body "$issue_body")"
     
     # 依存関係チェック
@@ -284,6 +332,24 @@ main() {
             log_debug "Fetched comments for Issue #$issue_number"
         fi
     fi
+
+    # Output (escape single quotes in body/comments)
+    echo "local issue_title='${issue_title//\'/\'\\\'\'}'"
+    echo "local issue_body='${issue_body//\'/\'\\\'\'}'"
+    echo "local issue_comments='${issue_comments//\'/\'\\\'\'}'"
+}
+
+# ============================================================================
+# Subfunction: setup_worktree
+# Purpose: Determine branch name and create worktree
+# Arguments: $1=issue_number, $2=custom_branch, $3=base_branch, $4=force
+# Output: Shell variable assignments (eval-able)
+# ============================================================================
+setup_worktree() {
+    local issue_number="$1"
+    local custom_branch="$2"
+    local base_branch="$3"
+    local force="$4"
 
     # ブランチ名決定
     local branch_name
@@ -318,12 +384,34 @@ main() {
     # エラー時クリーンアップ用にworktreeを登録
     register_worktree_for_cleanup "$full_worktree_path"
 
+    echo "local branch_name='$branch_name'"
+    echo "local worktree_path='$worktree_path'"
+    echo "local full_worktree_path='$full_worktree_path'"
+}
+
+# ============================================================================
+# Subfunction: start_agent_session
+# Purpose: Generate prompt and create agent session
+# Arguments: Multiple (see function body)
+# Output: Shell variable assignments (eval-able)
+# ============================================================================
+start_agent_session() {
+    local session_name="$1"
+    local issue_number="$2"
+    local issue_title="$3"
+    local issue_body="$4"
+    local branch_name="$5"
+    local full_worktree_path="$6"
+    local workflow_name="$7"
+    local issue_comments="$8"
+    local extra_agent_args="$9"
+
     # ワークフローからプロンプトファイルを生成
     local prompt_file="$full_worktree_path/.pi-prompt.md"
     log_info "Workflow: $workflow_name"
     write_workflow_prompt "$prompt_file" "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path" "." "$issue_comments"
     
-    # エージェントコマンド構築（agent.shを使用）
+    # エージェントコマンド構築
     local full_command
     full_command="$(build_agent_command "$prompt_file" "$extra_agent_args")"
 
@@ -337,8 +425,18 @@ main() {
     
     # on_start hookを実行
     run_hook "on_start" "$issue_number" "$session_name" "feature/$branch_name" "$full_worktree_path" "" "0" "$issue_title"
+}
 
-    # 自動クリーンアップが有効な場合、監視プロセスを起動
+# ============================================================================
+# Subfunction: setup_completion_watcher
+# Purpose: Start completion watcher process
+# Arguments: $1=cleanup_mode, $2=session_name, $3=issue_number
+# ============================================================================
+setup_completion_watcher() {
+    local cleanup_mode="$1"
+    local session_name="$2"
+    local issue_number="$3"
+
     if [[ "$cleanup_mode" != "none" ]]; then
         log_info "Starting completion watcher..."
         local watcher_log="/tmp/pi-watcher-${session_name}.log"
@@ -346,8 +444,6 @@ main() {
         watcher_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/watch-session.sh"
         
         # Issue #553: daemonize関数を使用してプロセスグループを分離
-        # nohup + disown だけでは親プロセスグループ終了時に一緒に死ぬため、
-        # daemonizeで新しいセッションを作成して完全に分離する
         local watcher_pid
         watcher_pid=$(daemonize "$watcher_log" "$watcher_script" "$session_name")
         
@@ -356,6 +452,21 @@ main() {
         
         log_debug "Watcher PID: $watcher_pid, Log: $watcher_log"
     fi
+}
+
+# ============================================================================
+# Subfunction: display_summary_and_attach
+# Purpose: Display summary and optionally attach to session
+# Arguments: Multiple (see function body)
+# ============================================================================
+display_summary_and_attach() {
+    local issue_number="$1"
+    local issue_title="$2"
+    local worktree_path="$3"
+    local branch_name="$4"
+    local session_name="$5"
+    local cleanup_mode="$6"
+    local no_attach="$7"
 
     log_info "=== Summary ==="
     log_info "Issue:     #$issue_number - $issue_title"
@@ -381,6 +492,36 @@ main() {
         log_info "Session started in background."
         log_info "Attach with: $(basename "$0")/../attach.sh $session_name"
     fi
+}
+
+# ============================================================================
+# Main function
+# Purpose: Orchestrate the workflow by calling subfunctions
+# ============================================================================
+main() {
+    # Parse arguments
+    eval "$(parse_run_arguments "$@")"
+    
+    # Validate inputs
+    validate_run_inputs "$issue_number" "$list_workflows"
+    
+    # Handle existing session
+    eval "$(handle_existing_session "$issue_number" "$reattach" "$force")"
+    
+    # Fetch issue data
+    eval "$(fetch_issue_data "$issue_number" "$ignore_blockers")"
+    
+    # Setup worktree
+    eval "$(setup_worktree "$issue_number" "$custom_branch" "$base_branch" "$force")"
+    
+    # Start agent session
+    start_agent_session "$session_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path" "$workflow_name" "$issue_comments" "$extra_agent_args"
+    
+    # Setup completion watcher
+    setup_completion_watcher "$cleanup_mode" "$session_name" "$issue_number"
+    
+    # Display summary and attach
+    display_summary_and_attach "$issue_number" "$issue_title" "$worktree_path" "$branch_name" "$session_name" "$cleanup_mode" "$no_attach"
 }
 
 main "$@"
