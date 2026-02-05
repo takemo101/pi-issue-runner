@@ -4,23 +4,23 @@
 #
 # Supports both tmux and Zellij multiplexers.
 #
-# Two modes:
-#   1. Default: Link windows (tmux) or use xpanes (zellij)
-#   2. Watch mode (-w): Use xpanes to show all sessions simultaneously
+# Modes:
+#   tmux:   Default uses link-window, watch mode uses xpanes
+#   zellij: Uses native panes (no xpanes required)
 #
 # Usage: ./scripts/mux-all.sh [options]
 #
 # Options:
 #   -a, --all           All *-issue-* sessions (ignore prefix)
 #   -p, --prefix NAME   Specific prefix (e.g., dict)
-#   -w, --watch         Watch mode: xpanes tiled view
+#   -w, --watch         Watch mode: tmux uses xpanes, zellij uses native panes
 #   -k, --kill          Kill existing monitor session first
 #   -h, --help          Show help message
 #
 # Examples:
 #   ./scripts/mux-all.sh           # Show all sessions
-#   ./scripts/mux-all.sh -w        # xpanes tiled view
-#   ./scripts/mux-all.sh -a -w     # All *-issue-* sessions
+#   ./scripts/mux-all.sh -k        # Recreate monitor session
+#   ./scripts/mux-all.sh -a        # All *-issue-* sessions
 # ============================================================================
 
 set -euo pipefail
@@ -49,20 +49,20 @@ Usage: $(basename "$0") [options]
 現在のマルチプレクサ: ${mux_type:-tmux}
 
 モード:
-    デフォルト          tmux: link-window / zellij: xpanes
-    -w, --watch         xpanesでタイル表示（両方対応）
+    デフォルト          tmux: link-window / zellij: ネイティブペイン
+    -w, --watch         tmux: xpanesでタイル表示 / zellij: ネイティブペイン
 
 Options:
     -a, --all           全ての *-issue-* セッションを対象
     -p, --prefix NAME   特定のプレフィックスを指定（例: dict）
-    -w, --watch         ウォッチモード（xpanesでタイル表示）
+    -w, --watch         ウォッチモード（tmux: xpanes / zellij: 同上）
     -k, --kill          既存のモニターセッションを削除して再作成
     -h, --help          このヘルプを表示
 
 Examples:
-    $(basename "$0") -a -w          # 全セッションをxpanesで表示
-    $(basename "$0") -p dict -w     # dict-issue-* セッションを表示
-    $(basename "$0") -w             # 設定のプレフィックスで表示
+    $(basename "$0") -a             # 全セッションを表示
+    $(basename "$0") -p dict        # dict-issue-* セッションを表示
+    $(basename "$0") -k             # モニターセッションを再作成
 EOF
 }
 
@@ -108,17 +108,6 @@ show_with_xpanes_tmux() {
     xpanes -t -c "TMUX='' tmux attach-session -t {}" "${session_array[@]}"
 }
 
-# xpanesでセッションを表示（zellij用）
-show_with_xpanes_zellij() {
-    local -a session_array=("$@")
-    
-    log_info "Opening ${#session_array[@]} sessions in xpanes..."
-    log_info "Press Ctrl+o d to detach from Zellij"
-    
-    # ZELLIJ='' allows nested zellij attach
-    xpanes -t -c "ZELLIJ='' zellij attach {}" "${session_array[@]}"
-}
-
 # tmux: link-windowモード
 tmux_link_mode() {
     local sessions="$1"
@@ -159,8 +148,8 @@ tmux_link_mode() {
     tmux attach-session -t "$MONITOR_SESSION"
 }
 
-# zellij: デフォルトモード（xpanesを使用）
-zellij_default_mode() {
+# zellij: ネイティブペインモード（xpanes不要）
+zellij_native_mode() {
     local sessions="$1"
     
     # Convert to array
@@ -169,25 +158,85 @@ zellij_default_mode() {
         [[ -n "$session" ]] && session_array+=("$session")
     done <<< "$sessions"
     
-    if [[ ${#session_array[@]} -eq 1 ]]; then
+    local session_count=${#session_array[@]}
+    
+    if [[ $session_count -eq 1 ]]; then
         # Single session: direct attach
         log_info "Attaching to session: ${session_array[0]}"
         zellij attach "${session_array[0]}"
-    else
-        # Multiple sessions: use xpanes
-        if ! command -v xpanes &> /dev/null; then
-            log_error "xpanes is not installed (required for multiple Zellij sessions)"
-            log_info "Install with: brew install xpanes"
-            log_info ""
-            log_info "Available sessions:"
-            echo "$sessions" | sed 's/^/  /'
-            log_info ""
-            log_info "Attach manually: zellij attach <session-name>"
-            exit 1
-        fi
-        
-        show_with_xpanes_zellij "${session_array[@]}"
+        return
     fi
+    
+    # Multiple sessions: use native Zellij panes
+    log_info "Opening $session_count sessions in Zellij panes..."
+    
+    # Kill existing monitor session if requested
+    if zellij list-sessions 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | grep -q "^$MONITOR_SESSION "; then
+        if [[ "$KILL_EXISTING" == "true" ]]; then
+            log_info "Killing existing monitor session..."
+            zellij delete-session "$MONITOR_SESSION" --force 2>/dev/null || true
+            sleep 1
+        else
+            log_info "Attaching to existing monitor session..."
+            log_info "Use -k to recreate"
+            zellij attach "$MONITOR_SESSION"
+            return
+        fi
+    fi
+    
+    # Create monitor session and attach to first target session
+    log_info "Creating monitor session: $MONITOR_SESSION"
+    
+    # Start monitor session with first attach command
+    local first_session="${session_array[0]}"
+    
+    # Create session in background
+    nohup zellij -s "$MONITOR_SESSION" </dev/null >/dev/null 2>&1 &
+    
+    # Wait for session to be ready
+    local waited=0
+    while ! zellij list-sessions 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | grep -q "^$MONITOR_SESSION " && [[ "$waited" -lt 10 ]]; do
+        sleep 0.5
+        waited=$((waited + 1))
+    done
+    
+    if ! zellij list-sessions 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | grep -q "^$MONITOR_SESSION "; then
+        log_error "Failed to create monitor session"
+        exit 1
+    fi
+    
+    sleep 1
+    
+    # Setup first pane with attach to first session
+    ZELLIJ_SESSION_NAME="$MONITOR_SESSION" zellij action write-chars "ZELLIJ='' zellij attach '$first_session'" 2>/dev/null || true
+    ZELLIJ_SESSION_NAME="$MONITOR_SESSION" zellij action write 13 2>/dev/null || true
+    
+    # Add remaining sessions as new panes
+    local i
+    for ((i = 1; i < session_count; i++)); do
+        local target_session="${session_array[$i]}"
+        
+        sleep 0.3
+        
+        # Create new pane (splits current pane)
+        ZELLIJ_SESSION_NAME="$MONITOR_SESSION" zellij action new-pane --direction down 2>/dev/null || \
+        ZELLIJ_SESSION_NAME="$MONITOR_SESSION" zellij action new-pane 2>/dev/null || true
+        
+        sleep 0.3
+        
+        # Attach to target session in new pane
+        ZELLIJ_SESSION_NAME="$MONITOR_SESSION" zellij action write-chars "ZELLIJ='' zellij attach '$target_session'" 2>/dev/null || true
+        ZELLIJ_SESSION_NAME="$MONITOR_SESSION" zellij action write 13 2>/dev/null || true
+    done
+    
+    # Auto-layout for even distribution
+    sleep 0.5
+    
+    log_info "Press Ctrl+o d to detach from monitor session"
+    log_info "Press Ctrl+o Tab to switch between panes"
+    
+    # Attach to monitor session
+    zellij attach "$MONITOR_SESSION"
 }
 
 main() {
@@ -274,8 +323,8 @@ main() {
                 show_with_xpanes_tmux "${session_array[@]}"
                 ;;
             zellij)
-                # Zellijはネイティブレイアウトを使用（デフォルトと同じ）
-                zellij_default_mode "$sessions"
+                # Zellijはネイティブペイン機能を使用（デフォルトと同じ）
+                zellij_native_mode "$sessions"
                 ;;
         esac
         exit 0
@@ -287,7 +336,7 @@ main() {
             tmux_link_mode "$sessions"
             ;;
         zellij)
-            zellij_default_mode "$sessions"
+            zellij_native_mode "$sessions"
             ;;
     esac
 }
