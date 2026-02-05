@@ -124,9 +124,8 @@ $FAILED_LOGS
     
     echo "🛠️ Attempting auto-fix for failure type: $FAILURE_TYPE"
     
-    # ci-fix-helper.sh のパスを解決
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-    CI_FIX_HELPER="$SCRIPT_DIR/scripts/ci-fix-helper.sh"
+    # ci-fix-helper.sh のパスを解決（worktree内の相対パス）
+    CI_FIX_HELPER="./scripts/ci-fix-helper.sh"
     
     if [[ -f "$CI_FIX_HELPER" ]]; then
       # ci-fix-helper.sh を使用（プロジェクトタイプを自動検出）
