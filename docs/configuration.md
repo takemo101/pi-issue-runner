@@ -450,6 +450,41 @@ github:
   max_comments: 10        # 最新10件のコメントのみ
 ```
 
+### hooks
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `on_start` | string | (なし) | セッション開始時に実行するスクリプトまたはコマンド |
+| `on_success` | string | (なし) | セッション成功時に実行するスクリプトまたはコマンド |
+| `on_error` | string | (なし) | セッションエラー時に実行するスクリプトまたはコマンド |
+| `on_cleanup` | string | (なし) | クリーンアップ時に実行するスクリプトまたはコマンド |
+
+#### 使用例
+
+```yaml
+hooks:
+  on_start: ./scripts/notify-start.sh
+  on_success: echo "Task completed for Issue #{{issue_number}}"
+  on_error: |
+    curl -X POST https://example.com/webhook \
+      -d '{"issue": {{issue_number}}, "error": "{{error_message}}"}'
+  on_cleanup: ./scripts/cleanup-resources.sh
+```
+
+#### テンプレート変数
+
+hooks設定では以下のテンプレート変数が使用できます：
+
+- `{{issue_number}}` - Issue番号
+- `{{issue_title}}` - Issueタイトル
+- `{{session_name}}` - セッション名
+- `{{branch_name}}` - ブランチ名
+- `{{worktree_path}}` - worktreeのパス
+- `{{error_message}}` - エラーメッセージ（on_errorのみ）
+- `{{exit_code}}` - 終了コード（on_errorのみ）
+
+詳細は [Hook機能ドキュメント](./hooks.md) を参照してください。
+
 ### agents
 
 | キー | 型 | デフォルト | 説明 |
@@ -564,6 +599,10 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_IMPROVE_LOGS_KEEP_RECENT` | `improve_logs.keep_recent` |
 | `PI_RUNNER_IMPROVE_LOGS_KEEP_DAYS` | `improve_logs.keep_days` |
 | `PI_RUNNER_IMPROVE_LOGS_DIR` | `improve_logs.dir` |
+| `PI_RUNNER_HOOKS_ON_START` | `hooks.on_start` |
+| `PI_RUNNER_HOOKS_ON_SUCCESS` | `hooks.on_success` |
+| `PI_RUNNER_HOOKS_ON_ERROR` | `hooks.on_error` |
+| `PI_RUNNER_HOOKS_ON_CLEANUP` | `hooks.on_cleanup` |
 
 ### 例: CI環境での使用
 

@@ -43,6 +43,12 @@ CONFIG_AGENTS_MERGE="${CONFIG_AGENTS_MERGE:-}"       # mergeステップのエ�
 CONFIG_AGENTS_TEST="${CONFIG_AGENTS_TEST:-}"         # testステップのエージェントファイルパス
 CONFIG_AGENTS_CI_FIX="${CONFIG_AGENTS_CI_FIX:-}"     # ci-fixステップのエージェントファイルパス
 
+# Hooks設定
+CONFIG_HOOKS_ON_START="${CONFIG_HOOKS_ON_START:-}"       # セッション開始時のhook
+CONFIG_HOOKS_ON_SUCCESS="${CONFIG_HOOKS_ON_SUCCESS:-}"   # セッション成功時のhook
+CONFIG_HOOKS_ON_ERROR="${CONFIG_HOOKS_ON_ERROR:-}"       # セッションエラー時のhook
+CONFIG_HOOKS_ON_CLEANUP="${CONFIG_HOOKS_ON_CLEANUP:-}"   # クリーンアップ時のhook
+
 # 設定ファイルを探す
 find_config_file() {
     local start_dir="${1:-.}"
@@ -249,6 +255,27 @@ _parse_config_file() {
         CONFIG_IMPROVE_LOGS_DIR="$value"
     fi
     
+    # hooks セクションのパース
+    value="$(yaml_get "$config_file" ".hooks.on_start" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_HOOKS_ON_START="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".hooks.on_success" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_HOOKS_ON_SUCCESS="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".hooks.on_error" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_HOOKS_ON_ERROR="$value"
+    fi
+    
+    value="$(yaml_get "$config_file" ".hooks.on_cleanup" "")"
+    if [[ -n "$value" ]]; then
+        CONFIG_HOOKS_ON_CLEANUP="$value"
+    fi
+    
     # 配列値の取得
     _parse_array_configs "$config_file"
 }
@@ -388,6 +415,20 @@ _apply_env_overrides() {
     if [[ -n "${PI_RUNNER_IMPROVE_LOGS_DIR:-}" ]]; then
         CONFIG_IMPROVE_LOGS_DIR="$PI_RUNNER_IMPROVE_LOGS_DIR"
     fi
+    
+    # hooks セクションの環境変数オーバーライド
+    if [[ -n "${PI_RUNNER_HOOKS_ON_START:-}" ]]; then
+        CONFIG_HOOKS_ON_START="$PI_RUNNER_HOOKS_ON_START"
+    fi
+    if [[ -n "${PI_RUNNER_HOOKS_ON_SUCCESS:-}" ]]; then
+        CONFIG_HOOKS_ON_SUCCESS="$PI_RUNNER_HOOKS_ON_SUCCESS"
+    fi
+    if [[ -n "${PI_RUNNER_HOOKS_ON_ERROR:-}" ]]; then
+        CONFIG_HOOKS_ON_ERROR="$PI_RUNNER_HOOKS_ON_ERROR"
+    fi
+    if [[ -n "${PI_RUNNER_HOOKS_ON_CLEANUP:-}" ]]; then
+        CONFIG_HOOKS_ON_CLEANUP="$PI_RUNNER_HOOKS_ON_CLEANUP"
+    fi
 }
 
 # 設定値を取得
@@ -468,6 +509,18 @@ get_config() {
             ;;
         improve_logs_dir)
             echo "$CONFIG_IMPROVE_LOGS_DIR"
+            ;;
+        hooks_on_start)
+            echo "$CONFIG_HOOKS_ON_START"
+            ;;
+        hooks_on_success)
+            echo "$CONFIG_HOOKS_ON_SUCCESS"
+            ;;
+        hooks_on_error)
+            echo "$CONFIG_HOOKS_ON_ERROR"
+            ;;
+        hooks_on_cleanup)
+            echo "$CONFIG_HOOKS_ON_CLEANUP"
             ;;
         *)
             echo ""

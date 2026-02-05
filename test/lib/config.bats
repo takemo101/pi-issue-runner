@@ -539,3 +539,127 @@ EOF
     run require_config_file "test-command"
     [ "$status" -eq 0 ]
 }
+
+# ====================
+# hooks 設定のテスト
+# ====================
+
+@test "get_config returns empty hooks_on_start by default" {
+    unset _CONFIG_LOADED
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config hooks_on_start)"
+    [ -z "$result" ]
+}
+
+@test "get_config returns empty hooks_on_success by default" {
+    unset _CONFIG_LOADED
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config hooks_on_success)"
+    [ -z "$result" ]
+}
+
+@test "get_config returns empty hooks_on_error by default" {
+    unset _CONFIG_LOADED
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config hooks_on_error)"
+    [ -z "$result" ]
+}
+
+@test "get_config returns empty hooks_on_cleanup by default" {
+    unset _CONFIG_LOADED
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config hooks_on_cleanup)"
+    [ -z "$result" ]
+}
+
+@test "load_config parses hooks section from YAML" {
+    unset _CONFIG_LOADED
+    
+    cat > "$TEST_CONFIG_FILE" << 'YAML'
+hooks:
+  on_start: echo "start"
+  on_success: echo "success"
+  on_error: ./hooks/error.sh
+  on_cleanup: ./hooks/cleanup.sh
+YAML
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    [ "$(get_config hooks_on_start)" = 'echo "start"' ]
+    [ "$(get_config hooks_on_success)" = 'echo "success"' ]
+    [ "$(get_config hooks_on_error)" = "./hooks/error.sh" ]
+    [ "$(get_config hooks_on_cleanup)" = "./hooks/cleanup.sh" ]
+}
+
+@test "environment variable overrides hooks_on_start" {
+    unset _CONFIG_LOADED
+    export PI_RUNNER_HOOKS_ON_START="env start"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config hooks_on_start)"
+    [ "$result" = "env start" ]
+}
+
+@test "environment variable overrides hooks_on_success" {
+    unset _CONFIG_LOADED
+    export PI_RUNNER_HOOKS_ON_SUCCESS="env success"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config hooks_on_success)"
+    [ "$result" = "env success" ]
+}
+
+@test "environment variable overrides hooks_on_error" {
+    unset _CONFIG_LOADED
+    export PI_RUNNER_HOOKS_ON_ERROR="env error"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config hooks_on_error)"
+    [ "$result" = "env error" ]
+}
+
+@test "environment variable overrides hooks_on_cleanup" {
+    unset _CONFIG_LOADED
+    export PI_RUNNER_HOOKS_ON_CLEANUP="env cleanup"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config hooks_on_cleanup)"
+    [ "$result" = "env cleanup" ]
+}
+
+@test "environment variable overrides YAML config for hooks" {
+    unset _CONFIG_LOADED
+    export PI_RUNNER_HOOKS_ON_START="env start override"
+    export PI_RUNNER_HOOKS_ON_SUCCESS="env success override"
+    
+    cat > "$TEST_CONFIG_FILE" << 'YAML'
+hooks:
+  on_start: echo "yaml start"
+  on_success: echo "yaml success"
+  on_error: ./hooks/error.sh
+YAML
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    [ "$(get_config hooks_on_start)" = "env start override" ]
+    [ "$(get_config hooks_on_success)" = "env success override" ]
+    [ "$(get_config hooks_on_error)" = "./hooks/error.sh" ]
+}
