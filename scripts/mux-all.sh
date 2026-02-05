@@ -103,12 +103,9 @@ show_with_xpanes_tmux() {
     
     log_info "Opening ${#session_array[@]} sessions in xpanes..."
     log_info "Press Ctrl+b d to detach"
-    log_info "Tip: Press Ctrl+b then 'E' to equalize pane sizes"
     
     # TMUX='' allows nested tmux attach
-    # -l t: tiled layout for equal-sized panes
-    # -d: desync mode (allow independent input to each pane)
-    xpanes -t -l t -d -c "TMUX='' tmux attach-session -t {}" "${session_array[@]}"
+    xpanes -t -c "TMUX='' tmux attach-session -t {}" "${session_array[@]}"
 }
 
 # xpanesでセッションを表示（zellij用）
@@ -117,12 +114,9 @@ show_with_xpanes_zellij() {
     
     log_info "Opening ${#session_array[@]} sessions in xpanes..."
     log_info "Press Ctrl+o d to detach from Zellij"
-    log_info "Tip: Press Ctrl+b then 'E' to equalize pane sizes"
     
     # ZELLIJ='' allows nested zellij attach
-    # -l t: tiled layout for equal-sized panes
-    # -d: desync mode (allow independent input to each pane)
-    xpanes -t -l t -d -c "ZELLIJ='' zellij attach {}" "${session_array[@]}"
+    xpanes -t -c "ZELLIJ='' zellij attach {}" "${session_array[@]}"
 }
 
 # tmux: link-windowモード
