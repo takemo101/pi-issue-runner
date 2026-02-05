@@ -148,6 +148,25 @@ agents:
   merge: agents/merge.md
   test: agents/test.md
   ci-fix: agents/ci-fix.md
+
+# =====================================
+# Hook設定
+# =====================================
+hooks:
+  # セッション開始時
+  # on_start: ./hooks/on-start.sh
+  
+  # タスク正常完了時
+  # on_success: terminal-notifier -title "完了" -message "Issue #{{issue_number}} が完了しました"
+  
+  # エラー検出時
+  # on_error: |
+  #   curl -X POST -H 'Content-Type: application/json' \
+  #     -d '{"text": "Issue #{{issue_number}} でエラー"}' \
+  #     $SLACK_WEBHOOK_URL
+  
+  # クリーンアップ完了後
+  # on_cleanup: echo "クリーンアップ完了" >> ~/.pi-runner/activity.log
 ```
 
 ## 設定項目詳細
