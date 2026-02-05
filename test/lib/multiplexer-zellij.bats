@@ -12,7 +12,7 @@ setup() {
     
     # 設定をリセット
     unset _CONFIG_LOADED
-    unset CONFIG_SESSION_PREFIX
+    unset CONFIG_MULTIPLEXER_SESSION_PREFIX
     unset CONFIG_PARALLEL_MAX_CONCURRENT
     
     # テスト用の空の設定ファイルパスを作成
@@ -43,30 +43,76 @@ teardown() {
 
 # zellijモック用ヘルパー
 mock_zellij_installed() {
-    cat > "$MOCK_DIR/zellij" << 'EOF'
+    # セッション状態を保持するファイル
+    local killed_sessions="$MOCK_DIR/killed_zellij_sessions"
+    local created_sessions="$MOCK_DIR/created_zellij_sessions"
+    > "$killed_sessions"
+    > "$created_sessions"
+    
+    cat > "$MOCK_DIR/zellij" << EOF
 #!/usr/bin/env bash
-case "$1" in
+KILLED_SESSIONS="$killed_sessions"
+CREATED_SESSIONS="$created_sessions"
+
+# 引数をループして処理
+for arg in "\$@"; do
+    # -s フラグの後のセッション名を記録
+    if [[ "\$prev_arg" == "-s" ]]; then
+        echo "\$arg" >> "\$CREATED_SESSIONS"
+    fi
+    prev_arg="\$arg"
+done
+
+case "\$1" in
     "list-sessions"|"ls")
-        echo "test-session"
-        echo "pi-issue-42"
-        echo "pi-issue-99"
+        # 実際の出力形式に合わせる（セッション名 + スペース + 追加情報）
+        # kill されていないセッションのみ表示
+        for session in "test-session (current)" "pi-issue-42 " "pi-issue-99 "; do
+            session_name=\$(echo "\$session" | awk '{print \$1}')
+            if ! grep -q "^\$session_name\$" "\$KILLED_SESSIONS" 2>/dev/null; then
+                echo "\$session"
+            fi
+        done
+        # 作成されたセッションも表示
+        while IFS= read -r session_name; do
+            [[ -z "\$session_name" ]] && continue
+            if ! grep -q "^\$session_name\$" "\$KILLED_SESSIONS" 2>/dev/null; then
+                echo "\$session_name (created)"
+            fi
+        done < "\$CREATED_SESSIONS" 2>/dev/null || true
         ;;
-    "attach"|"-s")
-        # セッション作成モード
+    "-s")
+        # zellij -s SESSION_NAME でセッション作成
+        # バックグラウンドで実行されるため、即座に終了
+        exit 0
+        ;;
+    "attach")
+        # attach SESSION_NAME
         exit 0
         ;;
     "action")
         # write-chars, dump-screen などのアクション
-        if [[ "$2" == "dump-screen" ]]; then
+        if [[ "\$2" == "dump-screen" ]]; then
             echo "test output line 1"
             echo "test output line 2"
+        elif [[ "\$2" == "write-chars" ]]; then
+            # write-chars アクションを処理
+            exit 0
+        elif [[ "\$2" == "write" ]]; then
+            # write アクション（数値コード）
+            exit 0
         fi
         exit 0
         ;;
-    "kill-session")
+    "delete-session")
+        # delete-session --force SESSION_NAME
+        # 最後の引数がセッション名
+        for last; do true; done
+        echo "\$last" >> "\$KILLED_SESSIONS"
         exit 0
         ;;
     *)
+        # デフォルトは成功
         exit 0
         ;;
 esac
@@ -84,7 +130,8 @@ EOF
 #!/usr/bin/env bash
 # script のモック（-q /dev/null の後の引数を実行）
 shift 3  # -q /dev/null を skip
-exec "$@"
+# バックグラウンドで実行（nohupと組み合わせて使用される）
+"$@" &
 EOF
     chmod +x "$MOCK_DIR/script"
     
@@ -92,7 +139,8 @@ EOF
 }
 
 mock_zellij_not_installed() {
-    # zellijコマンドをPATHから削除
+    # zellijが見つからない環境を作成（PATH をモックディレクトリのみに設定）
+    export PATH="$MOCK_DIR"
     rm -f "$MOCK_DIR/zellij"
 }
 
@@ -129,7 +177,8 @@ mock_zellij_not_installed() {
 }
 
 @test "mux_generate_session_name respects custom prefix" {
-    export CONFIG_SESSION_PREFIX="custom"
+    export CONFIG_MULTIPLEXER_SESSION_PREFIX="custom"
+    export _CONFIG_LOADED="true"
     source "$PROJECT_ROOT/lib/multiplexer-zellij.sh"
     
     result="$(mux_generate_session_name 99)"
@@ -137,7 +186,8 @@ mock_zellij_not_installed() {
 }
 
 @test "mux_generate_session_name handles prefix ending with -issue" {
-    export CONFIG_SESSION_PREFIX="myproject-issue"
+    export CONFIG_MULTIPLEXER_SESSION_PREFIX="myproject-issue"
+    export _CONFIG_LOADED="true"
     source "$PROJECT_ROOT/lib/multiplexer-zellij.sh"
     
     result="$(mux_generate_session_name 123)"
@@ -478,8 +528,8 @@ EOF
     source "$PROJECT_ROOT/lib/multiplexer-zellij.sh"
     
     # Note: attach-sessionは対話的なので実際には実行できない
-    # コマンド構文チェックのみ
-    run bash -c "command -v zellij && mux_session_exists test-session"
+    # セッションが存在することのみを確認
+    run mux_session_exists "test-session"
     [ "$status" -eq 0 ]
 }
 
