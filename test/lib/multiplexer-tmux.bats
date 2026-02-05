@@ -3,8 +3,6 @@
 
 load '../test_helper'
 
-bats_require_minimum_version 1.5.0
-
 setup() {
     # TMPDIRセットアップ
     if [[ -z "${BATS_TEST_TMPDIR:-}" ]]; then
@@ -272,6 +270,10 @@ mock_tmux_not_installed() {
 }
 
 @test "mux_kill_session respects timeout parameter" {
+    # timeoutコマンドの存在確認
+    local timeout_cmd
+    timeout_cmd=$(require_timeout)
+    
     # タイムアウトをテストするため、永続的なセッションモックを作成
     cat > "$MOCK_DIR/tmux" << 'EOF'
 #!/usr/bin/env bash
@@ -293,12 +295,21 @@ case "$1" in
 esac
 EOF
     chmod +x "$MOCK_DIR/tmux"
-    export PATH="$MOCK_DIR:$PATH"
     
-    source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
+    # テスト用ヘルパースクリプトを作成（timeout経由で実行するため）
+    cat > "$MOCK_DIR/test_mux_kill" << EOF
+#!/usr/bin/env bash
+set -euo pipefail
+export PATH="$MOCK_DIR:\$PATH"
+source "$PROJECT_ROOT/lib/config.sh"
+source "$PROJECT_ROOT/lib/log.sh"  
+source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
+mux_kill_session "persistent-session" 1
+EOF
+    chmod +x "$MOCK_DIR/test_mux_kill"
     
     # 短いタイムアウトで実行
-    run -127 timeout 5 mux_kill_session "persistent-session" 1
+    run "$timeout_cmd" 5 "$MOCK_DIR/test_mux_kill"
     [ "$status" -ne 0 ]
 }
 

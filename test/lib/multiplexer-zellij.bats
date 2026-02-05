@@ -3,8 +3,6 @@
 
 load '../test_helper'
 
-bats_require_minimum_version 1.5.0
-
 setup() {
     # TMPDIRセットアップ
     if [[ -z "${BATS_TEST_TMPDIR:-}" ]]; then
@@ -309,15 +307,19 @@ mock_zellij_not_installed() {
 }
 
 @test "mux_kill_session respects timeout parameter" {
+    # timeoutコマンドの存在確認
+    local timeout_cmd
+    timeout_cmd=$(require_timeout)
+    
     # タイムアウトをテストするため、永続的なセッションモックを作成
     cat > "$MOCK_DIR/zellij" << 'EOF'
 #!/usr/bin/env bash
 case "$1" in
     "list-sessions"|"ls")
-        # 常に存在すると返す
-        echo "persistent-session"
+        # 常に存在すると返す（grep -q "^$session_name " に一致させるため末尾にスペース）
+        echo "persistent-session "
         ;;
-    "kill-session")
+    "delete-session")
         # 終了しない（何もしない）
         exit 0
         ;;
@@ -327,12 +329,21 @@ case "$1" in
 esac
 EOF
     chmod +x "$MOCK_DIR/zellij"
-    export PATH="$MOCK_DIR:$PATH"
     
-    source "$PROJECT_ROOT/lib/multiplexer-zellij.sh"
+    # テスト用ヘルパースクリプトを作成（timeout経由で実行するため）
+    cat > "$MOCK_DIR/test_mux_kill_zellij" << EOF
+#!/usr/bin/env bash
+set -euo pipefail
+export PATH="$MOCK_DIR:\$PATH"
+source "$PROJECT_ROOT/lib/config.sh"
+source "$PROJECT_ROOT/lib/log.sh"
+source "$PROJECT_ROOT/lib/multiplexer-zellij.sh"
+mux_kill_session "persistent-session" 1
+EOF
+    chmod +x "$MOCK_DIR/test_mux_kill_zellij"
     
     # 短いタイムアウトで実行（タイムアウトするはず）
-    run -127 timeout 5 mux_kill_session "persistent-session" 1
+    run "$timeout_cmd" 5 "$MOCK_DIR/test_mux_kill_zellij"
     [ "$status" -ne 0 ]
 }
 
