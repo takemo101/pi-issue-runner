@@ -48,6 +48,47 @@ Closes #{{issue_number}}
 CIの状態を確認してからマージします。CIが失敗した場合は自動修正を試行します：
 
 ```bash
+# CI完了を待機する関数（クロスプラットフォーム対応）
+wait_for_ci_completion() {
+  local pr_number="$1"
+  local max_wait="${2:-600}"
+  local wait_interval="${3:-30}"
+  local elapsed=0
+  
+  echo "⏳ Waiting for CI completion (timeout: ${max_wait}s)..."
+  
+  while [[ $elapsed -lt $max_wait ]]; do
+    # CIチェックの状態を取得
+    local check_result
+    check_result=$(gh pr checks "$pr_number" --json state,name 2>/dev/null || echo "[]")
+    
+    # 全てのチェックが完了したか確認
+    local pending
+    pending=$(echo "$check_result" | jq '[.[] | select(.state == "PENDING" or .state == "IN_PROGRESS")] | length' 2>/dev/null || echo "1")
+    
+    local failed
+    failed=$(echo "$check_result" | jq '[.[] | select(.state == "FAILURE" or .state == "ERROR")] | length' 2>/dev/null || echo "0")
+    
+    if [[ "$pending" -eq 0 ]]; then
+      if [[ "$failed" -gt 0 ]]; then
+        echo "❌ CI checks failed"
+        return 1  # CI失敗
+      else
+        echo "✅ All CI checks passed"
+        return 0  # CI成功
+      fi
+    fi
+    
+    echo "⏳ CI checks still running... ($elapsed/$max_wait seconds elapsed)"
+    sleep "$wait_interval"
+    elapsed=$((elapsed + wait_interval))
+  done
+  
+  # タイムアウト
+  echo "⚠️ CI wait timeout after ${max_wait}s"
+  return 124  # timeoutコマンドと同じ終了コード
+}
+
 # PR番号を取得
 PR_NUMBER=$(gh pr list --head "{{branch_name}}" --json number -q '.[0].number' 2>/dev/null)
 
@@ -56,11 +97,16 @@ if gh pr checks "$PR_NUMBER" 2>/dev/null | grep -q .; then
   echo "CI checks detected. Waiting for completion (timeout: 10 minutes)..."
   
   # CI完了を待機
-  if timeout 600 gh pr checks --watch; then
+  if wait_for_ci_completion "$PR_NUMBER" 600 30; then
     echo "✅ CI passed. Merging PR..."
     gh pr merge --merge --delete-branch
   else
-    echo "⚠️ CI failed. Attempting auto-fix..."
+    ci_exit_code=$?
+    if [[ $ci_exit_code -eq 124 ]]; then
+      echo "⚠️ CI wait timeout. Attempting auto-fix..."
+    else
+      echo "⚠️ CI failed. Attempting auto-fix..."
+    fi
     
     # ===== CI自動修正フロー =====
     cd "{{worktree_path}}"
@@ -189,12 +235,17 @@ Refs #{{issue_number}}" || true
       git push
       
       # CI再実行を待機
-      if timeout 600 gh pr checks --watch; then
+      if wait_for_ci_completion "$PR_NUMBER" 600 30; then
         echo "✅ CI passed after auto-fix. Merging PR..."
         rm -f "$RETRY_FILE"  # 成功したのでリトライカウントをリセット
         gh pr merge --merge --delete-branch
       else
-        echo "❌ CI still failing after auto-fix. Will retry..."
+        ci_exit_code=$?
+        if [[ $ci_exit_code -eq 124 ]]; then
+          echo "⚠️ CI wait timeout after auto-fix. Will retry..."
+        else
+          echo "❌ CI still failing after auto-fix. Will retry..."
+        fi
         echo "###TASK_ERROR_{{issue_number}}###"
         echo "CI failed after auto-fix attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
         exit 1
