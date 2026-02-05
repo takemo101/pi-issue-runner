@@ -562,4 +562,8 @@ show_config() {
     echo "improve_logs_keep_recent: $CONFIG_IMPROVE_LOGS_KEEP_RECENT"
     echo "improve_logs_keep_days: $CONFIG_IMPROVE_LOGS_KEEP_DAYS"
     echo "improve_logs_dir: $CONFIG_IMPROVE_LOGS_DIR"
+    echo "hooks_on_start: $CONFIG_HOOKS_ON_START"
+    echo "hooks_on_success: $CONFIG_HOOKS_ON_SUCCESS"
+    echo "hooks_on_error: $CONFIG_HOOKS_ON_ERROR"
+    echo "hooks_on_cleanup: $CONFIG_HOOKS_ON_CLEANUP"
 }

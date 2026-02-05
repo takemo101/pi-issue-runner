@@ -122,11 +122,16 @@ main() {
     # 4. Hooks設定の検証
     echo "4. Checking hooks configuration..."
     
-    # hooks.mdの存在確認
+    # hooks.mdまたはconfiguration.mdの存在確認
+    local hooks_doc=""
     if [[ -f "$PROJECT_ROOT/docs/hooks.md" ]]; then
+        hooks_doc="$PROJECT_ROOT/docs/hooks.md"
         log_info "docs/hooks.md exists"
+    elif grep -q "### hooks" "$PROJECT_ROOT/docs/configuration.md" 2>/dev/null; then
+        hooks_doc="$PROJECT_ROOT/docs/configuration.md"
+        log_info "hooks section exists in docs/configuration.md"
     else
-        log_error "docs/hooks.md does not exist"
+        log_error "Neither docs/hooks.md nor hooks section in docs/configuration.md exists"
         exit_code=1
     fi
     
@@ -138,21 +143,22 @@ main() {
         "on_cleanup"
     )
     
-    for event in "${hook_events[@]}"; do
-        if grep -q "\`$event\`" "$PROJECT_ROOT/docs/hooks.md" 2>/dev/null; then
-            log_info "Hook event \"$event\" is documented"
+    if [[ -n "$hooks_doc" ]]; then
+        for event in "${hook_events[@]}"; do
+            if grep -q "\`$event\`" "$hooks_doc" 2>/dev/null; then
+                log_info "Hook event \"$event\" is documented"
+            else
+                log_error "Hook event \"$event\" is not documented"
+                exit_code=1
+            fi
+        done
+        
+        # 設定例の確認
+        if grep -q "^hooks:" "$hooks_doc" 2>/dev/null; then
+            log_info "Hooks configuration example found"
         else
-            log_error "Hook event \"$event\" is not documented in docs/hooks.md"
-            exit_code=1
+            log_warn "Hooks configuration example not found (recommended)"
         fi
-    done
-    
-    # 設定例の確認
-    if grep -q "^hooks:" "$PROJECT_ROOT/docs/hooks.md" 2>/dev/null || \
-       grep -q "^hooks:" "$PROJECT_ROOT/docs/configuration.md" 2>/dev/null; then
-        log_info "Hooks configuration example found"
-    else
-        log_warn "Hooks configuration example not found (recommended)"
     fi
     
     echo ""

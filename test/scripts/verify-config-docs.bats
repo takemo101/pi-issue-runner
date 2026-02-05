@@ -28,8 +28,8 @@ VERIFY_SCRIPT="$PROJECT_ROOT/scripts/verify-config-docs.sh"
 @test "verify-config-docs.sh counts configuration items correctly" {
     run "$VERIFY_SCRIPT"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"lib/config.sh: 25 items"* ]]
-    [[ "$output" == *"docs/configuration.md: 25 items"* ]]
+    [[ "$output" == *"lib/config.sh: 29 items"* ]]
+    [[ "$output" == *"docs/configuration.md: 29 items"* ]]
 }
 
 @test "verify-config-docs.sh checks default values" {
@@ -100,7 +100,7 @@ VERIFY_SCRIPT="$PROJECT_ROOT/scripts/verify-config-docs.sh"
 }
 
 @test "verify-config-docs.sh detects missing hooks documentation" {
-    # 一時的にdocs/hooks.mdをリネーム（排他ロック付き）
+    # 一時的にdocs/hooks.mdとhooksセクションの両方を削除（排他ロック付き）
     local lockfile="$BATS_TEST_TMPDIR/hooks-test.lock"
     local max_wait=30
     local waited=0
@@ -114,10 +114,15 @@ VERIFY_SCRIPT="$PROJECT_ROOT/scripts/verify-config-docs.sh"
         fi
     done
     
-    # リネーム
+    # hooks.mdをリネーム
     if [[ -f "$PROJECT_ROOT/docs/hooks.md" ]]; then
         mv "$PROJECT_ROOT/docs/hooks.md" "$PROJECT_ROOT/docs/hooks.md.bak.$$"
     fi
+    
+    # configuration.mdのhooksセクションをバックアップして削除
+    local config_md="$PROJECT_ROOT/docs/configuration.md"
+    cp "$config_md" "$config_md.bak.$$"
+    sed -i.tmp '/^### hooks$/,/^### /{ /^### hooks$/d; /^### /!d; }' "$config_md"
     
     run "$VERIFY_SCRIPT"
     local result=$status
@@ -126,11 +131,15 @@ VERIFY_SCRIPT="$PROJECT_ROOT/scripts/verify-config-docs.sh"
     if [[ -f "$PROJECT_ROOT/docs/hooks.md.bak.$$" ]]; then
         mv "$PROJECT_ROOT/docs/hooks.md.bak.$$" "$PROJECT_ROOT/docs/hooks.md"
     fi
+    if [[ -f "$config_md.bak.$$" ]]; then
+        mv "$config_md.bak.$$" "$config_md"
+    fi
+    rm -f "$config_md.tmp"
     
     # ロック解放
     rmdir "$lockfile" 2>/dev/null || true
     
-    # 検証
+    # 検証（どちらのドキュメントも欠けている場合はエラー）
     [ "$result" -eq 1 ]
-    [[ "$output" == *"docs/hooks.md does not exist"* ]]
+    [[ "$output" == *"Neither docs/hooks.md nor hooks section"* ]]
 }
