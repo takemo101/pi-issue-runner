@@ -12,7 +12,7 @@ setup() {
     
     # 設定をリセット
     unset _CONFIG_LOADED
-    unset CONFIG_SESSION_PREFIX
+    unset CONFIG_MULTIPLEXER_SESSION_PREFIX
     unset CONFIG_PARALLEL_MAX_CONCURRENT
     
     # テスト用の空の設定ファイルパスを作成
@@ -43,30 +43,50 @@ teardown() {
 
 # tmuxモック用ヘルパー
 mock_tmux_installed() {
-    cat > "$MOCK_DIR/tmux" << 'EOF'
+    # セッション状態を保持するファイル
+    local killed_sessions="$MOCK_DIR/killed_sessions"
+    > "$killed_sessions"
+    
+    cat > "$MOCK_DIR/tmux" << EOF
 #!/usr/bin/env bash
-case "$1" in
+KILLED_SESSIONS="$killed_sessions"
+case "\$1" in
     "has-session")
-        if [[ "$2" == "-t" && "$3" == "test-session" ]]; then
-            exit 0
-        else
-            exit 1
+        if [[ "\$2" == "-t" ]]; then
+            # kill されたセッションはhas-sessionで失敗
+            if grep -q "^\$3\$" "\$KILLED_SESSIONS" 2>/dev/null; then
+                exit 1
+            fi
+            # test-session は存在する
+            if [[ "\$3" == "test-session" ]]; then
+                exit 0
+            fi
         fi
+        exit 1
         ;;
     "new-session")
         echo "tmux new-session called" >&2
         exit 0
         ;;
     "kill-session")
+        # kill されたセッションを記録
+        if [[ "\$2" == "-t" ]]; then
+            echo "\$3" >> "\$KILLED_SESSIONS"
+        fi
         exit 0
         ;;
     "list-sessions")
-        if [[ "$2" == "-F" ]]; then
-            echo "pi-issue-42"
-            echo "pi-issue-99"
+        if [[ "\$2" == "-F" ]]; then
+            # kill されたセッションは一覧に表示しない
+            for session in pi-issue-42 pi-issue-99; do
+                if ! grep -q "^\$session\$" "\$KILLED_SESSIONS" 2>/dev/null; then
+                    echo "\$session"
+                fi
+            done
         fi
         ;;
     "list-panes")
+        # list-panes -t SESSION -F '#{pane_pid}' のパターンを処理
         echo "12345"
         ;;
     "capture-pane")
@@ -74,6 +94,12 @@ case "$1" in
         echo "test output line 2"
         ;;
     "send-keys")
+        # send-keys -t SESSION "command" Enter のパターンを処理
+        exit 0
+        ;;
+    "attach-session")
+        # attach-session -t SESSION
+        # Note: 対話的なので実際には実行しない
         exit 0
         ;;
     *)
@@ -86,8 +112,11 @@ EOF
 }
 
 mock_tmux_not_installed() {
-    # tmuxコマンドをPATHから削除
-    rm -f "$MOCK_DIR/tmux"
+    # tmuxが見つからない環境を作成
+    # tmuxが存在しないことを保証（PATH変更前に実行）
+    /bin/rm -f "$MOCK_DIR/tmux" 2>/dev/null || rm -f "$MOCK_DIR/tmux"
+    # PATHをモックディレクトリのみに設定
+    export PATH="$MOCK_DIR"
 }
 
 # ====================
@@ -122,7 +151,8 @@ mock_tmux_not_installed() {
 }
 
 @test "mux_generate_session_name respects custom prefix" {
-    export CONFIG_SESSION_PREFIX="custom"
+    export CONFIG_MULTIPLEXER_SESSION_PREFIX="custom"
+    export _CONFIG_LOADED="true"
     source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
     
     result="$(mux_generate_session_name 99)"
@@ -130,7 +160,8 @@ mock_tmux_not_installed() {
 }
 
 @test "mux_generate_session_name handles prefix ending with -issue" {
-    export CONFIG_SESSION_PREFIX="myproject-issue"
+    export CONFIG_MULTIPLEXER_SESSION_PREFIX="myproject-issue"
+    export _CONFIG_LOADED="true"
     source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
     
     result="$(mux_generate_session_name 123)"
@@ -475,8 +506,8 @@ EOF
     source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
     
     # Note: attach-sessionは対話的なので実際には実行できない
-    # コマンド構文チェックのみ
-    run bash -c "command -v tmux && mux_session_exists test-session"
+    # セッションが存在することのみを確認
+    run mux_session_exists "test-session"
     [ "$status" -eq 0 ]
 }
 
