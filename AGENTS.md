@@ -130,6 +130,7 @@ pi-issue-runner/
 │   │   ├── improve.bats
 │   │   ├── init.bats
 │   │   ├── list.bats
+│   │   ├── mux-all.bats         # mux-all.sh のテスト
 │   │   ├── next.bats
 │   │   ├── nudge.bats
 │   │   ├── run.bats
