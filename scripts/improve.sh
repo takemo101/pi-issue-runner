@@ -38,6 +38,51 @@ source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/github.sh"
 
+# Handle --help early (before main, to avoid eval issues)
+for arg in "$@"; do
+    if [[ "$arg" == "-h" || "$arg" == "--help" ]]; then
+        cat << 'EOF'
+Usage: improve.sh [options]
+
+Options:
+    --max-iterations N   Max iteration count (default: 3)
+    --max-issues N       Max issues per iteration (default: 5)
+    --timeout N          Session completion timeout in seconds (default: 3600)
+    --iteration N        Current iteration number (internal use)
+    --log-dir DIR        Log directory (default: .improve-logs in current directory)
+    --label LABEL        Session label for Issue filtering (auto-generated if not specified)
+    --dry-run            Review only, do not create Issues
+    --review-only        Show problems only (no Issue creation or execution)
+    --auto-continue      Auto-continue without approval (skip confirmation)
+    -v, --verbose        Show verbose logs
+    -h, --help           Show this help
+
+Description:
+    Runs continuous improvement using 2-phase approach:
+    1. Runs pi --print for project review and Issue creation (auto-exits)
+    2. Fetches created Issues via GitHub API (filtered by session label)
+    3. Starts parallel execution via run.sh --no-attach
+    4. Monitors completion via wait-for-sessions.sh
+    5. Recursively starts next iteration
+
+    Issues are tagged with a session-specific label (e.g., pi-runner-20260201-082900)
+    to ensure only Issues from this session are processed, enabling safe parallel runs.
+
+Log files:
+    Pi output is saved to: .improve-logs/iteration-N-YYYYMMDD-HHMMSS.log
+
+Examples:
+    improve.sh
+    improve.sh --max-iterations 1
+    improve.sh --dry-run
+    improve.sh --review-only
+    improve.sh --auto-continue
+    improve.sh --label my-session
+EOF
+        exit 0
+    fi
+done
+
 # Constants
 DEFAULT_MAX_ITERATIONS=3
 DEFAULT_MAX_ISSUES=5
@@ -120,6 +165,7 @@ EOF
 # Subfunction: parse_improve_arguments
 # Purpose: Parse command-line arguments
 # Output: Shell variable assignments (eval-able)
+# Note: Does not handle --help/-h (handled in main before calling this)
 # ============================================================================
 parse_improve_arguments() {
     local max_iterations=$DEFAULT_MAX_ITERATIONS
@@ -175,6 +221,7 @@ parse_improve_arguments() {
                 shift
                 ;;
             -h|--help)
+                # Should not reach here (handled before main)
                 usage >&2
                 exit 0
                 ;;

@@ -40,6 +40,46 @@ source "$SCRIPT_DIR/../lib/dependency.sh"
 source "$SCRIPT_DIR/../lib/status.sh"
 source "$SCRIPT_DIR/../lib/priority.sh"
 
+# Handle --help early (before main, to avoid eval issues)
+for arg in "$@"; do
+    if [[ "$arg" == "-h" || "$arg" == "--help" ]]; then
+        cat << 'EOF'
+Usage: next.sh [options]
+
+次に実行すべきGitHub Issueをインテリジェントに提案します。
+依存関係・優先度・ブロッカー状況を考慮して最適なIssueを選択します。
+
+Options:
+    -n, --count <N>     提案するIssue数（デフォルト: 1）
+    -l, --label <name>  特定ラベルでフィルタ
+    --json              JSON形式で出力
+    --dry-run           提案のみ（実行コマンドを表示しない）
+    -v, --verbose       詳細な判断理由を表示
+    -h, --help          このヘルプを表示
+
+Prioritization Logic:
+    1. Blocker status    - OPENなブロッカーがないIssueを優先
+    2. Dependency depth  - 依存が少ない（レイヤーが浅い）Issueを優先
+    3. Priority labels   - priority:high > medium > low
+    4. Issue number      - 同スコアなら番号が小さい方を優先
+
+Examples:
+    next.sh                    # 次の1件を提案
+    next.sh -n 3               # 次の3件を提案
+    next.sh -l feature         # featureラベル付きから提案
+    next.sh --json             # JSON形式で出力
+    next.sh -v                 # 詳細な判断理由を表示
+
+Exit codes:
+    0 - Success
+    1 - No candidates found
+    2 - GitHub API error
+    3 - Invalid arguments
+EOF
+        exit 0
+    fi
+done
+
 usage() {
     cat << EOF
 Usage: $(basename "$0") [options]
@@ -80,6 +120,7 @@ EOF
 # Subfunction: parse_next_arguments
 # Purpose: Parse command-line arguments
 # Output: Shell variable assignments (eval-able)
+# Note: Does not handle --help/-h (handled in main before calling this)
 # ============================================================================
 parse_next_arguments() {
     local count=1
@@ -126,6 +167,7 @@ parse_next_arguments() {
                 shift
                 ;;
             -h|--help)
+                # Should not reach here (handled before main)
                 usage >&2
                 exit 0
                 ;;
