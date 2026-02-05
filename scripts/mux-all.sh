@@ -14,8 +14,6 @@
 #   -a, --all           All *-issue-* sessions (ignore prefix)
 #   -p, --prefix NAME   Specific prefix (e.g., dict)
 #   -w, --watch         Watch mode: xpanes tiled view
-#   -l, --lines NUM     Lines to show in watch mode (default: 100)
-#   -i, --interval SEC  Refresh interval in watch mode (default: 2)
 #   -k, --kill          Kill existing monitor session first
 #   -h, --help          Show help message
 #
@@ -35,8 +33,6 @@ source "$SCRIPT_DIR/../lib/tmux.sh"
 MONITOR_SESSION="pi-monitor"
 KILL_EXISTING=false
 WATCH_MODE=false
-LINES=100
-INTERVAL=2
 ALL_SESSIONS=false
 PREFIX=""
 
@@ -60,8 +56,6 @@ Options:
     -a, --all           全ての *-issue-* セッションを対象
     -p, --prefix NAME   特定のプレフィックスを指定（例: dict）
     -w, --watch         ウォッチモード（xpanesでタイル表示）
-    -l, --lines NUM     表示行数（ウォッチモード用、default: 100）
-    -i, --interval SEC  更新間隔（ウォッチモード用、default: 2）
     -k, --kill          既存のモニターセッションを削除して再作成
     -h, --help          このヘルプを表示
 
@@ -210,14 +204,6 @@ main() {
             -w|--watch)
                 WATCH_MODE=true
                 shift
-                ;;
-            -l|--lines)
-                LINES="$2"
-                shift 2
-                ;;
-            -i|--interval)
-                INTERVAL="$2"
-                shift 2
                 ;;
             -k|--kill)
                 KILL_EXISTING=true
