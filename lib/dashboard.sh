@@ -36,48 +36,24 @@ if ! declare -f list_sessions > /dev/null 2>&1; then
 fi
 
 # ====================
-# Box Drawing Functions
+# Display Helper Functions
 # ====================
 
-# ボックスの上部を描画
-draw_box_top() {
-    local width="${1:-64}"
-    printf "╔"
-    printf '═%.0s' $(seq 1 "$width")
-    printf "╗\n"
-}
-
-# ボックスのラインを描画
-draw_box_line() {
+# テキスト行を出力
+draw_line() {
     local text="$1"
-    local width="${2:-64}"
-    # ANSIエスケープシーケンスを除いた文字数を計算
-    local text_length=${#text}
-    # カラーコードがある場合は考慮（簡易版）
-    if [[ "$text" =~ \033 ]]; then
-        # カラーコード分を引く（概算）
-        text_length=$((text_length - $(echo "$text" | grep -o $'\033\[[0-9;]*m' | wc -l | tr -d ' ') * 6))
-    fi
-    local padding=$((width - text_length))
-    printf "║ %s" "$text"
-    printf ' %.0s' $(seq 1 "$padding")
-    printf "║\n"
+    printf "%s\n" "$text"
 }
 
-# ボックスの区切り線を描画
-draw_box_separator() {
-    local width="${1:-64}"
-    printf "╠"
-    printf '═%.0s' $(seq 1 "$width")
-    printf "╣\n"
+# セクションヘッダーを出力
+draw_header() {
+    local text="$1"
+    printf "\n=== %s ===\n" "$text"
 }
 
-# ボックスの下部を描画
-draw_box_bottom() {
-    local width="${1:-64}"
-    printf "╚"
-    printf '═%.0s' $(seq 1 "$width")
-    printf "╝\n"
+# 区切り線を出力
+draw_separator() {
+    printf "\n"
 }
 
 # ====================
@@ -211,8 +187,6 @@ categorize_issues() {
 
 # サマリーセクションを描画
 draw_summary_section() {
-    local width="${1:-60}"
-    
     # 各カテゴリのカウント
     local in_progress_count blocked_count ready_count completed_count
     in_progress_count=$(echo "${CATEGORIZED_ISSUES[in_progress]}" | wc -w | tr -d ' ')
@@ -220,27 +194,25 @@ draw_summary_section() {
     ready_count=$(echo "${CATEGORIZED_ISSUES[ready]}" | wc -w | tr -d ' ')
     completed_count=$(echo "${CATEGORIZED_ISSUES[completed]}" | wc -w | tr -d ' ')
     
-    draw_box_line "SUMMARY" "$width"
-    draw_box_line "  In Progress:  ${in_progress_count} issues" "$width"
-    draw_box_line "  Blocked:      ${blocked_count} issues" "$width"
-    draw_box_line "  Ready:        ${ready_count} issues" "$width"
-    draw_box_line "  Completed:    ${completed_count} issues (this week)" "$width"
+    draw_header "SUMMARY"
+    draw_line "  In Progress:  ${in_progress_count} issues"
+    draw_line "  Blocked:      ${blocked_count} issues"
+    draw_line "  Ready:        ${ready_count} issues"
+    draw_line "  Completed:    ${completed_count} issues (this week)"
 }
 
 # IN PROGRESSセクションを描画
 draw_in_progress_section() {
-    local width="${1:-60}"
-    local verbose="${2:-false}"
+    local verbose="${1:-false}"
     
     local issues="${CATEGORIZED_ISSUES[in_progress]}"
     local count
     count=$(echo "$issues" | wc -w | tr -d ' ')
     
-    draw_box_separator "$width"
-    draw_box_line "IN PROGRESS ($count)" "$width"
+    draw_header "IN PROGRESS ($count)"
     
     if [[ "$count" -eq 0 ]]; then
-        draw_box_line "  No issues in progress" "$width"
+        draw_line "  No issues in progress"
         return 0
     fi
     
@@ -249,9 +221,9 @@ draw_in_progress_section() {
         title="$(get_issue_title "$issue_num" 2>/dev/null || echo "Issue #$issue_num")"
         session="$(generate_session_name "$issue_num")"
         
-        # タイトルを短縮（最大40文字）
-        if [[ ${#title} -gt 40 ]]; then
-            title="${title:0:37}..."
+        # タイトルを短縮（最大50文字）
+        if [[ ${#title} -gt 50 ]]; then
+            title="${title:0:47}..."
         fi
         
         # セッションが実行中か確認
@@ -260,31 +232,27 @@ draw_in_progress_section() {
             session_status="[running]"
         fi
         
-        local line
-        line=$(printf "  #%-4s %-40s %s" "$issue_num" "$title" "$session_status")
-        draw_box_line "$line" "$width"
+        printf "  #%-4s %-50s %s\n" "$issue_num" "$title" "$session_status"
         
         # verbose モードでセッション名も表示
         if [[ "$verbose" == "true" ]]; then
-            draw_box_line "         Session: $session" "$width"
+            draw_line "         Session: $session"
         fi
     done
 }
 
 # BLOCKEDセクションを描画
 draw_blocked_section() {
-    local width="${1:-60}"
-    local max_items="${2:-5}"
+    local max_items="${1:-5}"
     
     local issues="${CATEGORIZED_ISSUES[blocked]}"
     local count
     count=$(echo "$issues" | wc -w | tr -d ' ')
     
-    draw_box_separator "$width"
-    draw_box_line "BLOCKED ($count)" "$width"
+    draw_header "BLOCKED ($count)"
     
     if [[ "$count" -eq 0 ]]; then
-        draw_box_line "  No blocked issues" "$width"
+        draw_line "  No blocked issues"
         return 0
     fi
     
@@ -304,17 +272,15 @@ draw_blocked_section() {
         open_blockers=$(echo "$blockers_json" | jq -r '[.[] | select(.state == "OPEN") | .number] | join(", ")' 2>/dev/null || echo "")
         
         # タイトルを短縮
-        if [[ ${#title} -gt 35 ]]; then
-            title="${title:0:32}..."
+        if [[ ${#title} -gt 40 ]]; then
+            title="${title:0:37}..."
         fi
         
-        local line
         if [[ -n "$open_blockers" ]]; then
-            line=$(printf "  #%-4s %-35s Blocked by: %s" "$issue_num" "$title" "$open_blockers")
+            printf "  #%-4s %-40s Blocked by: %s\n" "$issue_num" "$title" "$open_blockers"
         else
-            line=$(printf "  #%-4s %-35s Blocked" "$issue_num" "$title")
+            printf "  #%-4s %-40s Blocked\n" "$issue_num" "$title"
         fi
-        draw_box_line "$line" "$width"
         
         displayed=$((displayed + 1))
     done
@@ -322,24 +288,22 @@ draw_blocked_section() {
     # 表示しきれなかった分があれば表示
     if [[ "$count" -gt "$max_items" ]]; then
         local remaining=$((count - max_items))
-        draw_box_line "  ... and $remaining more" "$width"
+        draw_line "  ... and $remaining more"
     fi
 }
 
 # READYセクションを描画
 draw_ready_section() {
-    local width="${1:-60}"
-    local max_items="${2:-5}"
+    local max_items="${1:-5}"
     
     local issues="${CATEGORIZED_ISSUES[ready]}"
     local count
     count=$(echo "$issues" | wc -w | tr -d ' ')
     
-    draw_box_separator "$width"
-    draw_box_line "READY ($count)" "$width"
+    draw_header "READY ($count)"
     
     if [[ "$count" -eq 0 ]]; then
-        draw_box_line "  No ready issues" "$width"
+        draw_line "  No ready issues"
         return 0
     fi
     
@@ -351,13 +315,11 @@ draw_ready_section() {
         title="$(get_issue_title "$issue_num" 2>/dev/null || echo "Issue #$issue_num")"
         
         # タイトルを短縮
-        if [[ ${#title} -gt 50 ]]; then
-            title="${title:0:47}..."
+        if [[ ${#title} -gt 60 ]]; then
+            title="${title:0:57}..."
         fi
         
-        local line
-        line=$(printf "  #%-4s %s" "$issue_num" "$title")
-        draw_box_line "$line" "$width"
+        printf "  #%-4s %s\n" "$issue_num" "$title"
         
         displayed=$((displayed + 1))
     done
@@ -365,7 +327,7 @@ draw_ready_section() {
     # 表示しきれなかった分があれば表示
     if [[ "$count" -gt "$max_items" ]]; then
         local remaining=$((count - max_items))
-        draw_box_line "  ... and $remaining more" "$width"
+        draw_line "  ... and $remaining more"
     fi
 }
 
@@ -375,10 +337,9 @@ draw_ready_section() {
 
 # ダッシュボード全体を描画
 draw_dashboard() {
-    local width="${1:-60}"
-    local compact="${2:-false}"
-    local section="${3:-all}"
-    local verbose="${4:-false}"
+    local compact="${1:-false}"
+    local section="${2:-all}"
+    local verbose="${3:-false}"
     
     # データ収集と分類
     local issues_json
@@ -386,43 +347,40 @@ draw_dashboard() {
     categorize_issues "$issues_json"
     
     # ヘッダー
-    draw_box_top "$width"
-    draw_box_line "Pi Issue Runner Dashboard" "$width"
-    draw_box_separator "$width"
+    printf "\n"
+    printf "Pi Issue Runner Dashboard\n"
+    printf "=========================\n"
     
     # リポジトリ情報
     local repo
     repo="$(get_repo_info 2>/dev/null || echo "unknown")"
-    draw_box_line "Repository: $repo" "$width"
+    printf "Repository: %s\n" "$repo"
     
     # 更新時刻
     local updated
     updated="$(date '+%Y-%m-%d %H:%M:%S')"
-    draw_box_line "Updated: $updated" "$width"
-    
-    draw_box_separator "$width"
+    printf "Updated: %s\n" "$updated"
     
     # セクション表示
     if [[ "$section" == "all" || "$section" == "summary" ]]; then
-        draw_summary_section "$width"
+        draw_summary_section
     fi
     
     if [[ "$compact" == "false" ]]; then
         if [[ "$section" == "all" || "$section" == "progress" ]]; then
-            draw_in_progress_section "$width" "$verbose"
+            draw_in_progress_section "$verbose"
         fi
         
         if [[ "$section" == "all" || "$section" == "blocked" ]]; then
-            draw_blocked_section "$width"
+            draw_blocked_section
         fi
         
         if [[ "$section" == "all" || "$section" == "ready" ]]; then
-            draw_ready_section "$width"
+            draw_ready_section
         fi
     fi
     
-    # フッター
-    draw_box_bottom "$width"
+    printf "\n"
 }
 
 # JSON形式で出力

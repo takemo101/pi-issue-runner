@@ -171,14 +171,14 @@ main() {
         # 自動更新モード
         while true; do
             clear
-            draw_dashboard 60 "$compact" "$section" "$verbose"
+            draw_dashboard "$compact" "$section" "$verbose"
             echo ""
             echo "Press Ctrl+C to exit | Refreshing every 5 seconds..."
             sleep 5
         done
     else
         # 通常表示
-        draw_dashboard 60 "$compact" "$section" "$verbose"
+        draw_dashboard "$compact" "$section" "$verbose"
     fi
 }
 
