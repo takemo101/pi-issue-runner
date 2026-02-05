@@ -10,10 +10,8 @@ setup() {
         export _CLEANUP_TMPDIR=1
     fi
     
-    # 設定をリセット
-    export _CONFIG_LOADED=""
-    unset _MUX_TYPE
-    export CONFIG_MULTIPLEXER_TYPE="tmux"
+    # 設定をリセット（test_helperの関数を使用）
+    reset_config_state
     
     # テスト用の空の設定ファイルパスを作成
     export TEST_CONFIG_FILE="${BATS_TEST_TMPDIR}/empty-config.yaml"
@@ -68,7 +66,8 @@ EOF
 @test "get_multiplexer_type respects config value" {
     # 設定ファイルでzellij指定
     cat > "$TEST_CONFIG_FILE" << EOF
-multiplexer_type: zellij
+multiplexer:
+  type: zellij
 EOF
     
     # モックzellijを作成

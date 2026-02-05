@@ -3,6 +3,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_CONFIG_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_CONFIG_SH_SOURCED="true"
+
 # 共通YAMLパーサーを読み込み
 _CONFIG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_CONFIG_LIB_DIR/yaml.sh"
