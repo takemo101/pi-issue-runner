@@ -70,10 +70,11 @@ mux_create_session() {
     log_debug "Command: $command"
     
     # Zellijをバックグラウンドで起動
+    # script でPTYを確保しつつバックグラウンド実行
     # サブシェルで実行して現在のディレクトリを変更しない
     (
         cd "$working_dir"
-        nohup zellij -s "$session_name" </dev/null >/dev/null 2>&1 &
+        nohup script -q /dev/null zellij -s "$session_name" </dev/null >/dev/null 2>&1 &
     )
     
     # セッションが作成されるまで待機
@@ -89,20 +90,26 @@ mux_create_session() {
         return 1
     fi
     
-    # 少し待ってからコマンドを送信
-    sleep 1
+    # セッションが安定するまで待機
+    sleep 2
     
-    # ESCキーを送信してwelcome画面を閉じる
+    # ESCキーを複数回送信してwelcome画面やモードを閉じる
     ZELLIJ_SESSION_NAME="$session_name" zellij action write 27 2>/dev/null || true
+    sleep 0.3
+    ZELLIJ_SESSION_NAME="$session_name" zellij action write 27 2>/dev/null || true
+    sleep 0.5
+    
+    # Enterキーを送信してプロンプトを確定
+    ZELLIJ_SESSION_NAME="$session_name" zellij action write 13 2>/dev/null || true
     sleep 0.5
     
     # 環境変数を設定
     mux_send_keys "$session_name" "export GIT_EDITOR=true EDITOR=true VISUAL=true"
-    sleep 0.3
+    sleep 0.5
     
     # 作業ディレクトリに移動
     mux_send_keys "$session_name" "cd '$working_dir'"
-    sleep 0.3
+    sleep 0.5
     
     # コマンドを実行
     mux_send_keys "$session_name" "$command"
