@@ -139,9 +139,11 @@ EOF
 }
 
 mock_zellij_not_installed() {
-    # zellijが見つからない環境を作成（PATH をモックディレクトリのみに設定）
+    # zellijが見つからない環境を作成
+    # zellijが存在しないことを保証（PATH変更前に実行）
+    /bin/rm -f "$MOCK_DIR/zellij" 2>/dev/null || rm -f "$MOCK_DIR/zellij"
+    # PATHをモックディレクトリのみに設定
     export PATH="$MOCK_DIR"
-    rm -f "$MOCK_DIR/zellij"
 }
 
 # ====================

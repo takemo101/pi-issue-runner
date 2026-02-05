@@ -113,10 +113,10 @@ EOF
 
 mock_tmux_not_installed() {
     # tmuxが見つからない環境を作成
+    # tmuxが存在しないことを保証（PATH変更前に実行）
+    /bin/rm -f "$MOCK_DIR/tmux" 2>/dev/null || rm -f "$MOCK_DIR/tmux"
     # PATHをモックディレクトリのみに設定
     export PATH="$MOCK_DIR"
-    # tmuxが存在しないことを保証
-    rm -f "$MOCK_DIR/tmux"
 }
 
 # ====================
