@@ -307,3 +307,46 @@ MOCK_EOF
     [ "$status" -eq 0 ]
     [[ "$output" == *"ignore"* ]] || [[ "$output" == *"blockers"* ]] || [[ "$output" == *"skip"* ]]
 }
+
+# ====================
+# デバッグオプションテスト
+# ====================
+
+@test "run.sh --show-config displays configuration" {
+    run "$PROJECT_ROOT/scripts/run.sh" --show-config
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"=== Configuration ==="* ]]
+    [[ "$output" == *"worktree_base_dir:"* ]]
+}
+
+@test "run.sh --list-agents displays agent presets" {
+    run "$PROJECT_ROOT/scripts/run.sh" --list-agents
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Available agent presets:"* ]]
+    [[ "$output" == *"pi"* ]]
+}
+
+@test "run.sh --show-agent-config displays agent configuration" {
+    run "$PROJECT_ROOT/scripts/run.sh" --show-agent-config
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"=== Agent Configuration ==="* ]]
+    [[ "$output" == *"type:"* ]]
+}
+
+@test "run.sh help includes --show-config option" {
+    run "$PROJECT_ROOT/scripts/run.sh" --help
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"--show-config"* ]]
+}
+
+@test "run.sh help includes --list-agents option" {
+    run "$PROJECT_ROOT/scripts/run.sh" --help
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"--list-agents"* ]]
+}
+
+@test "run.sh help includes --show-agent-config option" {
+    run "$PROJECT_ROOT/scripts/run.sh" --help
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"--show-agent-config"* ]]
+}

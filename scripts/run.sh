@@ -63,6 +63,9 @@ Options:
     --pi-args ARGS      --agent-args のエイリアス（後方互換性）
     --list-workflows    利用可能なワークフロー一覧を表示
     --ignore-blockers   依存関係チェックをスキップして強制実行
+    --show-config       現在の設定を表示（デバッグ用）
+    --list-agents       利用可能なエージェントプリセット一覧を表示
+    --show-agent-config エージェント設定を表示（デバッグ用）
     -h, --help          このヘルプを表示
 
 Examples:
@@ -77,7 +80,7 @@ Examples:
 EOF
 }
 
-# ヘルプと--list-workflowsを先に処理（依存関係チェック前）
+# ヘルプと情報表示オプションを先に処理（依存関係チェック前）
 for arg in "$@"; do
     case "$arg" in
         -h|--help)
@@ -91,6 +94,28 @@ for arg in "$@"; do
             source "$SCRIPT_DIR/../lib/workflow.sh"
             log_info "Available workflows:"
             list_available_workflows
+            exit 0
+            ;;
+        --show-config)
+            source "$SCRIPT_DIR/../lib/config.sh"
+            source "$SCRIPT_DIR/../lib/log.sh"
+            load_config
+            show_config
+            exit 0
+            ;;
+        --list-agents)
+            source "$SCRIPT_DIR/../lib/config.sh"
+            source "$SCRIPT_DIR/../lib/log.sh"
+            source "$SCRIPT_DIR/../lib/agent.sh"
+            list_agent_presets
+            exit 0
+            ;;
+        --show-agent-config)
+            source "$SCRIPT_DIR/../lib/config.sh"
+            source "$SCRIPT_DIR/../lib/log.sh"
+            source "$SCRIPT_DIR/../lib/agent.sh"
+            load_config
+            show_agent_config
             exit 0
             ;;
     esac
