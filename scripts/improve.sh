@@ -269,8 +269,8 @@ setup_improve_environment() {
 
     # Max iterations check
     if [[ $iteration -gt $max_iterations ]]; then
-        echo ""
-        echo "🏁 Maximum iterations ($max_iterations) reached"
+        echo "" >&2
+        echo "🏁 Maximum iterations ($max_iterations) reached" >&2
         exit 0
     fi
 
