@@ -50,7 +50,7 @@ GitHub Issueを入力として、独立したworktree環境でpiインスタン�
   - エッジケース処理
   - パフォーマンス最適化
 
-- **[tmux-integration.md](./tmux-integration.md)** - Tmux統合
+- **[multiplexer-integration.md](./multiplexer-integration.md)** - マルチプレクサ統合（tmux/Zellij）
   - セッション管理
   - コマンド実行
   - 出力キャプチャ
