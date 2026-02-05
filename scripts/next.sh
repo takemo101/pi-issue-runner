@@ -133,22 +133,40 @@ parse_next_arguments() {
         case "$1" in
             -n|--count)
                 if [[ -z "${2:-}" ]]; then
-                    log_error "Option $1 requires an argument"
+                    log_error "Option $1 requires an argument" >&2
                     usage >&2
-                    exit 3
+                    echo "local count=$count"
+                    echo "local label_filter='$label_filter'"
+                    echo "local json_output=$json_output"
+                    echo "local dry_run=$dry_run"
+                    echo "local verbose=$verbose"
+                    echo "local __PARSE_EXIT_CODE=3"
+                    return 0
                 fi
                 count="$2"
                 if ! [[ "$count" =~ ^[0-9]+$ ]] || [[ "$count" -lt 1 ]]; then
-                    log_error "Count must be a positive integer"
-                    exit 3
+                    log_error "Count must be a positive integer" >&2
+                    echo "local count=$count"
+                    echo "local label_filter='$label_filter'"
+                    echo "local json_output=$json_output"
+                    echo "local dry_run=$dry_run"
+                    echo "local verbose=$verbose"
+                    echo "local __PARSE_EXIT_CODE=3"
+                    return 0
                 fi
                 shift 2
                 ;;
             -l|--label)
                 if [[ -z "${2:-}" ]]; then
-                    log_error "Option $1 requires an argument"
+                    log_error "Option $1 requires an argument" >&2
                     usage >&2
-                    exit 3
+                    echo "local count=$count"
+                    echo "local label_filter='$label_filter'"
+                    echo "local json_output=$json_output"
+                    echo "local dry_run=$dry_run"
+                    echo "local verbose=$verbose"
+                    echo "local __PARSE_EXIT_CODE=3"
+                    return 0
                 fi
                 label_filter="$2"
                 shift 2
@@ -169,12 +187,24 @@ parse_next_arguments() {
             -h|--help)
                 # Should not reach here (handled before main)
                 usage >&2
-                exit 0
+                echo "local count=$count"
+                echo "local label_filter='$label_filter'"
+                echo "local json_output=$json_output"
+                echo "local dry_run=$dry_run"
+                echo "local verbose=$verbose"
+                echo "local __PARSE_EXIT_CODE=0"
+                return 0
                 ;;
             *)
-                log_error "Unknown option: $1"
+                log_error "Unknown option: $1" >&2
                 usage >&2
-                exit 3
+                echo "local count=$count"
+                echo "local label_filter='$label_filter'"
+                echo "local json_output=$json_output"
+                echo "local dry_run=$dry_run"
+                echo "local verbose=$verbose"
+                echo "local __PARSE_EXIT_CODE=3"
+                return 0
                 ;;
         esac
     done
@@ -184,6 +214,7 @@ parse_next_arguments() {
     echo "local json_output=$json_output"
     echo "local dry_run=$dry_run"
     echo "local verbose=$verbose"
+    echo "local __PARSE_EXIT_CODE=0"
 }
 
 # ============================================================================
@@ -362,7 +393,13 @@ display_recommendations() {
 # ============================================================================
 main() {
     # Parse arguments
+    local __PARSE_EXIT_CODE=0
     eval "$(parse_next_arguments "$@")"
+    
+    # Check if parsing failed
+    if [[ "$__PARSE_EXIT_CODE" -ne 0 ]]; then
+        exit "$__PARSE_EXIT_CODE"
+    fi
     
     # Fetch and filter issues
     local candidate_issues
