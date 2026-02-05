@@ -100,18 +100,35 @@ VERIFY_SCRIPT="$PROJECT_ROOT/scripts/verify-config-docs.sh"
 }
 
 @test "verify-config-docs.sh detects missing hooks documentation" {
-    # 一時的にdocs/hooks.mdをリネーム
+    # 一時的にdocs/hooks.mdをリネーム（排他ロック付き）
+    local lockfile="$BATS_TEST_TMPDIR/hooks-test.lock"
+    local max_wait=30
+    local waited=0
+    
+    # ロック取得を待つ
+    while ! mkdir "$lockfile" 2>/dev/null; do
+        sleep 0.1
+        waited=$((waited + 1))
+        if [[ $waited -gt $((max_wait * 10)) ]]; then
+            skip "Could not acquire lock after ${max_wait}s"
+        fi
+    done
+    
+    # リネーム
     if [[ -f "$PROJECT_ROOT/docs/hooks.md" ]]; then
-        mv "$PROJECT_ROOT/docs/hooks.md" "$PROJECT_ROOT/docs/hooks.md.bak"
+        mv "$PROJECT_ROOT/docs/hooks.md" "$PROJECT_ROOT/docs/hooks.md.bak.$$"
     fi
     
     run "$VERIFY_SCRIPT"
     local result=$status
     
     # 元に戻す
-    if [[ -f "$PROJECT_ROOT/docs/hooks.md.bak" ]]; then
-        mv "$PROJECT_ROOT/docs/hooks.md.bak" "$PROJECT_ROOT/docs/hooks.md"
+    if [[ -f "$PROJECT_ROOT/docs/hooks.md.bak.$$" ]]; then
+        mv "$PROJECT_ROOT/docs/hooks.md.bak.$$" "$PROJECT_ROOT/docs/hooks.md"
     fi
+    
+    # ロック解放
+    rmdir "$lockfile" 2>/dev/null || true
     
     # 検証
     [ "$result" -eq 1 ]
