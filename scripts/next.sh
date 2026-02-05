@@ -40,6 +40,46 @@ source "$SCRIPT_DIR/../lib/dependency.sh"
 source "$SCRIPT_DIR/../lib/status.sh"
 source "$SCRIPT_DIR/../lib/priority.sh"
 
+# Handle --help early (before main, to avoid eval issues)
+for arg in "$@"; do
+    if [[ "$arg" == "-h" || "$arg" == "--help" ]]; then
+        cat << 'EOF'
+Usage: next.sh [options]
+
+次に実行すべきGitHub Issueをインテリジェントに提案します。
+依存関係・優先度・ブロッカー状況を考慮して最適なIssueを選択します。
+
+Options:
+    -n, --count <N>     提案するIssue数（デフォルト: 1）
+    -l, --label <name>  特定ラベルでフィルタ
+    --json              JSON形式で出力
+    --dry-run           提案のみ（実行コマンドを表示しない）
+    -v, --verbose       詳細な判断理由を表示
+    -h, --help          このヘルプを表示
+
+Prioritization Logic:
+    1. Blocker status    - OPENなブロッカーがないIssueを優先
+    2. Dependency depth  - 依存が少ない（レイヤーが浅い）Issueを優先
+    3. Priority labels   - priority:high > medium > low
+    4. Issue number      - 同スコアなら番号が小さい方を優先
+
+Examples:
+    next.sh                    # 次の1件を提案
+    next.sh -n 3               # 次の3件を提案
+    next.sh -l feature         # featureラベル付きから提案
+    next.sh --json             # JSON形式で出力
+    next.sh -v                 # 詳細な判断理由を表示
+
+Exit codes:
+    0 - Success
+    1 - No candidates found
+    2 - GitHub API error
+    3 - Invalid arguments
+EOF
+        exit 0
+    fi
+done
+
 usage() {
     cat << EOF
 Usage: $(basename "$0") [options]
@@ -76,35 +116,57 @@ Exit codes:
 EOF
 }
 
-main() {
+# ============================================================================
+# Subfunction: parse_next_arguments
+# Purpose: Parse command-line arguments
+# Output: Shell variable assignments (eval-able)
+# Note: Does not handle --help/-h (handled in main before calling this)
+# ============================================================================
+parse_next_arguments() {
     local count=1
     local label_filter=""
     local json_output=false
     local dry_run=false
     local verbose=false
     
-    # 引数解析
     while [[ $# -gt 0 ]]; do
         case "$1" in
             -n|--count)
                 if [[ -z "${2:-}" ]]; then
-                    log_error "Option $1 requires an argument"
+                    log_error "Option $1 requires an argument" >&2
                     usage >&2
-                    exit 3
+                    echo "local count=$count"
+                    echo "local label_filter='$label_filter'"
+                    echo "local json_output=$json_output"
+                    echo "local dry_run=$dry_run"
+                    echo "local verbose=$verbose"
+                    echo "local __PARSE_EXIT_CODE=3"
+                    return 0
                 fi
                 count="$2"
-                # 数値チェック
                 if ! [[ "$count" =~ ^[0-9]+$ ]] || [[ "$count" -lt 1 ]]; then
-                    log_error "Count must be a positive integer"
-                    exit 3
+                    log_error "Count must be a positive integer" >&2
+                    echo "local count=$count"
+                    echo "local label_filter='$label_filter'"
+                    echo "local json_output=$json_output"
+                    echo "local dry_run=$dry_run"
+                    echo "local verbose=$verbose"
+                    echo "local __PARSE_EXIT_CODE=3"
+                    return 0
                 fi
                 shift 2
                 ;;
             -l|--label)
                 if [[ -z "${2:-}" ]]; then
-                    log_error "Option $1 requires an argument"
+                    log_error "Option $1 requires an argument" >&2
                     usage >&2
-                    exit 3
+                    echo "local count=$count"
+                    echo "local label_filter='$label_filter'"
+                    echo "local json_output=$json_output"
+                    echo "local dry_run=$dry_run"
+                    echo "local verbose=$verbose"
+                    echo "local __PARSE_EXIT_CODE=3"
+                    return 0
                 fi
                 label_filter="$2"
                 shift 2
@@ -123,24 +185,52 @@ main() {
                 shift
                 ;;
             -h|--help)
-                usage
-                exit 0
+                # Should not reach here (handled before main)
+                usage >&2
+                echo "local count=$count"
+                echo "local label_filter='$label_filter'"
+                echo "local json_output=$json_output"
+                echo "local dry_run=$dry_run"
+                echo "local verbose=$verbose"
+                echo "local __PARSE_EXIT_CODE=0"
+                return 0
                 ;;
             *)
-                log_error "Unknown option: $1"
+                log_error "Unknown option: $1" >&2
                 usage >&2
-                exit 3
+                echo "local count=$count"
+                echo "local label_filter='$label_filter'"
+                echo "local json_output=$json_output"
+                echo "local dry_run=$dry_run"
+                echo "local verbose=$verbose"
+                echo "local __PARSE_EXIT_CODE=3"
+                return 0
                 ;;
         esac
     done
     
-    # 依存関係チェック
-    check_dependencies || exit 2
+    echo "local count=$count"
+    echo "local label_filter='$label_filter'"
+    echo "local json_output=$json_output"
+    echo "local dry_run=$dry_run"
+    echo "local verbose=$verbose"
+    echo "local __PARSE_EXIT_CODE=0"
+}
+
+# ============================================================================
+# Subfunction: fetch_and_filter_issues
+# Purpose: Fetch open issues and filter by various criteria
+# Arguments: $1=label_filter, $2=json_output
+# Output: Candidate issue numbers (space-separated)
+# ============================================================================
+fetch_and_filter_issues() {
+    local label_filter="$1"
+    local json_output="$2"
     
-    # 設定ファイル読み込み
+    check_dependencies || exit 2
     load_config
     
-    # STEP 1: Open状態のIssueを取得
+    # Fetch open issues
     log_debug "Fetching open issues..."
     local open_issues_json
     if ! open_issues_json=$(gh issue list --state open --limit 100 --json number,title,labels 2>/dev/null); then
@@ -148,7 +238,6 @@ main() {
         exit 2
     fi
     
-    # Issue番号を抽出
     local all_issues
     all_issues=$(echo "$open_issues_json" | jq -r '.[].number' | tr '\n' ' ')
     
@@ -163,7 +252,7 @@ main() {
     
     log_debug "Found $(echo "$all_issues" | wc -w | tr -d ' ') open issues"
     
-    # STEP 2: 実行中のIssueを除外
+    # Filter running issues
     log_debug "Filtering out running issues..."
     local non_running_issues
     non_running_issues=$(filter_non_running_issues "$all_issues")
@@ -179,7 +268,7 @@ main() {
     
     log_debug "$(echo "$non_running_issues" | wc -w | tr -d ' ') non-running issues"
     
-    # STEP 3: ブロックされていないIssueをフィルタ
+    # Filter blocked issues
     log_debug "Filtering out blocked issues..."
     local unblocked_issues
     unblocked_issues=$(filter_unblocked_issues "$non_running_issues")
@@ -195,7 +284,7 @@ main() {
     
     log_debug "$(echo "$unblocked_issues" | wc -w | tr -d ' ') unblocked issues"
     
-    # STEP 4: ラベルフィルタ適用（オプション）
+    # Apply label filter if specified
     local candidate_issues="$unblocked_issues"
     if [[ -n "$label_filter" ]]; then
         log_debug "Applying label filter: $label_filter"
@@ -213,7 +302,19 @@ main() {
         log_debug "$(echo "$candidate_issues" | wc -w | tr -d ' ') issues after label filter"
     fi
     
-    # STEP 5: 優先度情報を付与
+    echo "$candidate_issues"
+}
+
+# ============================================================================
+# Subfunction: enrich_and_sort_issues
+# Purpose: Add priority scores and sort issues
+# Arguments: $1=candidate_issues, $2=count
+# Output: JSON array of top N issues
+# ============================================================================
+enrich_and_sort_issues() {
+    local candidate_issues="$1"
+    local count="$2"
+    
     log_debug "Calculating priority scores..."
     local enriched_issues
     if ! enriched_issues=$(enrich_issues_with_priority "$candidate_issues"); then
@@ -221,14 +322,27 @@ main() {
         exit 2
     fi
     
-    # STEP 6: 優先度でソート
     log_debug "Sorting by priority..."
     local sorted_issues
     sorted_issues=$(sort_issues_by_priority "$enriched_issues")
     
-    # STEP 7: 上位N件を取得
     local top_issues
     top_issues=$(echo "$sorted_issues" | jq -c ".[:$count]")
+    
+    echo "$top_issues"
+}
+
+# ============================================================================
+# Subfunction: display_recommendations
+# Purpose: Display recommended issues
+# Arguments: $1=top_issues (JSON), $2=count, $3=json_output, $4=dry_run, $5=verbose
+# ============================================================================
+display_recommendations() {
+    local top_issues="$1"
+    local count="$2"
+    local json_output="$3"
+    local dry_run="$4"
+    local verbose="$5"
     
     local top_count
     top_count=$(echo "$top_issues" | jq 'length')
@@ -242,12 +356,9 @@ main() {
         exit 1
     fi
     
-    # STEP 8: 出力
     if [[ "$json_output" == "true" ]]; then
-        # JSON出力
         echo "{\"recommended\":$top_issues}"
     else
-        # 標準出力
         local idx=0
         while [[ $idx -lt $top_count ]]; do
             local issue_data
@@ -255,11 +366,7 @@ main() {
             local issue_number
             issue_number=$(echo "$issue_data" | jq -r '.number')
             
-            if [[ $idx -gt 0 ]]; then
-                echo ""
-                echo "---"
-                echo ""
-            fi
+            [[ $idx -gt 0 ]] && echo -e "\n---\n"
             
             if [[ "$count" -eq 1 ]]; then
                 echo "🎯 Next recommended issue: #$issue_number"
@@ -268,10 +375,8 @@ main() {
             fi
             echo ""
             
-            # 詳細情報を表示
             format_issue_details "$issue_data" "$verbose"
             
-            # 実行コマンド（--dry-run でない場合）
             if [[ "$dry_run" != "true" ]]; then
                 echo ""
                 echo "Run: scripts/run.sh $issue_number"
@@ -280,6 +385,32 @@ main() {
             idx=$((idx + 1))
         done
     fi
+}
+
+# ============================================================================
+# Main function
+# Purpose: Orchestrate next task recommendation
+# ============================================================================
+main() {
+    # Parse arguments
+    local __PARSE_EXIT_CODE=0
+    eval "$(parse_next_arguments "$@")"
+    
+    # Check if parsing failed
+    if [[ "$__PARSE_EXIT_CODE" -ne 0 ]]; then
+        exit "$__PARSE_EXIT_CODE"
+    fi
+    
+    # Fetch and filter issues
+    local candidate_issues
+    candidate_issues="$(fetch_and_filter_issues "$label_filter" "$json_output")"
+    
+    # Enrich and sort issues
+    local top_issues
+    top_issues="$(enrich_and_sort_issues "$candidate_issues" "$count")"
+    
+    # Display recommendations
+    display_recommendations "$top_issues" "$count" "$json_output" "$dry_run" "$verbose"
 }
 
 main "$@"
