@@ -87,6 +87,24 @@ pi-issue-runner/
 │   ├── test.md        # テストエージェント
 │   └── merge.md       # マージエージェント
 ├── docs/              # ドキュメント
+│   ├── README.md          # ドキュメント索引
+│   ├── CHANGELOG.md       # 変更履歴
+│   ├── SPECIFICATION.md   # 仕様書
+│   ├── architecture.md    # アーキテクチャ
+│   ├── coding-standards.md # コーディング規約
+│   ├── configuration.md   # 設定リファレンス
+│   ├── hooks.md           # Hook機能
+│   ├── overview.md        # 概要
+│   ├── parallel-execution.md # 並列実行
+│   ├── security.md        # セキュリティ
+│   ├── state-management.md # 状態管理
+│   ├── tmux-integration.md # tmux連携
+│   ├── workflows.md       # ワークフロー
+│   ├── worktree-management.md # Worktree管理
+│   ├── memos/             # メモ・作業記録
+│   │   └── README.md
+│   └── plans/             # 計画書
+│       └── README.md
 ├── test/              # Batsテスト（*.bats形式）
 │   ├── lib/           # ライブラリのユニットテスト
 │   │   ├── agent.bats
