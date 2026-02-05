@@ -290,16 +290,17 @@ setup_improve_environment() {
     local log_file
     log_file="$log_dir/iteration-${iteration}-$(date +%Y%m%d-%H%M%S).log"
 
-    echo ""
-    echo "╔════════════════════════════════════════════════════════════╗"
-    echo "║  🔧 Continuous Improvement - Iteration $iteration/$max_iterations"
-    echo "╚════════════════════════════════════════════════════════════╝"
-    echo ""
-    echo "Session label: $session_label"
-    echo "Log file: $log_file"
-    echo ""
+    # Display header (to stderr, not evaluated)
+    {
+        echo ""
+        echo "=== Continuous Improvement - Iteration $iteration/$max_iterations ==="
+        echo ""
+        echo "Session label: $session_label"
+        echo "Log file: $log_file"
+        echo ""
+    } >&2
 
-    # Output variables
+    # Output variables (to stdout, for eval)
     echo "local session_label='$session_label'"
     echo "local log_file='$log_file'"
     echo "local start_time='$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"
