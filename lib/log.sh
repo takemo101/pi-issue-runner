@@ -68,6 +68,7 @@ log_debug() { log DEBUG "$@"; }
 log_info()  { log INFO "$@"; }
 log_warn()  { log WARN "$@"; }
 log_error() { log ERROR "$@"; }
+log_success() { log_info "$@"; }  # Alias for compatibility with init.sh
 
 # ログレベルを設定
 set_log_level() {
