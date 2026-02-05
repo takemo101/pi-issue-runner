@@ -116,12 +116,16 @@ Environment Variables:
 EOF
 }
 
-main() {
+# ============================================================================
+# Subfunction: parse_improve_arguments
+# Purpose: Parse command-line arguments
+# Output: Shell variable assignments (eval-able)
+# ============================================================================
+parse_improve_arguments() {
     local max_iterations=$DEFAULT_MAX_ITERATIONS
     local max_issues=$DEFAULT_MAX_ISSUES
     local timeout=$DEFAULT_TIMEOUT
     local iteration=1
-    # Default log directory: current working directory (the target project)
     local log_dir=".improve-logs"
     local session_label=""
     local dry_run=false
@@ -171,7 +175,7 @@ main() {
                 shift
                 ;;
             -h|--help)
-                usage
+                usage >&2
                 exit 0
                 ;;
             -*)
@@ -187,9 +191,33 @@ main() {
         esac
     done
 
-    load_config
+    # Output variable assignments
+    echo "local max_iterations=$max_iterations"
+    echo "local max_issues=$max_issues"
+    echo "local timeout=$timeout"
+    echo "local iteration=$iteration"
+    echo "local log_dir='$log_dir'"
+    echo "local session_label='$session_label'"
+    echo "local dry_run=$dry_run"
+    echo "local review_only=$review_only"
+    echo "local auto_continue=$auto_continue"
+}
 
-    # Dependency check
+# ============================================================================
+# Subfunction: setup_improve_environment
+# Purpose: Setup environment and validate configuration
+# Arguments: $1=iteration, $2=max_iterations, $3=session_label, $4=log_dir, $5=dry_run, $6=review_only
+# Output: Shell variable assignments (eval-able)
+# ============================================================================
+setup_improve_environment() {
+    local iteration="$1"
+    local max_iterations="$2"
+    local session_label="$3"
+    local log_dir="$4"
+    local dry_run="$5"
+    local review_only="$6"
+
+    load_config
     check_dependencies || exit 1
 
     # Max iterations check
@@ -199,7 +227,7 @@ main() {
         exit 0
     fi
 
-    # Generate session label if not provided (only on first iteration)
+    # Generate session label if not provided
     if [[ -z "$session_label" ]]; then
         session_label="$(generate_session_label)"
         log_debug "Generated session label: $session_label"
@@ -224,17 +252,29 @@ main() {
     echo "Log file: $log_file"
     echo ""
 
+    # Output variables
+    echo "local session_label='$session_label'"
+    echo "local log_file='$log_file'"
+    echo "local start_time='$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"
+}
+
+# ============================================================================
+# Subfunction: run_review_phase
+# Purpose: Execute project review using pi --print
+# Arguments: $1=max_issues, $2=session_label, $3=log_file, $4=dry_run, $5=review_only
+# ============================================================================
+run_review_phase() {
+    local max_issues="$1"
+    local session_label="$2"
+    local log_file="$3"
+    local dry_run="$4"
+    local review_only="$5"
+
     local pi_command
     pi_command="$(get_config pi_command)"
 
-    # Record start time for Issue filtering
-    local start_time
-    start_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-    # Phase 1: Run pi --print for review and Issue creation
     local prompt
     if [[ "$dry_run" == "true" || "$review_only" == "true" ]]; then
-        # Dry-run or review-only mode: report problems without creating Issues
         prompt="project-reviewスキルを読み込んで実行し、プロジェクト全体をレビューしてください。
 発見した問題を報告してください（最大${max_issues}件）。
 【重要】GitHub Issueは作成しないでください。問題の一覧を表示するのみにしてください。
@@ -250,7 +290,6 @@ Issueを作成しない場合は「問題は見つかりませんでした」と
     fi
     echo "[PHASE 1] This may take a few minutes..."
     
-    # Run pi in --print mode and save output to log file while displaying
     if ! "$pi_command" --print --message "$prompt" 2>&1 | tee "$log_file"; then
         log_warn "pi command returned non-zero exit code"
     fi
@@ -258,22 +297,32 @@ Issueを作成しない場合は「問題は見つかりませんでした」と
     echo ""
     echo "[PHASE 1] Review complete. Log saved to: $log_file"
 
-    # Exit early for review-only mode
+    # Exit early for review-only or dry-run modes
     if [[ "$review_only" == "true" ]]; then
         echo ""
         echo "✅ Review-only mode complete. See log for details: $log_file"
         exit 0
     fi
 
-    # Exit early for dry-run mode (after showing what would be done)
     if [[ "$dry_run" == "true" ]]; then
         echo ""
         echo "✅ Dry-run mode complete. No Issues were created."
         echo "   Review results saved to: $log_file"
         exit 0
     fi
+}
 
-    # Phase 2: Fetch Issues via GitHub API
+# ============================================================================
+# Subfunction: fetch_created_issues
+# Purpose: Fetch issues created during review phase
+# Arguments: $1=start_time, $2=max_issues, $3=session_label
+# Output: Issue numbers (one per line)
+# ============================================================================
+fetch_created_issues() {
+    local start_time="$1"
+    local max_issues="$2"
+    local session_label="$3"
+
     echo ""
     echo "[PHASE 2] Fetching Issues created after $start_time with label '$session_label'..."
     
@@ -287,7 +336,7 @@ Issueを作成しない場合は「問題は見つかりませんでした」と
         exit 0
     fi
     
-    # Convert Issue numbers to array
+    # Convert Issue numbers to array and validate
     local issue_array=()
     while IFS= read -r issue; do
         if [[ -n "$issue" && "$issue" =~ ^[0-9]+$ ]]; then
@@ -303,12 +352,21 @@ Issueを作成しない場合は「問題は見つかりませんでした」と
     fi
     
     echo "Created Issues: ${issue_array[*]}"
+    
+    # Output issue numbers
+    printf "%s\n" "${issue_array[@]}"
+}
 
-    # Phase 3: Start parallel execution via run.sh
+# ============================================================================
+# Subfunction: execute_issues_in_parallel
+# Purpose: Start parallel execution of issues
+# Arguments: Issue numbers passed via stdin
+# ============================================================================
+execute_issues_in_parallel() {
     echo ""
     echo "[PHASE 3] Starting parallel execution..."
     
-    for issue in "${issue_array[@]}"; do
+    while IFS= read -r issue; do
         echo "  Starting Issue #$issue..."
         if "$SCRIPT_DIR/run.sh" "$issue" --no-attach; then
             # Track active session for cleanup on interruption
@@ -317,8 +375,16 @@ Issueを作成しない場合は「問題は見つかりませんでした」と
             log_warn "Failed to start session for Issue #$issue"
         fi
     done
+}
 
-    # Phase 4: Wait for sessions to complete
+# ============================================================================
+# Subfunction: wait_for_completion
+# Purpose: Wait for all sessions to complete
+# Arguments: $1=timeout
+# ============================================================================
+wait_for_completion() {
+    local timeout="$1"
+
     echo ""
     echo "[PHASE 4] Waiting for sessions to complete..."
     
@@ -326,10 +392,24 @@ Issueを作成しない場合は「問題は見つかりませんでした」と
         log_warn "Some sessions failed or timed out"
     fi
     
-    # Clear active sessions after completion (worktrees cleaned by --cleanup)
+    # Clear active sessions after completion
     ACTIVE_ISSUE_NUMBERS=()
+}
 
-    # Phase 5: Recursive call for next iteration
+# ============================================================================
+# Subfunction: start_next_iteration
+# Purpose: Start next iteration with updated parameters
+# Arguments: Multiple (see function body)
+# ============================================================================
+start_next_iteration() {
+    local iteration="$1"
+    local max_iterations="$2"
+    local max_issues="$3"
+    local timeout="$4"
+    local log_dir="$5"
+    local session_label="$6"
+    local auto_continue="$7"
+
     echo ""
     echo "[PHASE 5] Starting next iteration..."
     
@@ -356,6 +436,34 @@ Issueを作成しない場合は「問題は見つかりませんでした」と
     fi
     
     exec "$0" "${args[@]}"
+}
+
+# ============================================================================
+# Main function
+# Purpose: Orchestrate continuous improvement workflow
+# ============================================================================
+main() {
+    # Parse arguments
+    eval "$(parse_improve_arguments "$@")"
+    
+    # Setup environment
+    eval "$(setup_improve_environment "$iteration" "$max_iterations" "$session_label" "$log_dir" "$dry_run" "$review_only")"
+    
+    # Phase 1: Review
+    run_review_phase "$max_issues" "$session_label" "$log_file" "$dry_run" "$review_only"
+    
+    # Phase 2: Fetch issues
+    local created_issues
+    created_issues="$(fetch_created_issues "$start_time" "$max_issues" "$session_label")"
+    
+    # Phase 3: Execute in parallel
+    echo "$created_issues" | execute_issues_in_parallel
+    
+    # Phase 4: Wait for completion
+    wait_for_completion "$timeout"
+    
+    # Phase 5: Next iteration
+    start_next_iteration "$iteration" "$max_iterations" "$max_issues" "$timeout" "$log_dir" "$session_label" "$auto_continue"
 }
 
 # Dependency check
