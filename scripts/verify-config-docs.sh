@@ -119,6 +119,44 @@ main() {
     
     echo ""
     
+    # 4. Hooks設定の検証
+    echo "4. Checking hooks configuration..."
+    
+    # hooks.mdの存在確認
+    if [[ -f "$PROJECT_ROOT/docs/hooks.md" ]]; then
+        log_info "docs/hooks.md exists"
+    else
+        log_error "docs/hooks.md does not exist"
+        exit_code=1
+    fi
+    
+    # サポートされているイベントの確認
+    local hook_events=(
+        "on_start"
+        "on_success"
+        "on_error"
+        "on_cleanup"
+    )
+    
+    for event in "${hook_events[@]}"; do
+        if grep -q "\`$event\`" "$PROJECT_ROOT/docs/hooks.md" 2>/dev/null; then
+            log_info "Hook event \"$event\" is documented"
+        else
+            log_error "Hook event \"$event\" is not documented in docs/hooks.md"
+            exit_code=1
+        fi
+    done
+    
+    # 設定例の確認
+    if grep -q "^hooks:" "$PROJECT_ROOT/docs/hooks.md" 2>/dev/null || \
+       grep -q "^hooks:" "$PROJECT_ROOT/docs/configuration.md" 2>/dev/null; then
+        log_info "Hooks configuration example found"
+    else
+        log_warn "Hooks configuration example not found (recommended)"
+    fi
+    
+    echo ""
+    
     # 結果サマリー
     if [[ $exit_code -eq 0 ]]; then
         log_info "✅ Configuration documentation is up-to-date"
