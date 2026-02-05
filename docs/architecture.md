@@ -29,8 +29,9 @@
 │  │    notify.sh       │    status.sh       │ template.sh  │ │
 │  │  - 通知機能        │  - 状態管理        │  - テンプレ  │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │    tmux.sh         │   workflow.sh      │workflow-finder│ │
+│  │multiplexer.sh      │   workflow.sh      │workflow-finder│ │
 │  │  - セッション      │  - ワークフロー    │  - WF検索    │ │
+│  │  (tmux/Zellij)     │                    │              │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
 │  │ workflow-loader.sh │workflow-prompt.sh  │ worktree.sh  │ │
 │  │  - WF読み込み      │  - プロンプト      │  - worktree  │ │
@@ -41,8 +42,8 @@
 └──────────────────────────────────────────────────────────────┘
          │                    │                    │
 ┌────────▼────────┐  ┌────────▼────────┐  ┌───────▼──────┐
-│   Git Worktree  │  │  Tmux Sessions  │  │  Pi Process  │
-│                 │  │                 │  │              │
+│   Git Worktree  │  │ Multiplexer     │  │  Pi Process  │
+│                 │  │ (tmux/Zellij)   │  │              │
 │ .worktrees/     │  │ pi-issue-42     │  │ pi running   │
 │   issue-42-*/   │  │ pi-issue-43     │  │              │
 │   issue-43-*/   │  │ pi-issue-44     │  │              │
@@ -87,7 +88,10 @@ pi-issue-runner/
 │   ├── notify.sh      # 通知機能
 │   ├── status.sh      # 状態管理
 │   ├── template.sh    # テンプレート処理
-│   ├── tmux.sh        # tmux操作
+│   ├── multiplexer.sh      # マルチプレクサ抽象化レイヤー
+│   ├── multiplexer-tmux.sh # tmux実装
+│   ├── multiplexer-zellij.sh # Zellij実装
+│   ├── tmux.sh        # 後方互換ラッパー
 │   ├── workflow.sh    # ワークフローエンジン
 │   ├── workflow-finder.sh   # ワークフロー検索
 │   ├── workflow-loader.sh   # ワークフロー読み込み
@@ -192,15 +196,17 @@ remove_worktree "$worktree_path" true  # force=true
 existing="$(find_worktree_by_issue 42)"
 ```
 
-#### tmux.sh
+#### multiplexer.sh (tmux.sh)
 
-Tmuxセッションの管理:
+マルチプレクサセッションの管理（tmux/Zellij対応）:
+
+> **Note**: `tmux.sh` は後方互換性のためのラッパーです。実際の実装は `multiplexer.sh` および `multiplexer-tmux.sh`、`multiplexer-zellij.sh` にあります。
 
 ```bash
 # セッション名生成
 session_name="$(generate_session_name 42)"  # → "pi-issue-42"
 
-# セッション作成＆コマンド実行
+# セッション作成＆コマンド実行（multiplexer設定に基づき自動選択）
 create_session "$session_name" "$worktree_path" "$command"
 
 # セッション存在確認
@@ -254,7 +260,7 @@ write_workflow_prompt \
 **依存ツール**:
 - `git` - バージョン管理、worktree操作
 - `gh` - GitHub CLI、Issue情報取得
-- `tmux` - ターミナルマルチプレクサ
+- `tmux` または `zellij` - ターミナルマルチプレクサ（いずれか必須）
 - `jq` - JSON処理（オプション）
 - `yq` - YAML処理（オプション）
 
@@ -282,8 +288,8 @@ write_workflow_prompt \
 5. lib/workflow.sh
    - write_workflow_prompt() でプロンプトファイル生成
 
-6. lib/tmux.sh
-   - create_session() でtmuxセッション作成
+6. lib/multiplexer.sh (tmux.sh)
+   - create_session() でセッション作成（tmux/Zellij）
    - send-keys でpiコマンド実行
 
 7. scripts/watch-session.sh (バックグラウンド)
@@ -365,7 +371,7 @@ unregister_worktree_for_cleanup
 | エラー種別 | 対処 |
 |-----------|------|
 | Worktree作成失敗 | 既存worktreeを `--force` で削除後再試行 |
-| Tmuxセッション作成失敗 | 既存セッションをkillして再試行 |
+| マルチプレクサセッション作成失敗 | 既存セッションをkillして再試行 |
 | GitHub API失敗 | エラーメッセージを表示して終了 |
 | Pi実行失敗 | ステータスを "error" にマーク |
 
@@ -384,7 +390,7 @@ log_error "エラー"
 ### ログ出力先
 
 1. **標準出力/エラー出力** - リアルタイムフィードバック
-2. **Tmuxペイン** - セッション内でのpi出力
+2. **マルチプレクサペイン** - セッション内でのpi出力（tmux/Zellij）
 3. **監視ログ** - `/tmp/pi-watcher-{session}.log`
 
 ## セキュリティ考慮事項
