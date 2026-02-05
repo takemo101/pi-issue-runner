@@ -43,6 +43,20 @@ generate_workflow_prompt() {
     cat << EOF
 Implement GitHub Issue #$issue_number
 
+> **⚡ AUTONOMOUS EXECUTION MODE**
+> This session runs fully automatically. You MUST:
+> - **NOT wait for user input**
+> - **NOT ask for confirmation**
+> - **NOT ask questions**
+> - Proceed immediately to the next step after completing each task
+> - Make best-effort decisions when uncertain
+> - Execute autonomously until completion without stopping
+
+> **🚫 PROHIBITED ACTIONS**
+> - **Do NOT run \`gh issue close\`** - Issues are closed automatically via PR merge with \`Closes #xxx\`
+> - **Do NOT open editors** - Use \`git commit -m\`, \`git merge --no-edit\`, \`gh pr create --body\`
+> - **Do NOT use interactive commands**
+
 ## Title
 $issue_title
 
