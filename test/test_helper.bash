@@ -152,6 +152,24 @@ MOCK_EOF
     chmod +x "$mock_script"
 }
 
+# Get timeout command (GNU timeout or gtimeout)
+# Returns the command path or empty string if not available
+get_timeout_cmd() {
+    command -v timeout || command -v gtimeout || echo ""
+}
+
+# Require timeout command for test
+# Skips test if timeout is not available
+# Returns the timeout command path if available
+require_timeout() {
+    local cmd
+    cmd=$(get_timeout_cmd)
+    if [[ -z "$cmd" ]]; then
+        skip "timeout command not available (install coreutils or gnu-timeout)"
+    fi
+    echo "$cmd"
+}
+
 # アサーションヘルパー
 # 文字列が含まれているかチェック
 assert_contains() {
