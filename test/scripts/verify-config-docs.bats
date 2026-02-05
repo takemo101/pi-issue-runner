@@ -76,3 +76,44 @@ VERIFY_SCRIPT="$PROJECT_ROOT/scripts/verify-config-docs.sh"
     [ "$result" -eq 1 ]
     [[ "$output" == *"Configuration mismatch detected"* ]]
 }
+
+@test "verify-config-docs.sh checks hooks documentation exists" {
+    run "$VERIFY_SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Checking hooks configuration"* ]]
+    [[ "$output" == *"docs/hooks.md exists"* ]]
+}
+
+@test "verify-config-docs.sh verifies hook events are documented" {
+    run "$VERIFY_SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'Hook event "on_start" is documented'* ]]
+    [[ "$output" == *'Hook event "on_success" is documented'* ]]
+    [[ "$output" == *'Hook event "on_error" is documented'* ]]
+    [[ "$output" == *'Hook event "on_cleanup" is documented'* ]]
+}
+
+@test "verify-config-docs.sh checks hooks configuration example" {
+    run "$VERIFY_SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Hooks configuration example found"* ]]
+}
+
+@test "verify-config-docs.sh detects missing hooks documentation" {
+    # 一時的にdocs/hooks.mdをリネーム
+    if [[ -f "$PROJECT_ROOT/docs/hooks.md" ]]; then
+        mv "$PROJECT_ROOT/docs/hooks.md" "$PROJECT_ROOT/docs/hooks.md.bak"
+    fi
+    
+    run "$VERIFY_SCRIPT"
+    local result=$status
+    
+    # 元に戻す
+    if [[ -f "$PROJECT_ROOT/docs/hooks.md.bak" ]]; then
+        mv "$PROJECT_ROOT/docs/hooks.md.bak" "$PROJECT_ROOT/docs/hooks.md"
+    fi
+    
+    # 検証
+    [ "$result" -eq 1 ]
+    [[ "$output" == *"docs/hooks.md does not exist"* ]]
+}
