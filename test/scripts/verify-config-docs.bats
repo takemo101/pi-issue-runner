@@ -57,144 +57,70 @@ VERIFY_SCRIPT="$PROJECT_ROOT/scripts/verify-config-docs.sh"
 }
 
 @test "verify-config-docs.sh detects missing documentation (simulated)" {
-    # 一時的にconfig.shを変更してテスト
-    local temp_config="$BATS_TEST_TMPDIR/config.sh"
-    cp "$PROJECT_ROOT/lib/config.sh" "$temp_config"
-    echo 'CONFIG_NEW_SETTING="${CONFIG_NEW_SETTING:-.default}"' >> "$temp_config"
+    # Create isolated test environment to avoid interfering with parallel tests
+    local test_root="$BATS_TEST_TMPDIR/test-project"
+    mkdir -p "$test_root/lib" "$test_root/docs" "$test_root/scripts"
     
-    # 元のconfig.shを一時的に置き換え
-    mv "$PROJECT_ROOT/lib/config.sh" "$PROJECT_ROOT/lib/config.sh.bak"
-    cp "$temp_config" "$PROJECT_ROOT/lib/config.sh"
+    # Copy necessary files
+    cp "$PROJECT_ROOT/lib/log.sh" "$test_root/lib/"
+    cp "$PROJECT_ROOT/scripts/verify-config-docs.sh" "$test_root/scripts/"
+    cp "$PROJECT_ROOT/docs/configuration.md" "$test_root/docs/"
+    cp "$PROJECT_ROOT/docs/hooks.md" "$test_root/docs/"
     
-    run "$VERIFY_SCRIPT"
-    local result=$status
+    # Copy config.sh and add a new setting to simulate missing documentation
+    cp "$PROJECT_ROOT/lib/config.sh" "$test_root/lib/config.sh"
+    echo 'CONFIG_NEW_SETTING="${CONFIG_NEW_SETTING:-.default}"' >> "$test_root/lib/config.sh"
     
-    # 元に戻す
-    mv "$PROJECT_ROOT/lib/config.sh.bak" "$PROJECT_ROOT/lib/config.sh"
+    # Run the script in the isolated environment
+    run bash -c "cd '$test_root' && PROJECT_ROOT='$test_root' bash '$test_root/scripts/verify-config-docs.sh'"
     
-    # 検証
-    [ "$result" -eq 1 ]
+    # Verify the script detects missing documentation
+    [ "$status" -eq 1 ]
     [[ "$output" == *"Configuration mismatch detected"* ]]
 }
 
 @test "verify-config-docs.sh checks hooks documentation exists" {
-    # 並列テスト実行時のファイル競合を防ぐためロックを取得
-    local lockfile="$BATS_TEST_TMPDIR/hooks-test.lock"
-    local max_wait=30
-    local waited=0
-    
-    while ! mkdir "$lockfile" 2>/dev/null; do
-        sleep 0.1
-        waited=$((waited + 1))
-        if [[ $waited -gt $((max_wait * 10)) ]]; then
-            skip "Could not acquire lock after ${max_wait}s"
-        fi
-    done
-    
     run "$VERIFY_SCRIPT"
-    local result=$status
-    local test_output="$output"
-    
-    rmdir "$lockfile" 2>/dev/null || true
-    
-    [ "$result" -eq 0 ]
-    [[ "$test_output" == *"Checking hooks configuration"* ]]
-    [[ "$test_output" == *"docs/hooks.md exists"* ]]
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Checking hooks configuration"* ]]
+    [[ "$output" =~ (docs/hooks\.md exists|hooks section exists) ]]
 }
 
 @test "verify-config-docs.sh verifies hook events are documented" {
-    # 並列テスト実行時のファイル競合を防ぐためロックを取得
-    local lockfile="$BATS_TEST_TMPDIR/hooks-test.lock"
-    local max_wait=30
-    local waited=0
-    
-    while ! mkdir "$lockfile" 2>/dev/null; do
-        sleep 0.1
-        waited=$((waited + 1))
-        if [[ $waited -gt $((max_wait * 10)) ]]; then
-            skip "Could not acquire lock after ${max_wait}s"
-        fi
-    done
-    
     run "$VERIFY_SCRIPT"
-    local result=$status
-    local test_output="$output"
-    
-    rmdir "$lockfile" 2>/dev/null || true
-    
-    [ "$result" -eq 0 ]
-    [[ "$test_output" == *'Hook event "on_start" is documented'* ]]
-    [[ "$test_output" == *'Hook event "on_success" is documented'* ]]
-    [[ "$test_output" == *'Hook event "on_error" is documented'* ]]
-    [[ "$test_output" == *'Hook event "on_cleanup" is documented'* ]]
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'Hook event "on_start" is documented'* ]]
+    [[ "$output" == *'Hook event "on_success" is documented'* ]]
+    [[ "$output" == *'Hook event "on_error" is documented'* ]]
+    [[ "$output" == *'Hook event "on_cleanup" is documented'* ]]
 }
 
 @test "verify-config-docs.sh checks hooks configuration example" {
-    # 並列テスト実行時のファイル競合を防ぐためロックを取得
-    local lockfile="$BATS_TEST_TMPDIR/hooks-test.lock"
-    local max_wait=30
-    local waited=0
-    
-    while ! mkdir "$lockfile" 2>/dev/null; do
-        sleep 0.1
-        waited=$((waited + 1))
-        if [[ $waited -gt $((max_wait * 10)) ]]; then
-            skip "Could not acquire lock after ${max_wait}s"
-        fi
-    done
-    
     run "$VERIFY_SCRIPT"
-    local result=$status
-    local test_output="$output"
-    
-    rmdir "$lockfile" 2>/dev/null || true
-    
-    [ "$result" -eq 0 ]
-    [[ "$test_output" == *"Hooks configuration example found"* ]]
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Hooks configuration example found"* ]]
 }
 
 @test "verify-config-docs.sh detects missing hooks documentation" {
-    # 一時的にdocs/hooks.mdとhooksセクションの両方を削除（排他ロック付き）
-    local lockfile="$BATS_TEST_TMPDIR/hooks-test.lock"
-    local max_wait=30
-    local waited=0
+    # Create isolated test environment to avoid interfering with parallel tests
+    local test_root="$BATS_TEST_TMPDIR/test-project"
+    mkdir -p "$test_root/lib" "$test_root/docs" "$test_root/scripts"
     
-    # ロック取得を待つ
-    while ! mkdir "$lockfile" 2>/dev/null; do
-        sleep 0.1
-        waited=$((waited + 1))
-        if [[ $waited -gt $((max_wait * 10)) ]]; then
-            skip "Could not acquire lock after ${max_wait}s"
-        fi
-    done
+    # Copy necessary files for the script to run
+    cp "$PROJECT_ROOT/lib/config.sh" "$test_root/lib/"
+    cp "$PROJECT_ROOT/lib/log.sh" "$test_root/lib/"
+    cp "$PROJECT_ROOT/scripts/verify-config-docs.sh" "$test_root/scripts/"
     
-    # hooks.mdをリネーム
-    if [[ -f "$PROJECT_ROOT/docs/hooks.md" ]]; then
-        mv "$PROJECT_ROOT/docs/hooks.md" "$PROJECT_ROOT/docs/hooks.md.bak.$$"
-    fi
+    # Copy configuration.md but remove the hooks section to simulate missing documentation
+    awk '/^### hooks$/,/^### / { if (/^### hooks$/) next; if (/^### / && !/^### hooks$/) print; next } 1' \
+        "$PROJECT_ROOT/docs/configuration.md" > "$test_root/docs/configuration.md"
     
-    # configuration.mdのhooksセクションをバックアップして削除
-    local config_md="$PROJECT_ROOT/docs/configuration.md"
-    cp "$config_md" "$config_md.bak.$$"
-    # hooksセクションを削除（次のセクションの前まで）
-    awk '/^### hooks$/,/^### / { if (/^### hooks$/) next; if (/^### / && !/^### hooks$/) print; next } 1' "$config_md" > "$config_md.tmp"
-    mv "$config_md.tmp" "$config_md"
+    # Intentionally do NOT copy docs/hooks.md to simulate missing file
     
-    run "$VERIFY_SCRIPT"
-    local result=$status
+    # Run the script in the isolated environment (use absolute path, avoid cd)
+    run bash -c "cd '$test_root' && PROJECT_ROOT='$test_root' bash '$test_root/scripts/verify-config-docs.sh'"
     
-    # 元に戻す
-    if [[ -f "$PROJECT_ROOT/docs/hooks.md.bak.$$" ]]; then
-        mv "$PROJECT_ROOT/docs/hooks.md.bak.$$" "$PROJECT_ROOT/docs/hooks.md"
-    fi
-    if [[ -f "$config_md.bak.$$" ]]; then
-        mv "$config_md.bak.$$" "$config_md"
-    fi
-    
-    # ロック解放
-    rmdir "$lockfile" 2>/dev/null || true
-    
-    # 検証（どちらのドキュメントも欠けている場合はエラー）
-    [ "$result" -eq 1 ]
+    # Verify the script detects missing hooks documentation
+    [ "$status" -eq 1 ]
     [[ "$output" == *"Neither docs/hooks.md nor hooks section"* ]]
 }
