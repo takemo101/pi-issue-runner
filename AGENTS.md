@@ -59,6 +59,13 @@ pi-issue-runner/
 │   ├── dependency.sh  # 依存関係解析・レイヤー計算
 │   ├── github.sh      # GitHub CLI操作
 │   ├── hooks.sh       # Hook機能
+│   ├── improve.sh     # 継続的改善ライブラリ（オーケストレーター）
+│   ├── improve/       # 継続的改善モジュール群
+│   │   ├── args.sh    # 引数解析
+│   │   ├── deps.sh    # 依存関係チェック
+│   │   ├── env.sh     # 環境セットアップ
+│   │   ├── execution.sh # 実行・監視フェーズ
+│   │   └── review.sh  # レビューフェーズ
 │   ├── log.sh         # ログ出力
 │   ├── notify.sh      # 通知機能
 │   ├── priority.sh    # 優先度計算
