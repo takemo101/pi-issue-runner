@@ -450,6 +450,30 @@ github:
   max_comments: 10        # 最新10件のコメントのみ
 ```
 
+### hooks
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `on_start` | string | (なし) | セッション開始時に実行するコマンドまたはスクリプト |
+| `on_success` | string | (なし) | タスク正常完了時に実行するコマンドまたはスクリプト |
+| `on_error` | string | (なし) | エラー検出時に実行するコマンドまたはスクリプト |
+| `on_cleanup` | string | (なし) | クリーンアップ完了後に実行するコマンドまたはスクリプト |
+
+#### 使用例
+
+```yaml
+hooks:
+  on_start: ./hooks/on-start.sh
+  on_success: terminal-notifier -title "完了" -message "Issue #{{issue_number}} が完了しました"
+  on_error: |
+    curl -X POST -H 'Content-Type: application/json' \
+      -d '{"text": "Issue #{{issue_number}} でエラー"}' \
+      $SLACK_WEBHOOK_URL
+  on_cleanup: echo "クリーンアップ完了" >> ~/.pi-runner/activity.log
+```
+
+詳細は [hooks.md](./hooks.md) を参照してください。
+
 ### agents
 
 | キー | 型 | デフォルト | 説明 |
