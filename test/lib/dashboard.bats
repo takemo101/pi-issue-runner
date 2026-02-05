@@ -42,43 +42,30 @@ teardown() {
 }
 
 # ====================
-# Box Drawing Tests
+# Display Helper Tests
 # ====================
 
-@test "draw_box_top creates box top border" {
+@test "draw_line outputs text" {
     source "$PROJECT_ROOT/lib/dashboard.sh"
     
-    run draw_box_top 10
+    run draw_line "Test message"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"╔"* ]]
-    [[ "$output" == *"╗"* ]]
+    [[ "$output" == "Test message" ]]
 }
 
-@test "draw_box_bottom creates box bottom border" {
+@test "draw_header outputs section header" {
     source "$PROJECT_ROOT/lib/dashboard.sh"
     
-    run draw_box_bottom 10
+    run draw_header "SECTION"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"╚"* ]]
-    [[ "$output" == *"╝"* ]]
+    [[ "$output" == *"=== SECTION ==="* ]]
 }
 
-@test "draw_box_separator creates box separator" {
+@test "draw_separator outputs blank line" {
     source "$PROJECT_ROOT/lib/dashboard.sh"
     
-    run draw_box_separator 10
+    run draw_separator
     [ "$status" -eq 0 ]
-    [[ "$output" == *"╠"* ]]
-    [[ "$output" == *"╣"* ]]
-}
-
-@test "draw_box_line creates padded line" {
-    source "$PROJECT_ROOT/lib/dashboard.sh"
-    
-    run draw_box_line "Test" 10
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"║"* ]]
-    [[ "$output" == *"Test"* ]]
 }
 
 # ====================
@@ -285,7 +272,7 @@ MOCK_EOF
     CATEGORIZED_ISSUES[ready]="45 46 47"
     CATEGORIZED_ISSUES[completed]="40 41"
     
-    run draw_summary_section 60
+    run draw_summary_section
     [ "$status" -eq 0 ]
     [[ "$output" == *"SUMMARY"* ]]
     [[ "$output" == *"In Progress"* ]]
@@ -336,7 +323,7 @@ MOCK_EOF
     declare -A CATEGORIZED_ISSUES
     CATEGORIZED_ISSUES[in_progress]="42"
     
-    run draw_in_progress_section 60 false
+    run draw_in_progress_section false
     [ "$status" -eq 0 ]
     [[ "$output" == *"IN PROGRESS"* ]]
 }
@@ -392,7 +379,7 @@ MOCK_EOF
     declare -A CATEGORIZED_ISSUES
     CATEGORIZED_ISSUES[blocked]="44"
     
-    run draw_blocked_section 60 5
+    run draw_blocked_section 5
     [ "$status" -eq 0 ]
     [[ "$output" == *"BLOCKED"* ]]
 }
@@ -433,7 +420,7 @@ MOCK_EOF
     declare -A CATEGORIZED_ISSUES
     CATEGORIZED_ISSUES[ready]="45"
     
-    run draw_ready_section 60 5
+    run draw_ready_section 5
     [ "$status" -eq 0 ]
     [[ "$output" == *"READY"* ]]
 }

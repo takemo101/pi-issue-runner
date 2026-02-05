@@ -326,7 +326,7 @@ MOCK_EOF
 # Output Format Tests
 # ====================
 
-@test "dashboard.sh displays box-drawing characters" {
+@test "dashboard.sh displays header and sections" {
     # 必要なモックをセットアップ
     cat > "$MOCK_DIR/gh" << 'MOCK_EOF'
 #!/usr/bin/env bash
@@ -369,8 +369,8 @@ MOCK_EOF
     
     run "$PROJECT_ROOT/scripts/dashboard.sh"
     [ "$status" -eq 0 ]
-    # ボックス描画文字を確認
-    [[ "$output" == *"╔"* ]] || [[ "$output" == *"="* ]]
+    # ヘッダーとセクション区切りを確認
+    [[ "$output" == *"==="* ]]
     [[ "$output" == *"Dashboard"* ]]
 }
 
