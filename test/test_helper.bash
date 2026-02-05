@@ -37,6 +37,21 @@ teardown() {
     fi
 }
 
+# 設定状態をリセット（テスト間の汚染防止）
+reset_config_state() {
+    # Unset config loading flags
+    unset _CONFIG_LOADED
+    unset _CONFIG_FILE_FOUND
+    unset _CONFIG_SH_SOURCED
+    unset _MUX_TYPE
+    
+    # Unset all CONFIG_* variables
+    local var
+    for var in $(compgen -v | grep "^CONFIG_"); do
+        unset "$var"
+    done
+}
+
 # モックをPATHに追加
 enable_mocks() {
     export PATH="$MOCK_DIR:$PATH"

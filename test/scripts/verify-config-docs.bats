@@ -6,6 +6,11 @@ load '../test_helper'
 # 検証スクリプトのパス
 VERIFY_SCRIPT="$PROJECT_ROOT/scripts/verify-config-docs.sh"
 
+setup() {
+    # 設定状態をリセット（テスト間の汚染防止）
+    reset_config_state
+}
+
 @test "verify-config-docs.sh exists and is executable" {
     [ -f "$VERIFY_SCRIPT" ]
     [ -x "$VERIFY_SCRIPT" ]
