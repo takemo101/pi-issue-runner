@@ -113,6 +113,71 @@ sanitized_body=$(sanitize_issue_body "$raw_body")
 - ワイルドカード展開（`*`, `?`）
 - チルダ展開（`~`, `~user`）
 
+## evalの使用
+
+本プロジェクトでは、以下の箇所で `eval` を使用しています。`eval` はシェルコマンドとして文字列を評価・実行するため、外部入力を含む場合はセキュリティリスクとなります。
+
+### 使用箇所一覧
+
+| ファイル | 行 | 関数 | 用途 | リスク |
+|----------|-----|------|------|--------|
+| `lib/hooks.sh` | 133 | `_execute_hook()` | インラインhookコマンドの実行 | 🔴 高 |
+| `scripts/watch-session.sh` | 146 | `handle_error()` | シェルオプションの復元 | 🟢 低 |
+| `scripts/watch-session.sh` | 278 | `handle_complete()` | シェルオプションの復元 | 🟢 低 |
+
+### lib/hooks.sh でのeval（リスク：🔴 高）
+
+**用途**: インラインhookコマンド（`.pi-runner.yaml` に記述された文字列コマンド）を実行するために使用。
+
+```bash
+# lib/hooks.sh:_execute_hook()
+_execute_hook() {
+    local hook="$1"
+    ...
+    log_warn "Executing inline hook command (security note: ensure this is from a trusted source)"
+    eval "$hook"
+}
+```
+
+**リスク**:
+- 任意コード実行の可能性（`.pi-runner.yaml` の内容に依存）
+- 外部入力（設定ファイル）を直接実行
+- 悪意のあるリポジトリの設定ファイルが読み込まれる可能性
+
+**軽減策**:
+- 実行前に警告ログを出力
+- 信頼できるリポジトリの設定のみ使用するよう推奨（後述の「[Hook機能のセキュリティリスク](#hook機能のセキュリティリスク)」セクション参照）
+- hook実行前に設定ファイルの内容を確認
+
+### scripts/watch-session.sh でのeval（リスク：🟢 低）
+
+**用途**: `set +e` で一時的にエラーモードを解除した後、元のシェルオプションに戻すために使用。
+
+```bash
+# scripts/watch-session.sh:handle_error(), handle_complete()
+local old_opts
+old_opts="$(set +o)"
+set +e
+...
+# 処理後に復元
+eval "$old_opts"
+```
+
+**リスク**: 低
+- 外部入力を含まない（`set +o` の出力のみ）
+- シェルの内部状態の復元のみ
+- コマンドインジェクションの可能性なし
+
+**背景**: Bashでは `set -e` の状態を変数に保存して復元する標準的な方法がないため、`eval` を使用しています。
+
+### 推奨事項
+
+1. **hook設定の確認**: 新しいリポジトリで作業する前に `.pi-runner.yaml` の `hooks` セクションを確認
+2. **信頼できるソースのみ**: 不明なリポジトリのhook設定は実行前に必ず内容を確認
+3. **最小権限の原則**: hook内では必要最小限の操作のみを行う
+
+詳細は次のセクション「[Hook機能のセキュリティリスク](#hook機能のセキュリティリスク)」を参照してください。
+
 ## Hook機能のセキュリティリスク
 
 ### evalの使用
