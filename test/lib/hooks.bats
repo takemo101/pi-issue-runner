@@ -33,12 +33,9 @@ teardown() {
 
 # ヘルパー: config.shのget_configをオーバーライド
 override_get_config() {
-    get_config() {
-        case "$1" in
-            worktree_base_dir) echo "$TEST_WORKTREE_DIR" ;;
-            *) echo "" ;;
-        esac
-    }
+    # 設定を読み込み直す（テスト用設定ファイルを使用）
+    export _CONFIG_LOADED=""
+    load_config "$TEST_WORKDIR/.pi-runner.yaml" 2>/dev/null || true
 }
 
 # ヘルパー: notify.shの関数をモック

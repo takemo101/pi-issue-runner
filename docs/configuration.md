@@ -148,25 +148,6 @@ agents:
   merge: agents/merge.md
   test: agents/test.md
   ci-fix: agents/ci-fix.md
-
-# =====================================
-# Hook設定
-# =====================================
-hooks:
-  # セッション開始時
-  # on_start: ./hooks/on-start.sh
-  
-  # タスク正常完了時
-  # on_success: terminal-notifier -title "完了" -message "Issue #{{issue_number}} が完了しました"
-  
-  # エラー検出時
-  # on_error: |
-  #   curl -X POST -H 'Content-Type: application/json' \
-  #     -d '{"text": "Issue #{{issue_number}} でエラー"}' \
-  #     $SLACK_WEBHOOK_URL
-  
-  # クリーンアップ完了後
-  # on_cleanup: echo "クリーンアップ完了" >> ~/.pi-runner/activity.log
 ```
 
 ## 設定項目詳細
@@ -473,25 +454,36 @@ github:
 
 | キー | 型 | デフォルト | 説明 |
 |------|------|-----------|------|
-| `on_start` | string | (なし) | セッション開始時に実行するコマンドまたはスクリプト |
-| `on_success` | string | (なし) | タスク正常完了時に実行するコマンドまたはスクリプト |
-| `on_error` | string | (なし) | エラー検出時に実行するコマンドまたはスクリプト |
-| `on_cleanup` | string | (なし) | クリーンアップ完了後に実行するコマンドまたはスクリプト |
+| `on_start` | string | (なし) | セッション開始時に実行するスクリプトまたはコマンド |
+| `on_success` | string | (なし) | セッション成功時に実行するスクリプトまたはコマンド |
+| `on_error` | string | (なし) | セッションエラー時に実行するスクリプトまたはコマンド |
+| `on_cleanup` | string | (なし) | クリーンアップ時に実行するスクリプトまたはコマンド |
 
 #### 使用例
 
 ```yaml
 hooks:
-  on_start: ./hooks/on-start.sh
-  on_success: terminal-notifier -title "完了" -message "Issue #{{issue_number}} が完了しました"
+  on_start: ./scripts/notify-start.sh
+  on_success: echo "Task completed for Issue #{{issue_number}}"
   on_error: |
-    curl -X POST -H 'Content-Type: application/json' \
-      -d '{"text": "Issue #{{issue_number}} でエラー"}' \
-      $SLACK_WEBHOOK_URL
-  on_cleanup: echo "クリーンアップ完了" >> ~/.pi-runner/activity.log
+    curl -X POST https://example.com/webhook \
+      -d '{"issue": {{issue_number}}, "error": "{{error_message}}"}'
+  on_cleanup: ./scripts/cleanup-resources.sh
 ```
 
-詳細は [hooks.md](./hooks.md) を参照してください。
+#### テンプレート変数
+
+hooks設定では以下のテンプレート変数が使用できます：
+
+- `{{issue_number}}` - Issue番号
+- `{{issue_title}}` - Issueタイトル
+- `{{session_name}}` - セッション名
+- `{{branch_name}}` - ブランチ名
+- `{{worktree_path}}` - worktreeのパス
+- `{{error_message}}` - エラーメッセージ（on_errorのみ）
+- `{{exit_code}}` - 終了コード（on_errorのみ）
+
+詳細は [Hook機能ドキュメント](./hooks.md) を参照してください。
 
 ### agents
 
@@ -607,6 +599,10 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_IMPROVE_LOGS_KEEP_RECENT` | `improve_logs.keep_recent` |
 | `PI_RUNNER_IMPROVE_LOGS_KEEP_DAYS` | `improve_logs.keep_days` |
 | `PI_RUNNER_IMPROVE_LOGS_DIR` | `improve_logs.dir` |
+| `PI_RUNNER_HOOKS_ON_START` | `hooks.on_start` |
+| `PI_RUNNER_HOOKS_ON_SUCCESS` | `hooks.on_success` |
+| `PI_RUNNER_HOOKS_ON_ERROR` | `hooks.on_error` |
+| `PI_RUNNER_HOOKS_ON_CLEANUP` | `hooks.on_cleanup` |
 
 ### 例: CI環境での使用
 

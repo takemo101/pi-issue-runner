@@ -13,6 +13,10 @@ if ! declare -f yaml_get &>/dev/null; then
     source "$_HOOKS_LIB_DIR/yaml.sh"
 fi
 
+if ! declare -f get_config &>/dev/null; then
+    source "$_HOOKS_LIB_DIR/config.sh"
+fi
+
 if ! declare -f log_info &>/dev/null; then
     source "$_HOOKS_LIB_DIR/log.sh"
 fi
@@ -32,13 +36,11 @@ fi
 get_hook() {
     local event="$1"
     
-    # 設定ファイルを探す
-    local config_file
-    if config_file="$(find_config_file "$(pwd)" 2>/dev/null)"; then
-        yaml_get "$config_file" ".hooks.$event" ""
-    else
-        echo ""
-    fi
+    # 設定ファイルを読み込み（未読み込みの場合）
+    load_config 2>/dev/null || true
+    
+    # 設定から取得（環境変数オーバーライド対応）
+    get_config "hooks_${event}" || echo ""
 }
 
 # ===================
