@@ -20,14 +20,21 @@
 │  │cleanup-improve-logs│ cleanup-orphans.sh │cleanup-plans │ │
 │  │  - improve-logs削除│  - 孤立削除        │ - 計画ローテ │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │    config.sh       │   daemon.sh        │dependency.sh │ │
-│  │  - 設定読込        │  - デーモン化      │  - 依存解析  │ │
+│  │    config.sh       │   context.sh       │  daemon.sh   │ │
+│  │  - 設定読込        │  - コンテキスト    │  - デーモン化│ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │    github.sh       │     hooks.sh       │    log.sh    │ │
-│  │  - GitHub CLI      │  - Hook機能        │  - ログ出力  │ │
+│  │  dashboard.sh      │  dependency.sh     │  github.sh   │ │
+│  │  - ダッシュボード  │  - 依存解析        │  - GitHub CLI│ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │    notify.sh       │    status.sh       │ template.sh  │ │
-│  │  - 通知機能        │  - 状態管理        │  - テンプレ  │ │
+│  │    hooks.sh        │     log.sh         │multiplexer.sh│ │
+│  │  - Hook機能        │  - ログ出力        │  - マルチプレ│ │
+│  │                    │                    │    クサ抽象化│ │
+│  ├────────────────────┼────────────────────┼──────────────┤ │
+│  │multiplexer-tmux.sh │multiplexer-zellij  │  notify.sh   │ │
+│  │  - tmux実装        │  - Zellij実装      │  - 通知機能  │ │
+│  ├────────────────────┼────────────────────┼──────────────┤ │
+│  │   priority.sh      │    status.sh       │ template.sh  │ │
+│  │  - 優先度計算      │  - 状態管理        │  - テンプレ  │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
 │  │multiplexer.sh      │   workflow.sh      │workflow-finder│ │
 │  │  - セッション      │  - ワークフロー    │  - WF検索    │ │
@@ -80,12 +87,18 @@ pi-issue-runner/
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
 │   ├── config.sh      # 設定管理
+│   ├── context.sh     # コンテキスト管理
 │   ├── daemon.sh      # プロセスデーモン化
+│   ├── dashboard.sh   # ダッシュボード機能
 │   ├── dependency.sh  # 依存関係解析・レイヤー計算
 │   ├── github.sh      # GitHub CLI操作
 │   ├── hooks.sh       # Hook機能
 │   ├── log.sh         # ログ出力
+│   ├── multiplexer.sh      # マルチプレクサ抽象化レイヤー
+│   ├── multiplexer-tmux.sh # tmux実装
+│   ├── multiplexer-zellij.sh # Zellij実装
 │   ├── notify.sh      # 通知機能
+│   ├── priority.sh    # 優先度計算
 │   ├── status.sh      # 状態管理
 │   ├── template.sh    # テンプレート処理
 │   ├── multiplexer.sh      # マルチプレクサ抽象化レイヤー
