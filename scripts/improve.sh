@@ -364,23 +364,24 @@ Issueを作成しない場合は「問題は見つかりませんでした」と
 # Subfunction: fetch_created_issues
 # Purpose: Fetch issues created during review phase
 # Arguments: $1=start_time, $2=max_issues, $3=session_label
-# Output: Issue numbers (one per line)
+# Output: Issue numbers (one per line) to stdout
+# Note: All log messages go to stderr to prevent pollution of output
 # ============================================================================
 fetch_created_issues() {
     local start_time="$1"
     local max_issues="$2"
     local session_label="$3"
 
-    echo ""
-    echo "[PHASE 2] Fetching Issues created after $start_time with label '$session_label'..."
+    echo "" >&2
+    echo "[PHASE 2] Fetching Issues created after $start_time with label '$session_label'..." >&2
     
     local issues
     issues=$(get_issues_created_after "$start_time" "$max_issues" "$session_label") || true
     
     if [[ -z "$issues" ]]; then
-        echo "No new Issues created"
-        echo ""
-        echo "✅ Improvement complete! No issues found."
+        echo "No new Issues created" >&2
+        echo "" >&2
+        echo "✅ Improvement complete! No issues found." >&2
         exit 0
     fi
     
@@ -393,15 +394,15 @@ fetch_created_issues() {
     done <<< "$issues"
     
     if [[ ${#issue_array[@]} -eq 0 ]]; then
-        echo "No new Issues created"
-        echo ""
-        echo "✅ Improvement complete! No issues found."
+        echo "No new Issues created" >&2
+        echo "" >&2
+        echo "✅ Improvement complete! No issues found." >&2
         exit 0
     fi
     
-    echo "Created Issues: ${issue_array[*]}"
+    echo "Created Issues: ${issue_array[*]}" >&2
     
-    # Output issue numbers
+    # Output issue numbers (to stdout for capture)
     printf "%s\n" "${issue_array[@]}"
 }
 
