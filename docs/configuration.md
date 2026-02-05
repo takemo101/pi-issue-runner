@@ -36,8 +36,6 @@ worktree:
     - config/secrets.yml     # 例: Railsプロジェクトの場合
 
 # =====================================
-# tmux設定
-# =====================================
 # マルチプレクサ設定
 # =====================================
 multiplexer:
@@ -684,7 +682,7 @@ worktree:
     - ".env.local"
     - ".envrc"
 
-tmux:
+multiplexer:
   start_in_session: true
 
 pi:
@@ -704,7 +702,7 @@ worktree:
   copy_files:
     - ".env.production"
 
-tmux:
+multiplexer:
   start_in_session: false  # 非対話モード
 
 parallel:
