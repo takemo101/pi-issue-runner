@@ -46,6 +46,26 @@ teardown() {
 }
 
 # ====================
+# モジュール構造テスト
+# ====================
+
+@test "improve.sh library sources improve sub-modules" {
+    grep -q "improve/deps.sh" "$PROJECT_ROOT/lib/improve.sh"
+    grep -q "improve/args.sh" "$PROJECT_ROOT/lib/improve.sh"
+    grep -q "improve/env.sh" "$PROJECT_ROOT/lib/improve.sh"
+    grep -q "improve/review.sh" "$PROJECT_ROOT/lib/improve.sh"
+    grep -q "improve/execution.sh" "$PROJECT_ROOT/lib/improve.sh"
+}
+
+@test "improve sub-modules exist" {
+    [ -f "$PROJECT_ROOT/lib/improve/deps.sh" ]
+    [ -f "$PROJECT_ROOT/lib/improve/args.sh" ]
+    [ -f "$PROJECT_ROOT/lib/improve/env.sh" ]
+    [ -f "$PROJECT_ROOT/lib/improve/review.sh" ]
+    [ -f "$PROJECT_ROOT/lib/improve/execution.sh" ]
+}
+
+# ====================
 # 定数定義テスト
 # ====================
 
@@ -61,52 +81,64 @@ teardown() {
     grep -q 'DEFAULT_TIMEOUT=' "$PROJECT_ROOT/lib/improve.sh"
 }
 
-@test "improve.sh library defines ACTIVE_ISSUE_NUMBERS array" {
-    grep -q 'ACTIVE_ISSUE_NUMBERS' "$PROJECT_ROOT/lib/improve.sh"
+@test "improve.sh library or execution.sh defines ACTIVE_ISSUE_NUMBERS array" {
+    # Check in either main file or execution module
+    grep -q 'ACTIVE_ISSUE_NUMBERS' "$PROJECT_ROOT/lib/improve.sh" || \
+    grep -q 'ACTIVE_ISSUE_NUMBERS' "$PROJECT_ROOT/lib/improve/execution.sh"
 }
 
 # ====================
-# 関数定義テスト
+# 関数定義テスト (backward compatibility)
 # ====================
 
-@test "improve.sh library has cleanup_on_exit function" {
-    grep -q 'cleanup_on_exit()' "$PROJECT_ROOT/lib/improve.sh"
+@test "improve.sh library provides cleanup_on_exit function" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F cleanup_on_exit"
+    [ "$status" -eq 0 ]
 }
 
-@test "improve.sh library has usage function" {
-    grep -q 'usage()' "$PROJECT_ROOT/lib/improve.sh"
+@test "improve.sh library provides usage function" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F usage"
+    [ "$status" -eq 0 ]
 }
 
-@test "improve.sh library has parse_improve_arguments function" {
-    grep -q 'parse_improve_arguments()' "$PROJECT_ROOT/lib/improve.sh"
+@test "improve.sh library provides parse_improve_arguments function" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F parse_improve_arguments"
+    [ "$status" -eq 0 ]
 }
 
-@test "improve.sh library has setup_improve_environment function" {
-    grep -q 'setup_improve_environment()' "$PROJECT_ROOT/lib/improve.sh"
+@test "improve.sh library provides setup_improve_environment function" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F setup_improve_environment"
+    [ "$status" -eq 0 ]
 }
 
-@test "improve.sh library has run_review_phase function" {
-    grep -q 'run_review_phase()' "$PROJECT_ROOT/lib/improve.sh"
+@test "improve.sh library provides run_review_phase function" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F run_review_phase"
+    [ "$status" -eq 0 ]
 }
 
-@test "improve.sh library has fetch_created_issues function" {
-    grep -q 'fetch_created_issues()' "$PROJECT_ROOT/lib/improve.sh"
+@test "improve.sh library provides fetch_created_issues function" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F fetch_created_issues"
+    [ "$status" -eq 0 ]
 }
 
-@test "improve.sh library has execute_issues_in_parallel function" {
-    grep -q 'execute_issues_in_parallel()' "$PROJECT_ROOT/lib/improve.sh"
+@test "improve.sh library provides execute_issues_in_parallel function" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F execute_issues_in_parallel"
+    [ "$status" -eq 0 ]
 }
 
-@test "improve.sh library has wait_for_completion function" {
-    grep -q 'wait_for_completion()' "$PROJECT_ROOT/lib/improve.sh"
+@test "improve.sh library provides wait_for_completion function" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F wait_for_completion"
+    [ "$status" -eq 0 ]
 }
 
-@test "improve.sh library has start_next_iteration function" {
-    grep -q 'start_next_iteration()' "$PROJECT_ROOT/lib/improve.sh"
+@test "improve.sh library provides start_next_iteration function" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F start_next_iteration"
+    [ "$status" -eq 0 ]
 }
 
-@test "improve.sh library has check_dependencies function" {
-    grep -q 'check_dependencies()' "$PROJECT_ROOT/lib/improve.sh"
+@test "improve.sh library provides check_dependencies function" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F check_dependencies"
+    [ "$status" -eq 0 ]
 }
 
 @test "improve.sh library has improve_main function" {
@@ -222,22 +254,23 @@ teardown() {
 # check_dependencies() 関数テスト
 # ====================
 
-@test "check_dependencies function exists" {
-    grep -q 'check_dependencies()' "$PROJECT_ROOT/lib/improve.sh"
+@test "check_dependencies function exists in deps module" {
+    grep -q 'check_improve_dependencies()' "$PROJECT_ROOT/lib/improve/deps.sh" || \
+    grep -q 'check_dependencies()' "$PROJECT_ROOT/lib/improve/deps.sh"
 }
 
 @test "check_dependencies checks for pi command" {
-    source_content=$(cat "$PROJECT_ROOT/lib/improve.sh")
+    source_content=$(cat "$PROJECT_ROOT/lib/improve/deps.sh")
     [[ "$source_content" == *'pi_command'* ]]
 }
 
 @test "check_dependencies checks for gh command" {
-    source_content=$(cat "$PROJECT_ROOT/lib/improve.sh")
+    source_content=$(cat "$PROJECT_ROOT/lib/improve/deps.sh")
     [[ "$source_content" == *'command -v gh'* ]]
 }
 
 @test "check_dependencies checks for jq command" {
-    source_content=$(cat "$PROJECT_ROOT/lib/improve.sh")
+    source_content=$(cat "$PROJECT_ROOT/lib/improve/deps.sh")
     [[ "$source_content" == *'command -v jq'* ]]
 }
 
@@ -245,35 +278,36 @@ teardown() {
 # ワークフローフェーズテスト
 # ====================
 
-@test "improve.sh library implements 5 phases" {
-    grep -q 'PHASE 1' "$PROJECT_ROOT/lib/improve.sh"
-    grep -q 'PHASE 2' "$PROJECT_ROOT/lib/improve.sh"
-    grep -q 'PHASE 3' "$PROJECT_ROOT/lib/improve.sh"
-    grep -q 'PHASE 4' "$PROJECT_ROOT/lib/improve.sh"
-    grep -q 'PHASE 5' "$PROJECT_ROOT/lib/improve.sh"
+@test "improve modules implement 5 phases" {
+    # Check in review and execution modules
+    grep -q 'PHASE 1' "$PROJECT_ROOT/lib/improve/review.sh"
+    grep -q 'PHASE 2' "$PROJECT_ROOT/lib/improve/execution.sh"
+    grep -q 'PHASE 3' "$PROJECT_ROOT/lib/improve/execution.sh"
+    grep -q 'PHASE 4' "$PROJECT_ROOT/lib/improve/execution.sh"
+    grep -q 'PHASE 5' "$PROJECT_ROOT/lib/improve/execution.sh"
 }
 
 @test "run_review_phase uses pi --print" {
-    source_content=$(cat "$PROJECT_ROOT/lib/improve.sh")
+    source_content=$(cat "$PROJECT_ROOT/lib/improve/review.sh")
     [[ "$source_content" == *'--print'* ]]
 }
 
 @test "fetch_created_issues uses get_issues_created_after" {
-    grep -q 'get_issues_created_after' "$PROJECT_ROOT/lib/improve.sh"
+    grep -q 'get_issues_created_after' "$PROJECT_ROOT/lib/improve/execution.sh"
 }
 
 @test "execute_issues_in_parallel uses run.sh --no-attach" {
-    source_content=$(cat "$PROJECT_ROOT/lib/improve.sh")
+    source_content=$(cat "$PROJECT_ROOT/lib/improve/execution.sh")
     [[ "$source_content" == *'run.sh'* ]]
     [[ "$source_content" == *'--no-attach'* ]]
 }
 
 @test "wait_for_completion uses wait-for-sessions.sh" {
-    grep -q 'wait-for-sessions.sh' "$PROJECT_ROOT/lib/improve.sh"
+    grep -q 'wait-for-sessions.sh' "$PROJECT_ROOT/lib/improve/execution.sh"
 }
 
 @test "start_next_iteration uses exec for recursion" {
-    source_content=$(cat "$PROJECT_ROOT/lib/improve.sh")
+    source_content=$(cat "$PROJECT_ROOT/lib/improve/execution.sh")
     [[ "$source_content" == *'exec "$0"'* ]]
 }
 
@@ -282,13 +316,13 @@ teardown() {
 # ====================
 
 @test "cleanup_on_exit function handles active sessions" {
-    source_content=$(cat "$PROJECT_ROOT/lib/improve.sh")
+    source_content=$(cat "$PROJECT_ROOT/lib/improve/execution.sh")
     [[ "$source_content" == *'ACTIVE_ISSUE_NUMBERS'* ]]
     [[ "$source_content" == *'cleanup.sh'* ]]
 }
 
 @test "cleanup_on_exit uses --force flag" {
-    grep -q 'cleanup.sh.*--force' "$PROJECT_ROOT/lib/improve.sh"
+    grep -q 'cleanup.sh.*--force' "$PROJECT_ROOT/lib/improve/execution.sh"
 }
 
 # ====================
@@ -297,19 +331,19 @@ teardown() {
 
 @test "improve_main sets up trap" {
     source_content=$(cat "$PROJECT_ROOT/lib/improve.sh")
-    [[ "$source_content" == *'trap cleanup_on_exit'* ]]
+    [[ "$source_content" == *'trap cleanup'* ]]
 }
 
 @test "improve_main calls all workflow phases" {
     source_content=$(cat "$PROJECT_ROOT/lib/improve.sh")
-    # Check for phase function calls
+    # Check for phase function calls (new function names with _improve_ prefix)
     [[ "$source_content" == *'parse_improve_arguments'* ]]
     [[ "$source_content" == *'setup_improve_environment'* ]]
-    [[ "$source_content" == *'run_review_phase'* ]]
-    [[ "$source_content" == *'fetch_created_issues'* ]]
-    [[ "$source_content" == *'execute_issues_in_parallel'* ]]
-    [[ "$source_content" == *'wait_for_completion'* ]]
-    [[ "$source_content" == *'start_next_iteration'* ]]
+    [[ "$source_content" == *'run_improve_review_phase'* ]]
+    [[ "$source_content" == *'fetch_improve_created_issues'* ]]
+    [[ "$source_content" == *'execute_improve_issues_in_parallel'* ]]
+    [[ "$source_content" == *'wait_for_improve_completion'* ]]
+    [[ "$source_content" == *'start_improve_next_iteration'* ]]
 }
 
 # ====================
@@ -317,15 +351,15 @@ teardown() {
 # ====================
 
 @test "setup_improve_environment generates session label" {
-    grep -q 'generate_session_label' "$PROJECT_ROOT/lib/improve.sh"
+    grep -q 'generate_improve_session_label' "$PROJECT_ROOT/lib/improve/env.sh"
 }
 
 @test "setup_improve_environment creates GitHub label" {
-    grep -q 'create_label_if_not_exists' "$PROJECT_ROOT/lib/improve.sh"
+    grep -q 'create_label_if_not_exists' "$PROJECT_ROOT/lib/improve/env.sh"
 }
 
 @test "setup_improve_environment skips label creation in dry-run mode" {
-    source_content=$(cat "$PROJECT_ROOT/lib/improve.sh")
+    source_content=$(cat "$PROJECT_ROOT/lib/improve/env.sh")
     [[ "$source_content" == *'dry_run" != "true"'* ]]
 }
 
@@ -334,17 +368,17 @@ teardown() {
 # ====================
 
 @test "run_review_phase handles pi command failure" {
-    source_content=$(cat "$PROJECT_ROOT/lib/improve.sh")
+    source_content=$(cat "$PROJECT_ROOT/lib/improve/review.sh")
     [[ "$source_content" == *'pi command returned non-zero'* ]]
 }
 
 @test "fetch_created_issues handles no issues gracefully" {
-    source_content=$(cat "$PROJECT_ROOT/lib/improve.sh")
+    source_content=$(cat "$PROJECT_ROOT/lib/improve/execution.sh")
     [[ "$source_content" == *'No new Issues created'* ]]
 }
 
 @test "execute_issues_in_parallel handles session start failure" {
-    source_content=$(cat "$PROJECT_ROOT/lib/improve.sh")
+    source_content=$(cat "$PROJECT_ROOT/lib/improve/execution.sh")
     [[ "$source_content" == *'Failed to start session'* ]]
 }
 
@@ -353,33 +387,40 @@ teardown() {
 # ====================
 
 @test "run_review_phase supports dry-run mode" {
-    source_content=$(cat "$PROJECT_ROOT/lib/improve.sh")
+    source_content=$(cat "$PROJECT_ROOT/lib/improve/review.sh")
     [[ "$source_content" == *'Dry-run mode complete'* ]]
     [[ "$source_content" == *'No Issues were created'* ]]
 }
 
 @test "run_review_phase supports review-only mode" {
-    source_content=$(cat "$PROJECT_ROOT/lib/improve.sh")
+    source_content=$(cat "$PROJECT_ROOT/lib/improve/review.sh")
     [[ "$source_content" == *'Review-only mode complete'* ]]
 }
 
 @test "dry-run mode exits early" {
-    source_content=$(cat "$PROJECT_ROOT/lib/improve.sh")
+    source_content=$(cat "$PROJECT_ROOT/lib/improve/review.sh")
     [[ "$source_content" == *'Issueは作成しないでください'* ]]
 }
 
 # ====================
-# 行数テスト
+# 行数テスト（リファクタリング後）
 # ====================
 
-@test "lib/improve.sh is reasonably sized" {
+@test "lib/improve.sh is now smaller after refactoring" {
     line_count=$(wc -l < "$PROJECT_ROOT/lib/improve.sh")
-    # Should be less than 550 lines (current is ~499)
-    [ "$line_count" -lt 550 ]
+    # Should be less than 200 lines after refactoring
+    [ "$line_count" -lt 200 ]
 }
 
-@test "lib/improve.sh is larger than minimal size" {
-    line_count=$(wc -l < "$PROJECT_ROOT/lib/improve.sh")
-    # Should be more than 400 lines (current is ~499)
-    [ "$line_count" -gt 400 ]
+@test "each improve sub-module is under 300 lines" {
+    for module in deps args env review execution; do
+        line_count=$(wc -l < "$PROJECT_ROOT/lib/improve/${module}.sh")
+        [ "$line_count" -lt 300 ]
+    done
+}
+
+@test "total lines in improve modules is reasonable" {
+    total_lines=$(cat "$PROJECT_ROOT/lib/improve.sh" "$PROJECT_ROOT/lib/improve"/*.sh | wc -l)
+    # Total should be less than 800 lines (includes headers and backward compatibility)
+    [ "$total_lines" -lt 800 ]
 }
