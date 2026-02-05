@@ -1,11 +1,11 @@
 ---
 name: pi-issue-runner
-description: GitHub IssueからGit worktreeを作成し、tmuxセッション内で別のpiインスタンスを起動してタスクを実行します。並列開発に最適。
+description: GitHub IssueからGit worktreeを作成し、ターミナルマルチプレクサ（tmux/Zellij）のセッション内で別のpiインスタンスを起動してタスクを実行します。並列開発に最適。
 ---
 
 # Pi Issue Runner
 
-GitHub Issueを入力として、Git worktreeを作成し、tmuxセッション内で独立したpiインスタンスを起動します。
+GitHub Issueを入力として、Git worktreeを作成し、ターミナルマルチプレクサ（tmux/Zellij）のセッション内で独立したpiインスタンスを起動します。
 
 ## クイックリファレンス
 
@@ -41,6 +41,7 @@ scripts/next.sh -v                       # 詳細な判断理由を表示
 
 # セッション管理
 scripts/list.sh                          # セッション一覧
+scripts/mux-all.sh -w                    # 全セッションをタイル表示
 scripts/dashboard.sh                     # プロジェクトダッシュボード
 scripts/dashboard.sh --compact           # サマリーのみ表示
 scripts/dashboard.sh --json              # JSON出力
@@ -72,7 +73,7 @@ scripts/wait-for-sessions.sh 42 43    # 複数セッション完了待機
 
 - **Bash 4.0以上** (macOSの場合: `brew install bash`)
 - `gh` (GitHub CLI、認証済み)
-- `tmux`
+- `tmux` または `zellij` (ターミナルマルチプレクサ)
 - `pi`
 - `jq` (JSON処理)
 - `yq` (オプション - ワークフローのカスタマイズに必要)
@@ -92,7 +93,7 @@ scripts/wait-for-sessions.sh 42 43    # 複数セッション完了待機
 ### 動作フロー
 
 1. `run.sh` がバックグラウンドで `watch-session.sh` を起動
-2. `watch-session.sh` がtmuxセッションの出力を監視
+2. `watch-session.sh` がセッションの出力を監視
 3. マーカー（例: `###TASK_COMPLETE_42###` または `###TASK_ERROR_42###`）を検出
 4. 完了マーカーの場合は自動的に `cleanup.sh` を実行、エラーマーカーの場合は通知を送信
 
