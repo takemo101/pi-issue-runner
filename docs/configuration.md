@@ -515,6 +515,8 @@ agent:
 | `{{worktree_path}}` | worktreeのパス | `.worktrees/issue-411` |
 | `{{step_name}}` | 現在のステップ名 | `plan`, `implement` |
 | `{{workflow_name}}` | ワークフロー名 | `default`, `simple` |
+| `{{plans_dir}}` | 計画書ディレクトリパス | `docs/plans` |
+| `{{pr_number}}` | PR番号 | `123` |
 
 **使用例**:
 ```markdown
