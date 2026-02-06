@@ -180,9 +180,10 @@ cleanup_complete_with_worktrees() {
                 
                 # ブランチ削除
                 if [[ -n "$branch_name" ]]; then
-                    if git branch -d "$branch_name" 2>/dev/null || \
-                       [[ "$force" == "true" ]] && git branch -D "$branch_name" 2>/dev/null; then
+                    if git branch -d "$branch_name" 2>/dev/null; then
                         log_info "  Branch removed: $branch_name"
+                    elif [[ "$force" == "true" ]] && git branch -D "$branch_name" 2>/dev/null; then
+                        log_info "  Branch force-removed: $branch_name"
                     else
                         log_warn "  Failed to remove branch: $branch_name"
                     fi
