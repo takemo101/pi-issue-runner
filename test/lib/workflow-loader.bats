@@ -636,3 +636,174 @@ EOF
     result="$(get_workflow_context "config-workflow:test")"
     [ -z "$result" ]
 }
+
+# ====================
+# get_all_workflows_info テスト
+# ====================
+
+@test "get_all_workflows_info returns all workflows from .pi-runner.yaml" {
+    # キャッシュをリセット
+    reset_yaml_cache
+    _YQ_CHECK_RESULT=""
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  quick:
+    description: 小規模修正
+    steps:
+      - implement
+      - merge
+  thorough:
+    description: 大規模機能開発
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_all_workflows_info "$TEST_DIR")"
+    
+    # quick ワークフローが含まれる
+    echo "$result" | grep -q "^quick"
+    echo "$result" | grep -q "小規模修正"
+    echo "$result" | grep -q "implement merge"
+    
+    # thorough ワークフローが含まれる
+    echo "$result" | grep -q "^thorough"
+    echo "$result" | grep -q "大規模機能開発"
+    echo "$result" | grep -q "plan implement test review merge"
+}
+
+@test "get_all_workflows_info includes context field" {
+    # キャッシュをリセット
+    reset_yaml_cache
+    _YQ_CHECK_RESULT=""
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  frontend:
+    description: フロントエンド実装
+    steps:
+      - implement
+    context: |
+      ## Tech Stack
+      - React / Next.js
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_all_workflows_info "$TEST_DIR")"
+    
+    echo "$result" | grep -q "Tech Stack"
+    echo "$result" | grep -q "React / Next.js"
+}
+
+@test "get_all_workflows_info falls back to builtin workflows when workflows section not defined" {
+    # workflows セクションを持たない設定ファイル
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflow:
+  steps:
+    - plan
+    - implement
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_all_workflows_info "$TEST_DIR")"
+    
+    # ビルトインワークフローが含まれる（default, simple, ci-fix, thorough）
+    echo "$result" | grep -q "^default"
+    echo "$result" | grep -q "^simple"
+}
+
+@test "get_all_workflows_info returns tab-separated format" {
+    # キャッシュをリセット
+    reset_yaml_cache
+    _YQ_CHECK_RESULT=""
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  test:
+    description: テストワークフロー
+    steps:
+      - implement
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_all_workflows_info "$TEST_DIR")"
+    
+    # タブ区切りであることを確認
+    echo "$result" | grep -q $'test\tテストワークフロー\timplement'
+}
+
+@test "get_all_workflows_info diagnostic - file exists" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  quick:
+    description: 小規模修正
+    steps:
+      - implement
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    # ファイルの存在確認
+    [ -f "$CONFIG_FILE" ]
+}
+
+@test "get_all_workflows_info diagnostic - yaml_exists works" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  quick:
+    description: 小規模修正
+    steps:
+      - implement
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    # yaml_exists が動作するか確認
+    yaml_exists "$CONFIG_FILE" ".workflows"
+}
+
+@test "get_all_workflows_info diagnostic - yaml_get_keys returns values" {
+    # YAMLキャッシュを明示的にリセット
+    reset_yaml_cache
+    _YQ_CHECK_RESULT=""
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  quick:
+    description: 小規模修正
+    steps:
+      - implement
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    # yaml_get_keys が値を返すか確認
+    result="$(yaml_get_keys "$CONFIG_FILE" ".workflows")"
+    [ -n "$result" ]
+}
+
+@test "get_all_workflows_info diagnostic - simple parser works" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  quick:
+    description: 小規模修正
+    steps:
+      - implement
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    # 簡易パーサーを直接呼び出し
+    result="$(_simple_yaml_get_keys "$CONFIG_FILE" ".workflows")"
+    [ -n "$result" ]
+    [[ "$result" == *"quick"* ]]
+}

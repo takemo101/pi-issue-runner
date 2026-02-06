@@ -18,6 +18,180 @@ fi
 # プロンプト生成
 # ===================
 
+# auto モードのプロンプトを生成する
+_generate_auto_mode_prompt() {
+    local issue_number="$1"
+    local issue_title="$2"
+    local issue_body="$3"
+    local branch_name="$4"
+    local worktree_path="$5"
+    local project_root="${6:-.}"
+    local issue_comments="${7:-}"
+    local pr_number="${8:-}"
+    
+    # 全ワークフロー情報を取得
+    local workflows_info
+    workflows_info=$(get_all_workflows_info "$project_root")
+    
+    # プロンプトヘッダー
+    cat << EOF
+Implement GitHub Issue #$issue_number
+
+> **⚡ AUTONOMOUS EXECUTION MODE**
+> This session runs fully automatically. You MUST:
+> - **NOT wait for user input**
+> - **NOT ask for confirmation**
+> - **NOT ask questions**
+> - Proceed immediately to the next step after completing each task
+> - Make best-effort decisions when uncertain
+> - Execute autonomously until completion without stopping
+
+> **🚫 PROHIBITED ACTIONS**
+> - **Do NOT run \`gh issue close\`** - Issues are closed automatically via PR merge with \`Closes #xxx\`
+> - **Do NOT open editors** - Use \`git commit -m\`, \`git merge --no-edit\`, \`gh pr create --body\`
+> - **Do NOT use interactive commands**
+
+## Title
+$issue_title
+
+## Description
+$issue_body
+EOF
+    
+    # コンテキストセクションを追加（コンテキストがある場合のみ）
+    if declare -f load_all_context > /dev/null 2>&1; then
+        local context_content
+        context_content="$(load_all_context "$issue_number" 2>/dev/null || true)"
+        
+        if [[ -n "$context_content" ]]; then
+            cat << EOF
+
+## 過去のコンテキスト
+
+$context_content
+EOF
+        fi
+    fi
+    
+    # コメントセクションを追加（コメントがある場合のみ）
+    if [[ -n "$issue_comments" ]]; then
+        cat << EOF
+
+## Comments
+
+$issue_comments
+EOF
+    fi
+    
+    cat << EOF
+
+---
+
+## Workflow Selection
+
+以下のワークフローから、このIssueに最も適切なものを1つ選択してください。
+選択したワークフローの Steps に従い、Context の指示を参考にして実行してください。
+
+### Available Workflows
+
+| Name | Description | Steps |
+|------|------------|-------|
+EOF
+    
+    # ワークフロー一覧テーブル
+    while IFS=$'\t' read -r name description steps context; do
+        if [[ -n "$name" ]]; then
+            # steps をスペース区切りから → 区切りに変換
+            local steps_display
+            steps_display=$(echo "$steps" | sed 's/ / → /g')
+            printf "| %s | %s | %s |\n" "$name" "$description" "$steps_display"
+        fi
+    done <<< "$workflows_info"
+    
+    cat << EOF
+
+### Workflow Details
+
+EOF
+    
+    # 各ワークフローの詳細
+    while IFS=$'\t' read -r name description steps context; do
+        if [[ -n "$name" ]]; then
+            local steps_display
+            steps_display=$(echo "$steps" | sed 's/ / → /g')
+            
+            cat << EOF
+<details>
+<summary>$name</summary>
+
+**Description**: $description
+
+**Steps**: $steps_display
+
+EOF
+            
+            if [[ -n "$context" ]]; then
+                cat << EOF
+**Context**:
+$context
+
+EOF
+            fi
+            
+            echo "</details>"
+            echo ""
+        fi
+    done <<< "$workflows_info"
+    
+    cat << EOF
+
+---
+
+**指示**: Issue の内容を分析し、上記から最も適切なワークフローを選択してください。
+選択理由を簡潔に述べた後、そのワークフローの Steps と Context に従って実行を開始してください。
+
+## Execution Context
+
+- **Issue番号**: #$issue_number
+- **ブランチ**: $branch_name
+- **作業ディレクトリ**: $worktree_path
+
+---
+
+### Commit Types
+- feat: New feature
+- fix: Bug fix
+- docs: Documentation
+- refactor: Code refactoring
+- test: Adding tests
+- chore: Maintenance
+
+### On Error
+- If tests fail, fix the issue before committing
+- If PR merge fails, report the error
+- **For unrecoverable errors**, output the error marker:
+  - Prefix: \`###TASK\`
+  - Middle: \`_ERROR_\`
+  - Issue number: \`${issue_number}\`
+  - Suffix: \`###\`
+
+This will notify the user and allow manual intervention.
+
+### On Completion
+**CRITICAL**: After completing all workflow steps (including PR merge), you MUST output the completion marker.
+
+The marker format combines these parts (no spaces):
+- Prefix: \`###TASK\`
+- Middle: \`_COMPLETE_\`
+- Issue number: \`${issue_number}\`
+- Suffix: \`###\`
+
+Combine them and output as a single line. This marker is monitored by an external process that will automatically clean up the worktree and terminate this tmux session.
+
+Do NOT skip this step.
+EOF
+}
+
 # ワークフロープロンプトを生成する
 # Usage: generate_workflow_prompt <workflow_name> <issue_number> <issue_title> <issue_body> <branch_name> <worktree_path> [project_root] [issue_comments] [pr_number]
 generate_workflow_prompt() {
@@ -34,6 +208,12 @@ generate_workflow_prompt() {
     # ワークフローファイル検索
     local workflow_file
     workflow_file=$(find_workflow_file "$workflow_name" "$project_root")
+    
+    # auto モードの場合は特別処理
+    if [[ "$workflow_file" == "auto" ]]; then
+        _generate_auto_mode_prompt "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$worktree_path" "$project_root" "$issue_comments" "$pr_number"
+        return 0
+    fi
     
     # ステップ一覧取得
     local steps
