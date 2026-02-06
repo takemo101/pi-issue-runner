@@ -728,3 +728,49 @@ YAML_EOF
     # タブ区切りであることを確認
     echo "$result" | grep -q $'test\tテストワークフロー\timplement'
 }
+
+@test "get_all_workflows_info diagnostic - file exists" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  quick:
+    description: 小規模修正
+    steps:
+      - implement
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    # ファイルの存在確認
+    [ -f "$CONFIG_FILE" ]
+}
+
+@test "get_all_workflows_info diagnostic - yaml_exists works" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  quick:
+    description: 小規模修正
+    steps:
+      - implement
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    # yaml_exists が動作するか確認
+    yaml_exists "$CONFIG_FILE" ".workflows"
+}
+
+@test "get_all_workflows_info diagnostic - yaml_get_keys returns values" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  quick:
+    description: 小規模修正
+    steps:
+      - implement
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    # yaml_get_keys が値を返すか確認
+    result="$(yaml_get_keys "$CONFIG_FILE" ".workflows")"
+    [ -n "$result" ]
+}
