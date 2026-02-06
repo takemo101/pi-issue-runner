@@ -125,7 +125,7 @@ sanitized_body=$(sanitize_issue_body "$raw_body")
 | `scripts/watch-session.sh` | 146 | `handle_error()` | シェルオプションの復元 | 🟢 低 |
 | `scripts/watch-session.sh` | 278 | `handle_complete()` | シェルオプションの復元 | 🟢 低 |
 
-### lib/hooks.sh でのeval（リスク：🔴 高）
+### lib/hooks.sh でのeval（リスク：🟡 中）
 
 **用途**: インラインhookコマンド（`.pi-runner.yaml` に記述された文字列コマンド）を実行するために使用。
 
@@ -134,20 +134,26 @@ sanitized_body=$(sanitize_issue_body "$raw_body")
 _execute_hook() {
     local hook="$1"
     ...
-    log_warn "Executing inline hook command (security note: ensure this is from a trusted source)"
+    # インラインコマンドの場合: 明示的許可が必要
+    if [[ "${PI_RUNNER_ALLOW_INLINE_HOOKS:-false}" != "true" ]]; then
+        log_warn "Inline hook commands are disabled for security."
+        return 0
+    fi
+    ...
     eval "$hook"
 }
 ```
 
-**リスク**:
-- 任意コード実行の可能性（`.pi-runner.yaml` の内容に依存）
-- 外部入力（設定ファイル）を直接実行
-- 悪意のあるリポジトリの設定ファイルが読み込まれる可能性
+**リスク**: 中（環境変数によるオプトイン制御あり）
+- デフォルトでインラインhookは拒否される
+- `PI_RUNNER_ALLOW_INLINE_HOOKS=true` を設定した場合のみ実行可能
+- ファイルパスhookは常に許可される
 
 **軽減策**:
+- デフォルトで無効化（環境変数でオプトイン）
 - 実行前に警告ログを出力
-- 信頼できるリポジトリの設定のみ使用するよう推奨（後述の「[Hook機能のセキュリティリスク](#hook機能のセキュリティリスク)」セクション参照）
-- hook実行前に設定ファイルの内容を確認
+- ファイルパスベースのhookを推奨
+- 詳細は後述の「[インラインhookの制御](#インラインhookの制御)」セクション参照
 
 ### scripts/watch-session.sh でのeval（リスク：🟢 低）
 
@@ -180,15 +186,58 @@ eval "$old_opts"
 
 ## Hook機能のセキュリティリスク
 
+### インラインhookの制御
+
+バージョン 0.3.0 以降、セキュリティ強化のためインラインhookコマンドはデフォルトで無効化されています。
+
+#### デフォルト動作
+
+インラインhookコマンド（`.pi-runner.yaml` に直接記述されたコマンド文字列）は、デフォルトで実行が拒否されます。代わりに警告メッセージが表示されます：
+
+```
+[WARN] Inline hook commands are disabled for security.
+[WARN] To enable, set: export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+```
+
+ファイルパスで指定されたhookスクリプトは、環境変数の設定に関係なく常に実行されます。
+
+#### 有効化方法
+
+インラインhookを使用する場合は、環境変数を設定してください：
+
+```bash
+export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+./scripts/run.sh 42
+```
+
+または、シェルの設定ファイルに追加：
+
+```bash
+# ~/.bashrc または ~/.zshrc
+export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+```
+
+#### 推奨事項
+
+1. **ファイルベースのhookを使用**: インラインコマンドの代わりにスクリプトファイルを使用することを強く推奨します
+2. **信頼できるリポジトリのみで有効化**: 環境変数は信頼できるプロジェクトでのみ設定してください
+3. **プロジェクトごとの設定**: グローバルに設定せず、必要なプロジェクトでのみ一時的に有効化してください
+4. **設定ファイルの確認**: 新しいリポジトリで作業する前に `.pi-runner.yaml` の内容を確認してください
+
 ### evalの使用
 
-hookのインラインコマンドは `eval` を使用して実行されます（`lib/hooks.sh` の `_execute_hook()` 関数）。これは設計上の決定であり、以下のリスクを理解した上で使用してください：
+hookのインラインコマンドは `eval` を使用して実行されます（`lib/hooks.sh` の `_execute_hook()` 関数）。環境変数によるオプトイン制御が実装されています：
 
 ```bash
 # lib/hooks.sh:_execute_hook()
 _execute_hook() {
     local hook="$1"
     ...
+    # インラインコマンドの場合: 明示的許可が必要
+    if [[ "${PI_RUNNER_ALLOW_INLINE_HOOKS:-false}" != "true" ]]; then
+        log_warn "Inline hook commands are disabled for security."
+        return 0
+    fi
     # インラインコマンドとして実行
     log_warn "Executing inline hook command (security note: ensure this is from a trusted source)"
     log_debug "Executing inline hook"
