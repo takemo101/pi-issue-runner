@@ -189,7 +189,15 @@ _yq_get_keys() {
     
     _yaml_ensure_cached "$file"
     
-    echo "$_YAML_CACHE_CONTENT" | yq -r "${path} | keys[]" - 2>/dev/null || true
+    # keys[] may fail in some yq versions; fall back to simple parser
+    local result
+    result=$(echo "$_YAML_CACHE_CONTENT" | yq -r "${path} | keys | .[]" - 2>/dev/null) || true
+    if [[ -n "$result" ]]; then
+        echo "$result"
+    else
+        # yq failed or returned empty; fall back to simple parser
+        _simple_yaml_get_keys "$file" "$path"
+    fi
 }
 
 # ===================
