@@ -224,8 +224,13 @@ get_status_value() {
     json="$(load_status "$issue_number")"
     
     if [[ -n "$json" ]]; then
-        # "status": "value" からvalueを抽出
-        echo "$json" | grep -o '"status"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/' || echo "unknown"
+        # jqを使用してstatusフィールドを抽出（null時は"unknown"を返す）
+        if command -v jq &>/dev/null; then
+            echo "$json" | jq -r '.status // "unknown"'
+        else
+            # jqがない場合はフォールバック（grep/sed）
+            echo "$json" | grep -o '"status"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/' || echo "unknown"
+        fi
     else
         echo "unknown"
     fi
@@ -250,8 +255,13 @@ get_error_message() {
     json="$(load_status "$issue_number")"
     
     if [[ -n "$json" ]]; then
-        # "error_message": "value" からvalueを抽出
-        echo "$json" | grep -o '"error_message"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/' || true
+        # jqを使用してerror_messageフィールドを抽出（null時は空文字列を返す）
+        if command -v jq &>/dev/null; then
+            echo "$json" | jq -r '.error_message // ""'
+        else
+            # jqがない場合はフォールバック（grep/sed）
+            echo "$json" | grep -o '"error_message"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/' || true
+        fi
     fi
 }
 
