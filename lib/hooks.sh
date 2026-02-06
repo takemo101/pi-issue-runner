@@ -79,10 +79,7 @@ run_hook() {
     export PI_ERROR_MESSAGE="$error_message"
     export PI_EXIT_CODE="$exit_code"
     
-    # テンプレート変数を展開
-    hook="$(_expand_hook_template "$hook" "$issue_number" "$issue_title" "$session_name" "$branch_name" "$worktree_path" "$error_message" "$exit_code")"
-    
-    # hook実行
+    # hook実行（テンプレート展開は非推奨、環境変数を使用）
     _execute_hook "$hook" || {
         log_warn "Hook execution failed for event: $event"
         return 0  # hookの失敗でメイン処理を止めない
@@ -91,26 +88,22 @@ run_hook() {
     log_info "Hook completed for event: $event"
 }
 
-# テンプレート変数を展開
+# テンプレート変数を展開（非推奨）
+# 
+# @deprecated このテンプレート展開機能は非推奨です。
+# セキュリティ上の理由により、環境変数（PI_ISSUE_NUMBER等）を使用してください。
+# 詳細: docs/hooks.md のマイグレーションガイドを参照
 _expand_hook_template() {
     local hook="$1"
-    local issue_number="$2"
-    local issue_title="$3"
-    local session_name="$4"
-    local branch_name="$5"
-    local worktree_path="$6"
-    local error_message="$7"
-    local exit_code="$8"
     
-    # Bash文字列置換を使用（sedより安全）
-    hook="${hook//\{\{issue_number\}\}/$issue_number}"
-    hook="${hook//\{\{issue_title\}\}/$issue_title}"
-    hook="${hook//\{\{session_name\}\}/$session_name}"
-    hook="${hook//\{\{branch_name\}\}/$branch_name}"
-    hook="${hook//\{\{worktree_path\}\}/$worktree_path}"
-    hook="${hook//\{\{error_message\}\}/$error_message}"
-    hook="${hook//\{\{exit_code\}\}/$exit_code}"
+    # 非推奨警告（テンプレート変数が含まれる場合のみ）
+    if [[ "$hook" =~ \{\{[a-z_]+\}\} ]]; then
+        log_warn "Template variables ({{...}}) are deprecated for security reasons."
+        log_warn "Please use environment variables instead: \$PI_ISSUE_NUMBER, \$PI_ISSUE_TITLE, etc."
+        log_warn "See docs/hooks.md for migration guide."
+    fi
     
+    # テンプレート展開せず、そのまま返す（環境変数を使用するため）
     echo "$hook"
 }
 
@@ -137,10 +130,11 @@ _execute_hook() {
         return 0
     fi
     
-    # インラインコマンドとして実行
+    # インラインコマンドとして実行（bash -c を使用、eval は使用しない）
+    # 環境変数は既に run_hook で設定済み
     log_warn "Executing inline hook command (security note: ensure this is from a trusted source)"
     log_debug "Executing inline hook"
-    eval "$hook"
+    bash -c "$hook"
 }
 
 # ===================
