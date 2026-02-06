@@ -561,6 +561,13 @@ main() {
     local issue_body="$_ISSUE_body"
     local issue_comments="$_ISSUE_comments"
     
+    # Auto workflow resolution (before worktree setup)
+    if [[ "$workflow_name" == "auto" ]]; then
+        log_info "Auto-selecting workflow..."
+        workflow_name=$(resolve_auto_workflow_name "$issue_title" "$issue_body" ".")
+        log_info "Selected workflow: $workflow_name"
+    fi
+    
     # Setup worktree (sets _WORKTREE_* variables)
     setup_worktree "$issue_number" "$custom_branch" "$base_branch" "$force" || exit $?
     local branch_name="$_WORKTREE_branch_name"

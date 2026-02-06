@@ -17,6 +17,7 @@ source "$_WORKFLOW_LIB_DIR/config.sh"
 source "$_WORKFLOW_LIB_DIR/log.sh"
 # workflow-prompt.sh は finder と loader に依存するため最後に読み込む
 source "$_WORKFLOW_LIB_DIR/workflow-prompt.sh"
+source "$_WORKFLOW_LIB_DIR/workflow-selector.sh"
 
 # ===================
 # デフォルトワークフロー解決
