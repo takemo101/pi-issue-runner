@@ -201,13 +201,13 @@ _simple_yaml_get() {
         [[ -z "${line// /}" ]] && continue
         
         # セクションの検出 (例: worktree:)
-        if [[ "$line" =~ ^([a-z_]+):[[:space:]]*$ ]]; then
+        if [[ "$line" =~ ^([a-z0-9_-]+):[[:space:]]*$ ]]; then
             current_section="${BASH_REMATCH[1]}"
             continue
         fi
         
         # セクションなしのトップレベルキー
-        if [[ -z "$section" && "$line" =~ ^([a-z_]+):[[:space:]]*(.*) ]]; then
+        if [[ -z "$section" && "$line" =~ ^([a-z0-9_-]+):[[:space:]]*(.*) ]]; then
             local line_key="${BASH_REMATCH[1]}"
             local line_value="${BASH_REMATCH[2]}"
             
@@ -225,7 +225,7 @@ _simple_yaml_get() {
         
         # セクション内のキー検出
         if [[ -n "$section" && "$current_section" == "$section" ]]; then
-            if [[ "$line" =~ ^[[:space:]]+([a-z_]+):[[:space:]]*(.*) ]]; then
+            if [[ "$line" =~ ^[[:space:]]+([a-z0-9_-]+):[[:space:]]*(.*) ]]; then
                 local line_key="${BASH_REMATCH[1]}"
                 local line_value="${BASH_REMATCH[2]}"
                 
@@ -279,7 +279,7 @@ _simple_yaml_get_array() {
         [[ -z "${line// /}" ]] && continue
         
         # セクションの検出
-        if [[ "$line" =~ ^([a-z_]+):[[:space:]]*$ ]]; then
+        if [[ "$line" =~ ^([a-z0-9_-]+):[[:space:]]*$ ]]; then
             current_section="${BASH_REMATCH[1]}"
             in_target_array=false
             continue
@@ -288,7 +288,7 @@ _simple_yaml_get_array() {
         # セクション内のキー検出
         if [[ -n "$section" && "$current_section" == "$section" ]]; then
             # キーの開始を検出（値が空 = 配列の開始）
-            if [[ "$line" =~ ^[[:space:]]+([a-z_]+):[[:space:]]*$ ]]; then
+            if [[ "$line" =~ ^[[:space:]]+([a-z0-9_-]+):[[:space:]]*$ ]]; then
                 local line_key="${BASH_REMATCH[1]}"
                 if [[ "$line_key" == "$key" ]]; then
                     in_target_array=true
@@ -299,7 +299,7 @@ _simple_yaml_get_array() {
             fi
             
             # 別のキー（値付き）が来たら配列終了
-            if [[ "$line" =~ ^[[:space:]]+[a-z_]+:[[:space:]]+[^[:space:]] ]]; then
+            if [[ "$line" =~ ^[[:space:]]+[a-z0-9_-]+:[[:space:]]+[^[:space:]] ]]; then
                 in_target_array=false
                 continue
             fi
@@ -307,7 +307,7 @@ _simple_yaml_get_array() {
         
         # トップレベルの配列キー検出
         if [[ -z "$section" ]]; then
-            if [[ "$line" =~ ^([a-z_]+):[[:space:]]*$ ]]; then
+            if [[ "$line" =~ ^([a-z0-9_-]+):[[:space:]]*$ ]]; then
                 local line_key="${BASH_REMATCH[1]}"
                 if [[ "$line_key" == "$key" ]]; then
                     in_target_array=true
@@ -361,7 +361,7 @@ _simple_yaml_exists() {
         [[ -z "${line// /}" ]] && continue
         
         # セクションの検出
-        if [[ "$line" =~ ^([a-z_]+):[[:space:]]*$ ]]; then
+        if [[ "$line" =~ ^([a-z0-9_-]+):[[:space:]]*$ ]]; then
             current_section="${BASH_REMATCH[1]}"
             # キーが空の場合はセクションの存在のみ確認
             if [[ -z "$key" && "$current_section" == "$section" ]]; then
@@ -372,7 +372,7 @@ _simple_yaml_exists() {
         
         # セクション内のキー検出
         if [[ -n "$section" && "$current_section" == "$section" && -n "$key" ]]; then
-            if [[ "$line" =~ ^[[:space:]]+([a-z_]+): ]]; then
+            if [[ "$line" =~ ^[[:space:]]+([a-z0-9_-]+): ]]; then
                 local line_key="${BASH_REMATCH[1]}"
                 if [[ "$line_key" == "$key" ]]; then
                     return 0
