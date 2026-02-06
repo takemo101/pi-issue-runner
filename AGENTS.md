@@ -82,6 +82,7 @@ pi-issue-runner/
 │   ├── workflow-finder.sh   # ワークフロー検索
 │   ├── workflow-loader.sh   # ワークフロー読み込み
 │   ├── workflow-prompt.sh   # プロンプト処理
+│   ├── workflow-selector.sh # ワークフロー自動選択（auto モード）
 │   ├── worktree.sh    # Git worktree操作
 │   └── yaml.sh        # YAMLパーサー
 ├── workflows/         # ビルトインワークフロー定義
@@ -155,6 +156,7 @@ pi-issue-runner/
 │   │   ├── workflow-finder.bats
 │   │   ├── workflow-loader.bats
 │   │   ├── workflow-prompt.bats
+│   │   ├── workflow-selector.bats
 │   │   ├── worktree.bats
 │   │   └── yaml.bats
 │   ├── scripts/       # スクリプトの統合テスト
