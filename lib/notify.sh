@@ -1,5 +1,14 @@
 #!/usr/bin/env bash
-# notify.sh - 通知とステータス管理
+# notify.sh - 通知機能（プリミティブな通知関数のみ）
+#
+# このライブラリは以下の機能を提供します：
+# - notify_error: エラー通知の表示
+# - notify_success: 成功通知の表示
+# - open_terminal_and_attach: Terminal.appでセッションにアタッチ
+#
+# Note: handle_error() / handle_complete() は scripts/watch-session.sh で定義されています。
+#       これらはステータス管理、Hook実行、クリーンアップなどの統合処理を含むため、
+#       watch-session.sh に配置されています。
 
 set -euo pipefail
 
@@ -124,10 +133,3 @@ EOF
     
     log_info "Terminal opened and attach command sent"
 }
-
-# Note: handle_error and handle_complete were removed in Issue #883
-# These functions are now implemented in scripts/watch-session.sh
-# This library provides helper functions for notifications only:
-#   - notify_error
-#   - notify_success
-#   - open_terminal_and_attach

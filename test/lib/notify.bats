@@ -183,6 +183,6 @@ teardown() {
 # ====================
 # handle_complete / handle_error テスト
 # ====================
-# Note: handle_complete and handle_error were removed from lib/notify.sh in Issue #883
+# Note: handle_complete and handle_error were removed from lib/notify.sh in Issue #883/#904
 # These functions are now implemented in scripts/watch-session.sh
 # Plan deletion functionality is tested via watch-session.sh integration tests
