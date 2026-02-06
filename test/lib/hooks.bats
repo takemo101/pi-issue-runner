@@ -107,44 +107,43 @@ EOF
 }
 
 # ====================
-# _expand_hook_template テスト
+# _expand_hook_template テスト（非推奨）
 # ====================
 
-@test "_expand_hook_template expands issue_number" {
+@test "_expand_hook_template shows deprecation warning for template variables" {
     source "$PROJECT_ROOT/lib/hooks.sh"
     override_get_config
     mock_notify
     
-    result="$(_expand_hook_template 'Issue #{{issue_number}} completed' '42' '' '' '' '' '' '')"
-    [ "$result" = "Issue #42 completed" ]
+    # Enable WARN level logging to capture the warning
+    export LOG_LEVEL="WARN"
+    
+    result="$(_expand_hook_template 'Issue #{{issue_number}} completed' 2>&1)"
+    [[ "$result" == *"deprecated"* ]]
+    [[ "$result" == *"environment variables"* ]]
 }
 
-@test "_expand_hook_template expands multiple variables" {
+@test "_expand_hook_template returns hook unchanged (no template expansion)" {
     source "$PROJECT_ROOT/lib/hooks.sh"
     override_get_config
     mock_notify
     
-    result="$(_expand_hook_template 'Issue #{{issue_number}} on {{branch_name}}' '42' 'My Title' 'session-42' 'feature/issue-42' '/path' '' '0')"
-    [ "$result" = "Issue #42 on feature/issue-42" ]
+    # Suppress warnings for this test
+    export LOG_LEVEL="ERROR"
+    
+    result="$(_expand_hook_template 'Issue #{{issue_number}} completed')"
+    [ "$result" = 'Issue #{{issue_number}} completed' ]
 }
 
-@test "_expand_hook_template expands error_message" {
+@test "_expand_hook_template does not warn when no template variables" {
     source "$PROJECT_ROOT/lib/hooks.sh"
     override_get_config
     mock_notify
     
-    result="$(_expand_hook_template 'Error: {{error_message}}' '42' '' '' '' '' 'Test error' '1')"
-    [ "$result" = "Error: Test error" ]
-}
-
-@test "_expand_hook_template expands all variables" {
-    source "$PROJECT_ROOT/lib/hooks.sh"
-    override_get_config
-    mock_notify
+    export LOG_LEVEL="WARN"
     
-    template='{{issue_number}}|{{issue_title}}|{{session_name}}|{{branch_name}}|{{worktree_path}}|{{error_message}}|{{exit_code}}'
-    result="$(_expand_hook_template "$template" '42' 'My Title' 'pi-42' 'feature/issue-42' '/worktrees/42' 'oops' '1')"
-    [ "$result" = "42|My Title|pi-42|feature/issue-42|/worktrees/42|oops|1" ]
+    result="$(_expand_hook_template 'echo "No templates here"' 2>&1)"
+    [[ "$result" != *"deprecated"* ]]
 }
 
 # ====================
@@ -208,10 +207,10 @@ EOF
     [[ "$result" == *"INLINE_HOOK_EXECUTED"* ]]
 }
 
-@test "run_hook expands template in inline command" {
+@test "run_hook uses environment variables in inline command" {
     cat > "$TEST_WORKDIR/.pi-runner.yaml" << 'EOF'
 hooks:
-  on_success: echo "Issue {{issue_number}} done"
+  on_success: 'echo "Issue $PI_ISSUE_NUMBER done"'
 EOF
     
     source "$PROJECT_ROOT/lib/hooks.sh"
@@ -409,4 +408,115 @@ EOF
     
     result="$(run_hook "on_success" "42" "pi-42" "" "" "" "0" "")"
     [[ "$result" == *"SCRIPT_EXECUTED"* ]]
+}
+
+# ====================
+# セキュリティテスト（コマンドインジェクション対策）
+# ====================
+
+@test "run_hook is safe from command injection via issue_title" {
+    cat > "$TEST_WORKDIR/.pi-runner.yaml" << 'EOF'
+hooks:
+  on_success: 'echo "Processing: $PI_ISSUE_TITLE"'
+EOF
+    
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    override_get_config
+    mock_notify
+    
+    export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+    
+    # 悪意のあるIssueタイトル
+    malicious_title='Fix bug"; rm -rf /tmp/test; echo "'
+    
+    result="$(run_hook "on_success" "42" "pi-42" "" "" "" "0" "$malicious_title")"
+    
+    # 環境変数として安全に渡される（文字列として扱われる）
+    [[ "$result" == *'Processing: Fix bug"; rm -rf /tmp/test; echo "'* ]]
+}
+
+@test "run_hook is safe from command injection via error_message" {
+    cat > "$TEST_WORKDIR/.pi-runner.yaml" << 'EOF'
+hooks:
+  on_error: 'echo "Error: $PI_ERROR_MESSAGE"'
+EOF
+    
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    override_get_config
+    mock_notify
+    
+    export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+    
+    # 悪意のあるエラーメッセージ
+    malicious_error='Error"; echo INJECTED; echo "'
+    
+    result="$(run_hook "on_error" "42" "pi-42" "" "" "$malicious_error" "1" "")"
+    
+    # 環境変数として安全に渡される
+    [[ "$result" == *'Error: Error"; echo INJECTED; echo "'* ]]
+    # INJECTEDが単独で出力されないことを確認（コマンドとして実行されていない）
+    [[ "$(echo "$result" | grep -c "^INJECTED$" || true)" -eq 0 ]]
+}
+
+@test "run_hook is safe from command injection with backticks" {
+    cat > "$TEST_WORKDIR/.pi-runner.yaml" << 'EOF'
+hooks:
+  on_success: 'echo "Title: $PI_ISSUE_TITLE"'
+EOF
+    
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    override_get_config
+    mock_notify
+    
+    export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+    
+    # バッククォートを使った攻撃
+    malicious_title='Test `echo BACKTICK_INJECTION` title'
+    
+    result="$(run_hook "on_success" "42" "pi-42" "" "" "" "0" "$malicious_title")"
+    
+    # バッククォートがそのまま表示される（実行されない）
+    [[ "$result" == *'Test `echo BACKTICK_INJECTION` title'* ]]
+}
+
+@test "run_hook is safe from command injection with dollar-parenthesis" {
+    cat > "$TEST_WORKDIR/.pi-runner.yaml" << 'EOF'
+hooks:
+  on_success: 'echo "Title: $PI_ISSUE_TITLE"'
+EOF
+    
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    override_get_config
+    mock_notify
+    
+    export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+    
+    # $(...)を使った攻撃
+    malicious_title='Test $(echo SUBSHELL_INJECTION) title'
+    
+    result="$(run_hook "on_success" "42" "pi-42" "" "" "" "0" "$malicious_title")"
+    
+    # $(...)がそのまま表示される（実行されない）
+    [[ "$result" == *'Test $(echo SUBSHELL_INJECTION) title'* ]]
+}
+
+@test "run_hook is safe from command injection with special characters" {
+    cat > "$TEST_WORKDIR/.pi-runner.yaml" << 'EOF'
+hooks:
+  on_success: 'echo "Title: $PI_ISSUE_TITLE"'
+EOF
+    
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    override_get_config
+    mock_notify
+    
+    export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+    
+    # 様々な特殊文字
+    malicious_title='Test; ls -la & echo "injection" | cat'
+    
+    result="$(run_hook "on_success" "42" "pi-42" "" "" "" "0" "$malicious_title")"
+    
+    # 特殊文字がそのまま表示される
+    [[ "$result" == *'Test; ls -la & echo "injection" | cat'* ]]
 }

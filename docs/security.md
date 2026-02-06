@@ -113,19 +113,19 @@ sanitized_body=$(sanitize_issue_body "$raw_body")
 - ワイルドカード展開（`*`, `?`）
 - チルダ展開（`~`, `~user`）
 
-## evalの使用
+## コマンド実行のセキュリティ
 
-本プロジェクトでは、以下の箇所で `eval` を使用しています。`eval` はシェルコマンドとして文字列を評価・実行するため、外部入力を含む場合はセキュリティリスクとなります。
+本プロジェクトでは、以下の箇所でシェルコマンドを動的に実行しています。
 
 ### 使用箇所一覧
 
-| ファイル | 行 | 関数 | 用途 | リスク |
-|----------|-----|------|------|--------|
-| `lib/hooks.sh` | 133 | `_execute_hook()` | インラインhookコマンドの実行 | 🔴 高 |
-| `scripts/watch-session.sh` | 146 | `handle_error()` | シェルオプションの復元 | 🟢 低 |
-| `scripts/watch-session.sh` | 278 | `handle_complete()` | シェルオプションの復元 | 🟢 低 |
+| ファイル | 関数 | 用途 | リスク |
+|----------|------|------|--------|
+| `lib/hooks.sh` | `_execute_hook()` | インラインhookコマンドの実行 | 🟢 低（セキュリティ対策済み） |
+| `scripts/watch-session.sh` | `handle_error()` | シェルオプションの復元（eval使用） | 🟢 低 |
+| `scripts/watch-session.sh` | `handle_complete()` | シェルオプションの復元（eval使用） | 🟢 低 |
 
-### lib/hooks.sh でのeval（リスク：🟡 中）
+### lib/hooks.sh でのコマンド実行（リスク：🟢 低）
 
 **用途**: インラインhookコマンド（`.pi-runner.yaml` に記述された文字列コマンド）を実行するために使用。
 
@@ -140,20 +140,31 @@ _execute_hook() {
         return 0
     fi
     ...
-    eval "$hook"
+    # bash -c を使用（eval は使用しない）
+    # 環境変数は run_hook で設定済み
+    bash -c "$hook"
 }
 ```
 
-**リスク**: 中（環境変数によるオプトイン制御あり）
+**セキュリティ対策**:
+- `eval` の代わりに `bash -c` を使用（Issue #875で修正）
+- テンプレート変数（`{{...}}`）は非推奨、環境変数（`$PI_*`）を使用
+- 環境変数経由で渡される値は文字列として安全に処理される
 - デフォルトでインラインhookは拒否される
 - `PI_RUNNER_ALLOW_INLINE_HOOKS=true` を設定した場合のみ実行可能
 - ファイルパスhookは常に許可される
 
-**軽減策**:
-- デフォルトで無効化（環境変数でオプトイン）
-- 実行前に警告ログを出力
-- ファイルパスベースのhookを推奨
-- 詳細は後述の「[インラインhookの制御](#インラインhookの制御)」セクション参照
+**環境変数の使用例**:
+```yaml
+# 安全：環境変数を使用
+hooks:
+  on_success: echo "Issue #$PI_ISSUE_NUMBER completed"
+
+# 非推奨：テンプレート変数（コマンドインジェクションのリスク）
+# on_success: echo "Issue #{{issue_number}} completed"
+```
+
+詳細は[Hook機能ドキュメント](./hooks.md#マイグレーションガイド)を参照してください。
 
 ### scripts/watch-session.sh でのeval（リスク：🟢 低）
 
@@ -224,9 +235,9 @@ export PI_RUNNER_ALLOW_INLINE_HOOKS=true
 3. **プロジェクトごとの設定**: グローバルに設定せず、必要なプロジェクトでのみ一時的に有効化してください
 4. **設定ファイルの確認**: 新しいリポジトリで作業する前に `.pi-runner.yaml` の内容を確認してください
 
-### evalの使用
+### コマンド実行とテンプレート変数
 
-hookのインラインコマンドは `eval` を使用して実行されます（`lib/hooks.sh` の `_execute_hook()` 関数）。環境変数によるオプトイン制御が実装されています：
+hookのインラインコマンドは `bash -c` を使用して実行されます（`lib/hooks.sh` の `_execute_hook()` 関数）。環境変数によるオプトイン制御が実装されています：
 
 ```bash
 # lib/hooks.sh:_execute_hook()
@@ -238,14 +249,26 @@ _execute_hook() {
         log_warn "Inline hook commands are disabled for security."
         return 0
     fi
-    # インラインコマンドとして実行
-    log_warn "Executing inline hook command (security note: ensure this is from a trusted source)"
-    log_debug "Executing inline hook"
-    eval "$hook"
+    # bash -c を使用（eval は使用しない）
+    bash -c "$hook"
 }
 ```
 
 実行時には警告ログが出力されるため、意図しないコマンド実行に気づくことができます。
+
+#### テンプレート変数の廃止
+
+バージョン 0.4.0 以降、テンプレート変数（`{{issue_title}}`, `{{error_message}}` 等）は**非推奨**となりました。
+
+**問題点**:
+- テンプレート変数は文字列置換で展開されるため、特殊文字が含まれる場合にコマンドインジェクションのリスクがある
+- Issueタイトルやエラーメッセージは外部からの入力であり、任意の文字列を含む可能性がある
+
+**推奨される方法**:
+- 環境変数（`$PI_ISSUE_NUMBER`, `$PI_ISSUE_TITLE` 等）を使用
+- 環境変数経由で渡される値は文字列として安全に処理される
+
+詳細は[Hook機能ドキュメント](./hooks.md#マイグレーションガイド)を参照してください。
 
 ### リスク
 
@@ -266,14 +289,17 @@ _execute_hook() {
 ```yaml
 # .pi-runner.yaml
 hooks:
-  # ✅ 安全: シンプルな通知
-  on_success: "echo 'Task completed: #{{issue_number}}'"
+  # ✅ 安全: 環境変数を使用
+  on_success: "echo 'Task completed: #$PI_ISSUE_NUMBER'"
   
   # ✅ 安全: 信頼できるスクリプトファイル
   on_error: "./scripts/notify-error.sh"
   
   # ⚠️ 注意: 外部サービスへの送信は機密情報に注意
-  on_start: "curl -X POST https://example.com/webhook -d '{\"issue\": \"{{issue_number}}\"}'"
+  on_start: "curl -X POST https://example.com/webhook -d '{\"issue\": \"$PI_ISSUE_NUMBER\"}'"
+  
+  # ❌ 非推奨: テンプレート変数（コマンドインジェクションのリスク）
+  # on_success: "echo 'Task completed: #{{issue_number}}'"
 ```
 
 ## 関連ドキュメント
