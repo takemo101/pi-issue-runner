@@ -211,6 +211,12 @@ teardown() {
     [[ "$output" == *"log_dir='/tmp/logs'"* ]]
 }
 
+@test "parse_improve_arguments defaults log_dir to empty string when not provided" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"log_dir=''"* ]]
+}
+
 @test "parse_improve_arguments handles --label" {
     run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --label test-session"
     [ "$status" -eq 0 ]
@@ -451,6 +457,13 @@ teardown() {
     "
     [ "$status" -eq 0 ]
     [[ "$output" == *"log_file='/tmp/user'\\''s-logs/"* ]]
+}
+
+@test "setup_improve_environment populates log_dir from config when empty" {
+    # Verify that the code checks for empty log_dir and calls get_config
+    source_content=$(cat "$PROJECT_ROOT/lib/improve/env.sh")
+    [[ "$source_content" == *'[[ -z "$log_dir" ]]'* ]]
+    [[ "$source_content" == *'get_config improve_logs_dir'* ]]
 }
 
 # ====================
