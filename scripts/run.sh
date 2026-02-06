@@ -143,7 +143,7 @@ setup_cleanup_trap cleanup_worktree_on_error
 # ============================================================================
 # Subfunction: parse_run_arguments
 # Purpose: Parse command-line arguments
-# Output: Shell variable assignments (eval-able)
+# Output: Sets global variables with _PARSE_ prefix
 # ============================================================================
 parse_run_arguments() {
     local issue_number=""
@@ -226,18 +226,18 @@ parse_run_arguments() {
         esac
     done
 
-    # Output variable assignments
-    echo "local issue_number='$issue_number'"
-    echo "local custom_branch='${custom_branch//\x27/\x27\\\\\x27\x27}'"
-    echo "local base_branch='${base_branch//\x27/\x27\\\\\x27\x27}'"
-    echo "local workflow_name='${workflow_name//\x27/\x27\\\\\x27\x27}'"
-    echo "local no_attach=$no_attach"
-    echo "local reattach=$reattach"
-    echo "local force=$force"
-    echo "local extra_agent_args='${extra_agent_args//\x27/\x27\\\\\x27\x27}'"
-    echo "local cleanup_mode='${cleanup_mode//\x27/\x27\\\\\x27\x27}'"
-    echo "local list_workflows=$list_workflows"
-    echo "local ignore_blockers=$ignore_blockers"
+    # Set global variables (no escaping needed - direct assignment is safe)
+    _PARSE_issue_number="$issue_number"
+    _PARSE_custom_branch="$custom_branch"
+    _PARSE_base_branch="$base_branch"
+    _PARSE_workflow_name="$workflow_name"
+    _PARSE_no_attach="$no_attach"
+    _PARSE_reattach="$reattach"
+    _PARSE_force="$force"
+    _PARSE_extra_agent_args="$extra_agent_args"
+    _PARSE_cleanup_mode="$cleanup_mode"
+    _PARSE_list_workflows="$list_workflows"
+    _PARSE_ignore_blockers="$ignore_blockers"
 }
 
 # ============================================================================
@@ -276,7 +276,7 @@ validate_run_inputs() {
 # Subfunction: handle_existing_session
 # Purpose: Check and handle existing session
 # Arguments: $1=issue_number, $2=reattach, $3=force
-# Output: Session name (if continuing)
+# Output: Sets global variable _SESSION_name
 # ============================================================================
 handle_existing_session() {
     local issue_number="$1"
@@ -310,14 +310,15 @@ handle_existing_session() {
         fi
     fi
 
-    echo "local session_name='${session_name//\x27/\x27\\\\\x27\x27}'"
+    # Set global variable (no escaping needed)
+    _SESSION_name="$session_name"
 }
 
 # ============================================================================
 # Subfunction: fetch_issue_data
 # Purpose: Fetch Issue information and check dependencies
 # Arguments: $1=issue_number, $2=ignore_blockers
-# Output: Shell variable assignments (eval-able)
+# Output: Sets global variables with _ISSUE_ prefix
 # ============================================================================
 fetch_issue_data() {
     local issue_number="$1"
@@ -358,17 +359,17 @@ fetch_issue_data() {
         fi
     fi
 
-    # Output (escape single quotes in body/comments)
-    echo "local issue_title='${issue_title//\'/\'\\\'\'}'"
-    echo "local issue_body='${issue_body//\'/\'\\\'\'}'"
-    echo "local issue_comments='${issue_comments//\'/\'\\\'\'}'"
+    # Set global variables (no escaping needed - direct assignment is safe)
+    _ISSUE_title="$issue_title"
+    _ISSUE_body="$issue_body"
+    _ISSUE_comments="$issue_comments"
 }
 
 # ============================================================================
 # Subfunction: setup_worktree
 # Purpose: Determine branch name and create worktree
 # Arguments: $1=issue_number, $2=custom_branch, $3=base_branch, $4=force
-# Output: Shell variable assignments (eval-able)
+# Output: Sets global variables with _WORKTREE_ prefix
 # ============================================================================
 setup_worktree() {
     local issue_number="$1"
@@ -409,9 +410,10 @@ setup_worktree() {
     # エラー時クリーンアップ用にworktreeを登録
     register_worktree_for_cleanup "$full_worktree_path"
 
-    echo "local branch_name='${branch_name//\x27/\x27\\\\\x27\x27}'"
-    echo "local worktree_path='${worktree_path//\x27/\x27\\\\\x27\x27}'"
-    echo "local full_worktree_path='${full_worktree_path//\x27/\x27\\\\\x27\x27}'"
+    # Set global variables (no escaping needed)
+    _WORKTREE_branch_name="$branch_name"
+    _WORKTREE_path="$worktree_path"
+    _WORKTREE_full_path="$full_worktree_path"
 }
 
 # ============================================================================
@@ -524,29 +526,40 @@ display_summary_and_attach() {
 # Purpose: Orchestrate the workflow by calling subfunctions
 # ============================================================================
 main() {
-    # Each subfunction outputs "local var='value'" lines for eval.
-    # We capture output first, then eval, to properly propagate exit codes.
-    # (Direct `eval "$(func)"` swallows non-zero exits from the subshell.)
-    local _output
-
-    # Parse arguments
-    _output="$(parse_run_arguments "$@")" || exit $?
-    eval "$_output"
+    # Parse arguments (sets _PARSE_* global variables)
+    parse_run_arguments "$@" || exit $?
+    
+    # Copy to local variables for clarity
+    local issue_number="$_PARSE_issue_number"
+    local custom_branch="$_PARSE_custom_branch"
+    local base_branch="$_PARSE_base_branch"
+    local workflow_name="$_PARSE_workflow_name"
+    local no_attach="$_PARSE_no_attach"
+    local reattach="$_PARSE_reattach"
+    local force="$_PARSE_force"
+    local extra_agent_args="$_PARSE_extra_agent_args"
+    local cleanup_mode="$_PARSE_cleanup_mode"
+    local list_workflows="$_PARSE_list_workflows"
+    local ignore_blockers="$_PARSE_ignore_blockers"
     
     # Validate inputs
     validate_run_inputs "$issue_number" "$list_workflows"
     
-    # Handle existing session
-    _output="$(handle_existing_session "$issue_number" "$reattach" "$force")" || exit $?
-    eval "$_output"
+    # Handle existing session (sets _SESSION_name)
+    handle_existing_session "$issue_number" "$reattach" "$force" || exit $?
+    local session_name="$_SESSION_name"
     
-    # Fetch issue data
-    _output="$(fetch_issue_data "$issue_number" "$ignore_blockers")" || exit $?
-    eval "$_output"
+    # Fetch issue data (sets _ISSUE_* variables)
+    fetch_issue_data "$issue_number" "$ignore_blockers" || exit $?
+    local issue_title="$_ISSUE_title"
+    local issue_body="$_ISSUE_body"
+    local issue_comments="$_ISSUE_comments"
     
-    # Setup worktree
-    _output="$(setup_worktree "$issue_number" "$custom_branch" "$base_branch" "$force")" || exit $?
-    eval "$_output"
+    # Setup worktree (sets _WORKTREE_* variables)
+    setup_worktree "$issue_number" "$custom_branch" "$base_branch" "$force" || exit $?
+    local branch_name="$_WORKTREE_branch_name"
+    local worktree_path="$_WORKTREE_path"
+    local full_worktree_path="$_WORKTREE_full_path"
     
     # Start agent session
     start_agent_session "$session_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path" "$workflow_name" "$issue_comments" "$extra_agent_args"
@@ -558,4 +571,7 @@ main() {
     display_summary_and_attach "$issue_number" "$issue_title" "$worktree_path" "$branch_name" "$session_name" "$cleanup_mode" "$no_attach"
 }
 
-main "$@"
+# Only run main if script is executed directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

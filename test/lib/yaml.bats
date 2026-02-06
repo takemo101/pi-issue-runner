@@ -307,3 +307,127 @@ EOF
     result="$(yaml_get_array "$no_array_yaml" ".section.items")"
     [ -z "$result" ]
 }
+
+# ====================
+# ハイフン含むキーのテスト (Issue #902)
+# ====================
+
+@test "yaml_get parses hyphenated key" {
+    local hyphen_yaml="${BATS_TEST_TMPDIR}/hyphen.yaml"
+    cat > "$hyphen_yaml" << 'EOF'
+agents:
+  ci-fix: custom/ci-fix.md
+  test-agent: custom/test.md
+EOF
+    
+    result="$(yaml_get "$hyphen_yaml" ".agents.ci-fix")"
+    [ "$result" = "custom/ci-fix.md" ]
+}
+
+@test "yaml_get parses multiple hyphenated sections" {
+    local hyphen_yaml="${BATS_TEST_TMPDIR}/hyphen-sections.yaml"
+    cat > "$hyphen_yaml" << 'EOF'
+multi-word-section:
+  nested-key: test-value-123
+  another-key: value2
+EOF
+    
+    result="$(yaml_get "$hyphen_yaml" ".multi-word-section.nested-key")"
+    [ "$result" = "test-value-123" ]
+}
+
+@test "yaml_get parses keys with numbers and hyphens" {
+    local hyphen_yaml="${BATS_TEST_TMPDIR}/hyphen-numbers.yaml"
+    cat > "$hyphen_yaml" << 'EOF'
+section:
+  key-with-123: value123
+  test2-key: another-value
+EOF
+    
+    result="$(yaml_get "$hyphen_yaml" ".section.key-with-123")"
+    [ "$result" = "value123" ]
+}
+
+@test "yaml_get_array parses hyphenated array key" {
+    local hyphen_yaml="${BATS_TEST_TMPDIR}/hyphen-array.yaml"
+    cat > "$hyphen_yaml" << 'EOF'
+copy-files:
+  - file-1.txt
+  - file-2.txt
+  - test-file-3.md
+EOF
+    
+    result="$(yaml_get_array "$hyphen_yaml" ".copy-files" | tr '\n' ' ' | sed 's/ $//')"
+    [ "$result" = "file-1.txt file-2.txt test-file-3.md" ]
+}
+
+@test "yaml_get_array parses nested hyphenated array" {
+    local hyphen_yaml="${BATS_TEST_TMPDIR}/hyphen-nested-array.yaml"
+    cat > "$hyphen_yaml" << 'EOF'
+workflow-config:
+  step-names:
+    - plan-step
+    - implement-step
+    - review-step
+EOF
+    
+    result="$(yaml_get_array "$hyphen_yaml" ".workflow-config.step-names" | tr '\n' ' ' | sed 's/ $//')"
+    [ "$result" = "plan-step implement-step review-step" ]
+}
+
+@test "yaml_exists detects hyphenated section" {
+    local hyphen_yaml="${BATS_TEST_TMPDIR}/hyphen-exists.yaml"
+    cat > "$hyphen_yaml" << 'EOF'
+ci-config:
+  enabled: true
+EOF
+    
+    run yaml_exists "$hyphen_yaml" ".ci-config"
+    [ "$status" -eq 0 ]
+}
+
+@test "yaml_exists detects hyphenated nested key" {
+    local hyphen_yaml="${BATS_TEST_TMPDIR}/hyphen-nested-exists.yaml"
+    cat > "$hyphen_yaml" << 'EOF'
+agents:
+  ci-fix: template.md
+EOF
+    
+    run yaml_exists "$hyphen_yaml" ".agents.ci-fix"
+    [ "$status" -eq 0 ]
+}
+
+@test "_simple_yaml_get directly parses hyphenated keys" {
+    local hyphen_yaml="${BATS_TEST_TMPDIR}/simple-hyphen.yaml"
+    cat > "$hyphen_yaml" << 'EOF'
+test-section:
+  nested-key: direct-value
+EOF
+    
+    result="$(_simple_yaml_get "$hyphen_yaml" ".test-section.nested-key")"
+    [ "$result" = "direct-value" ]
+}
+
+@test "_simple_yaml_get_array directly parses hyphenated array" {
+    local hyphen_yaml="${BATS_TEST_TMPDIR}/simple-hyphen-array.yaml"
+    cat > "$hyphen_yaml" << 'EOF'
+test-section:
+  test-array:
+    - item-1
+    - item-2
+EOF
+    
+    result="$(_simple_yaml_get_array "$hyphen_yaml" ".test-section.test-array" | tr '\n' ' ' | sed 's/ $//')"
+    [ "$result" = "item-1 item-2" ]
+}
+
+@test "_simple_yaml_exists directly detects hyphenated keys" {
+    local hyphen_yaml="${BATS_TEST_TMPDIR}/simple-exists-hyphen.yaml"
+    cat > "$hyphen_yaml" << 'EOF'
+ci-config:
+  retry-count: 3
+EOF
+    
+    run _simple_yaml_exists "$hyphen_yaml" ".ci-config.retry-count"
+    [ "$status" -eq 0 ]
+}

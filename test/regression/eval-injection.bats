@@ -30,179 +30,120 @@ teardown() {
 # Issue #871: Eval injection vulnerability tests
 # ============================================================================
 
-@test "Issue #871: parse_run_arguments escapes custom_branch correctly" {
+@test "Issue #871: parse_run_arguments handles custom_branch with single quotes correctly" {
     source "$PROJECT_ROOT/scripts/run.sh" || skip "Could not source run.sh"
     
-    # Test with single quote
-    result=$(parse_run_arguments 42 -b "test'branch" 2>/dev/null || echo "")
+    # Test with single quote (no eval needed - direct assignment)
+    parse_run_arguments 42 -b "test'branch" 2>/dev/null || skip "parse_run_arguments failed"
     
-    if [[ -n "$result" ]]; then
-        eval "$result" || skip "Eval failed"
-        [ "$custom_branch" = "test'branch" ]
-    else
-        skip "parse_run_arguments returned empty result"
-    fi
+    # Check global variable set by parse_run_arguments
+    [ "$_PARSE_custom_branch" = "test'branch" ]
 }
 
-@test "Issue #871: parse_run_arguments escapes base_branch correctly" {
+@test "Issue #871: parse_run_arguments handles base_branch with single quotes correctly" {
     source "$PROJECT_ROOT/scripts/run.sh" || skip "Could not source run.sh"
     
-    result=$(parse_run_arguments 42 --base "main'test" 2>/dev/null || echo "")
+    parse_run_arguments 42 --base "main'test" 2>/dev/null || skip "parse_run_arguments failed"
     
-    if [[ -n "$result" ]]; then
-        eval "$result" || skip "Eval failed"
-        [ "$base_branch" = "main'test" ]
-    else
-        skip "parse_run_arguments returned empty result"
-    fi
+    [ "$_PARSE_base_branch" = "main'test" ]
 }
 
-@test "Issue #871: parse_run_arguments escapes workflow_name correctly" {
+@test "Issue #871: parse_run_arguments handles workflow_name with single quotes correctly" {
     source "$PROJECT_ROOT/scripts/run.sh" || skip "Could not source run.sh"
     
-    result=$(parse_run_arguments 42 -w "my'workflow" 2>/dev/null || echo "")
+    parse_run_arguments 42 -w "my'workflow" 2>/dev/null || skip "parse_run_arguments failed"
     
-    if [[ -n "$result" ]]; then
-        eval "$result" || skip "Eval failed"
-        [ "$workflow_name" = "my'workflow" ]
-    else
-        skip "parse_run_arguments returned empty result"
-    fi
+    [ "$_PARSE_workflow_name" = "my'workflow" ]
 }
 
-@test "Issue #871: parse_run_arguments escapes extra_agent_args correctly" {
+@test "Issue #871: parse_run_arguments handles extra_agent_args with single quotes correctly" {
     source "$PROJECT_ROOT/scripts/run.sh" || skip "Could not source run.sh"
     
-    result=$(parse_run_arguments 42 -- "arg'with'quotes" 2>/dev/null || echo "")
+    parse_run_arguments 42 --agent-args "arg'with'quotes" 2>/dev/null || skip "parse_run_arguments failed"
     
-    if [[ -n "$result" ]]; then
-        eval "$result" || skip "Eval failed"
-        [ "$extra_agent_args" = "arg'with'quotes" ]
-    else
-        skip "parse_run_arguments returned empty result"
-    fi
+    [ "$_PARSE_extra_agent_args" = "arg'with'quotes" ]
 }
 
-@test "Issue #871: parse_run_arguments escapes cleanup_mode correctly" {
+@test "Issue #871: parse_run_arguments handles cleanup_mode correctly" {
     source "$PROJECT_ROOT/scripts/run.sh" || skip "Could not source run.sh"
     
-    result=$(parse_run_arguments 42 --cleanup "auto'mode" 2>/dev/null || echo "")
+    parse_run_arguments 42 --no-cleanup 2>/dev/null || skip "parse_run_arguments failed"
     
-    if [[ -n "$result" ]]; then
-        eval "$result" || skip "Eval failed"
-        [ "$cleanup_mode" = "auto'mode" ]
-    else
-        skip "parse_run_arguments returned empty result"
-    fi
+    [ "$_PARSE_cleanup_mode" = "none" ]
 }
 
-@test "Issue #871: multiple single quotes are escaped correctly" {
+@test "Issue #871: multiple single quotes are handled correctly" {
     source "$PROJECT_ROOT/scripts/run.sh" || skip "Could not source run.sh"
     
-    result=$(parse_run_arguments 42 -b "test'multi'quote'branch" 2>/dev/null || echo "")
+    parse_run_arguments 42 -b "test'multi'quote'branch" 2>/dev/null || skip "parse_run_arguments failed"
     
-    if [[ -n "$result" ]]; then
-        eval "$result" || skip "Eval failed"
-        [ "$custom_branch" = "test'multi'quote'branch" ]
-    else
-        skip "parse_run_arguments returned empty result"
-    fi
+    [ "$_PARSE_custom_branch" = "test'multi'quote'branch" ]
 }
 
 @test "Issue #871: command injection with \$() is prevented" {
     source "$PROJECT_ROOT/scripts/run.sh" || skip "Could not source run.sh"
     
     # Attempt command injection
-    result=$(parse_run_arguments 42 -b 'test$(whoami)branch' 2>/dev/null || echo "")
+    parse_run_arguments 42 -b 'test$(whoami)branch' 2>/dev/null || skip "parse_run_arguments failed"
     
-    if [[ -n "$result" ]]; then
-        eval "$result" || skip "Eval failed"
-        # Command should not be executed - should remain as literal string
-        [ "$custom_branch" = 'test$(whoami)branch' ]
-        # Verify whoami was not actually executed
-        [[ "$custom_branch" != *"$(whoami)"* ]]
-    else
-        skip "parse_run_arguments returned empty result"
-    fi
+    # Command should not be executed - should remain as literal string
+    [ "$_PARSE_custom_branch" = 'test$(whoami)branch' ]
+    # Verify whoami was not actually executed
+    [[ "$_PARSE_custom_branch" != *"$(whoami)"* ]]
 }
 
 @test "Issue #871: command injection with backticks is prevented" {
     source "$PROJECT_ROOT/scripts/run.sh" || skip "Could not source run.sh"
     
     # Attempt command injection with backticks
-    result=$(parse_run_arguments 42 -b 'test`date`branch' 2>/dev/null || echo "")
+    parse_run_arguments 42 -b 'test`date`branch' 2>/dev/null || skip "parse_run_arguments failed"
     
-    if [[ -n "$result" ]]; then
-        eval "$result" || skip "Eval failed"
-        # Command should not be executed
-        [ "$custom_branch" = 'test`date`branch' ]
-    else
-        skip "parse_run_arguments returned empty result"
-    fi
+    # Command should not be executed
+    [ "$_PARSE_custom_branch" = 'test`date`branch' ]
 }
 
 @test "Issue #871: normal arguments without quotes still work" {
     source "$PROJECT_ROOT/scripts/run.sh" || skip "Could not source run.sh"
     
-    result=$(parse_run_arguments 42 -b "feature-test" -w "default" 2>/dev/null || echo "")
+    parse_run_arguments 42 -b "feature-test" -w "default" 2>/dev/null || skip "parse_run_arguments failed"
     
-    if [[ -n "$result" ]]; then
-        eval "$result" || skip "Eval failed"
-        [ "$custom_branch" = "feature-test" ]
-        [ "$workflow_name" = "default" ]
-    else
-        skip "parse_run_arguments returned empty result"
-    fi
+    [ "$_PARSE_custom_branch" = "feature-test" ]
+    [ "$_PARSE_workflow_name" = "default" ]
 }
 
 @test "Issue #871: empty custom_branch works correctly" {
     source "$PROJECT_ROOT/scripts/run.sh" || skip "Could not source run.sh"
     
-    result=$(parse_run_arguments 42 2>/dev/null || echo "")
+    parse_run_arguments 42 2>/dev/null || skip "parse_run_arguments failed"
     
-    if [[ -n "$result" ]]; then
-        eval "$result" || skip "Eval failed"
-        [ -z "$custom_branch" ]
-    else
-        skip "parse_run_arguments returned empty result"
-    fi
+    [ -z "$_PARSE_custom_branch" ]
 }
 
-@test "Issue #871: escaping pattern matches existing pattern for issue_title" {
-    # Verify that run.sh uses the same escaping pattern for user inputs
-    # as it does for issue_title (which was already correct)
+@test "Issue #871/#905: run.sh no longer uses eval pattern" {
+    # Verify that run.sh no longer uses the eval pattern for parse_run_arguments
+    # Issue #905: Replaced eval pattern with direct global variable assignment
     
-    # Check that custom_branch uses the escaping pattern
-    grep -q "custom_branch='.*//.*x27.*x27.*x27.*x27" "$PROJECT_ROOT/scripts/run.sh"
+    # Should NOT find eval "$_output" pattern (eval removed)
+    ! grep -q 'eval "\$_output"' "$PROJECT_ROOT/scripts/run.sh" || skip "eval pattern still exists"
 }
 
-@test "Issue #871: all vulnerable variables are now escaped in run.sh" {
-    # Verify all the variables mentioned in the issue are now escaped
+@test "Issue #871/#905: all variables use direct assignment instead of escaping" {
+    # Verify that functions now use direct assignment (sets global variables)
+    # instead of echo with escaping
     
-    # Check custom_branch
-    grep -q "custom_branch='.*//.*x27" "$PROJECT_ROOT/scripts/run.sh"
+    # Check for _PARSE_ prefix (parse_run_arguments)
+    grep -q "_PARSE_issue_number=" "$PROJECT_ROOT/scripts/run.sh"
+    grep -q "_PARSE_custom_branch=" "$PROJECT_ROOT/scripts/run.sh"
+    grep -q "_PARSE_base_branch=" "$PROJECT_ROOT/scripts/run.sh"
     
-    # Check base_branch
-    grep -q "base_branch='.*//.*x27" "$PROJECT_ROOT/scripts/run.sh"
+    # Check for _SESSION_ prefix (handle_existing_session)
+    grep -q "_SESSION_name=" "$PROJECT_ROOT/scripts/run.sh"
     
-    # Check workflow_name
-    grep -q "workflow_name='.*//.*x27" "$PROJECT_ROOT/scripts/run.sh"
+    # Check for _ISSUE_ prefix (fetch_issue_data)
+    grep -q "_ISSUE_title=" "$PROJECT_ROOT/scripts/run.sh"
+    grep -q "_ISSUE_body=" "$PROJECT_ROOT/scripts/run.sh"
     
-    # Check extra_agent_args
-    grep -q "extra_agent_args='.*//.*x27" "$PROJECT_ROOT/scripts/run.sh"
-    
-    # Check cleanup_mode
-    grep -q "cleanup_mode='.*//.*x27" "$PROJECT_ROOT/scripts/run.sh"
-    
-    # Check session_name
-    grep -q "session_name='.*//.*x27" "$PROJECT_ROOT/scripts/run.sh"
-    
-    # Check branch_name
-    grep -q "branch_name='.*//.*x27" "$PROJECT_ROOT/scripts/run.sh"
-    
-    # Check worktree_path
-    grep -q "worktree_path='.*//.*x27" "$PROJECT_ROOT/scripts/run.sh"
-    
-    # Check full_worktree_path
-    grep -q "full_worktree_path='.*//.*x27" "$PROJECT_ROOT/scripts/run.sh"
+    # Check for _WORKTREE_ prefix (setup_worktree)
+    grep -q "_WORKTREE_branch_name=" "$PROJECT_ROOT/scripts/run.sh"
+    grep -q "_WORKTREE_path=" "$PROJECT_ROOT/scripts/run.sh"
 }

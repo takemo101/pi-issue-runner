@@ -169,7 +169,8 @@ pi-issue-runner/
 │   │   ├── wait-for-sessions.bats
 │   │   └── watch-session.bats
 │   ├── regression/    # 回帰テスト
-│   │   └── critical-fixes.bats
+│   │   ├── critical-fixes.bats
+│   │   └── eval-injection.bats
 │   ├── fixtures/      # テスト用フィクスチャ
 │   │   └── sample-config.yaml
 │   └── test_helper.bash  # Bats共通ヘルパー

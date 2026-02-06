@@ -166,7 +166,7 @@ check_pr_merge_status() {
             log_warn "PR #$pr_number exists but is not merged yet"
             log_warn "Completion marker detected but PR is still open - waiting for merge..."
             log_warn "This may indicate the AI output the marker too early"
-            send_notification "Warning" "PR #$pr_number is not merged yet for Issue #$issue_number"
+            log_warn "PR #$pr_number is not merged yet for Issue #$issue_number"
             return 1
         else
             log_info "PR #$pr_number state: $pr_state"
@@ -176,7 +176,7 @@ check_pr_merge_status() {
         log_warn "No PR found for Issue #$issue_number"
         log_warn "Completion marker detected but no PR was created - workflow may not have completed correctly"
         log_warn "Skipping cleanup. Please check the session manually."
-        send_notification "Warning" "No PR created for Issue #$issue_number - check session"
+        log_warn "No PR created for Issue #$issue_number - check session"
         return 1
     fi
 }
@@ -294,17 +294,17 @@ handle_complete() {
     
     # 計画書を削除（ホスト環境で実行するため確実に反映される）
     local plans_dir
-    plans_dir="$(get_config plans_dir 2>/dev/null)" || plans_dir="docs/plans"
+    plans_dir="$(get_config plans_dir)"
     local plan_file="${plans_dir}/issue-${issue_number}-plan.md"
     if [[ -f "$plan_file" ]]; then
         log_info "Deleting plan file: $plan_file"
-        rm -f "$plan_file" 2>/dev/null || true
+        rm -f "$plan_file"
         
         # git でコミット（失敗しても継続）
-        if git rev-parse --git-dir &>/dev/null 2>&1; then
-            git add -A 2>/dev/null || true
+        if git rev-parse --git-dir &>/dev/null; then
+            git add "$plan_file" 2>/dev/null || true
             git commit -m "chore: remove plan for issue #${issue_number}" 2>/dev/null || true
-            git push origin main 2>/dev/null || log_warn "Failed to push plan deletion (may need manual push)"
+            # NOTE: Do NOT auto-push - let the PR workflow handle that
         fi
     else
         log_debug "No plan file found at: $plan_file"

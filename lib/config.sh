@@ -180,7 +180,9 @@ _parse_simple_configs() {
         var_name="${mapping##*:}"
         value="$(yaml_get "$config_file" "$yaml_key" "")"
         if [[ -n "$value" ]]; then
-            eval "$var_name=\"\$value\""
+            # Use printf -v instead of eval for safer variable assignment
+            # This avoids code injection risks with special characters in values
+            printf -v "$var_name" "%s" "$value"
         fi
     done
 }
@@ -291,7 +293,9 @@ _apply_env_overrides() {
         config_var="${entry##*:}"
         value="${!env_var:-}"
         if [[ -n "$value" ]]; then
-            eval "$config_var=\"\$value\""
+            # Use printf -v instead of eval for safer variable assignment
+            # This avoids code injection risks with special characters in values
+            printf -v "$config_var" "%s" "$value"
         fi
     done
 }

@@ -181,7 +181,8 @@ teardown() {
 }
 
 # ====================
-# Note: handle_complete() and handle_error() have been moved to scripts/watch-session.sh
-# These functions are part of the session lifecycle management and include more
-# comprehensive logic (hooks, cleanup, PR checks, etc.) than would fit in a
-# primitive notification library.
+# handle_complete / handle_error テスト
+# ====================
+# Note: handle_complete and handle_error were removed from lib/notify.sh in Issue #883/#904
+# These functions are now implemented in scripts/watch-session.sh
+# Plan deletion functionality is tested via watch-session.sh integration tests
