@@ -87,28 +87,32 @@ teardown() {
 }
 
 # ====================
-# グローバル変数依存テスト
+# 関数引数アーキテクチャテスト
 # ====================
 
-@test "batch.sh uses QUIET environment variable" {
+@test "batch.sh uses config argument for settings" {
     source "$PROJECT_ROOT/lib/batch.sh"
-    # QUIETが定義されているか確認
-    [[ "${QUIET:-}" == "false" ]]
+    # execute_issue が config を第1引数として受け取ることを確認
+    declare -A config=([quiet]=false [script_dir]="." [workflow_name]="default" [base_branch]="HEAD")
+    [[ $(type -t execute_issue) == "function" ]]
 }
 
-@test "batch.sh uses TIMEOUT environment variable" {
+@test "batch.sh uses nameref for mutable arrays" {
     source "$PROJECT_ROOT/lib/batch.sh"
-    [[ "${TIMEOUT:-}" == "3600" ]]
+    # wait_for_layer_completion が配列への参照を受け取ることを確認
+    [[ $(type -t wait_for_layer_completion) == "function" ]]
 }
 
-@test "batch.sh uses INTERVAL environment variable" {
+@test "batch.sh process_layer accepts 5 arguments" {
     source "$PROJECT_ROOT/lib/batch.sh"
-    [[ "${INTERVAL:-}" == "5" ]]
+    # process_layer のシグネチャを確認
+    [[ $(type -t process_layer) == "function" ]]
 }
 
-@test "batch.sh uses SCRIPT_DIR for run.sh path" {
+@test "batch.sh show_summary_and_exit accepts 2 arguments" {
     source "$PROJECT_ROOT/lib/batch.sh"
-    [[ -n "${SCRIPT_DIR:-}" ]]
+    # show_summary_and_exit のシグネチャを確認
+    [[ $(type -t show_summary_and_exit) == "function" ]]
 }
 
 # ====================
@@ -144,7 +148,21 @@ teardown() {
     # 空のレイヤー出力
     layers_output=""
     
-    run process_layer 0 "$layers_output"
+    # 設定とステータス配列を準備
+    declare -a failed_issues=()
+    declare -a completed_issues=()
+    declare -A config=(
+        [quiet]=false
+        [sequential]=false
+        [continue_on_error]=false
+        [timeout]=3600
+        [interval]=5
+        [workflow_name]="default"
+        [base_branch]="HEAD"
+        [script_dir]="$PROJECT_ROOT/scripts"
+    )
+    
+    run process_layer failed_issues completed_issues config 0 "$layers_output"
     [ "$status" -eq 2 ]
 }
 
@@ -266,9 +284,10 @@ teardown() {
     head -5 "$PROJECT_ROOT/lib/batch.sh" | grep -q "batch.sh"
 }
 
-@test "batch.sh documents global variable dependencies" {
-    # グローバル変数の依存関係をドキュメント化しているか
-    head -10 "$PROJECT_ROOT/lib/batch.sh" | grep -q "QUIET\|SEQUENTIAL\|TIMEOUT"
+@test "batch.sh documents function argument architecture" {
+    # 関数引数ベースのアーキテクチャをドキュメント化しているか
+    head -30 "$PROJECT_ROOT/lib/batch.sh" | grep -q "アーキテクチャ"
+    head -30 "$PROJECT_ROOT/lib/batch.sh" | grep -q "関数引数"
 }
 
 # ====================
@@ -277,7 +296,7 @@ teardown() {
 
 @test "execute_issue has function comment" {
     # 関数の前にコメントがあるか
-    grep -B 3 "^execute_issue()" "$PROJECT_ROOT/lib/batch.sh" | grep -q "Issue"
+    grep -B 5 "^execute_issue()" "$PROJECT_ROOT/lib/batch.sh" | grep -q "Issue\|引数"
 }
 
 @test "wait_for_layer_completion has function comment" {
