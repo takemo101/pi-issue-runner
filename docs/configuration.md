@@ -778,7 +778,7 @@ workflow:
 
 以下の設定は `lib/config.sh` で処理されます:
 - `worktree.*` - worktreeのベースディレクトリ、コピーするファイル
-- `tmux.*` - セッション名のプレフィックス、セッション内起動設定
+- `multiplexer.*` - マルチプレクサ設定（セッション名のプレフィックス、セッション内起動設定）
 - `pi.*` - piコマンドのパス、追加引数（後方互換性）
 - `agent.*` - エージェントプリセット、カスタムコマンド、引数、テンプレート
 - `parallel.*` - 並列実行の最大同時実行数
@@ -905,7 +905,7 @@ rm .pi-runner.yaml
 以下の機能は将来のバージョンで実装予定です：
 
 - `--config` オプションによる設定ファイル指定
-- `tmux.log_output`: セッション出力のファイル記録
+- `multiplexer.log_output`: セッション出力のファイル記録
 - `pi.timeout`: タスクのタイムアウト設定
 - `parallel.queue_strategy`: キュー戦略（fifo/priority）
 - `parallel.auto_cleanup`: 完了後の自動クリーンアップ
