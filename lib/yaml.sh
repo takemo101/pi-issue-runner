@@ -37,6 +37,38 @@ reset_yq_cache() {
 }
 
 # ===================
+# ファイルキャッシュ
+# ===================
+
+# キャッシュされたファイルパス
+_YAML_CACHE_FILE="${_YAML_CACHE_FILE:-}"
+
+# キャッシュされたファイル内容
+_YAML_CACHE_CONTENT="${_YAML_CACHE_CONTENT:-}"
+
+# ファイルをキャッシュに読み込む（キャッシュミス時のみ）
+# Usage: _yaml_ensure_cached <file>
+# Note: キャッシュ変数を直接設定（出力なし）
+_yaml_ensure_cached() {
+    local file="$1"
+    
+    # キャッシュヒット
+    if [[ "$file" == "$_YAML_CACHE_FILE" && -n "$_YAML_CACHE_CONTENT" ]]; then
+        return 0
+    fi
+    
+    # ファイル読み込み＆キャッシュ
+    _YAML_CACHE_FILE="$file"
+    _YAML_CACHE_CONTENT="$(cat "$file")"
+}
+
+# YAMLキャッシュをクリア
+reset_yaml_cache() {
+    _YAML_CACHE_FILE=""
+    _YAML_CACHE_CONTENT=""
+}
+
+# ===================
 # メイン関数
 # ===================
 
@@ -90,7 +122,8 @@ yaml_exists() {
     fi
     
     if check_yq; then
-        yq -e "$path" "$file" &>/dev/null
+        _yaml_ensure_cached "$file"
+        echo "$_YAML_CACHE_CONTENT" | yq -e "$path" - &>/dev/null
     else
         _simple_yaml_exists "$file" "$path"
     fi
@@ -106,10 +139,12 @@ _yq_get() {
     local path="$2"
     local default="${3:-}"
     
+    _yaml_ensure_cached "$file"
+    
     local value
     # パスが存在するか確認してから値を取得（falseも正しく取得するため）
-    if yq -e "$path != null" "$file" &>/dev/null; then
-        value=$(yq -r "$path" "$file" 2>/dev/null || echo "")
+    if echo "$_YAML_CACHE_CONTENT" | yq -e "$path != null" - &>/dev/null; then
+        value=$(echo "$_YAML_CACHE_CONTENT" | yq -r "$path" - 2>/dev/null || echo "")
         if [[ "$value" != "null" ]]; then
             echo "$value"
             return 0
@@ -124,7 +159,9 @@ _yq_get_array() {
     local file="$1"
     local path="$2"
     
-    yq -r "${path}[]" "$file" 2>/dev/null || true
+    _yaml_ensure_cached "$file"
+    
+    echo "$_YAML_CACHE_CONTENT" | yq -r "${path}[]" - 2>/dev/null || true
 }
 
 # ===================
@@ -155,6 +192,8 @@ _simple_yaml_get() {
     
     local current_section=""
     local found_value=""
+    
+    _yaml_ensure_cached "$file"
     
     while IFS= read -r line || [[ -n "$line" ]]; do
         # コメントと空行をスキップ
@@ -201,7 +240,7 @@ _simple_yaml_get() {
                 fi
             fi
         fi
-    done < "$file"
+    done <<< "$_YAML_CACHE_CONTENT"
     
     if [[ -n "$found_value" ]]; then
         echo "$found_value"
@@ -231,6 +270,8 @@ _simple_yaml_get_array() {
     
     local current_section=""
     local in_target_array=false
+    
+    _yaml_ensure_cached "$file"
     
     while IFS= read -r line || [[ -n "$line" ]]; do
         # コメントと空行をスキップ
@@ -287,7 +328,7 @@ _simple_yaml_get_array() {
             item="${item%\'}"
             echo "$item"
         fi
-    done < "$file"
+    done <<< "$_YAML_CACHE_CONTENT"
 }
 
 # 簡易パーサーでパスの存在確認
@@ -311,6 +352,8 @@ _simple_yaml_exists() {
     fi
     
     local current_section=""
+    
+    _yaml_ensure_cached "$file"
     
     while IFS= read -r line || [[ -n "$line" ]]; do
         # コメントと空行をスキップ
@@ -336,7 +379,7 @@ _simple_yaml_exists() {
                 fi
             fi
         fi
-    done < "$file"
+    done <<< "$_YAML_CACHE_CONTENT"
     
     return 1
 }
