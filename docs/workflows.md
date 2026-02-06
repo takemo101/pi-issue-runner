@@ -442,25 +442,59 @@ GitHub Issue #{{issue_number}} の変更をステージング環境にデプロ�
 
 ## -w auto: AI によるワークフロー自動選択
 
-`-w auto` を指定すると、AI が Issue の内容を分析して最適なワークフローを自動選択します。
+`-w auto` を指定すると（`.pi-runner.yaml` に `workflows` セクションがあれば省略でも自動適用）、AI が Issue の内容を分析して最適なワークフローを事前選択し、そのワークフローの具体的なステップ（`agents/*.md`）が展開されたプロンプトを生成します。
 
 ### 基本的な使い方
 
 ```bash
 # AI が Issue #42 の内容を見てワークフローを自動選択
 ./scripts/run.sh 42 -w auto
+
+# workflows セクションがあれば省略可（自動的に auto）
+./scripts/run.sh 42
 ```
 
-### 仕組み
+### 仕組み（2段階処理）
 
-1. `run.sh` が `-w auto` を検出
-2. `.pi-runner.yaml` の `workflows` セクションから全ワークフロー情報を収集
-3. プロンプトに「Workflow Selection」セクションを生成
-   - 各ワークフローの `name`, `description`, `steps`, `context` を列挙
-4. AI が Issue の `title`/`body` を分析し、最適なワークフローを選択
-5. 選択したワークフローの `steps` に従い、`context` を参考にして実行
+```
+┌──────────────────────────────────────────────────────────┐
+│  Stage 1: ワークフロー選択（事前処理）                       │
+│                                                          │
+│  ① AI選択: pi --print + 軽量モデル（haiku）で             │
+│     Issue title/body とワークフロー description を照合      │
+│  ② ルールベース: タイトルのプレフィックスで判定              │
+│     (feat: → feature, fix: → fix, docs: → docs 等)       │
+│  ③ フォールバック: default                                │
+│                                                          │
+│  → 選択結果: "fix"                                       │
+├──────────────────────────────────────────────────────────┤
+│  Stage 2: 通常のプロンプト生成                             │
+│                                                          │
+│  選択された "fix" ワークフローで generate_workflow_prompt   │
+│  → agents/implement.md, agents/test.md 等が展開される      │
+│  → context フィールドが注入される                          │
+│  → 通常の -w fix と同じプロンプトが生成される               │
+└──────────────────────────────────────────────────────────┘
+```
 
-### プロンプトへの注入イメージ
+1. `run.sh` が `-w auto` を検出（または `workflows` セクション定義時の省略）
+2. `resolve_auto_workflow_name()` を呼び出し:
+   - `pi --print` + 軽量モデルで Issue 内容と `workflows` の `description` を照合
+   - 失敗時は Issue タイトルのプレフィックス（`feat:` / `fix:` / `docs:` 等）でルールベース判定
+   - いずれも失敗した場合は `default` にフォールバック
+3. 選択されたワークフロー名で通常の `generate_workflow_prompt()` を実行
+4. `agents/*.md` のステップ別テンプレートが展開された具体的なプロンプトが生成される
+
+### 環境変数
+
+| 変数 | 説明 | デフォルト |
+|------|------|-----------|
+| `PI_RUNNER_AI_PROVIDER` | auto選択用のAIプロバイダー | `anthropic` |
+| `PI_RUNNER_AUTO_MODEL` | auto選択用のモデル | `claude-3-5-haiku-20241022` |
+
+### プロンプトの生成結果
+
+auto モードで生成されるプロンプトは、`-w fix` と直接指定した場合と**同じ内容**です:
 
 ```markdown
 Implement GitHub Issue #42
@@ -469,47 +503,29 @@ Implement GitHub Issue #42
 ユーザー登録APIにバリデーションを追加
 
 ## Description
-メールアドレスの形式チェックとパスワード強度チェックを実装してください。
+...
 
 ---
 
-## Workflow Selection
+## Workflow: fix
 
-以下のワークフローから、このIssueに最も適切なものを1つ選択してください。
-選択したワークフローの Steps に従い、Context の指示を参考にして実行してください。
-
-### Available Workflows
-
-| Name | Description | Steps |
-|------|------------|-------|
-| quick | 小規模修正（typo、設定変更、1ファイル程度の変更） | implement → merge |
-| backend | バックエンドAPI実装（DB操作、認証、ビジネスロジック） | plan → implement → test → review → merge |
-| frontend | フロントエンド実装（React/Next.js、UIコンポーネント、スタイリング） | plan → implement → review → merge |
+### Workflow Context
+## 方針
+- 回帰テストの追加を検討すること
+- 修正範囲を最小限に抑える
 ...
 
-### Workflow Details
+### Step 1: Implement
+（agents/implement.md の具体的な手順）
 
-<details>
-<summary>backend</summary>
+### Step 2: Test
+（agents/test.md の具体的な手順）
 
-**Steps**: plan → implement → test → review → merge
-**Context**:
-## 技術スタック
-- Node.js / Express / TypeScript
-- PostgreSQL / Prisma
+### Step 3: Review
+（agents/review.md の具体的な手順）
 
-## 重視すべき点
-- RESTful API設計
-- 入力バリデーション
-...
-</details>
-
-...（他のワークフローも同様）
-
----
-
-**指示**: Issue の内容を分析し、上記から最も適切なワークフローを選択してください。
-選択理由を簡潔に述べた後、そのワークフローの Steps と Context に従って実行を開始してください。
+### Step 4: Merge
+（agents/merge.md の具体的な手順）
 ```
 
 ### description の書き方（AI 判断精度への影響）

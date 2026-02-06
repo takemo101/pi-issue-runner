@@ -694,19 +694,31 @@ GitHub Issue #{{issue_number}} に関する技術調査を行います。
 
 #### -w auto: AI によるワークフロー自動選択
 
-`-w auto` を指定すると、AI が Issue の内容を分析して最適なワークフローを自動選択します。
+`-w auto` を指定すると（`workflows` セクション定義時は省略でも自動適用）、AI が Issue の内容を分析して最適なワークフローを事前選択し、そのワークフローのステップ（`agents/*.md`）が展開されたプロンプトを生成します。
 
 ```bash
 # AI が Issue #42 の内容を見てワークフローを自動選択
 ./scripts/run.sh 42 -w auto
+
+# workflows セクションがあれば省略可
+./scripts/run.sh 42
 ```
 
-AI は以下の情報をもとに判断します：
+**選択の流れ（2段階処理）:**
 
-- Issue の `title` と `body`
-- 各ワークフローの `description`
-- 各ワークフローの `steps` 構成
-- 各ワークフローの `context`（定義されている場合）
+1. **事前選択**: `pi --print` + 軽量モデル（haiku）で、Issue の `title` / `body` と各ワークフローの `description` を照合して最適なワークフロー名を判定
+2. **プロンプト生成**: 選択されたワークフローで通常の `generate_workflow_prompt()` を実行し、`agents/*.md` の具体的なステップ指示が展開されたプロンプトを生成
+
+**フォールバック:**
+
+AI呼び出しが失敗した場合は、Issue タイトルのプレフィックス（`feat:` → feature, `fix:` → fix, `docs:` → docs 等）によるルールベース判定、さらに失敗した場合は `default` にフォールバックします。
+
+**環境変数:**
+
+| 変数 | 説明 | デフォルト |
+|------|------|-----------|
+| `PI_RUNNER_AI_PROVIDER` | auto選択用のAIプロバイダー | `anthropic` |
+| `PI_RUNNER_AUTO_MODEL` | auto選択用のモデル | `claude-3-5-haiku-20241022` |
 
 > **ベストプラクティス**: AI が正確に選択できるよう、`description` には対象となるタスクの特徴（規模、領域、技術スタックなど）を具体的に記述してください。
 

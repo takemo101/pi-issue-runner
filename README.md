@@ -557,13 +557,26 @@ scripts/run.sh 44 -w hotfix
 
 #### AIによるワークフロー自動選択（`-w auto`）
 
-`-w auto` を指定すると、Issue の内容と各ワークフローの `description` を照合して、AIが最適なワークフローを自動選択します：
+`-w auto` を指定すると（`workflows` セクション定義時は省略でも自動適用）、AIがIssueの内容から最適なワークフローを事前選択し、そのワークフローの具体的なステップ（`agents/*.md`）が展開されたプロンプトを生成します：
 
 ```bash
 scripts/run.sh 42 -w auto
+# または workflows セクションがあれば省略可
+scripts/run.sh 42
 ```
 
-`workflows` セクションが未定義の場合は、ビルトインワークフロー（default, simple, thorough, ci-fix）から選択します。
+**選択の流れ（3段階フォールバック）:**
+
+1. **AI選択** — `pi --print` + 軽量モデル（haiku）で高速にワークフロー名を判定
+2. **ルールベース** — Issueタイトルのプレフィックス（`feat:` / `fix:` / `docs:` / `test:` 等）で判定
+3. **フォールバック** — 上記いずれも失敗した場合は `default`
+
+**環境変数でカスタマイズ:**
+
+| 変数 | 説明 | デフォルト |
+|------|------|-----------|
+| `PI_RUNNER_AI_PROVIDER` | auto選択用のAIプロバイダー | `anthropic` |
+| `PI_RUNNER_AUTO_MODEL` | auto選択用のモデル | `claude-3-5-haiku-20241022` |
 
 ### カスタムワークフロー（ファイルベース）
 
