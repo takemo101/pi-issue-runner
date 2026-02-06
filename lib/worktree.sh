@@ -213,8 +213,9 @@ is_worktree_in_use() {
     fi
     
     # lsofで使用中かチェック（macOS/Linux両対応）
+    # +d (lowercase) で直下のみチェック - 大規模ディレクトリでのパフォーマンス改善
     if command -v lsof >/dev/null 2>&1; then
-        if lsof +D "$worktree_path" 2>/dev/null | grep -q .; then
+        if lsof +d "$worktree_path" 2>/dev/null | grep -q .; then
             return 0  # 使用中
         fi
     fi
