@@ -272,3 +272,155 @@ Line 3"
     # Has --- separator
     [[ "$result" == *"---"* ]]
 }
+
+# ====================
+# generate_workflow_prompt テスト（コンテキスト注入）- Issue #914
+# ====================
+
+@test "generate_workflow_prompt includes Workflow Context section when context defined" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  frontend:
+    description: "Frontend workflow"
+    steps:
+      - plan
+      - implement
+      - review
+      - merge
+    context: |
+      ## 技術スタック
+      - React / Next.js / TypeScript
+      ## 重視すべき点
+      - レスポンシブデザイン
+      - アクセシビリティ
+EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(generate_workflow_prompt "frontend" "42" "Test Issue" "Test body" "feature/test" "/path" "$TEST_DIR")"
+    
+    # Workflow Context セクションが含まれることを確認
+    [[ "$result" == *"### Workflow Context"* ]]
+    [[ "$result" == *"技術スタック"* ]]
+    [[ "$result" == *"React / Next.js / TypeScript"* ]]
+    [[ "$result" == *"重視すべき点"* ]]
+    [[ "$result" == *"レスポンシブデザイン"* ]]
+    [[ "$result" == *"アクセシビリティ"* ]]
+}
+
+@test "generate_workflow_prompt omits Workflow Context section when no context defined" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  quick:
+    description: "Quick fix workflow"
+    steps:
+      - implement
+      - merge
+EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(generate_workflow_prompt "quick" "42" "Test Issue" "Test body" "feature/test" "/path" "$TEST_DIR")"
+    
+    # Workflow Context セクションが含まれないことを確認
+    [[ "$result" != *"### Workflow Context"* ]]
+}
+
+@test "generate_workflow_prompt context appears before steps" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  backend:
+    steps:
+      - plan
+      - implement
+    context: |
+      ## Backend Context
+      - Node.js / Express
+EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(generate_workflow_prompt "backend" "1" "Title" "Body" "branch" "/path" "$TEST_DIR")"
+    
+    # コンテキストがステップより前に出現することを確認
+    context_pos="${result%%### Workflow Context*}"
+    step_pos="${result%%### Step 1:*}"
+    [ ${#context_pos} -lt ${#step_pos} ]
+}
+
+@test "generate_workflow_prompt context section has separator after it" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  test:
+    steps:
+      - implement
+    context: |
+      ## Test Context
+EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(generate_workflow_prompt "test" "1" "Title" "Body" "branch" "/path" "$TEST_DIR")"
+    
+    # コンテキストセクションの後に区切り線があることを確認
+    [[ "$result" == *"### Workflow Context"* ]]
+    [[ "$result" == *"## Test Context"* ]]
+    # Context と Step の間に --- がある
+    context_section="${result#*### Workflow Context}"
+    context_section="${context_section%%### Step 1:*}"
+    [[ "$context_section" == *"---"* ]]
+}
+
+@test "generate_workflow_prompt handles context with code blocks" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  infra:
+    steps:
+      - implement
+    context: |
+      ## Tech Stack
+      - Terraform
+      
+      ## Example
+      ```terraform
+      resource "aws_instance" "example" {
+        ami = "ami-12345"
+      }
+      ```
+EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(generate_workflow_prompt "infra" "1" "Title" "Body" "branch" "/path" "$TEST_DIR")"
+    
+    [[ "$result" == *"### Workflow Context"* ]]
+    [[ "$result" == *"Tech Stack"* ]]
+    [[ "$result" == *"Terraform"* ]]
+    [[ "$result" == *'```terraform'* ]]
+    [[ "$result" == *'resource "aws_instance"'* ]]
+}
+
+@test "generate_workflow_prompt context works with builtin workflows" {
+    # ビルトインワークフローは context を持たないことを確認
+    result="$(generate_workflow_prompt "default" "1" "Title" "Body" "branch" "/path" "$TEST_DIR")"
+    
+    [[ "$result" != *"### Workflow Context"* ]]
+}
+
+@test "generate_workflow_prompt context works with file-based workflows" {
+    cat > "$TEST_DIR/workflows/custom.yaml" << 'EOF'
+name: custom
+steps:
+  - implement
+  - merge
+context: |
+  ## File-based Context
+  - Custom context from YAML file
+EOF
+    
+    result="$(generate_workflow_prompt "custom" "1" "Title" "Body" "branch" "/path" "$TEST_DIR")"
+    
+    [[ "$result" == *"### Workflow Context"* ]]
+    [[ "$result" == *"File-based Context"* ]]
+    [[ "$result" == *"Custom context from YAML file"* ]]
+}
