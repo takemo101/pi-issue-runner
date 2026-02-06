@@ -359,9 +359,9 @@ fetch_issue_data() {
     fi
 
     # Output (escape single quotes in body/comments)
-    echo "local issue_title='${issue_title//\'/\'\\\'\'}'"
-    echo "local issue_body='${issue_body//\'/\'\\\'\'}'"
-    echo "local issue_comments='${issue_comments//\'/\'\\\'\'}'"
+    echo "local issue_title='${issue_title//\x27/\x27\\\\\x27\x27}'"
+    echo "local issue_body='${issue_body//\x27/\x27\\\\\x27\x27}'"
+    echo "local issue_comments='${issue_comments//\x27/\x27\\\\\x27\x27}'"
 }
 
 # ============================================================================
