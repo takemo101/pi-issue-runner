@@ -212,7 +212,7 @@ teardown() {
 }
 
 @test "parse_improve_arguments defaults log_dir to empty string when not provided" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments && test -z "$_PARSE_log_dir" && echo "empty"
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments && test -z \"\$_PARSE_log_dir\" && echo \"empty\""
     [ "$status" -eq 0 ]
     [[ "$output" == *"empty"* ]]
 }
@@ -256,44 +256,16 @@ teardown() {
     [[ "$output" == *"iteration=1"* ]]
 }
 
-@test "parse_improve_arguments escapes single quotes in log_dir" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --log-dir \"/tmp/user's-logs\""
+@test "parse_improve_arguments handles single quotes in log_dir with direct assignment" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --log-dir \"/tmp/user's-logs\" && echo \$_PARSE_log_dir"
     [ "$status" -eq 0 ]
-    # The output should contain the escaped version
-    [[ "$output" == *"log_dir='/tmp/user'\\''s-logs'"* ]]
+    [[ "$output" == "/tmp/user's-logs" ]]
 }
 
-@test "parse_improve_arguments escapes single quotes in session_label" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --label \"test's-session\""
+@test "parse_improve_arguments handles single quotes in session_label with direct assignment" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --label \"test's-session\" && echo \$_PARSE_session_label"
     [ "$status" -eq 0 ]
-    # The output should contain the escaped version
-    [[ "$output" == *"session_label='test'\\''s-session'"* ]]
-}
-
-@test "parse_improve_arguments output can be safely eval'd with single quotes in log_dir" {
-    run bash -c "
-        source '$PROJECT_ROOT/lib/improve.sh'
-        test_fn() {
-            eval \"\$(parse_improve_arguments --log-dir \"/tmp/user's-logs\")\"
-            echo \"log_dir=\$log_dir\"
-        }
-        test_fn
-    "
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"log_dir=/tmp/user's-logs"* ]]
-}
-
-@test "parse_improve_arguments output can be safely eval'd with single quotes in session_label" {
-    run bash -c "
-        source '$PROJECT_ROOT/lib/improve.sh'
-        test_fn() {
-            eval \"\$(parse_improve_arguments --label \"test's-session\")\"
-            echo \"session_label=\$session_label\"
-        }
-        test_fn
-    "
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"session_label=test's-session"* ]]
+    [[ "$output" == "test's-session" ]]
 }
 
 # ====================
@@ -409,7 +381,7 @@ teardown() {
     [[ "$source_content" == *'dry_run" != "true"'* ]]
 }
 
-@test "setup_improve_environment escapes single quotes in session_label output" {
+@test "setup_improve_environment handles single quotes in session_label with direct assignment" {
     # Mock dependencies
     mock_gh
     mock_date() { echo "2026-02-06T12:00:00Z"; }
@@ -429,12 +401,13 @@ teardown() {
         
         # Call with single quote in label
         setup_improve_environment 1 3 \"test's-label\" /tmp/logs false false
+        echo \"\$_PARSE_session_label\"
     "
     [ "$status" -eq 0 ]
-    [[ "$output" == *"session_label='test'\\''s-label'"* ]]
+    [[ "$output" == *"test's-label"* ]]
 }
 
-@test "setup_improve_environment escapes single quotes in log_file output" {
+@test "setup_improve_environment handles single quotes in log_file with direct assignment" {
     # Mock dependencies
     mock_gh
     mock_date() { echo "2026-02-06T12:00:00Z"; }
@@ -454,9 +427,10 @@ teardown() {
         
         # Call with single quote in log_dir
         setup_improve_environment 1 3 test-label \"/tmp/user's-logs\" false false
+        echo \"\$_PARSE_log_file\"
     "
     [ "$status" -eq 0 ]
-    [[ "$output" == *"log_file='/tmp/user'\\''s-logs/"* ]]
+    [[ "$output" == *"/tmp/user's-logs/"* ]]
 }
 
 @test "setup_improve_environment populates log_dir from config when empty" {
