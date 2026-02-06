@@ -106,7 +106,7 @@ EOF
             steps_display=$(echo "$steps" | sed 's/ / → /g')
             printf "| %s | %s | %s |\n" "$name" "$description" "$steps_display"
         fi
-    done <<< "$workflows_info"
+    done < <(echo "$workflows_info")
     
     cat << EOF
 
@@ -120,6 +120,10 @@ EOF
             local steps_display
             steps_display=$(echo "$steps" | sed 's/ / → /g')
             
+            # context のエスケープされた改行を復元
+            local decoded_context
+            decoded_context=$(printf '%s' "$context" | awk '{gsub(/\\n/, "\n"); print}')
+            
             cat << EOF
 <details>
 <summary>$name</summary>
@@ -130,10 +134,10 @@ EOF
 
 EOF
             
-            if [[ -n "$context" ]]; then
+            if [[ -n "$decoded_context" ]]; then
                 cat << EOF
 **Context**:
-$context
+$decoded_context
 
 EOF
             fi
@@ -141,7 +145,7 @@ EOF
             echo "</details>"
             echo ""
         fi
-    done <<< "$workflows_info"
+    done < <(echo "$workflows_info")
     
     cat << EOF
 

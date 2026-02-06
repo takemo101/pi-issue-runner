@@ -195,8 +195,12 @@ get_all_workflows_info() {
                 local context
                 context=$(yaml_get "$config_file" ".workflows.${name}.context" 2>/dev/null || echo "")
                 
+                # context の改行を \\n にエスケープ（タブ区切り出力で壊れないように）
+                local escaped_context
+                escaped_context=$(printf '%s' "$context" | awk '{printf "%s", (NR>1 ? "\\n" : "") $0}')
+                
                 # タブ区切りで出力
-                printf "%s\t%s\t%s\t%s\n" "$name" "$description" "$steps" "$context"
+                printf "%s\t%s\t%s\t%s\n" "$name" "$description" "$steps" "$escaped_context"
             fi
         done <<< "$workflow_names"
     else
@@ -225,8 +229,12 @@ get_all_workflows_info() {
                 local context
                 context=$(yaml_get "$workflow_file" ".context" 2>/dev/null || echo "")
                 
+                # context の改行を \\n にエスケープ（タブ区切り出力で壊れないように）
+                local escaped_context
+                escaped_context=$(printf '%s' "$context" | awk '{printf "%s", (NR>1 ? "\\n" : "") $0}')
+                
                 # タブ区切りで出力
-                printf "%s\t%s\t%s\t%s\n" "$name" "$description" "$steps" "$context"
+                printf "%s\t%s\t%s\t%s\n" "$name" "$description" "$steps" "$escaped_context"
             fi
         done
     fi
