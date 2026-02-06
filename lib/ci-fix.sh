@@ -353,31 +353,118 @@ try_fix_format() {
 # Returns: 0=検証成功, 1=検証失敗
 run_local_validation() {
     local worktree_path="${1:-.}"
+    local project_type
+    project_type=$(detect_project_type "$worktree_path")
     
-    log_info "Running local validation..."
-    
-    if ! command -v cargo &> /dev/null; then
-        log_warn "cargo not found. Skipping local validation."
-        return 0
-    fi
+    log_info "Running local validation for $project_type project..."
     
     (
         cd "$worktree_path" || return 1
-        
-        # clippyチェック
-        log_info "Running cargo clippy..."
-        if ! cargo clippy --all-targets --all-features -- -D warnings 2>&1; then
-            log_error "Clippy check failed"
-            return 1
-        fi
-        
-        # テスト実行（簡易版）
-        log_info "Running cargo test..."
-        if ! cargo test --lib 2>&1; then
-            log_error "Test failed"
-            return 1
-        fi
-        
+        case "$project_type" in
+            rust)
+                if ! command -v cargo &> /dev/null; then
+                    log_warn "cargo not found. Skipping validation."
+                    return 0
+                fi
+                log_info "Running cargo clippy..."
+                if ! cargo clippy --all-targets --all-features -- -D warnings 2>&1; then
+                    log_error "Clippy check failed"
+                    return 1
+                fi
+                log_info "Running cargo test..."
+                if ! cargo test --lib 2>&1; then
+                    log_error "Test failed"
+                    return 1
+                fi
+                ;;
+            node)
+                # Check if lint script exists in package.json scripts section
+                if command -v jq &>/dev/null; then
+                    if jq -e '.scripts.lint' package.json >/dev/null 2>&1; then
+                        log_info "Running npm run lint..."
+                        if ! npm run lint 2>&1; then
+                            log_error "Lint check failed"
+                            return 1
+                        fi
+                    fi
+                    if jq -e '.scripts.test' package.json >/dev/null 2>&1; then
+                        log_info "Running npm test..."
+                        if ! npm test 2>&1; then
+                            log_error "Test failed"
+                            return 1
+                        fi
+                    fi
+                else
+                    # Fallback: check if scripts section contains lint/test
+                    if grep -E '"scripts"[[:space:]]*:[[:space:]]*\{[^}]*"lint"' package.json >/dev/null 2>&1; then
+                        log_info "Running npm run lint..."
+                        if ! npm run lint 2>&1; then
+                            log_error "Lint check failed"
+                            return 1
+                        fi
+                    fi
+                    if grep -E '"scripts"[[:space:]]*:[[:space:]]*\{[^}]*"test"' package.json >/dev/null 2>&1; then
+                        log_info "Running npm test..."
+                        if ! npm test 2>&1; then
+                            log_error "Test failed"
+                            return 1
+                        fi
+                    fi
+                fi
+                ;;
+            python)
+                if command -v flake8 &>/dev/null; then
+                    log_info "Running flake8..."
+                    if ! flake8 . 2>&1; then
+                        log_error "Flake8 check failed"
+                        return 1
+                    fi
+                fi
+                if command -v pytest &>/dev/null; then
+                    log_info "Running pytest..."
+                    if ! pytest --tb=short 2>&1; then
+                        log_error "Test failed"
+                        return 1
+                    fi
+                fi
+                ;;
+            go)
+                if ! command -v go &> /dev/null; then
+                    log_warn "go not found. Skipping validation."
+                    return 0
+                fi
+                log_info "Running go vet..."
+                if ! go vet ./... 2>&1; then
+                    log_error "Go vet failed"
+                    return 1
+                fi
+                log_info "Running go test..."
+                if ! go test ./... 2>&1; then
+                    log_error "Test failed"
+                    return 1
+                fi
+                ;;
+            bash)
+                if command -v shellcheck &>/dev/null; then
+                    log_info "Running shellcheck..."
+                    if ! shellcheck -x scripts/*.sh lib/*.sh 2>&1; then
+                        log_error "ShellCheck failed"
+                        return 1
+                    fi
+                fi
+                if command -v bats &>/dev/null; then
+                    log_info "Running bats..."
+                    if ! bats test/ 2>&1; then
+                        log_error "Bats test failed"
+                        return 1
+                    fi
+                fi
+                ;;
+            *)
+                log_warn "Unknown project type: $project_type. Skipping validation."
+                return 0
+                ;;
+        esac
         log_info "Local validation passed"
         return 0
     )
