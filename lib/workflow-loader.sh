@@ -167,7 +167,10 @@ get_all_workflows_info() {
     # shellcheck disable=SC2034  # project_root reserved for future use
     local project_root="${1:-.}"
     
-    load_config
+    # CONFIG_FILE が未設定の場合のみ load_config を呼ぶ
+    if [[ -z "${CONFIG_FILE:-}" ]]; then
+        load_config
+    fi
     local config_file="${CONFIG_FILE:-.pi-runner.yaml}"
     
     # .pi-runner.yaml の workflows セクションが存在するか確認
