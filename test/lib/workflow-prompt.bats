@@ -424,3 +424,158 @@ EOF
     [[ "$result" == *"File-based Context"* ]]
     [[ "$result" == *"Custom context from YAML file"* ]]
 }
+
+# ====================
+# generate_workflow_prompt テスト（auto モード）
+# ====================
+
+@test "generate_workflow_prompt generates selection prompt for auto mode" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  quick:
+    description: 小規模修正
+    steps:
+      - implement
+      - merge
+  thorough:
+    description: 大規模機能開発
+    steps:
+      - plan
+      - implement
+      - test
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(generate_workflow_prompt "auto" "42" "Test Issue" "Test body" "branch" "/path" "$TEST_DIR")"
+    
+    # Workflow Selection セクションが含まれる
+    [[ "$result" == *"## Workflow Selection"* ]]
+    [[ "$result" == *"Available Workflows"* ]]
+    [[ "$result" == *"Workflow Details"* ]]
+}
+
+@test "auto mode prompt includes all workflow descriptions" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  quick:
+    description: 小規模修正（typo、設定変更）
+    steps:
+      - implement
+  thorough:
+    description: 大規模機能開発（複数ファイル）
+    steps:
+      - plan
+      - implement
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(generate_workflow_prompt "auto" "42" "Test Issue" "Test body" "branch" "/path" "$TEST_DIR")"
+    
+    # 各ワークフローの description が含まれる
+    [[ "$result" == *"小規模修正（typo、設定変更）"* ]]
+    [[ "$result" == *"大規模機能開発（複数ファイル）"* ]]
+}
+
+@test "auto mode prompt includes workflow steps" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  test:
+    description: テストワークフロー
+    steps:
+      - plan
+      - implement
+      - test
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(generate_workflow_prompt "auto" "42" "Test Issue" "Test body" "branch" "/path" "$TEST_DIR")"
+    
+    # steps が → 区切りで表示される
+    [[ "$result" == *"plan → implement → test"* ]]
+}
+
+@test "auto mode prompt includes workflow context" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  frontend:
+    description: フロントエンド実装
+    steps:
+      - implement
+    context: |
+      ## Tech Stack
+      - React / Next.js
+      
+      ## Important
+      - Use TypeScript
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(generate_workflow_prompt "auto" "42" "Test Issue" "Test body" "branch" "/path" "$TEST_DIR")"
+    
+    # context が含まれる
+    [[ "$result" == *"Tech Stack"* ]]
+    [[ "$result" == *"React / Next.js"* ]]
+    [[ "$result" == *"Use TypeScript"* ]]
+}
+
+@test "auto mode prompt falls back to builtin workflows when workflows section not defined" {
+    # workflows セクションなし
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflow:
+  steps:
+    - plan
+    - implement
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(generate_workflow_prompt "auto" "42" "Test Issue" "Test body" "branch" "/path" "$TEST_DIR")"
+    
+    # ビルトインワークフローが含まれる
+    [[ "$result" == *"default"* ]]
+    [[ "$result" == *"simple"* ]]
+}
+
+@test "auto mode prompt includes execution context" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  test:
+    description: テスト
+    steps:
+      - implement
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(generate_workflow_prompt "auto" "99" "Test Issue" "Test body" "feature/test" "/worktree/path" "$TEST_DIR")"
+    
+    # 実行コンテキストが含まれる
+    [[ "$result" == *"Issue番号"* ]]
+    [[ "$result" == *"#99"* ]]
+    [[ "$result" == *"ブランチ"* ]]
+    [[ "$result" == *"feature/test"* ]]
+    [[ "$result" == *"作業ディレクトリ"* ]]
+    [[ "$result" == *"/worktree/path"* ]]
+}
+
+@test "auto mode prompt includes selection instruction" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  test:
+    description: テスト
+    steps:
+      - implement
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(generate_workflow_prompt "auto" "42" "Test Issue" "Test body" "branch" "/path" "$TEST_DIR")"
+    
+    # 選択指示が含まれる
+    [[ "$result" == *"Issue の内容を分析し"* ]]
+    [[ "$result" == *"最も適切なワークフローを選択"* ]]
+}

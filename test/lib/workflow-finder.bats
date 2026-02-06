@@ -549,3 +549,25 @@ EOF
     result="$(find_workflow_file "simple" "$TEST_DIR")"
     [[ "$result" == *"/workflows/simple.yaml" ]] || [ "$result" = "builtin:simple" ]
 }
+
+# ====================
+# find_workflow_file テスト（auto モード）
+# ====================
+
+@test "find_workflow_file returns auto for -w auto" {
+    result="$(find_workflow_file "auto" "$TEST_DIR")"
+    [ "$result" = "auto" ]
+}
+
+@test "find_workflow_file handles auto mode before checking other sources" {
+    # .pi-runner.yaml が存在してもautoを返す
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflow:
+  steps:
+    - plan
+    - implement
+YAML_EOF
+    
+    result="$(find_workflow_file "auto" "$TEST_DIR")"
+    [ "$result" = "auto" ]
+}

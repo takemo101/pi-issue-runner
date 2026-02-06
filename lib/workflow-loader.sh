@@ -161,6 +161,76 @@ get_workflow_context() {
     echo "$context"
 }
 
+# 全ワークフロー情報を取得（auto モード用）
+# 出力: name description steps context（1行1ワークフロー、タブ区切り）
+get_all_workflows_info() {
+    local project_root="${1:-.}"
+    
+    load_config
+    local config_file="${CONFIG_FILE:-.pi-runner.yaml}"
+    
+    # .pi-runner.yaml の workflows セクションが存在するか確認
+    if [[ -f "$config_file" ]] && yaml_exists "$config_file" ".workflows"; then
+        # workflows セクション配下のキー一覧を取得
+        local workflow_names
+        workflow_names=$(yaml_get_keys "$config_file" ".workflows")
+        
+        while IFS= read -r name; do
+            if [[ -n "$name" ]]; then
+                local description
+                description=$(yaml_get "$config_file" ".workflows.${name}.description" 2>/dev/null || echo "")
+                
+                local steps=""
+                while IFS= read -r step; do
+                    if [[ -n "$step" ]]; then
+                        if [[ -z "$steps" ]]; then
+                            steps="$step"
+                        else
+                            steps="$steps $step"
+                        fi
+                    fi
+                done < <(yaml_get_array "$config_file" ".workflows.${name}.steps" 2>/dev/null)
+                
+                local context
+                context=$(yaml_get "$config_file" ".workflows.${name}.context" 2>/dev/null || echo "")
+                
+                # タブ区切りで出力
+                printf "%s\t%s\t%s\t%s\n" "$name" "$description" "$steps" "$context"
+            fi
+        done <<< "$workflow_names"
+    else
+        # workflows セクションが未定義の場合はビルトインワークフローをフォールバック
+        local builtin_dir="${_WORKFLOW_LOADER_LIB_DIR}/../workflows"
+        
+        for workflow_file in "$builtin_dir"/*.yaml; do
+            if [[ -f "$workflow_file" ]]; then
+                local name
+                name=$(yaml_get "$workflow_file" ".name" 2>/dev/null || basename "$workflow_file" .yaml)
+                
+                local description
+                description=$(yaml_get "$workflow_file" ".description" 2>/dev/null || echo "")
+                
+                local steps=""
+                while IFS= read -r step; do
+                    if [[ -n "$step" ]]; then
+                        if [[ -z "$steps" ]]; then
+                            steps="$step"
+                        else
+                            steps="$steps $step"
+                        fi
+                    fi
+                done < <(yaml_get_array "$workflow_file" ".steps" 2>/dev/null)
+                
+                local context
+                context=$(yaml_get "$workflow_file" ".context" 2>/dev/null || echo "")
+                
+                # タブ区切りで出力
+                printf "%s\t%s\t%s\t%s\n" "$name" "$description" "$steps" "$context"
+            fi
+        done
+    fi
+}
+
 # エージェントプロンプトを取得
 get_agent_prompt() {
     local agent_file="$1"
