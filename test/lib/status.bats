@@ -508,3 +508,104 @@ teardown() {
     run is_watcher_running "693"
     [ "$status" -eq 1 ]
 }
+
+# ====================
+# Atomic Write Tests (Issue #874)
+# ====================
+
+@test "save_status uses atomic write (no temp file remains)" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    save_status "874" "running" "pi-issue-874"
+    
+    # Check that no temporary files remain
+    local tmp_files
+    tmp_files=$(find "$TEST_WORKTREE_DIR/.status" -name "*.tmp.*" 2>/dev/null || true)
+    [ -z "$tmp_files" ]
+    
+    # Verify the actual file exists
+    [ -f "$TEST_WORKTREE_DIR/.status/874.json" ]
+}
+
+@test "save_status produces valid JSON after atomic write" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    save_status "874" "running" "pi-issue-874"
+    
+    if command -v jq &>/dev/null; then
+        cat "$TEST_WORKTREE_DIR/.status/874.json" | jq . > /dev/null 2>&1
+    else
+        # Fallback: check for basic JSON structure
+        grep -q '"issue": 874' "$TEST_WORKTREE_DIR/.status/874.json"
+        grep -q '"status": "running"' "$TEST_WORKTREE_DIR/.status/874.json"
+    fi
+}
+
+@test "save_watcher_pid uses atomic write (no temp file remains)" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    save_watcher_pid "874" "12345"
+    
+    # Check that no temporary files remain
+    local tmp_files
+    tmp_files=$(find "$TEST_WORKTREE_DIR/.status" -name "*.tmp.*" 2>/dev/null || true)
+    [ -z "$tmp_files" ]
+    
+    # Verify the actual file exists
+    [ -f "$TEST_WORKTREE_DIR/.status/874.watcher.pid" ]
+}
+
+@test "save_watcher_pid produces valid content after atomic write" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    save_watcher_pid "874" "54321"
+    
+    # Verify content
+    local pid
+    pid=$(cat "$TEST_WORKTREE_DIR/.status/874.watcher.pid")
+    [ "$pid" = "54321" ]
+}
+
+@test "save_status parallel writes produce valid JSON" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # Run multiple parallel writes
+    for i in $(seq 1 20); do
+        (save_status "875" "running" "test-$i") &
+    done
+    wait
+    
+    # Verify the final file is valid JSON
+    if command -v jq &>/dev/null; then
+        cat "$TEST_WORKTREE_DIR/.status/875.json" | jq . > /dev/null 2>&1
+    else
+        # Fallback: check for basic JSON structure
+        grep -q '"issue": 875' "$TEST_WORKTREE_DIR/.status/875.json"
+        grep -q '"status":' "$TEST_WORKTREE_DIR/.status/875.json"
+    fi
+    
+    # Verify no temp files remain
+    local tmp_files
+    tmp_files=$(find "$TEST_WORKTREE_DIR/.status" -name "*.tmp.*" 2>/dev/null || true)
+    [ -z "$tmp_files" ]
+}
+
+@test "save_watcher_pid parallel writes produce valid content" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # Run multiple parallel writes
+    for i in $(seq 1 20); do
+        (save_watcher_pid "876" "$((10000 + i))") &
+    done
+    wait
+    
+    # Verify the final file contains a valid PID
+    local pid
+    pid=$(cat "$TEST_WORKTREE_DIR/.status/876.watcher.pid")
+    [[ "$pid" =~ ^[0-9]+$ ]]
+    
+    # Verify no temp files remain
+    local tmp_files
+    tmp_files=$(find "$TEST_WORKTREE_DIR/.status" -name "*.tmp.*" 2>/dev/null || true)
+    [ -z "$tmp_files" ]
+}
