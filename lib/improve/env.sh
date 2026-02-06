@@ -35,7 +35,7 @@ generate_improve_session_label() {
 # Setup environment and validate configuration
 # Arguments: $1=iteration, $2=max_iterations, $3=session_label, $4=log_dir,
 #            $5=dry_run, $6=review_only
-# Output: Shell variable assignments (eval-able)
+# Output: Sets global variables with _PARSE_ prefix
 # ============================================================================
 setup_improve_environment() {
     local iteration="$1"
@@ -72,7 +72,7 @@ setup_improve_environment() {
     local log_file
     log_file="$log_dir/iteration-${iteration}-$(date +%Y%m%d-%H%M%S).log"
 
-    # Display header (to stderr, not evaluated)
+    # Display header (to stderr)
     {
         echo ""
         echo "=== Continuous Improvement - Iteration $iteration/$max_iterations ==="
@@ -82,8 +82,8 @@ setup_improve_environment() {
         echo ""
     } >&2
 
-    # Output variables (to stdout, for eval)
-    echo "local session_label='${session_label//\'/\'\\\'\'}'"
-    echo "local log_file='${log_file//\'/\'\\\'\'}'"
-    echo "local start_time='$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"
+    # Set global variables (no escaping needed - direct assignment is safe)
+    _PARSE_session_label="$session_label"
+    _PARSE_log_file="$log_file"
+    _PARSE_start_time="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 }

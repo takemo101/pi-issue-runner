@@ -119,32 +119,16 @@ EOF
 # ============================================================================
 # Subfunction: parse_next_arguments
 # Purpose: Parse command-line arguments
-# Output: Shell variable assignments (eval-able)
+# Output: Sets global variables with _PARSE_ prefix
 # Note: Does not handle --help/-h (handled in main before calling this)
 # ============================================================================
 parse_next_arguments() {
-    # Helper function to output variables (reduces code duplication)
-    _output_next_variables() {
-        local count="$1"
-        local label_filter="$2"
-        local json_output="$3"
-        local dry_run="$4"
-        local verbose="$5"
-        local exit_code="${6:-0}"
-
-        echo "local count=$count"
-        echo "local label_filter='${label_filter//\'/\'\\\'\'}'"
-        echo "local json_output=$json_output"
-        echo "local dry_run=$dry_run"
-        echo "local verbose=$verbose"
-        echo "local __PARSE_EXIT_CODE=$exit_code"
-    }
-    
     local count=1
     local label_filter=""
     local json_output=false
     local dry_run=false
     local verbose=false
+    local exit_code=0
     
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -152,14 +136,14 @@ parse_next_arguments() {
                 if [[ -z "${2:-}" ]]; then
                     log_error "Option $1 requires an argument" >&2
                     usage >&2
-                    _output_next_variables "$count" "$label_filter" "$json_output" "$dry_run" "$verbose" 3
-                    return 0
+                    exit_code=3
+                    break
                 fi
                 count="$2"
                 if ! [[ "$count" =~ ^[0-9]+$ ]] || [[ "$count" -lt 1 ]]; then
                     log_error "Count must be a positive integer" >&2
-                    _output_next_variables "$count" "$label_filter" "$json_output" "$dry_run" "$verbose" 3
-                    return 0
+                    exit_code=3
+                    break
                 fi
                 shift 2
                 ;;
@@ -167,8 +151,8 @@ parse_next_arguments() {
                 if [[ -z "${2:-}" ]]; then
                     log_error "Option $1 requires an argument" >&2
                     usage >&2
-                    _output_next_variables "$count" "$label_filter" "$json_output" "$dry_run" "$verbose" 3
-                    return 0
+                    exit_code=3
+                    break
                 fi
                 label_filter="$2"
                 shift 2
@@ -189,19 +173,25 @@ parse_next_arguments() {
             -h|--help)
                 # Should not reach here (handled before main)
                 usage >&2
-                _output_next_variables "$count" "$label_filter" "$json_output" "$dry_run" "$verbose" 0
-                return 0
+                exit_code=0
+                break
                 ;;
             *)
                 log_error "Unknown option: $1" >&2
                 usage >&2
-                _output_next_variables "$count" "$label_filter" "$json_output" "$dry_run" "$verbose" 3
-                return 0
+                exit_code=3
+                break
                 ;;
         esac
     done
     
-    _output_next_variables "$count" "$label_filter" "$json_output" "$dry_run" "$verbose" 0
+    # Set global variables (no escaping needed - direct assignment is safe)
+    _PARSE_count="$count"
+    _PARSE_label_filter="$label_filter"
+    _PARSE_json_output="$json_output"
+    _PARSE_dry_run="$dry_run"
+    _PARSE_verbose="$verbose"
+    _PARSE_exit_code="$exit_code"
 }
 
 # ============================================================================
@@ -379,14 +369,26 @@ display_recommendations() {
 # Purpose: Orchestrate next task recommendation
 # ============================================================================
 main() {
-    # Parse arguments
-    local __PARSE_EXIT_CODE=0
-    eval "$(parse_next_arguments "$@")"
+    # Parse arguments (sets _PARSE_* global variables)
+    parse_next_arguments "$@"
     
     # Check if parsing failed
-    if [[ "$__PARSE_EXIT_CODE" -ne 0 ]]; then
-        exit "$__PARSE_EXIT_CODE"
+    # shellcheck disable=SC2154  # _PARSE_* variables set by parse_next_arguments
+    if [[ "$_PARSE_exit_code" -ne 0 ]]; then
+        exit "$_PARSE_exit_code"
     fi
+    
+    # Copy to local variables for clarity
+    # shellcheck disable=SC2154
+    local count="$_PARSE_count"
+    # shellcheck disable=SC2154
+    local label_filter="$_PARSE_label_filter"
+    # shellcheck disable=SC2154
+    local json_output="$_PARSE_json_output"
+    # shellcheck disable=SC2154
+    local dry_run="$_PARSE_dry_run"
+    # shellcheck disable=SC2154
+    local verbose="$_PARSE_verbose"
     
     # Fetch and filter issues
     local candidate_issues

@@ -182,63 +182,63 @@ teardown() {
 # ====================
 
 @test "parse_improve_arguments handles --max-iterations" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --max-iterations 5"
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --max-iterations 5 && echo $_PARSE_max_iterations"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"max_iterations=5"* ]]
+    [[ "$output" == *"5"* ]]
 }
 
 @test "parse_improve_arguments handles --max-issues" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --max-issues 10"
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --max-issues 10 && echo $_PARSE_max_issues"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"max_issues=10"* ]]
+    [[ "$output" == *"10"* ]]
 }
 
 @test "parse_improve_arguments handles --timeout" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --timeout 1800"
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --timeout 1800 && echo $_PARSE_timeout"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"timeout=1800"* ]]
+    [[ "$output" == *"1800"* ]]
 }
 
 @test "parse_improve_arguments handles --iteration" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --iteration 2"
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --iteration 2 && echo $_PARSE_iteration"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"iteration=2"* ]]
+    [[ "$output" == *"2"* ]]
 }
 
 @test "parse_improve_arguments handles --log-dir" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --log-dir /tmp/logs"
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --log-dir /tmp/logs && echo $_PARSE_log_dir"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"log_dir='/tmp/logs'"* ]]
+    [[ "$output" == *"/tmp/logs"* ]]
 }
 
 @test "parse_improve_arguments defaults log_dir to empty string when not provided" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments"
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments && test -z "$_PARSE_log_dir" && echo "empty"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"log_dir=''"* ]]
+    [[ "$output" == *"empty"* ]]
 }
 
 @test "parse_improve_arguments handles --label" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --label test-session"
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --label test-session && echo $_PARSE_session_label"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"session_label='test-session'"* ]]
+    [[ "$output" == *"test-session"* ]]
 }
 
 @test "parse_improve_arguments handles --dry-run" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --dry-run"
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --dry-run && echo $_PARSE_dry_run"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"dry_run=true"* ]]
+    [[ "$output" == *"true"* ]]
 }
 
 @test "parse_improve_arguments handles --review-only" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --review-only"
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --review-only && echo $_PARSE_review_only"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"review_only=true"* ]]
+    [[ "$output" == *"true"* ]]
 }
 
 @test "parse_improve_arguments handles --auto-continue" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --auto-continue"
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --auto-continue && echo $_PARSE_auto_continue"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"auto_continue=true"* ]]
+    [[ "$output" == *"true"* ]]
 }
 
 @test "parse_improve_arguments handles --verbose" {
@@ -248,11 +248,11 @@ teardown() {
 }
 
 @test "parse_improve_arguments uses default values" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments"
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments && echo $_PARSE_max_iterations $_PARSE_max_issues $_PARSE_timeout"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"max_iterations=3"* ]]
-    [[ "$output" == *"max_issues=5"* ]]
-    [[ "$output" == *"timeout=3600"* ]]
+    [[ "$output" == *"3"* ]]
+    [[ "$output" == *"5"* ]]
+    [[ "$output" == *"3600"* ]]
     [[ "$output" == *"iteration=1"* ]]
 }
 
