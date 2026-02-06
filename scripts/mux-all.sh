@@ -93,7 +93,7 @@ list_zellij_sessions() {
     elif [[ -n "$prefix" ]]; then
         echo "$all_sessions" | grep "^${prefix}-issue-" | grep -v "^pi-monitor" || true
     else
-        echo "$all_sessions" | grep "^$(get_config tmux_session_prefix)" | grep -v "^pi-monitor" || true
+        echo "$all_sessions" | grep "^$(get_config multiplexer_session_prefix)" | grep -v "^pi-monitor" || true
     fi
 }
 
