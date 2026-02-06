@@ -144,7 +144,7 @@ parallel:
   max_concurrent: 5  # 最大同時実行数（0 = 無制限）
 ```
 
-**実装** (`lib/tmux.sh`):
+**実装** (`lib/multiplexer.sh` / `lib/tmux.sh`):
 
 ```bash
 # 並列実行数の制限をチェック

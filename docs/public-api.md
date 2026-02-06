@@ -22,13 +22,13 @@
 
 ### count_active_sessions
 
-**定義場所**: `lib/tmux.sh`
+**定義場所**: `lib/tmux.sh`（後方互換ラッパー、実装: `lib/multiplexer.sh`）
 
 **説明**: アクティブなセッション数をカウントします。これは `mux_count_active_sessions()` の後方互換性ラッパーです。
 
 **使用例**:
 ```bash
-source lib/tmux.sh
+source lib/multiplexer.sh  # または lib/tmux.sh（後方互換）
 
 count=$(count_active_sessions)
 echo "Active sessions: $count"
@@ -45,7 +45,7 @@ echo "Active sessions: $count"
 
 **関連関数**:
 - `mux_count_active_sessions` (lib/multiplexer-tmux.sh, lib/multiplexer-zellij.sh)
-- `check_concurrent_limit` (lib/tmux.sh)
+- `check_concurrent_limit` (lib/multiplexer.sh / lib/tmux.sh)
 
 ---
 
