@@ -149,8 +149,9 @@ setup_watch_environment() {
 
 # Check PR merge status
 check_pr_merge_status() {
-    local branch_name="$1"
-    local issue_number="$2"
+    local session_name="$1"
+    local branch_name="$2"
+    local issue_number="$3"
     
     local pr_number
     local pr_state
@@ -166,6 +167,7 @@ check_pr_merge_status() {
             log_warn "PR #$pr_number exists but is not merged yet"
             log_warn "Completion marker detected but PR is still open - waiting for merge..."
             log_warn "This may indicate the AI output the marker too early"
+            notify_error "$session_name" "$issue_number" "PR #$pr_number is not merged yet"
             log_warn "PR #$pr_number is not merged yet for Issue #$issue_number"
             return 1
         else
@@ -176,6 +178,7 @@ check_pr_merge_status() {
         log_warn "No PR found for Issue #$issue_number"
         log_warn "Completion marker detected but no PR was created - workflow may not have completed correctly"
         log_warn "Skipping cleanup. Please check the session manually."
+        notify_error "$session_name" "$issue_number" "No PR created for Issue #$issue_number"
         log_warn "No PR created for Issue #$issue_number - check session"
         return 1
     fi
@@ -314,7 +317,7 @@ handle_complete() {
     run_hook "on_success" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "" "0" "" 2>/dev/null || true
     
     # PRがマージされているか確認
-    if ! check_pr_merge_status "$branch_name" "$issue_number"; then
+    if ! check_pr_merge_status "$session_name" "$branch_name" "$issue_number"; then
         return 1
     fi
     
