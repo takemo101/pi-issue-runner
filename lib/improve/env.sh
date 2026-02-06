@@ -53,8 +53,8 @@ setup_improve_environment() {
         log_dir="$(get_config improve_logs_dir)"
     fi
 
-    # Max iterations check
-    validate_improve_iteration "$iteration" "$max_iterations"
+    # Note: validate_improve_iteration is called before this function
+    # in improve_main() to avoid subshell exit issues
 
     # Generate session label if not provided
     if [[ -z "$session_label" ]]; then

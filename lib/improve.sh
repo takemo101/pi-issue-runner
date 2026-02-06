@@ -48,6 +48,10 @@ improve_main() {
     # shellcheck disable=SC2034  # Variables set by eval
     eval "$(parse_improve_arguments "$@")"
     
+    # Validate iteration before environment setup (must run in current shell, not subshell)
+    # shellcheck disable=SC2154  # Variables set by eval above
+    validate_improve_iteration "$iteration" "$max_iterations"
+
     # Setup environment
     # shellcheck disable=SC2034  # Variables set by eval
     # shellcheck disable=SC2154  # Variables set by eval above
