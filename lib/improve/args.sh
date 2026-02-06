@@ -65,7 +65,7 @@ EOF
 
 # ============================================================================
 # Parse command-line arguments
-# Output: Shell variable assignments (eval-able)
+# Output: Sets global variables with _PARSE_ prefix
 # Note: Does not handle --help/-h (handled in scripts/improve.sh)
 # ============================================================================
 parse_improve_arguments() {
@@ -139,16 +139,16 @@ parse_improve_arguments() {
         esac
     done
 
-    # Output variable assignments
-    echo "local max_iterations=$max_iterations"
-    echo "local max_issues=$max_issues"
-    echo "local timeout=$timeout"
-    echo "local iteration=$iteration"
-    echo "local log_dir='${log_dir//\'/\'\\\'\'}'"
-    echo "local session_label='${session_label//\'/\'\\\'\'}'"
-    echo "local dry_run=$dry_run"
-    echo "local review_only=$review_only"
-    echo "local auto_continue=$auto_continue"
+    # Set global variables (no escaping needed - direct assignment is safe)
+    _PARSE_max_iterations="$max_iterations"
+    _PARSE_max_issues="$max_issues"
+    _PARSE_timeout="$timeout"
+    _PARSE_iteration="$iteration"
+    _PARSE_log_dir="$log_dir"
+    _PARSE_session_label="$session_label"
+    _PARSE_dry_run="$dry_run"
+    _PARSE_review_only="$review_only"
+    _PARSE_auto_continue="$auto_continue"
 }
 
 # Backward compatibility: keep old function name

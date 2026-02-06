@@ -197,9 +197,11 @@ teardown() {
         
         source '$PROJECT_ROOT/lib/improve/env.sh'
         setup_improve_environment 1 3 '' '' false false 2>/dev/null
+    
+        echo $_PARSE_session_label
     "
     [ "$status" -eq 0 ]
-    [[ "$output" == *"session_label='pi-runner-"* ]]
+    [[ "$output" == *"session_label=pi-runner-"* ]]
 }
 
 @test "setup_improve_environment uses provided session_label" {
@@ -221,9 +223,11 @@ teardown() {
         
         source '$PROJECT_ROOT/lib/improve/env.sh'
         setup_improve_environment 1 3 'custom-label' '' false false 2>/dev/null
+    
+        echo $_PARSE_session_label
     "
     [ "$status" -eq 0 ]
-    [[ "$output" == *"session_label='custom-label'"* ]]
+    [[ "$output" == *"session_label=custom-label"* ]]
 }
 
 @test "setup_improve_environment creates log directory" {
@@ -276,9 +280,11 @@ teardown() {
         
         source '$PROJECT_ROOT/lib/improve/env.sh'
         setup_improve_environment 2 3 'test-label' '' false false 2>/dev/null
+    
+        echo $_PARSE_log_file
     "
     [ "$status" -eq 0 ]
-    [[ "$output" == *"log_file='.improve-logs/iteration-2-"* ]]
+    [[ "$output" == *"log_file=.improve-logs/iteration-2-"* ]]
 }
 
 @test "setup_improve_environment uses config log_dir when not provided" {
