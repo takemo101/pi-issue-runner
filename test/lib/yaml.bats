@@ -431,3 +431,275 @@ EOF
     run _simple_yaml_exists "$hyphen_yaml" ".ci-config.retry-count"
     [ "$status" -eq 0 ]
 }
+
+# ====================
+# 3階層パステスト (Issue #912)
+# ====================
+
+@test "yaml_get parses 3-level path for scalar value" {
+    local three_level_yaml="${BATS_TEST_TMPDIR}/three-level.yaml"
+    cat > "$three_level_yaml" << 'EOF'
+workflows:
+  quick:
+    description: "小規模修正"
+  thorough:
+    description: "大規模機能開発"
+EOF
+    
+    result="$(yaml_get "$three_level_yaml" ".workflows.quick.description")"
+    [ "$result" = "小規模修正" ]
+}
+
+@test "yaml_get_array parses 3-level path for array" {
+    local three_level_yaml="${BATS_TEST_TMPDIR}/three-level-array.yaml"
+    cat > "$three_level_yaml" << 'EOF'
+workflows:
+  quick:
+    steps:
+      - implement
+      - merge
+  thorough:
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+EOF
+    
+    result="$(yaml_get_array "$three_level_yaml" ".workflows.quick.steps" | tr '\n' ' ' | sed 's/ $//')"
+    [ "$result" = "implement merge" ]
+}
+
+@test "yaml_get_array parses 3-level path for longer array" {
+    local three_level_yaml="${BATS_TEST_TMPDIR}/three-level-long-array.yaml"
+    cat > "$three_level_yaml" << 'EOF'
+workflows:
+  thorough:
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+EOF
+    
+    result="$(yaml_get_array "$three_level_yaml" ".workflows.thorough.steps" | tr '\n' ' ' | sed 's/ $//')"
+    [ "$result" = "plan implement test review merge" ]
+}
+
+@test "yaml_exists checks 3-level path" {
+    local three_level_yaml="${BATS_TEST_TMPDIR}/three-level-exists.yaml"
+    cat > "$three_level_yaml" << 'EOF'
+workflows:
+  quick:
+    description: "test"
+    steps:
+      - implement
+EOF
+    
+    run yaml_exists "$three_level_yaml" ".workflows.quick.description"
+    [ "$status" -eq 0 ]
+}
+
+@test "yaml_exists checks 3-level path for array" {
+    local three_level_yaml="${BATS_TEST_TMPDIR}/three-level-exists-array.yaml"
+    cat > "$three_level_yaml" << 'EOF'
+workflows:
+  quick:
+    steps:
+      - implement
+EOF
+    
+    run yaml_exists "$three_level_yaml" ".workflows.quick.steps"
+    [ "$status" -eq 0 ]
+}
+
+@test "yaml_exists returns false for nonexistent 3-level path" {
+    local three_level_yaml="${BATS_TEST_TMPDIR}/three-level-missing.yaml"
+    cat > "$three_level_yaml" << 'EOF'
+workflows:
+  quick:
+    description: "test"
+EOF
+    
+    run yaml_exists "$three_level_yaml" ".workflows.quick.nonexistent"
+    [ "$status" -eq 1 ]
+}
+
+@test "yaml_exists returns false for nonexistent subsection" {
+    local three_level_yaml="${BATS_TEST_TMPDIR}/three-level-missing-subsection.yaml"
+    cat > "$three_level_yaml" << 'EOF'
+workflows:
+  quick:
+    description: "test"
+EOF
+    
+    run yaml_exists "$three_level_yaml" ".workflows.missing.description"
+    [ "$status" -eq 1 ]
+}
+
+# ====================
+# 複数行テキスト（リテラルブロック）テスト (Issue #912)
+# ====================
+
+@test "yaml_get returns multiline text with literal block scalar" {
+    local literal_yaml="${BATS_TEST_TMPDIR}/literal-block.yaml"
+    cat > "$literal_yaml" << 'EOF'
+workflows:
+  frontend:
+    description: "Frontend"
+    context: |
+      ## 技術スタック
+      - React / Next.js
+      - TailwindCSS
+      
+      ## 重視すべき点
+      - レスポンシブデザイン
+      - アクセシビリティ
+EOF
+    
+    result="$(yaml_get "$literal_yaml" ".workflows.frontend.context")"
+    [[ "$result" == *"## 技術スタック"* ]]
+    [[ "$result" == *"React / Next.js"* ]]
+    [[ "$result" == *"## 重視すべき点"* ]]
+    [[ "$result" == *"アクセシビリティ"* ]]
+}
+
+@test "yaml_get handles literal block with blank lines" {
+    local literal_yaml="${BATS_TEST_TMPDIR}/literal-blank-lines.yaml"
+    cat > "$literal_yaml" << 'EOF'
+workflows:
+  backend:
+    context: |
+      Line 1
+      
+      Line 3
+      
+      Line 5
+    description: "Backend"
+EOF
+    
+    result="$(yaml_get "$literal_yaml" ".workflows.backend.context")"
+    [[ "$result" == *"Line 1"* ]]
+    [[ "$result" == *"Line 3"* ]]
+    [[ "$result" == *"Line 5"* ]]
+}
+
+@test "yaml_get handles empty literal block" {
+    local literal_yaml="${BATS_TEST_TMPDIR}/literal-empty.yaml"
+    cat > "$literal_yaml" << 'EOF'
+workflows:
+  test:
+    context: |
+    description: "test"
+EOF
+    
+    result="$(yaml_get "$literal_yaml" ".workflows.test.context")"
+    # 空のリテラルブロックは空文字列を返す
+    [ -z "$result" ] || [ "$result" = "" ]
+}
+
+@test "yaml_get literal block stops at next key" {
+    local literal_yaml="${BATS_TEST_TMPDIR}/literal-stop.yaml"
+    cat > "$literal_yaml" << 'EOF'
+workflows:
+  frontend:
+    context: |
+      Line 1
+      Line 2
+    steps:
+      - implement
+EOF
+    
+    result="$(yaml_get "$literal_yaml" ".workflows.frontend.context")"
+    [[ "$result" == *"Line 1"* ]]
+    [[ "$result" == *"Line 2"* ]]
+    [[ "$result" != *"steps"* ]]
+    [[ "$result" != *"implement"* ]]
+}
+
+# ====================
+# yaml_get_keys テスト (Issue #912)
+# ====================
+
+@test "yaml_get_keys lists workflow names under workflows section" {
+    local workflows_yaml="${BATS_TEST_TMPDIR}/workflows-keys.yaml"
+    cat > "$workflows_yaml" << 'EOF'
+workflows:
+  quick:
+    description: "Quick"
+  thorough:
+    description: "Thorough"
+  frontend:
+    description: "Frontend"
+EOF
+    
+    result="$(yaml_get_keys "$workflows_yaml" ".workflows" | tr '\n' ' ' | sed 's/ $//')"
+    [ "$result" = "quick thorough frontend" ]
+}
+
+@test "yaml_get_keys returns empty for nonexistent section" {
+    local workflows_yaml="${BATS_TEST_TMPDIR}/workflows-missing.yaml"
+    cat > "$workflows_yaml" << 'EOF'
+other:
+  key: value
+EOF
+    
+    result="$(yaml_get_keys "$workflows_yaml" ".workflows")"
+    [ -z "$result" ]
+}
+
+@test "yaml_get_keys handles section with no subsections" {
+    local workflows_yaml="${BATS_TEST_TMPDIR}/workflows-no-subs.yaml"
+    cat > "$workflows_yaml" << 'EOF'
+workflows:
+EOF
+    
+    result="$(yaml_get_keys "$workflows_yaml" ".workflows")"
+    [ -z "$result" ]
+}
+
+@test "yaml_get_keys handles section with mixed content" {
+    local workflows_yaml="${BATS_TEST_TMPDIR}/workflows-mixed.yaml"
+    cat > "$workflows_yaml" << 'EOF'
+workflows:
+  quick:
+    description: "Quick"
+  thorough:
+    description: "Thorough"
+other:
+  key: value
+EOF
+    
+    result="$(yaml_get_keys "$workflows_yaml" ".workflows" | tr '\n' ' ' | sed 's/ $//')"
+    [ "$result" = "quick thorough" ]
+}
+
+@test "_simple_yaml_get_keys directly lists keys" {
+    local workflows_yaml="${BATS_TEST_TMPDIR}/simple-keys.yaml"
+    cat > "$workflows_yaml" << 'EOF'
+workflows:
+  quick:
+    description: "Quick"
+  thorough:
+    description: "Thorough"
+EOF
+    
+    result="$(_simple_yaml_get_keys "$workflows_yaml" ".workflows" | tr '\n' ' ' | sed 's/ $//')"
+    [ "$result" = "quick thorough" ]
+}
+
+@test "yaml_get_keys with hyphenated keys" {
+    local workflows_yaml="${BATS_TEST_TMPDIR}/keys-hyphen.yaml"
+    cat > "$workflows_yaml" << 'EOF'
+workflows:
+  ci-fix:
+    description: "CI Fix"
+  test-workflow:
+    description: "Test"
+EOF
+    
+    result="$(yaml_get_keys "$workflows_yaml" ".workflows" | tr '\n' ' ' | sed 's/ $//')"
+    [ "$result" = "ci-fix test-workflow" ]
+}
