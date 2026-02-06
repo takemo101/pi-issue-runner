@@ -154,8 +154,9 @@ scripts/run-batch.sh 42 43 --continue-on-error
 scripts/run.sh 42
 
 # ワークフローを指定して起動（-w は --workflow の短縮形）
+# .pi-runner.yaml に workflows セクションがある場合、-w 省略で auto（AI自動選択）
 scripts/run.sh 42 -w simple            # 簡易ワークフロー（実装・マージのみ）
-scripts/run.sh 42 --workflow default   # 完全ワークフロー（デフォルト）
+scripts/run.sh 42 --workflow default   # 完全ワークフロー
 scripts/run.sh 42 -w auto             # AIがIssue内容から最適なワークフローを自動選択
 
 # 利用可能なワークフロー一覧を表示
