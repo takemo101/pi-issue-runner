@@ -48,6 +48,11 @@ setup_improve_environment() {
     load_config
     check_improve_dependencies || exit 1
 
+    # If log_dir is empty, get from config
+    if [[ -z "$log_dir" ]]; then
+        log_dir="$(get_config improve_logs_dir)"
+    fi
+
     # Max iterations check
     validate_improve_iteration "$iteration" "$max_iterations"
 

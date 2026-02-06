@@ -146,6 +146,28 @@ teardown() {
 }
 
 # ====================
+# Configuration Integration Tests
+# ====================
+
+@test "improve.sh respects improve_logs_dir config" {
+    # Create a test project directory
+    local test_project="$BATS_TEST_TMPDIR/test-project"
+    mkdir -p "$test_project"
+    cd "$test_project"
+    
+    # Create a test config with custom log directory
+    cat > "$test_project/.pi-runner.yaml" << 'EOF'
+improve_logs:
+  dir: custom-improve-logs
+EOF
+    
+    # Verify config can be parsed (basic smoke test)
+    run bash -c "source '$PROJECT_ROOT/lib/config.sh' && load_config '$test_project/.pi-runner.yaml' && get_config improve_logs_dir"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "custom-improve-logs" ]]
+}
+
+# ====================
 # Note: Implementation details have been moved to lib/improve.sh
 # and are tested in test/lib/improve.bats
 # ====================

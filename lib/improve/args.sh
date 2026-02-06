@@ -73,7 +73,7 @@ parse_improve_arguments() {
     local max_issues=$_IMPROVE_DEFAULT_MAX_ISSUES
     local timeout=$_IMPROVE_DEFAULT_TIMEOUT
     local iteration=1
-    local log_dir=".improve-logs"
+    local log_dir=""
     local session_label=""
     local dry_run=false
     local review_only=false
