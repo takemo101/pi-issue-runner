@@ -62,6 +62,125 @@ Description:
 EOF
 }
 
+# Parse command line arguments for watch-session
+parse_watch_arguments() {
+    local -n _session_name_ref=$1
+    local -n _marker_ref=$2
+    local -n _interval_ref=$3
+    local -n _cleanup_args_ref=$4
+    local -n _auto_attach_ref=$5
+    shift 5
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --marker)
+                _marker_ref="$2"
+                shift 2
+                ;;
+            --interval)
+                _interval_ref="$2"
+                shift 2
+                ;;
+            --cleanup-args)
+                _cleanup_args_ref="$2"
+                shift 2
+                ;;
+            --no-auto-attach)
+                _auto_attach_ref=false
+                shift
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            -*)
+                log_error "Unknown option: $1"
+                usage >&2
+                exit 1
+                ;;
+            *)
+                if [[ -z "$_session_name_ref" ]]; then
+                    _session_name_ref="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+}
+
+# Setup watch environment and validate session
+setup_watch_environment() {
+    local session_name="$1"
+    local marker_var=$2
+    local -n marker_ref=$marker_var
+    local error_marker_var=$3
+    local -n error_marker_ref=$error_marker_var
+    local issue_number_var=$4
+    local -n issue_number_ref=$issue_number_var
+    
+    if [[ -z "$session_name" ]]; then
+        log_error "Session name is required"
+        usage >&2
+        exit 1
+    fi
+
+    # セッション存在確認
+    if ! session_exists "$session_name"; then
+        log_error "Session not found: $session_name"
+        exit 1
+    fi
+
+    # Issue番号を抽出してマーカーを生成
+    issue_number_ref=$(extract_issue_number "$session_name")
+    
+    if [[ -z "$issue_number_ref" ]]; then
+        log_error "Could not extract issue number from session name: $session_name"
+        exit 1
+    fi
+    
+    if [[ -z "$marker_ref" ]]; then
+        marker_ref="###TASK_COMPLETE_${issue_number_ref}###"
+    fi
+    
+    # エラーマーカーを生成
+    # shellcheck disable=SC2034  # Used via nameref
+    error_marker_ref="###TASK_ERROR_${issue_number_ref}###"
+}
+
+# Check PR merge status
+check_pr_merge_status() {
+    local branch_name="$1"
+    local issue_number="$2"
+    
+    local pr_number
+    local pr_state
+    pr_number=$(gh pr list --state all --head "$branch_name" --json number -q '.[0].number' 2>/dev/null) || pr_number=""
+    
+    if [[ -n "$pr_number" ]]; then
+        pr_state=$(gh pr view "$pr_number" --json state -q '.state' 2>/dev/null) || pr_state=""
+        
+        if [[ "$pr_state" == "MERGED" ]]; then
+            log_info "PR #$pr_number is MERGED - workflow completed successfully"
+            return 0
+        elif [[ "$pr_state" == "OPEN" ]]; then
+            log_warn "PR #$pr_number exists but is not merged yet"
+            log_warn "Completion marker detected but PR is still open - waiting for merge..."
+            log_warn "This may indicate the AI output the marker too early"
+            send_notification "Warning" "PR #$pr_number is not merged yet for Issue #$issue_number"
+            return 1
+        else
+            log_info "PR #$pr_number state: $pr_state"
+            return 0
+        fi
+    else
+        log_warn "No PR found for Issue #$issue_number"
+        log_warn "Completion marker detected but no PR was created - workflow may not have completed correctly"
+        log_warn "Skipping cleanup. Please check the session manually."
+        send_notification "Warning" "No PR created for Issue #$issue_number - check session"
+        return 1
+    fi
+}
+
 # コードブロック外のマーカー数をカウント
 # コードブロック内（前後1行に```がある）のマーカーは除外
 # Usage: count_markers_outside_codeblock <output> <marker>
@@ -177,32 +296,7 @@ handle_complete() {
     run_hook "on_success" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "" "0" "" 2>/dev/null || true
     
     # PRがマージされているか確認
-    # PRがマージされていない場合は、まだワークフローが完了していない可能性がある
-    local pr_number
-    local pr_state
-    pr_number=$(gh pr list --state all --head "$branch_name" --json number -q '.[0].number' 2>/dev/null) || pr_number=""
-    
-    if [[ -n "$pr_number" ]]; then
-        pr_state=$(gh pr view "$pr_number" --json state -q '.state' 2>/dev/null) || pr_state=""
-        
-        if [[ "$pr_state" == "MERGED" ]]; then
-            log_info "PR #$pr_number is MERGED - workflow completed successfully"
-        elif [[ "$pr_state" == "OPEN" ]]; then
-            log_warn "PR #$pr_number exists but is not merged yet"
-            log_warn "Completion marker detected but PR is still open - waiting for merge..."
-            log_warn "This may indicate the AI output the marker too early"
-            # PRがまだマージされていない場合は、クリーンアップをスキップ
-            # ユーザーに通知して手動対応を促す
-            send_notification "Warning" "PR #$pr_number is not merged yet for Issue #$issue_number"
-            return 1
-        else
-            log_info "PR #$pr_number state: $pr_state"
-        fi
-    else
-        log_warn "No PR found for Issue #$issue_number"
-        log_warn "Completion marker detected but no PR was created - workflow may not have completed correctly"
-        log_warn "Skipping cleanup. Please check the session manually."
-        send_notification "Warning" "No PR created for Issue #$issue_number - check session"
+    if ! check_pr_merge_status "$branch_name" "$issue_number"; then
         return 1
     fi
     
@@ -287,69 +381,12 @@ main() {
     local cleanup_args=""
     local auto_attach=true
 
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --marker)
-                marker="$2"
-                shift 2
-                ;;
-            --interval)
-                interval="$2"
-                shift 2
-                ;;
-            --cleanup-args)
-                cleanup_args="$2"
-                shift 2
-                ;;
-            --no-auto-attach)
-                auto_attach=false
-                shift
-                ;;
-            -h|--help)
-                usage
-                exit 0
-                ;;
-            -*)
-                log_error "Unknown option: $1"
-                usage >&2
-                exit 1
-                ;;
-            *)
-                if [[ -z "$session_name" ]]; then
-                    session_name="$1"
-                fi
-                shift
-                ;;
-        esac
-    done
+    # Parse command line arguments
+    parse_watch_arguments session_name marker interval cleanup_args auto_attach "$@"
 
-    if [[ -z "$session_name" ]]; then
-        log_error "Session name is required"
-        usage >&2
-        exit 1
-    fi
-
-    # セッション存在確認
-    if ! session_exists "$session_name"; then
-        log_error "Session not found: $session_name"
-        exit 1
-    fi
-
-    # Issue番号を抽出してマーカーを生成
-    local issue_number
-    issue_number=$(extract_issue_number "$session_name")
-    
-    if [[ -z "$issue_number" ]]; then
-        log_error "Could not extract issue number from session name: $session_name"
-        exit 1
-    fi
-    
-    if [[ -z "$marker" ]]; then
-        marker="###TASK_COMPLETE_${issue_number}###"
-    fi
-    
-    # エラーマーカーを生成
-    local error_marker="###TASK_ERROR_${issue_number}###"
+    # Setup environment and validate
+    local issue_number error_marker
+    setup_watch_environment "$session_name" marker error_marker issue_number
 
     log_info "Watching session: $session_name"
     log_info "Completion marker: $marker"

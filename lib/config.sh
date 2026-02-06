@@ -140,149 +140,59 @@ require_config_file() {
     return 0
 }
 
+# Configuration mapping table for simple key-value pairs
+_CONFIG_SIMPLE_MAPPINGS=(
+    ".worktree.base_dir:CONFIG_WORKTREE_BASE_DIR"
+    ".multiplexer.type:CONFIG_MULTIPLEXER_TYPE"
+    ".multiplexer.session_prefix:CONFIG_MULTIPLEXER_SESSION_PREFIX"
+    ".multiplexer.start_in_session:CONFIG_MULTIPLEXER_START_IN_SESSION"
+    ".pi.command:CONFIG_PI_COMMAND"
+    ".parallel.max_concurrent:CONFIG_PARALLEL_MAX_CONCURRENT"
+    ".plans.keep_recent:CONFIG_PLANS_KEEP_RECENT"
+    ".plans.dir:CONFIG_PLANS_DIR"
+    ".github.include_comments:CONFIG_GITHUB_INCLUDE_COMMENTS"
+    ".github.max_comments:CONFIG_GITHUB_MAX_COMMENTS"
+    ".agent.type:CONFIG_AGENT_TYPE"
+    ".agent.command:CONFIG_AGENT_COMMAND"
+    ".agent.template:CONFIG_AGENT_TEMPLATE"
+    ".agents.plan:CONFIG_AGENTS_PLAN"
+    ".agents.implement:CONFIG_AGENTS_IMPLEMENT"
+    ".agents.review:CONFIG_AGENTS_REVIEW"
+    ".agents.merge:CONFIG_AGENTS_MERGE"
+    ".agents.test:CONFIG_AGENTS_TEST"
+    ".agents.ci-fix:CONFIG_AGENTS_CI_FIX"
+    ".improve_logs.keep_recent:CONFIG_IMPROVE_LOGS_KEEP_RECENT"
+    ".improve_logs.keep_days:CONFIG_IMPROVE_LOGS_KEEP_DAYS"
+    ".improve_logs.dir:CONFIG_IMPROVE_LOGS_DIR"
+    ".hooks.on_start:CONFIG_HOOKS_ON_START"
+    ".hooks.on_success:CONFIG_HOOKS_ON_SUCCESS"
+    ".hooks.on_error:CONFIG_HOOKS_ON_ERROR"
+    ".hooks.on_cleanup:CONFIG_HOOKS_ON_CLEANUP"
+)
+
+# Parse simple key-value configurations using mapping table
+_parse_simple_configs() {
+    local config_file="$1"
+    local yaml_key var_name value
+    
+    for mapping in "${_CONFIG_SIMPLE_MAPPINGS[@]}"; do
+        yaml_key="${mapping%%:*}"
+        var_name="${mapping##*:}"
+        value="$(yaml_get "$config_file" "$yaml_key" "")"
+        if [[ -n "$value" ]]; then
+            eval "$var_name=\"\$value\""
+        fi
+    done
+}
+
 # 設定ファイルをパース（yaml.shを使用）
 _parse_config_file() {
     local config_file="$1"
     
-    # 単一値の取得
-    local value
+    # Parse all simple key-value configs using mapping table
+    _parse_simple_configs "$config_file"
     
-    value="$(yaml_get "$config_file" ".worktree.base_dir" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_WORKTREE_BASE_DIR="$value"
-    fi
-    
-    # multiplexer設定
-    value="$(yaml_get "$config_file" ".multiplexer.type" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_MULTIPLEXER_TYPE="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".multiplexer.session_prefix" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_MULTIPLEXER_SESSION_PREFIX="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".multiplexer.start_in_session" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_MULTIPLEXER_START_IN_SESSION="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".pi.command" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_PI_COMMAND="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".parallel.max_concurrent" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_PARALLEL_MAX_CONCURRENT="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".plans.keep_recent" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_PLANS_KEEP_RECENT="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".plans.dir" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_PLANS_DIR="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".github.include_comments" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_GITHUB_INCLUDE_COMMENTS="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".github.max_comments" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_GITHUB_MAX_COMMENTS="$value"
-    fi
-    
-    # agent セクションのパース
-    value="$(yaml_get "$config_file" ".agent.type" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_AGENT_TYPE="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".agent.command" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_AGENT_COMMAND="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".agent.template" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_AGENT_TEMPLATE="$value"
-    fi
-    
-    # agents セクションのパース（エージェントテンプレートファイルパス）
-    value="$(yaml_get "$config_file" ".agents.plan" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_AGENTS_PLAN="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".agents.implement" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_AGENTS_IMPLEMENT="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".agents.review" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_AGENTS_REVIEW="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".agents.merge" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_AGENTS_MERGE="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".agents.test" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_AGENTS_TEST="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".agents.ci-fix" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_AGENTS_CI_FIX="$value"
-    fi
-    
-    # improve_logs セクションのパース
-    value="$(yaml_get "$config_file" ".improve_logs.keep_recent" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_IMPROVE_LOGS_KEEP_RECENT="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".improve_logs.keep_days" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_IMPROVE_LOGS_KEEP_DAYS="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".improve_logs.dir" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_IMPROVE_LOGS_DIR="$value"
-    fi
-    
-    # hooks セクションのパース
-    value="$(yaml_get "$config_file" ".hooks.on_start" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_HOOKS_ON_START="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".hooks.on_success" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_HOOKS_ON_SUCCESS="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".hooks.on_error" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_HOOKS_ON_ERROR="$value"
-    fi
-    
-    value="$(yaml_get "$config_file" ".hooks.on_cleanup" "")"
-    if [[ -n "$value" ]]; then
-        CONFIG_HOOKS_ON_CLEANUP="$value"
-    fi
-    
-    # 配列値の取得
+    # Parse array configs separately (different logic)
     _parse_array_configs "$config_file"
 }
 

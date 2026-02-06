@@ -100,61 +100,63 @@ Examples:
 EOF
 }
 
-main() {
-    local target=""
-    local force=false
-    local delete_branch=false
-    local keep_session=false
-    local keep_worktree=false
-    local orphans=false
-    local orphan_worktrees=false
-    local delete_plans=false
-    local rotate_plans=false
-    local improve_logs=false
-    local all_cleanup=false
-    local age_days=""
-    local dry_run=false
-
+# Parse command line arguments
+parse_cleanup_arguments() {
+    local -n _target_ref=$1
+    local -n _force_ref=$2
+    local -n _delete_branch_ref=$3
+    local -n _keep_session_ref=$4
+    local -n _keep_worktree_ref=$5
+    local -n _orphans_ref=$6
+    local -n _orphan_worktrees_ref=$7
+    local -n _delete_plans_ref=$8
+    local -n _rotate_plans_ref=$9
+    local -n _improve_logs_ref=${10}
+    local -n _all_cleanup_ref=${11}
+    local -n _age_days_ref=${12}
+    local -n _dry_run_ref=${13}
+    shift 13
+    
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --force|-f)
-                force=true
+                _force_ref=true
                 shift
                 ;;
             --delete-branch)
-                delete_branch=true
+                _delete_branch_ref=true
                 shift
                 ;;
             --keep-session)
-                keep_session=true
+                _keep_session_ref=true
                 shift
                 ;;
             --keep-worktree)
-                keep_worktree=true
+                _keep_worktree_ref=true
                 shift
                 ;;
             --orphans)
-                orphans=true
+                _orphans_ref=true
                 shift
                 ;;
             --orphan-worktrees)
-                orphan_worktrees=true
+                _orphan_worktrees_ref=true
                 shift
                 ;;
             --delete-plans)
-                delete_plans=true
+                _delete_plans_ref=true
                 shift
                 ;;
             --rotate-plans)
-                rotate_plans=true
+                _rotate_plans_ref=true
                 shift
                 ;;
             --improve-logs)
-                improve_logs=true
+                _improve_logs_ref=true
                 shift
                 ;;
             --all)
-                all_cleanup=true
+                _all_cleanup_ref=true
                 shift
                 ;;
             --age)
@@ -163,11 +165,11 @@ main() {
                     usage >&2
                     exit 1
                 fi
-                age_days="$2"
+                _age_days_ref="$2"
                 shift 2
                 ;;
             --dry-run)
-                dry_run=true
+                _dry_run_ref=true
                 shift
                 ;;
             -h|--help)
@@ -180,67 +182,41 @@ main() {
                 exit 1
                 ;;
             *)
-                target="$1"
+                _target_ref="$1"
                 shift
                 ;;
         esac
     done
+}
 
-    load_config
+# Execute all cleanup operations
+execute_all_cleanup() {
+    local dry_run="$1"
+    local age_days="$2"
+    local force="$3"
+    
+    log_info "=== Full Cleanup ==="
+    log_info "Cleaning up orphaned status files..."
+    cleanup_orphaned_statuses "$dry_run" "$age_days"
+    log_info ""
+    log_info "Cleaning up orphaned worktrees with 'complete' status..."
+    cleanup_complete_with_worktrees "$dry_run" "$force"
+    log_info ""
+    log_info "Rotating old plans (keeping recent)..."
+    cleanup_old_plans "$dry_run"
+    log_info ""
+    log_info "Cleaning up improve-logs..."
+    cleanup_improve_logs "$dry_run" "$age_days"
+}
 
-    # --all モード: 全てのクリーンアップを実行
-    if [[ "$all_cleanup" == "true" ]]; then
-        log_info "=== Full Cleanup ==="
-        log_info "Cleaning up orphaned status files..."
-        cleanup_orphaned_statuses "$dry_run" "$age_days"
-        log_info ""
-        log_info "Cleaning up orphaned worktrees with 'complete' status..."
-        cleanup_complete_with_worktrees "$dry_run" "$force"
-        log_info ""
-        log_info "Rotating old plans (keeping recent)..."
-        cleanup_old_plans "$dry_run"
-        log_info ""
-        log_info "Cleaning up improve-logs..."
-        cleanup_improve_logs "$dry_run" "$age_days"
-        exit 0
-    fi
-
-    # --orphans モード: 孤立したステータスファイルのクリーンアップ
-    if [[ "$orphans" == "true" ]]; then
-        cleanup_orphaned_statuses "$dry_run" "$age_days"
-        exit 0
-    fi
-
-    # --orphan-worktrees モード: complete状態だがworktreeが残存しているケースをクリーンアップ
-    if [[ "$orphan_worktrees" == "true" ]]; then
-        cleanup_complete_with_worktrees "$dry_run" "$force"
-        exit 0
-    fi
-
-    # --delete-plans モード: クローズ済みIssueの計画書のクリーンアップ
-    if [[ "$delete_plans" == "true" ]]; then
-        cleanup_closed_issue_plans "$dry_run"
-        exit 0
-    fi
-
-    # --rotate-plans モード: 古い計画書のクリーンアップ（直近N件を保持）
-    if [[ "$rotate_plans" == "true" ]]; then
-        cleanup_old_plans "$dry_run"
-        exit 0
-    fi
-
-    # --improve-logs モード: improve-logsディレクトリのクリーンアップ
-    if [[ "$improve_logs" == "true" ]]; then
-        cleanup_improve_logs "$dry_run" "$age_days"
-        exit 0
-    fi
-
-    if [[ -z "$target" ]]; then
-        log_error "Session name or issue number is required"
-        usage >&2
-        exit 1
-    fi
-
+# Execute single issue cleanup
+execute_single_cleanup() {
+    local target="$1"
+    local force="$2"
+    local delete_branch="$3"
+    local keep_session="$4"
+    local keep_worktree="$5"
+    
     # Issue番号かセッション名か判定
     local session_name
     local issue_number
@@ -336,6 +312,71 @@ main() {
     fi
     
     log_info "Cleanup completed successfully for Issue #$issue_number"
+}
+
+main() {
+    local target=""
+    local force=false
+    local delete_branch=false
+    local keep_session=false
+    local keep_worktree=false
+    local orphans=false
+    local orphan_worktrees=false
+    local delete_plans=false
+    local rotate_plans=false
+    local improve_logs=false
+    local all_cleanup=false
+    local age_days=""
+    local dry_run=false
+
+    # Parse command line arguments
+    parse_cleanup_arguments \
+        target force delete_branch keep_session keep_worktree \
+        orphans orphan_worktrees delete_plans rotate_plans improve_logs \
+        all_cleanup age_days dry_run \
+        "$@"
+
+    load_config
+
+    # Execute appropriate cleanup mode
+    if [[ "$all_cleanup" == "true" ]]; then
+        execute_all_cleanup "$dry_run" "$age_days" "$force"
+        exit 0
+    fi
+
+    if [[ "$orphans" == "true" ]]; then
+        cleanup_orphaned_statuses "$dry_run" "$age_days"
+        exit 0
+    fi
+
+    if [[ "$orphan_worktrees" == "true" ]]; then
+        cleanup_complete_with_worktrees "$dry_run" "$force"
+        exit 0
+    fi
+
+    if [[ "$delete_plans" == "true" ]]; then
+        cleanup_closed_issue_plans "$dry_run"
+        exit 0
+    fi
+
+    if [[ "$rotate_plans" == "true" ]]; then
+        cleanup_old_plans "$dry_run"
+        exit 0
+    fi
+
+    if [[ "$improve_logs" == "true" ]]; then
+        cleanup_improve_logs "$dry_run" "$age_days"
+        exit 0
+    fi
+
+    # Single issue cleanup mode
+    if [[ -z "$target" ]]; then
+        log_error "Session name or issue number is required"
+        usage >&2
+        exit 1
+    fi
+
+    execute_single_cleanup "$target" "$force" "$delete_branch" "$keep_session" "$keep_worktree"
 }
 
 main "$@"
