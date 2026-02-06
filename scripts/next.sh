@@ -133,7 +133,7 @@ parse_next_arguments() {
         local exit_code="${6:-0}"
 
         echo "local count=$count"
-        echo "local label_filter='${label_filter//\x27/\x27\\\x27\x27}'"
+        echo "local label_filter='${label_filter//\'/\'\\\'\'}'"
         echo "local json_output=$json_output"
         echo "local dry_run=$dry_run"
         echo "local verbose=$verbose"
