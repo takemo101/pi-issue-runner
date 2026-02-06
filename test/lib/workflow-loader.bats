@@ -12,7 +12,15 @@ setup() {
     # yqキャッシュをリセット
     _YQ_CHECK_RESULT=""
     
+    # 設定キャッシュをリセット（並列実行時の汚染を防ぐ）
+    _CONFIG_LOADED=""
+    _CONFIG_FILE_FOUND=""
+    unset CONFIG_FILE
+    
     source "$PROJECT_ROOT/lib/workflow-loader.sh"
+    
+    # YAMLファイルキャッシュもリセット
+    reset_yaml_cache
     
     # テスト用ディレクトリ構造を作成
     export TEST_DIR="$BATS_TEST_TMPDIR/loader_test"
@@ -642,11 +650,16 @@ EOF
 # ====================
 
 @test "get_all_workflows_info returns all workflows from .pi-runner.yaml" {
-    # キャッシュをリセット
+    # 設定・キャッシュをリセット
+    _CONFIG_LOADED=""
+    _CONFIG_FILE_FOUND=""
     reset_yaml_cache
     _YQ_CHECK_RESULT=""
     
-    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+    # テストディレクトリに移動してから設定ファイルを作成
+    cd "$TEST_DIR"
+    
+    cat > ".pi-runner.yaml" << 'YAML_EOF'
 workflows:
   quick:
     description: 小規模修正
@@ -679,11 +692,16 @@ YAML_EOF
 }
 
 @test "get_all_workflows_info includes context field" {
-    # キャッシュをリセット
+    # 設定・キャッシュをリセット
+    _CONFIG_LOADED=""
+    _CONFIG_FILE_FOUND=""
     reset_yaml_cache
     _YQ_CHECK_RESULT=""
     
-    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+    # テストディレクトリに移動してから設定ファイルを作成
+    cd "$TEST_DIR"
+    
+    cat > ".pi-runner.yaml" << 'YAML_EOF'
 workflows:
   frontend:
     description: フロントエンド実装
@@ -721,11 +739,16 @@ YAML_EOF
 }
 
 @test "get_all_workflows_info returns tab-separated format" {
-    # キャッシュをリセット
+    # 設定・キャッシュをリセット
+    _CONFIG_LOADED=""
+    _CONFIG_FILE_FOUND=""
     reset_yaml_cache
     _YQ_CHECK_RESULT=""
     
-    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+    # テストディレクトリに移動してから設定ファイルを作成
+    cd "$TEST_DIR"
+    
+    cat > ".pi-runner.yaml" << 'YAML_EOF'
 workflows:
   test:
     description: テストワークフロー
@@ -742,7 +765,16 @@ YAML_EOF
 }
 
 @test "get_all_workflows_info diagnostic - file exists" {
-    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+    # 設定・キャッシュをリセット
+    _CONFIG_LOADED=""
+    _CONFIG_FILE_FOUND=""
+    reset_yaml_cache
+    _YQ_CHECK_RESULT=""
+    
+    # テストディレクトリに移動してから設定ファイルを作成
+    cd "$TEST_DIR"
+    
+    cat > ".pi-runner.yaml" << 'YAML_EOF'
 workflows:
   quick:
     description: 小規模修正
@@ -757,7 +789,16 @@ YAML_EOF
 }
 
 @test "get_all_workflows_info diagnostic - yaml_exists works" {
-    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+    # 設定・キャッシュをリセット
+    _CONFIG_LOADED=""
+    _CONFIG_FILE_FOUND=""
+    reset_yaml_cache
+    _YQ_CHECK_RESULT=""
+    
+    # テストディレクトリに移動してから設定ファイルを作成
+    cd "$TEST_DIR"
+    
+    cat > ".pi-runner.yaml" << 'YAML_EOF'
 workflows:
   quick:
     description: 小規模修正
@@ -772,11 +813,16 @@ YAML_EOF
 }
 
 @test "get_all_workflows_info diagnostic - yaml_get_keys returns values" {
-    # YAMLキャッシュを明示的にリセット
+    # 設定・キャッシュをリセット
+    _CONFIG_LOADED=""
+    _CONFIG_FILE_FOUND=""
     reset_yaml_cache
     _YQ_CHECK_RESULT=""
     
-    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+    # テストディレクトリに移動してから設定ファイルを作成
+    cd "$TEST_DIR"
+    
+    cat > ".pi-runner.yaml" << 'YAML_EOF'
 workflows:
   quick:
     description: 小規模修正
@@ -792,7 +838,16 @@ YAML_EOF
 }
 
 @test "get_all_workflows_info diagnostic - simple parser works" {
-    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+    # 設定・キャッシュをリセット
+    _CONFIG_LOADED=""
+    _CONFIG_FILE_FOUND=""
+    reset_yaml_cache
+    _YQ_CHECK_RESULT=""
+    
+    # テストディレクトリに移動してから設定ファイルを作成
+    cd "$TEST_DIR"
+    
+    cat > ".pi-runner.yaml" << 'YAML_EOF'
 workflows:
   quick:
     description: 小規模修正
