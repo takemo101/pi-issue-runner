@@ -237,6 +237,18 @@ main() {
 
     ALL_ISSUES=("${PARSE_ISSUES[@]}")
 
+    # バッチ処理用の設定構造体を作成
+    declare -A batch_config=(
+        [quiet]="${QUIET}"
+        [sequential]="${SEQUENTIAL}"
+        [continue_on_error]="${CONTINUE_ON_ERROR}"
+        [timeout]="${TIMEOUT}"
+        [interval]="${INTERVAL}"
+        [workflow_name]="${WORKFLOW_NAME}"
+        [base_branch]="${BASE_BRANCH}"
+        [script_dir]="${SCRIPT_DIR}"
+    )
+
     if [[ "$QUIET" != "true" ]]; then
         log_info "Analyzing dependencies for ${#PARSE_ISSUES[@]} issues..."
     fi
@@ -261,7 +273,7 @@ main() {
         exit 0
     fi
 
-    # 実行計画を表示（lib/batch.sh の関数を使用）
+    # 実行計画を表示（dependency.sh の関数を使用）
     show_execution_plan "${PARSE_ISSUES[@]}"
 
     # 最大レイヤー番号を取得
@@ -273,7 +285,7 @@ main() {
 
     while [[ $current_layer -le $max_layer ]]; do
         local result
-        process_layer "$current_layer" "$layers_output"
+        process_layer FAILED_ISSUES COMPLETED_ISSUES batch_config "$current_layer" "$layers_output"
         result=$?
 
         if [[ $result -eq 1 ]]; then
@@ -288,7 +300,7 @@ main() {
     done
 
     # 結果サマリー（lib/batch.sh の関数を使用）
-    show_summary_and_exit
+    show_summary_and_exit ALL_ISSUES FAILED_ISSUES
 }
 
 main "$@"

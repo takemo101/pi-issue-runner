@@ -166,7 +166,7 @@ check_pr_merge_status() {
             log_warn "PR #$pr_number exists but is not merged yet"
             log_warn "Completion marker detected but PR is still open - waiting for merge..."
             log_warn "This may indicate the AI output the marker too early"
-            send_notification "Warning" "PR #$pr_number is not merged yet for Issue #$issue_number"
+            log_warn "PR #$pr_number is not merged yet for Issue #$issue_number"
             return 1
         else
             log_info "PR #$pr_number state: $pr_state"
@@ -176,7 +176,7 @@ check_pr_merge_status() {
         log_warn "No PR found for Issue #$issue_number"
         log_warn "Completion marker detected but no PR was created - workflow may not have completed correctly"
         log_warn "Skipping cleanup. Please check the session manually."
-        send_notification "Warning" "No PR created for Issue #$issue_number - check session"
+        log_warn "No PR created for Issue #$issue_number - check session"
         return 1
     fi
 }
@@ -291,6 +291,24 @@ handle_complete() {
     
     # ステータスを保存
     save_status "$issue_number" "complete" "$session_name" "" 2>/dev/null || true
+    
+    # 計画書を削除（ホスト環境で実行するため確実に反映される）
+    local plans_dir
+    plans_dir="$(get_config plans_dir)"
+    local plan_file="${plans_dir}/issue-${issue_number}-plan.md"
+    if [[ -f "$plan_file" ]]; then
+        log_info "Deleting plan file: $plan_file"
+        rm -f "$plan_file"
+        
+        # git でコミット（失敗しても継続）
+        if git rev-parse --git-dir &>/dev/null; then
+            git add "$plan_file" 2>/dev/null || true
+            git commit -m "chore: remove plan for issue #${issue_number}" 2>/dev/null || true
+            # NOTE: Do NOT auto-push - let the PR workflow handle that
+        fi
+    else
+        log_debug "No plan file found at: $plan_file"
+    fi
     
     # on_success hookを実行（hook未設定時はデフォルト動作）
     run_hook "on_success" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "" "0" "" 2>/dev/null || true

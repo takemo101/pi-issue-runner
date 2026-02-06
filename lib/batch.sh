@@ -2,12 +2,28 @@
 # batch.sh - バッチ処理のコア機能
 #
 # このライブラリは scripts/run-batch.sh から分割された機能を提供します。
-# グローバル変数への依存:
-#   - QUIET, SEQUENTIAL, CONTINUE_ON_ERROR - 動作モード制御
-#   - TIMEOUT, INTERVAL - タイムアウト設定
-#   - WORKFLOW_NAME, BASE_BRANCH - 実行設定
-#   - FAILED_ISSUES, COMPLETED_ISSUES - 結果追跡（配列）
-#   - SCRIPT_DIR - run.sh のパス解決用
+#
+# アーキテクチャ:
+#   - グローバル変数に依存せず、全て関数引数で設定を受け取ります
+#   - 可変状態（配列）は nameref で明示的に渡します
+#   - 設定は連想配列として構造化されています
+#
+# 使用例:
+#   declare -A config=(
+#       [quiet]=false
+#       [sequential]=false
+#       [continue_on_error]=false
+#       [timeout]=3600
+#       [interval]=5
+#       [workflow_name]="default"
+#       [base_branch]="HEAD"
+#       [script_dir]="/path/to/scripts"
+#   )
+#   declare -a failed_issues=()
+#   declare -a completed_issues=()
+#   
+#   execute_issue config 42
+#   process_layer failed_issues completed_issues config 0 "$layers_output"
 
 set -euo pipefail
 
@@ -17,57 +33,85 @@ source "$_BATCH_LIB_DIR/status.sh"
 source "$_BATCH_LIB_DIR/dependency.sh"
 
 # Issueを実行（同期的）
-# 引数: issue_number
+# 引数:
+#   $1: config への参照（連想配列）
+#   $2: issue_number
 # 戻り値: 0=成功, 1=失敗
 execute_issue() {
-    local issue_number="$1"
+    local -n _config_ref="$1"
+    local issue_number="$2"
 
-    if [[ "${QUIET:-false}" != "true" ]]; then
+    local quiet="${_config_ref[quiet]}"
+    local script_dir="${_config_ref[script_dir]}"
+    local workflow_name="${_config_ref[workflow_name]}"
+    local base_branch="${_config_ref[base_branch]}"
+
+    if [[ "$quiet" != "true" ]]; then
         log_info "Starting pi-issue-$issue_number..."
     fi
 
     local run_script
-    run_script="${SCRIPT_DIR}/run.sh"
+    run_script="${script_dir}/run.sh"
 
-    if [[ "${QUIET:-false}" != "true" ]]; then
+    if [[ "$quiet" != "true" ]]; then
         "$run_script" "$issue_number" \
-            --workflow "$WORKFLOW_NAME" \
-            --base "$BASE_BRANCH" \
+            --workflow "$workflow_name" \
+            --base "$base_branch" \
             --no-attach \
             --ignore-blockers
     else
         "$run_script" "$issue_number" \
-            --workflow "$WORKFLOW_NAME" \
-            --base "$BASE_BRANCH" \
+            --workflow "$workflow_name" \
+            --base "$base_branch" \
             --no-attach \
             --ignore-blockers > /dev/null 2>&1
     fi
 }
 
 # Issueを実行（非同期）
-# 引数: issue_number
+# 引数:
+#   $1: config への参照（連想配列）
+#   $2: issue_number
 execute_issue_async() {
-    local issue_number="$1"
+    local -n _config_ref="$1"
+    local issue_number="$2"
+
+    local script_dir="${_config_ref[script_dir]}"
+    local workflow_name="${_config_ref[workflow_name]}"
+    local base_branch="${_config_ref[base_branch]}"
 
     local run_script
-    run_script="${SCRIPT_DIR}/run.sh"
+    run_script="${script_dir}/run.sh"
 
     # バックグラウンドで実行
     (
         "$run_script" "$issue_number" \
-            --workflow "$WORKFLOW_NAME" \
-            --base "$BASE_BRANCH" \
+            --workflow "$workflow_name" \
+            --base "$base_branch" \
             --no-attach \
             --ignore-blockers > /dev/null 2>&1
     ) &
 }
 
 # レイヤーの完了を待機
-# 引数: Issue番号の配列
-# グローバル変数を更新: FAILED_ISSUES, COMPLETED_ISSUES
+# 引数:
+#   $1: failed_issues への参照（配列）
+#   $2: completed_issues への参照（配列）
+#   $3: config への参照（連想配列）
+#   $4...: Issue番号の配列
 # 戻り値: 0=全成功, 1=一部失敗
 wait_for_layer_completion() {
+    # shellcheck disable=SC2178  # nameref to array is intentional
+    local -n _failed_issues_ref="$1"
+    # shellcheck disable=SC2178  # nameref to array is intentional
+    local -n _completed_issues_ref="$2"
+    local -n _config_ref="$3"
+    shift 3
     local -a issues=("$@")
+
+    local timeout="${_config_ref[timeout]}"
+    local interval="${_config_ref[interval]}"
+
     local start_time
     start_time=$(date +%s)
 
@@ -82,14 +126,14 @@ wait_for_layer_completion() {
             case "$status" in
                 complete)
                     # shellcheck disable=SC2076
-                    if [[ ! " ${COMPLETED_ISSUES[*]} " =~ " $issue " ]]; then
-                        COMPLETED_ISSUES+=("$issue")
+                    if [[ ! " ${_completed_issues_ref[*]} " =~ " $issue " ]]; then
+                        _completed_issues_ref+=("$issue")
                     fi
                     ;;
                 error)
                     # shellcheck disable=SC2076
-                    if [[ ! " ${FAILED_ISSUES[*]} " =~ " $issue " ]]; then
-                        FAILED_ISSUES+=("$issue")
+                    if [[ ! " ${_failed_issues_ref[*]} " =~ " $issue " ]]; then
+                        _failed_issues_ref+=("$issue")
                     fi
                     has_layer_error=true
                     ;;
@@ -111,31 +155,42 @@ wait_for_layer_completion() {
         current_time=$(date +%s)
         local elapsed=$((current_time - start_time))
 
-        if [[ $elapsed -ge ${TIMEOUT:-3600} ]]; then
+        if [[ $elapsed -ge $timeout ]]; then
             log_error "Timeout after ${elapsed}s"
             return 1
         fi
 
-        sleep "${INTERVAL:-5}"
+        sleep "$interval"
     done
 }
 
 # レイヤー内のIssueを順次実行
-# 引数: layer_issue_array（可変長）
-# グローバル変数を更新: FAILED_ISSUES, COMPLETED_ISSUES
+# 引数:
+#   $1: failed_issues への参照（配列）
+#   $2: completed_issues への参照（配列）
+#   $3: config への参照（連想配列）
+#   $4...: layer_issue_array（可変長）
 # 戻り値: 0=成功, 1=失敗
 execute_layer_sequential() {
+    # shellcheck disable=SC2178  # nameref to array is intentional
+    local -n _failed_issues_ref="$1"
+    # shellcheck disable=SC2178  # nameref to array is intentional
+    local -n _completed_issues_ref="$2"
+    local -n _config_ref="$3"
+    shift 3
     local -a layer_issue_array=("$@")
 
+    local continue_on_error="${_config_ref[continue_on_error]}"
+
     for issue in "${layer_issue_array[@]}"; do
-        if ! execute_issue "$issue"; then
-            FAILED_ISSUES+=("$issue")
-            if [[ "${CONTINUE_ON_ERROR:-false}" != "true" ]]; then
+        if ! execute_issue _config_ref "$issue"; then
+            _failed_issues_ref+=("$issue")
+            if [[ "$continue_on_error" != "true" ]]; then
                 log_error "Issue #$issue failed, aborting"
                 return 1
             fi
         else
-            COMPLETED_ISSUES+=("$issue")
+            _completed_issues_ref+=("$issue")
         fi
     done
 
@@ -143,27 +198,39 @@ execute_layer_sequential() {
 }
 
 # レイヤー内のIssueを並列実行
-# 引数: layer_issue_array（可変長）
-# グローバル変数を更新: FAILED_ISSUES, COMPLETED_ISSUES
+# 引数:
+#   $1: failed_issues への参照（配列）
+#   $2: completed_issues への参照（配列）
+#   $3: config への参照（連想配列）
+#   $4...: layer_issue_array（可変長）
 # 戻り値: 0=成功, 1=失敗
 execute_layer_parallel() {
+    # shellcheck disable=SC2178  # nameref to array is intentional
+    local -n _failed_issues_ref="$1"
+    # shellcheck disable=SC2178  # nameref to array is intentional
+    local -n _completed_issues_ref="$2"
+    local -n _config_ref="$3"
+    shift 3
     local -a layer_issue_array=("$@")
+
+    local quiet="${_config_ref[quiet]}"
+    local continue_on_error="${_config_ref[continue_on_error]}"
 
     # 並列実行
     for issue in "${layer_issue_array[@]}"; do
-        if [[ "${QUIET:-false}" != "true" ]]; then
+        if [[ "$quiet" != "true" ]]; then
             log_info "Starting pi-issue-$issue..."
         fi
-        execute_issue_async "$issue"
+        execute_issue_async _config_ref "$issue"
     done
 
     # 完了待機
-    if [[ "${QUIET:-false}" != "true" ]]; then
+    if [[ "$quiet" != "true" ]]; then
         log_info "Waiting for completion..."
     fi
 
-    if ! wait_for_layer_completion "${layer_issue_array[@]}"; then
-        if [[ "${CONTINUE_ON_ERROR:-false}" != "true" ]]; then
+    if ! wait_for_layer_completion _failed_issues_ref _completed_issues_ref _config_ref "${layer_issue_array[@]}"; then
+        if [[ "$continue_on_error" != "true" ]]; then
             log_error "Layer failed, aborting"
             return 1
         fi
@@ -173,11 +240,24 @@ execute_layer_parallel() {
 }
 
 # レイヤーを実行
-# 引数: current_layer, layers_output
+# 引数:
+#   $1: failed_issues への参照（配列）
+#   $2: completed_issues への参照（配列）
+#   $3: config への参照（連想配列）
+#   $4: current_layer
+#   $5: layers_output
 # 戻り値: 0=成功, 1=失敗, 2=スキップ（空レイヤー）
 process_layer() {
-    local current_layer="$1"
-    local layers_output="$2"
+    # shellcheck disable=SC2178  # nameref to array is intentional
+    local -n _failed_issues_ref="$1"
+    # shellcheck disable=SC2178  # nameref to array is intentional
+    local -n _completed_issues_ref="$2"
+    local -n _config_ref="$3"
+    local current_layer="$4"
+    local layers_output="$5"
+
+    local quiet="${_config_ref[quiet]}"
+    local sequential="${_config_ref[sequential]}"
 
     # 現在のレイヤーのIssueを取得
     local layer_issues
@@ -198,7 +278,7 @@ process_layer() {
     fi
 
     # レイヤー開始表示
-    if [[ "${QUIET:-false}" != "true" ]]; then
+    if [[ "$quiet" != "true" ]]; then
         local issue_list=""
         for issue in "${layer_issue_array[@]}"; do
             issue_list="$issue_list #$issue"
@@ -208,17 +288,17 @@ process_layer() {
     fi
 
     # 実行
-    if [[ "${SEQUENTIAL:-false}" == "true" ]] || [[ ${#layer_issue_array[@]} -eq 1 ]]; then
-        if ! execute_layer_sequential "${layer_issue_array[@]}"; then
+    if [[ "$sequential" == "true" ]] || [[ ${#layer_issue_array[@]} -eq 1 ]]; then
+        if ! execute_layer_sequential _failed_issues_ref _completed_issues_ref _config_ref "${layer_issue_array[@]}"; then
             return 1
         fi
     else
-        if ! execute_layer_parallel "${layer_issue_array[@]}"; then
+        if ! execute_layer_parallel _failed_issues_ref _completed_issues_ref _config_ref "${layer_issue_array[@]}"; then
             return 1
         fi
     fi
 
-    if [[ "${QUIET:-false}" != "true" ]]; then
+    if [[ "$quiet" != "true" ]]; then
         log_info "✓ Layer $current_layer completed"
     fi
 
@@ -226,20 +306,26 @@ process_layer() {
 }
 
 # 結果サマリーを表示して終了
-# グローバル変数を参照: ALL_ISSUES, FAILED_ISSUES
+# 引数:
+#   $1: all_issues への参照（配列）
+#   $2: failed_issues への参照（配列）
 # 戻り値: 0=全成功, 1=一部失敗（exitで終了）
 show_summary_and_exit() {
+    local -n _all_issues_ref="$1"
+    # shellcheck disable=SC2178  # nameref to array is intentional
+    local -n _failed_issues_ref="$2"
+
     echo ""
-    if [[ ${#FAILED_ISSUES[@]} -gt 0 ]]; then
-        log_error "${#FAILED_ISSUES[@]} issue(s) failed: ${FAILED_ISSUES[*]}"
+    if [[ ${#_failed_issues_ref[@]} -gt 0 ]]; then
+        log_error "${#_failed_issues_ref[@]} issue(s) failed: ${_failed_issues_ref[*]}"
         echo ""
         echo "Failed issues:"
-        for issue in "${FAILED_ISSUES[@]}"; do
+        for issue in "${_failed_issues_ref[@]}"; do
             echo "  - #$issue"
         done
         exit 1
     else
-        log_info "✅ All ${#ALL_ISSUES[@]} issues completed successfully"
+        log_info "✅ All ${#_all_issues_ref[@]} issues completed successfully"
         exit 0
     fi
 }
