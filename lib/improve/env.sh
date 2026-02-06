@@ -78,7 +78,7 @@ setup_improve_environment() {
     } >&2
 
     # Output variables (to stdout, for eval)
-    echo "local session_label='$session_label'"
-    echo "local log_file='$log_file'"
+    echo "local session_label='${session_label//\'/\'\\\'\'}'"
+    echo "local log_file='${log_file//\'/\'\\\'\'}'"
     echo "local start_time='$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"
 }

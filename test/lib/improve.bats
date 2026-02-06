@@ -250,6 +250,46 @@ teardown() {
     [[ "$output" == *"iteration=1"* ]]
 }
 
+@test "parse_improve_arguments escapes single quotes in log_dir" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --log-dir \"/tmp/user's-logs\""
+    [ "$status" -eq 0 ]
+    # The output should contain the escaped version
+    [[ "$output" == *"log_dir='/tmp/user'\\''s-logs'"* ]]
+}
+
+@test "parse_improve_arguments escapes single quotes in session_label" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && parse_improve_arguments --label \"test's-session\""
+    [ "$status" -eq 0 ]
+    # The output should contain the escaped version
+    [[ "$output" == *"session_label='test'\\''s-session'"* ]]
+}
+
+@test "parse_improve_arguments output can be safely eval'd with single quotes in log_dir" {
+    run bash -c "
+        source '$PROJECT_ROOT/lib/improve.sh'
+        test_fn() {
+            eval \"\$(parse_improve_arguments --log-dir \"/tmp/user's-logs\")\"
+            echo \"log_dir=\$log_dir\"
+        }
+        test_fn
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"log_dir=/tmp/user's-logs"* ]]
+}
+
+@test "parse_improve_arguments output can be safely eval'd with single quotes in session_label" {
+    run bash -c "
+        source '$PROJECT_ROOT/lib/improve.sh'
+        test_fn() {
+            eval \"\$(parse_improve_arguments --label \"test's-session\")\"
+            echo \"session_label=\$session_label\"
+        }
+        test_fn
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"session_label=test's-session"* ]]
+}
+
 # ====================
 # check_dependencies() 関数テスト
 # ====================
@@ -361,6 +401,56 @@ teardown() {
 @test "setup_improve_environment skips label creation in dry-run mode" {
     source_content=$(cat "$PROJECT_ROOT/lib/improve/env.sh")
     [[ "$source_content" == *'dry_run" != "true"'* ]]
+}
+
+@test "setup_improve_environment escapes single quotes in session_label output" {
+    # Mock dependencies
+    mock_gh
+    mock_date() { echo "2026-02-06T12:00:00Z"; }
+    export -f mock_date
+    
+    run bash -c "
+        source '$PROJECT_ROOT/lib/config.sh'
+        source '$PROJECT_ROOT/lib/log.sh'
+        source '$PROJECT_ROOT/lib/github.sh'
+        source '$PROJECT_ROOT/lib/improve/env.sh'
+        
+        # Override dependencies
+        date() { mock_date; }
+        create_label_if_not_exists() { return 0; }
+        check_improve_dependencies() { return 0; }
+        load_config() { return 0; }
+        
+        # Call with single quote in label
+        setup_improve_environment 1 3 \"test's-label\" /tmp/logs false false
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"session_label='test'\\''s-label'"* ]]
+}
+
+@test "setup_improve_environment escapes single quotes in log_file output" {
+    # Mock dependencies
+    mock_gh
+    mock_date() { echo "2026-02-06T12:00:00Z"; }
+    export -f mock_date
+    
+    run bash -c "
+        source '$PROJECT_ROOT/lib/config.sh'
+        source '$PROJECT_ROOT/lib/log.sh'
+        source '$PROJECT_ROOT/lib/github.sh'
+        source '$PROJECT_ROOT/lib/improve/env.sh'
+        
+        # Override dependencies
+        date() { mock_date; }
+        create_label_if_not_exists() { return 0; }
+        check_improve_dependencies() { return 0; }
+        load_config() { return 0; }
+        
+        # Call with single quote in log_dir
+        setup_improve_environment 1 3 test-label \"/tmp/user's-logs\" false false
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"log_file='/tmp/user'\\''s-logs/"* ]]
 }
 
 # ====================
