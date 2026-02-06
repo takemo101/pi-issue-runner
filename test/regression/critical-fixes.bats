@@ -145,7 +145,8 @@ teardown() {
 }
 
 @test "Issue #289: handle_complete deletes plan file in host environment" {
-    # notify.sh の handle_complete が計画書を削除することを確認
-    grep -q 'docs/plans/issue-.*-plan.md' "$PROJECT_ROOT/lib/notify.sh"
-    grep -q 'rm -f "$plan_file"' "$PROJECT_ROOT/lib/notify.sh"
+    # watch-session.sh の handle_complete が計画書を削除することを確認
+    # (Issue #883: notify.sh から watch-session.sh に移動)
+    grep -q 'issue-.*-plan.md' "$PROJECT_ROOT/scripts/watch-session.sh"
+    grep -q 'rm -f "$plan_file"' "$PROJECT_ROOT/scripts/watch-session.sh"
 }

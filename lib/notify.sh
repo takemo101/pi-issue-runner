@@ -125,63 +125,9 @@ EOF
     log_info "Terminal opened and attach command sent"
 }
 
-# エラー検知時の統合処理
-# 引数:
-#   $1 - session_name: セッション名
-#   $2 - issue_number: Issue番号
-#   $3 - error_message: エラーメッセージ
-#   $4 - auto_attach: 自動アタッチするか (true/false)
-handle_error() {
-    local session_name="$1"
-    local issue_number="$2"
-    local error_message="$3"
-    local auto_attach="${4:-true}"
-    
-    log_error "Error detected in session $session_name: $error_message"
-    
-    # ステータスを保存
-    save_status "$issue_number" "error" "$session_name" "$error_message"
-    
-    # 通知を表示
-    notify_error "$session_name" "$issue_number" "$error_message"
-    
-    # 自動アタッチ
-    if [[ "$auto_attach" == "true" ]] && is_macos; then
-        open_terminal_and_attach "$session_name"
-    fi
-}
-
-# 完了時の統合処理
-# 引数:
-#   $1 - session_name: セッション名
-#   $2 - issue_number: Issue番号
-handle_complete() {
-    local session_name="$1"
-    local issue_number="$2"
-    
-    log_info "Task completed in session: $session_name"
-    
-    # ステータスを保存
-    save_status "$issue_number" "complete" "$session_name"
-    
-    # 計画書を削除（ホスト環境で実行するため確実に反映される）
-    local plans_dir
-    plans_dir="$(get_config plans_dir)"
-    local plan_file="${plans_dir}/issue-${issue_number}-plan.md"
-    if [[ -f "$plan_file" ]]; then
-        log_info "Deleting plan file: $plan_file"
-        rm -f "$plan_file"
-        
-        # git でコミット（失敗しても継続）
-        if git rev-parse --git-dir &>/dev/null; then
-            git add -A 2>/dev/null || true
-            git commit -m "chore: remove plan for issue #${issue_number}" 2>/dev/null || true
-            git push origin main 2>/dev/null || log_warn "Failed to push plan deletion (may need manual push)"
-        fi
-    else
-        log_debug "No plan file found at: $plan_file"
-    fi
-    
-    # 成功通知
-    notify_success "$session_name" "$issue_number"
-}
+# Note: handle_error and handle_complete were removed in Issue #883
+# These functions are now implemented in scripts/watch-session.sh
+# This library provides helper functions for notifications only:
+#   - notify_error
+#   - notify_success
+#   - open_terminal_and_attach
