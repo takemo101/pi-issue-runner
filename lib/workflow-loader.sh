@@ -164,6 +164,7 @@ get_workflow_context() {
 # 全ワークフロー情報を取得（auto モード用）
 # 出力: name description steps context（1行1ワークフロー、タブ区切り）
 get_all_workflows_info() {
+    # shellcheck disable=SC2034  # project_root reserved for future use
     local project_root="${1:-.}"
     
     load_config
