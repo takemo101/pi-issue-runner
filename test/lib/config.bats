@@ -663,3 +663,131 @@ YAML
     [ "$(get_config hooks_on_success)" = "env success override" ]
     [ "$(get_config hooks_on_error)" = "./hooks/error.sh" ]
 }
+
+# ====================
+# 特殊文字のテスト（セキュリティ）
+# ====================
+
+@test "load_config handles double quotes in YAML values" {
+    unset _CONFIG_LOADED
+    
+    cat > "$TEST_CONFIG_FILE" << 'YAML'
+worktree:
+  base_dir: 'path with "quotes" inside'
+pi:
+  command: 'pi --arg="value with quotes"'
+YAML
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config worktree_base_dir)"
+    [ "$result" = 'path with "quotes" inside' ]
+    
+    result="$(get_config pi_command)"
+    [ "$result" = 'pi --arg="value with quotes"' ]
+}
+
+@test "load_config handles backslashes in YAML values" {
+    unset _CONFIG_LOADED
+    
+    cat > "$TEST_CONFIG_FILE" << 'YAML'
+worktree:
+  base_dir: 'C:\Users\test\path'
+pi:
+  command: 'pi --file=C:\path\to\file'
+YAML
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config worktree_base_dir)"
+    [ "$result" = 'C:\Users\test\path' ]
+    
+    result="$(get_config pi_command)"
+    [ "$result" = 'pi --file=C:\path\to\file' ]
+}
+
+@test "load_config handles dollar signs in YAML values" {
+    unset _CONFIG_LOADED
+    
+    cat > "$TEST_CONFIG_FILE" << 'YAML'
+worktree:
+  base_dir: 'path with $VARIABLE and $$'
+pi:
+  command: 'pi --price=$100'
+YAML
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config worktree_base_dir)"
+    [ "$result" = 'path with $VARIABLE and $$' ]
+    
+    result="$(get_config pi_command)"
+    [ "$result" = 'pi --price=$100' ]
+}
+
+@test "load_config handles mixed special characters in YAML values" {
+    unset _CONFIG_LOADED
+    
+    cat > "$TEST_CONFIG_FILE" << 'YAML'
+worktree:
+  base_dir: 'complex "path" with $VAR and \backslash'
+hooks:
+  on_start: 'echo "Price: $100" && echo "Path: C:\test"'
+YAML
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config worktree_base_dir)"
+    [ "$result" = 'complex "path" with $VAR and \backslash' ]
+    
+    result="$(get_config hooks_on_start)"
+    [ "$result" = 'echo "Price: $100" && echo "Path: C:\test"' ]
+}
+
+@test "environment variable overrides handle double quotes" {
+    unset _CONFIG_LOADED
+    export PI_RUNNER_WORKTREE_BASE_DIR='env "with quotes"'
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config worktree_base_dir)"
+    [ "$result" = 'env "with quotes"' ]
+}
+
+@test "environment variable overrides handle backslashes" {
+    unset _CONFIG_LOADED
+    export PI_RUNNER_WORKTREE_BASE_DIR='C:\Windows\System32'
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config worktree_base_dir)"
+    [ "$result" = 'C:\Windows\System32' ]
+}
+
+@test "environment variable overrides handle dollar signs" {
+    unset _CONFIG_LOADED
+    export PI_RUNNER_PI_COMMAND='pi --price=$100 --var=$HOME'
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config pi_command)"
+    [ "$result" = 'pi --price=$100 --var=$HOME' ]
+}
+
+@test "environment variable overrides handle mixed special characters" {
+    unset _CONFIG_LOADED
+    export PI_RUNNER_HOOKS_ON_START='echo "Test: $VAR" && dir C:\test'
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config hooks_on_start)"
+    [ "$result" = 'echo "Test: $VAR" && dir C:\test' ]
+}
