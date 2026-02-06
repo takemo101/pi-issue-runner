@@ -14,6 +14,9 @@ setup() {
     
     source "$PROJECT_ROOT/lib/yaml.sh"
     
+    # YAMLファイルキャッシュをリセット
+    reset_yaml_cache
+    
     # テスト用設定ファイルを作成
     export TEST_YAML="${BATS_TEST_TMPDIR}/test.yaml"
     cat > "$TEST_YAML" << 'EOF'
@@ -79,6 +82,69 @@ teardown() {
     _YQ_CHECK_RESULT="1"
     reset_yq_cache
     [ -z "$_YQ_CHECK_RESULT" ]
+}
+
+# ====================
+# ファイルキャッシュテスト
+# ====================
+
+@test "yaml_get caches file content" {
+    # 最初の呼び出しでキャッシュ
+    yaml_get "$TEST_YAML" ".worktree.base_dir"
+    [ -n "$_YAML_CACHE_FILE" ]
+    [ "$_YAML_CACHE_FILE" = "$TEST_YAML" ]
+    [ -n "$_YAML_CACHE_CONTENT" ]
+}
+
+@test "yaml_get reuses cache for same file" {
+    # 最初の呼び出し
+    yaml_get "$TEST_YAML" ".worktree.base_dir"
+    first_content="$_YAML_CACHE_CONTENT"
+    
+    # 2回目の呼び出し（異なるパス）
+    yaml_get "$TEST_YAML" ".tmux.session_prefix"
+    [ "$_YAML_CACHE_FILE" = "$TEST_YAML" ]
+    [ "$_YAML_CACHE_CONTENT" = "$first_content" ]
+}
+
+@test "yaml_get clears cache on different file" {
+    yaml_get "$TEST_YAML" ".worktree.base_dir"
+    first_cache="$_YAML_CACHE_FILE"
+    
+    # 別ファイル（存在しない場合はデフォルト値を返す）
+    local other_yaml="${BATS_TEST_TMPDIR}/other.yaml"
+    cat > "$other_yaml" << 'EOF'
+other:
+  key: value
+EOF
+    
+    yaml_get "$other_yaml" ".other.key"
+    [ "$_YAML_CACHE_FILE" = "$other_yaml" ]
+    [ "$_YAML_CACHE_FILE" != "$first_cache" ]
+}
+
+@test "reset_yaml_cache clears file cache" {
+    yaml_get "$TEST_YAML" ".worktree.base_dir"
+    [ -n "$_YAML_CACHE_FILE" ]
+    [ -n "$_YAML_CACHE_CONTENT" ]
+    
+    reset_yaml_cache
+    [ -z "$_YAML_CACHE_FILE" ]
+    [ -z "$_YAML_CACHE_CONTENT" ]
+}
+
+@test "yaml_get_array uses cache" {
+    # 配列取得でもキャッシュを使用
+    yaml_get_array "$TEST_YAML" ".worktree.copy_files"
+    [ -n "$_YAML_CACHE_FILE" ]
+    [ "$_YAML_CACHE_FILE" = "$TEST_YAML" ]
+}
+
+@test "yaml_exists uses cache" {
+    # 存在確認でもキャッシュを使用
+    yaml_exists "$TEST_YAML" ".workflow"
+    [ -n "$_YAML_CACHE_FILE" ]
+    [ "$_YAML_CACHE_FILE" = "$TEST_YAML" ]
 }
 
 # ====================
