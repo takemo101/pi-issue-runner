@@ -103,6 +103,7 @@ pi-issue-runner/
 │   ├── hooks.md           # Hook機能
 │   ├── overview.md        # 概要
 │   ├── parallel-execution.md # 並列実行
+│   ├── public-api.md        # 公開APIリファレンス
 │   ├── security.md        # セキュリティ
 │   ├── state-management.md # 状態管理
 │   ├── multiplexer-integration.md # マルチプレクサ統合（tmux/Zellij）
