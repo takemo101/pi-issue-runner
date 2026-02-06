@@ -110,6 +110,89 @@ workflow:
     - merge
 
 # =====================================
+# 名前付きワークフロー設定（複数定義）
+# =====================================
+# 注: -w NAME オプションで選択、または -w auto で AI が自動選択
+workflows:
+  # 小規模バグ修正向け
+  quick:
+    description: 小規模修正（typo、設定変更、1ファイル程度の変更）
+    steps:
+      - implement
+      - merge
+  
+  # 大規模機能開発向け
+  thorough:
+    description: 大規模機能開発（複数ファイル、新機能、アーキテクチャ変更）
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+  
+  # フロントエンド実装向け（context 付き）
+  frontend:
+    description: フロントエンド実装（React/Next.js、UIコンポーネント、スタイリング、画面レイアウト）
+    steps:
+      - plan
+      - implement
+      - review
+      - merge
+    context: |
+      ## 技術スタック
+      - React / Next.js / TypeScript
+      - TailwindCSS
+      
+      ## 重視すべき点
+      - レスポンシブデザイン
+      - アクセシビリティ (WCAG 2.1 AA)
+      - コンポーネントの再利用性
+      - パフォーマンス（Core Web Vitals）
+  
+  # バックエンド実装向け（context 付き）
+  backend:
+    description: バックエンドAPI実装（DB操作、認証、ビジネスロジック、サーバーサイド処理）
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+    context: |
+      ## 技術スタック
+      - Node.js / Express / TypeScript
+      - PostgreSQL / Prisma
+      
+      ## 重視すべき点
+      - RESTful API設計
+      - 入力バリデーション
+      - エラーハンドリングとログ
+      - ユニットテスト・統合テストの充実
+  
+  # 設計ドキュメント作成向け（カスタムステップ）
+  design:
+    description: 設計ドキュメント作成（技術調査、アーキテクチャ設計、ADR、仕様書）
+    steps:
+      - research  # カスタムステップ（agents/research.md が必要）
+      - design    # カスタムステップ（agents/design.md が必要）
+      - review
+      - merge
+    context: |
+      ## 目的
+      このワークフローはコード実装ではなく、設計ドキュメントの作成に特化する。
+      
+      ## 成果物
+      - docs/ 以下に Markdown ドキュメントを作成
+      - コードの変更は原則行わない
+      
+      ## 重視すべき点
+      - 背景・課題・代替案の明記
+      - 図やテーブルを使った可視化
+      - 将来の拡張性への言及
+      - 既存コード・ドキュメントとの整合性
+
+# =====================================
 # 計画書設定
 # =====================================
 plans:
@@ -395,7 +478,7 @@ improve_logs:
 |------|------|-----------|------|
 | `steps` | string[] | `plan implement review merge` | 実行するステップ |
 
-> **注意**: `workflow.name` は `.pi-runner.yaml` では無視されます（後方互換性のために残されています）。ワークフロー名を指定する場合は `-w` オプションと `workflows/*.yaml` を使用してください。
+> **注意**: `workflow.name` は `.pi-runner.yaml` では無視されます（後方互換性のために残されています）。ワークフロー名を指定する場合は `-w` オプションと `workflows` セクションまたは `workflows/*.yaml` を使用してください。
 
 #### ビルトインステップ
 
@@ -431,9 +514,264 @@ workflow:
 ```bash
 # workflows/simple.yaml を使用
 ./scripts/run.sh 42 -w simple
+
+# .pi-runner.yaml の workflows.quick を使用
+./scripts/run.sh 42 -w quick
+
+# AI が自動選択
+./scripts/run.sh 42 -w auto
 ```
 
 詳細なワークフローの使い分けについては [ワークフロードキュメント](./workflows.md) を参照してください。
+
+### workflows
+
+> **新機能**: 複数の名前付きワークフローを `.pi-runner.yaml` 内で定義できます。
+
+`.pi-runner.yaml` の `workflows` セクションで複数の名前付きワークフローを定義できます。`-w NAME` で明示的に選択するか、`-w auto` で AI が自動選択します。
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `{name}.description` | string | (なし) | ワークフローの説明（`--list-workflows` と `-w auto` で使用） |
+| `{name}.steps` | string[] | (必須) | 実行するステップ |
+| `{name}.context` | string | (なし) | ワークフロー固有のコンテキスト（全ステップに注入） |
+
+#### 基本的な使い方
+
+```yaml
+# .pi-runner.yaml
+workflows:
+  quick:
+    description: 小規模修正（typo、設定変更、1ファイル程度の変更）
+    steps:
+      - implement
+      - merge
+  
+  thorough:
+    description: 大規模機能開発（複数ファイル、新機能、アーキテクチャ変更）
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+```
+
+**実行**:
+```bash
+# quick ワークフローを使用
+./scripts/run.sh 42 -w quick
+
+# thorough ワークフローを使用
+./scripts/run.sh 42 -w thorough
+
+# 利用可能なワークフロー一覧
+./scripts/run.sh --list-workflows
+```
+
+#### description フィールド
+
+`description` は2つの用途で使用されます：
+
+1. **`--list-workflows`**: ユーザーがワークフローを選ぶときの参考情報
+2. **`-w auto`**: AI が Issue 内容と照合して最適なワークフローを選択する際の判断基準
+
+> **ベストプラクティス**: `description` を具体的に書くほど AI の自動選択精度が向上します。曖昧な description は誤選択の原因になるため、対象となるタスクの特徴を明確に記載してください。
+
+#### context フィールド
+
+`context` フィールドに記述した内容は、ワークフローの全ステップのプロンプトに「Workflow Context」セクションとして注入されます。技術スタック、重視すべき点、注意事項などを記述します。
+
+```yaml
+# .pi-runner.yaml
+workflows:
+  frontend:
+    description: フロントエンド実装（React/Next.js、UIコンポーネント、スタイリング、画面レイアウト）
+    steps:
+      - plan
+      - implement
+      - review
+      - merge
+    context: |
+      ## 技術スタック
+      - React / Next.js / TypeScript
+      - TailwindCSS
+      
+      ## 重視すべき点
+      - レスポンシブデザイン
+      - アクセシビリティ (WCAG 2.1 AA)
+      - コンポーネントの再利用性
+      - パフォーマンス（Core Web Vitals）
+  
+  backend:
+    description: バックエンドAPI実装（DB操作、認証、ビジネスロジック、サーバーサイド処理）
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+    context: |
+      ## 技術スタック
+      - Node.js / Express / TypeScript
+      - PostgreSQL / Prisma
+      
+      ## 重視すべき点
+      - RESTful API設計
+      - 入力バリデーション
+      - エラーハンドリングとログ
+      - ユニットテスト・統合テストの充実
+```
+
+プロンプトへの注入イメージ：
+
+```markdown
+## Workflow: frontend
+
+### Workflow Context
+
+## 技術スタック
+- React / Next.js / TypeScript
+- TailwindCSS
+
+## 重視すべき点
+- レスポンシブデザイン
+- アクセシビリティ (WCAG 2.1 AA)
+...
+
+---
+
+### Step 1: Plan
+...
+```
+
+#### カスタムステップの使用
+
+ビルトインステップ（`plan`, `implement`, `test`, `review`, `merge`, `ci-fix`）以外に、任意のカスタムステップを定義できます。カスタムステップを使う場合は、対応するエージェントテンプレートを `agents/{step}.md` に配置する必要があります。
+
+```yaml
+# .pi-runner.yaml
+workflows:
+  design:
+    description: 設計ドキュメント作成（技術調査、アーキテクチャ設計、ADR、仕様書）
+    steps:
+      - research  # カスタムステップ
+      - design    # カスタムステップ
+      - review
+      - merge
+    context: |
+      ## 目的
+      このワークフローはコード実装ではなく、設計ドキュメントの作成に特化する。
+      
+      ## 成果物
+      - docs/ 以下に Markdown ドキュメントを作成
+      - コードの変更は原則行わない
+```
+
+対応するエージェントテンプレート（`agents/research.md`）を作成：
+
+```markdown
+# agents/research.md
+GitHub Issue #{{issue_number}} に関する技術調査を行います。
+
+## コンテキスト
+- **Issue**: #{{issue_number}} {{issue_title}}
+- **ブランチ**: {{branch_name}}
+
+## タスク
+1. Issue の要件を分析し、解決すべき課題を明確化
+2. 関連する既存コード・ドキュメントを調査
+3. 外部の技術ドキュメント・ベストプラクティスを確認
+4. 技術的な選択肢と制約を洗い出す
+5. 調査結果を docs/ 以下にメモとしてまとめる
+
+## 注意
+- この段階ではコードの実装は行わない
+- 調査結果は次の design ステップで使用される
+```
+
+> **エージェントテンプレートの検索順序**: `agents/{step}.md` → `.pi/agents/{step}.md` → ビルトインフォールバック。カスタムステップのテンプレートが見つからない場合はビルトインの `implement` プロンプトがフォールバックとして使用されます。
+
+#### -w auto: AI によるワークフロー自動選択
+
+`-w auto` を指定すると、AI が Issue の内容を分析して最適なワークフローを自動選択します。
+
+```bash
+# AI が Issue #42 の内容を見てワークフローを自動選択
+./scripts/run.sh 42 -w auto
+```
+
+AI は以下の情報をもとに判断します：
+
+- Issue の `title` と `body`
+- 各ワークフローの `description`
+- 各ワークフローの `steps` 構成
+- 各ワークフローの `context`（定義されている場合）
+
+> **ベストプラクティス**: AI が正確に選択できるよう、`description` には対象となるタスクの特徴（規模、領域、技術スタックなど）を具体的に記述してください。
+
+#### ワークフロー名の重複
+
+`.pi-runner.yaml` の `workflows` セクションでビルトインワークフローと同名のワークフロー（例: `ci-fix`）を定義した場合、**`.pi-runner.yaml` の定義が優先されます**。`--list-workflows` では重複を排除し、プロジェクト定義を優先表示します。
+
+```yaml
+# .pi-runner.yaml
+workflows:
+  # ビルトインの ci-fix をオーバーライド
+  ci-fix:
+    description: カスタムCI修正ワークフロー（プロジェクト固有のルール適用）
+    steps:
+      - ci-fix
+    context: |
+      ## プロジェクト固有のCI設定
+      - pre-commit hooks を使用
+      - 特定のlinterルールをスキップしない
+```
+
+#### workflow vs workflows の関係
+
+| セクション | 用途 | `-w` オプション |
+|-----------|------|---------------|
+| `workflow` | デフォルトワークフロー | 未指定時に使用 |
+| `workflows` | 名前付きワークフロー | `-w NAME` または `-w auto` で選択 |
+
+両方を定義することで、デフォルトのワークフローを持ちつつ、状況に応じて別のワークフローを選択できます。
+
+```yaml
+# .pi-runner.yaml
+# デフォルト（-w オプションなし）
+workflow:
+  steps:
+    - plan
+    - implement
+    - review
+    - merge
+
+# 名前付きワークフロー（-w オプションで選択）
+workflows:
+  quick:
+    description: 小規模修正
+    steps:
+      - implement
+      - merge
+  
+  frontend:
+    description: フロントエンド実装
+    steps:
+      - plan
+      - implement
+      - review
+      - merge
+    context: |
+      技術スタック: React / Next.js
+```
+
+使用例：
+```bash
+./scripts/run.sh 42          # workflow セクションを使用
+./scripts/run.sh 42 -w quick # workflows.quick を使用
+./scripts/run.sh 42 -w auto  # AI が workflows から選択
+```
 
 ### github
 
@@ -682,30 +1020,98 @@ LOG_LEVEL=QUIET ./scripts/run.sh 42
 ./scripts/run.sh 42
 ```
 
-1. `.pi-runner.yaml` の `workflow` セクション（推奨）
-2. `.pi/workflow.yaml`
-3. `workflows/default.yaml`
-4. ビルトイン `default`
+| 優先順位 | 場所 | 説明 |
+|---------|------|------|
+| 1 | `.pi-runner.yaml` の `workflow` セクション | デフォルトワークフロー（推奨） |
+| 2 | `.pi/workflow.yaml` | プロジェクト固有 |
+| 3 | `workflows/default.yaml` | ファイルベース |
+| 4 | pi-issue-runner の `workflows/default.yaml` | インストールディレクトリ |
+| 5 | ビルトイン | ハードコード（plan → implement → review → merge） |
 
-### `-w` オプション指定時（名前付きワークフロー）
+### `-w NAME` 指定時（名前付きワークフロー）
 
 ```bash
 ./scripts/run.sh 42 -w simple
 ```
 
-1. `.pi/workflow.yaml`
-2. `workflows/{name}.yaml`（上記例では `workflows/simple.yaml`）
-3. ビルトイン `{name}`（上記例では `simple`）
+| 優先順位 | 場所 | 説明 |
+|---------|------|------|
+| **1** | **`.pi-runner.yaml` の `workflows.{NAME}`** | 🆕 設定ファイル内の名前付き定義（**最優先**） |
+| 2 | `.pi/workflow.yaml` | プロジェクト固有（単一定義） |
+| 3 | `workflows/{NAME}.yaml` | プロジェクトローカルのファイル（例: `workflows/simple.yaml`） |
+| 4 | pi-issue-runner の `workflows/{NAME}.yaml` | インストールディレクトリ |
+| 5 | ビルトイン | ハードコード（default/simple/thorough/ci-fix） |
 
-> **重要**: `-w` オプションを指定した場合、`.pi-runner.yaml` の `workflow` セクションは**無視**されます。これは、明示的なワークフロー指定が設定ファイルのデフォルトより優先されるためです。
+> **重要**: `-w NAME` を指定した場合、**`.pi-runner.yaml` の `workflows.{NAME}` が最優先**されます。これにより、プロジェクト固有のワークフローをファイルを分散させずに `.pi-runner.yaml` 一箇所で管理できます。
+> 
+> **注意**: デフォルトワークフローの設定（`.pi-runner.yaml` の `workflow` セクション）は、`-w` オプション指定時には無視されます。これは、明示的なワークフロー指定が設定ファイルのデフォルトより優先されるためです。
+
+### `-w auto` 指定時（AI 自動選択）
+
+```bash
+./scripts/run.sh 42 -w auto
+```
+
+検索順序は適用されません。`.pi-runner.yaml` の `workflows` セクション全体を読み取り、プロンプトに含めます。
+
+- ビルトインと同名のワークフローが定義されている場合はプロジェクト定義を優先
+- `workflows` セクションが未定義の場合はビルトインワークフロー一覧をフォールバックとして使用
+
+AI は以下を参照して最適なワークフローを選択します：
+- Issue の `title` と `body`
+- 各ワークフローの `description`、`steps`、`context`
+
+### 名前の重複時の優先順位
+
+`.pi-runner.yaml` の `workflows` セクションでビルトインワークフローと同名のワークフロー（例: `ci-fix`）を定義した場合、**`.pi-runner.yaml` の定義が優先されます**。`--list-workflows` では重複を排除し、プロジェクト定義を優先表示します。
 
 ### 使い分けの指針
 
-| 方法 | 使用シナリオ |
-|------|-------------|
-| `.pi-runner.yaml` の `workflow` セクション | プロジェクト全体のデフォルトワークフローを定義。通常はこれを使用。 |
-| `workflows/*.yaml` | 複数のワークフローを切り替えて使用する場合。`-w` オプションで選択。 |
-| `.pi/workflow.yaml` | プロジェクト固有のワークフローを単一ファイルで管理する場合（どちらの方法でも使用可能）。 |
+| 方法 | 使用シナリオ | 使用例 |
+|------|-------------|--------|
+| `.pi-runner.yaml` の `workflow` セクション | プロジェクト全体のデフォルトワークフローを定義 | `./scripts/run.sh 42` |
+| `.pi-runner.yaml` の `workflows` セクション | 複数の名前付きワークフローを一箇所で管理（**推奨**） | `./scripts/run.sh 42 -w quick` |
+| `workflows/*.yaml` | 外部ファイルとして管理したい場合 | `./scripts/run.sh 42 -w simple` |
+| `.pi/workflow.yaml` | プロジェクト固有のワークフローを単一ファイルで管理（レガシー） | `-w` の有無によって動作が異なる |
+
+**推奨構成**（複数ワークフローを使用する場合）：
+
+```yaml
+# .pi-runner.yaml
+# デフォルトワークフロー
+workflow:
+  steps:
+    - plan
+    - implement
+    - review
+    - merge
+
+# 名前付きワークフロー（一箇所で管理）
+workflows:
+  quick:
+    description: 小規模修正
+    steps:
+      - implement
+      - merge
+  
+  frontend:
+    description: フロントエンド実装
+    steps:
+      - plan
+      - implement
+      - review
+      - merge
+    context: |
+      技術スタック: React / Next.js
+```
+
+**使用例**：
+```bash
+./scripts/run.sh 42              # デフォルト（workflow）
+./scripts/run.sh 42 -w quick     # workflows.quick
+./scripts/run.sh 42 -w frontend  # workflows.frontend
+./scripts/run.sh 42 -w auto      # AI が workflows から選択
+```
 
 ## エージェントファイルの検索順序
 

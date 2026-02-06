@@ -183,6 +183,16 @@ pi-issue-runner/
 # スクリプト実行
 ./scripts/run.sh 42
 
+# 名前付きワークフローを指定
+./scripts/run.sh 42 -w quick
+./scripts/run.sh 42 -w frontend
+
+# AI が自動的にワークフローを選択
+./scripts/run.sh 42 -w auto
+
+# 利用可能なワークフロー一覧
+./scripts/run.sh --list-workflows
+
 # テスト実行（推奨）
 ./scripts/test.sh              # 全テスト実行
 ./scripts/test.sh -v           # 詳細ログ付き
@@ -318,7 +328,56 @@ DEBUG=1 ./scripts/run.sh 42
 
 ### 新しいワークフローの追加
 
-1. `workflows/` ディレクトリに新しいYAMLファイルを作成:
+#### 方法1: `.pi-runner.yaml` の `workflows` セクション（推奨）
+
+複数のワークフローを一箇所で管理できます：
+
+```yaml
+# .pi-runner.yaml
+workflows:
+  quick:
+    description: 小規模修正（typo、設定変更、1ファイル程度の変更）
+    steps:
+      - implement
+      - merge
+  
+  thorough:
+    description: 徹底ワークフロー（計画・実装・テスト・レビュー・マージ）
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+  
+  frontend:
+    description: フロントエンド実装（React/Next.js、UIコンポーネント、スタイリング、画面レイアウト）
+    steps:
+      - plan
+      - implement
+      - review
+      - merge
+    context: |
+      ## 技術スタック
+      - React / Next.js / TypeScript
+      - TailwindCSS
+      
+      ## 重視すべき点
+      - レスポンシブデザイン
+      - アクセシビリティ
+      - コンポーネントの再利用性
+```
+
+**使用例**:
+```bash
+./scripts/run.sh 42 -w quick
+./scripts/run.sh 42 -w frontend
+./scripts/run.sh 42 -w auto  # AI が自動選択
+```
+
+#### 方法2: `workflows/` ディレクトリ（ファイル分散管理）
+
+従来の方法も引き続きサポートされます：
 
 ```yaml
 # workflows/thorough.yaml
@@ -332,7 +391,11 @@ steps:
   - merge
 ```
 
-2. 必要に応じて `agents/` ディレクトリにエージェントテンプレートを追加
+> **Note**: `-w NAME` 指定時、`.pi-runner.yaml` の `workflows.{NAME}` が `workflows/{NAME}.yaml` より優先されます。
+
+#### エージェントテンプレートの追加
+
+必要に応じて `agents/` ディレクトリにエージェントテンプレートを追加します
 
 ### エージェントテンプレートの作成
 
@@ -369,9 +432,25 @@ GitHub Issue #{{issue_number}} のテストを実行します。
 
 ### ワークフロー検索順序
 
-1. プロジェクトルートの `.pi-runner.yaml`
-2. プロジェクトルートの `.pi/workflow.yaml`
-3. ビルトイン（`workflows/` ディレクトリ）
+#### `-w` オプション未指定時（デフォルトワークフロー）
+
+1. `.pi-runner.yaml` の `workflow` セクション
+2. `.pi/workflow.yaml`
+3. `workflows/default.yaml`
+4. ビルトイン `default`
+
+#### `-w NAME` 指定時（名前付きワークフロー）
+
+1. **`.pi-runner.yaml` の `workflows.{NAME}`**（最優先）
+2. `.pi/workflow.yaml`
+3. `workflows/{NAME}.yaml`
+4. ビルトイン `{NAME}`
+
+#### `-w auto` 指定時（AI 自動選択）
+
+`.pi-runner.yaml` の `workflows` セクション全体を読み取り、AI が Issue 内容に基づいて最適なワークフローを選択します。
+
+> **推奨**: 複数のワークフローを使用する場合、`.pi-runner.yaml` の `workflows` セクションで一箇所管理するのが推奨されます。
 
 ## ShellCheck
 

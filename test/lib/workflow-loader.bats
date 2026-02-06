@@ -14,6 +14,9 @@ setup() {
     
     source "$PROJECT_ROOT/lib/workflow-loader.sh"
     
+    # YAMLキャッシュをリセット（並列テストでのキャッシュ汚染防止）
+    reset_yaml_cache
+    
     # テスト用ディレクトリ構造を作成
     export TEST_DIR="$BATS_TEST_TMPDIR/loader_test"
     mkdir -p "$TEST_DIR/workflows"

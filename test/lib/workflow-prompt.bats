@@ -16,6 +16,9 @@ setup() {
     # （find_workflow_file, get_workflow_steps, find_agent_file, get_agent_prompt が必要）
     source "$PROJECT_ROOT/lib/workflow.sh"
     
+    # YAMLキャッシュをリセット（並列テストでのキャッシュ汚染防止）
+    reset_yaml_cache
+    
     # テスト用ディレクトリ構造を作成
     export TEST_DIR="$BATS_TEST_TMPDIR/prompt_test"
     mkdir -p "$TEST_DIR/workflows"

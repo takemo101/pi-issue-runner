@@ -19,6 +19,7 @@ setup() {
     
     # yqキャッシュをリセット
     _YQ_CHECK_RESULT=""
+    reset_yaml_cache
 }
 
 teardown() {

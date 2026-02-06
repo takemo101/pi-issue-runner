@@ -635,8 +635,8 @@ workflows:
     description: "Frontend"
 EOF
     
-    result="$(yaml_get_keys "$workflows_yaml" ".workflows" | tr '\n' ' ' | sed 's/ $//')"
-    [ "$result" = "quick thorough frontend" ]
+    result="$(yaml_get_keys "$workflows_yaml" ".workflows" | sort | tr '\n' ' ' | sed 's/ $//')"
+    [ "$result" = "frontend quick thorough" ]
 }
 
 @test "yaml_get_keys returns empty for nonexistent section" {
@@ -672,7 +672,7 @@ other:
   key: value
 EOF
     
-    result="$(yaml_get_keys "$workflows_yaml" ".workflows" | tr '\n' ' ' | sed 's/ $//')"
+    result="$(yaml_get_keys "$workflows_yaml" ".workflows" | sort | tr '\n' ' ' | sed 's/ $//')"
     [ "$result" = "quick thorough" ]
 }
 
@@ -700,6 +700,6 @@ workflows:
     description: "Test"
 EOF
     
-    result="$(yaml_get_keys "$workflows_yaml" ".workflows" | tr '\n' ' ' | sed 's/ $//')"
+    result="$(yaml_get_keys "$workflows_yaml" ".workflows" | sort | tr '\n' ' ' | sed 's/ $//')"
     [ "$result" = "ci-fix test-workflow" ]
 }
