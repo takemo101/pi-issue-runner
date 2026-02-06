@@ -384,3 +384,168 @@ EOF
     result="$(find_agent_file "plan" "$TEST_DIR")"
     [ "$result" = "$TEST_DIR/agents/plan.md" ]
 }
+
+# ====================
+# workflows セクションのテスト (Issue #913)
+# ====================
+
+@test "find_workflow_file returns config-workflow:quick when workflows.quick defined" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  quick:
+    description: "Quick fix workflow"
+    steps:
+      - implement
+      - merge
+EOF
+    
+    result="$(find_workflow_file "quick" "$TEST_DIR")"
+    [ "$result" = "config-workflow:quick" ]
+}
+
+@test "find_workflow_file prioritizes workflows section over workflows/*.yaml files" {
+    # workflows/ ディレクトリにファイルを作成
+    cat > "$TEST_DIR/workflows/custom.yaml" << 'EOF'
+name: custom
+steps:
+  - plan
+  - implement
+EOF
+    
+    # .pi-runner.yaml の workflows セクションにも定義
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  custom:
+    description: "Custom from config"
+    steps:
+      - implement
+      - merge
+EOF
+    
+    result="$(find_workflow_file "custom" "$TEST_DIR")"
+    [ "$result" = "config-workflow:custom" ]
+}
+
+@test "find_workflow_file falls back to file when workflow not in workflows section" {
+    # .pi-runner.yaml には workflows.quick のみ定義
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  quick:
+    description: "Quick workflow"
+    steps:
+      - implement
+      - merge
+EOF
+    
+    # workflows/custom.yaml を作成
+    cat > "$TEST_DIR/workflows/custom.yaml" << 'EOF'
+name: custom
+steps:
+  - plan
+  - implement
+EOF
+    
+    # quick は config-workflow として検出
+    result_quick="$(find_workflow_file "quick" "$TEST_DIR")"
+    [ "$result_quick" = "config-workflow:quick" ]
+    
+    # custom はファイルとして検出
+    result_custom="$(find_workflow_file "custom" "$TEST_DIR")"
+    [ "$result_custom" = "$TEST_DIR/workflows/custom.yaml" ]
+}
+
+@test "find_workflow_file uses workflow section for default (not workflows.default)" {
+    # .pi-runner.yaml に workflow セクションと workflows.default を両方定義
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflow:
+  name: default-workflow
+  steps:
+    - plan
+    - implement
+    - merge
+
+workflows:
+  default:
+    description: "This should be ignored for default workflow"
+    steps:
+      - implement
+      - merge
+EOF
+    
+    # default は workflow セクションを使用（.pi-runner.yaml のパスを返す）
+    result="$(find_workflow_file "default" "$TEST_DIR")"
+    [ "$result" = "$TEST_DIR/.pi-runner.yaml" ]
+    
+    # default 以外のワークフロー名では workflows セクションを検索
+    result_quick="$(find_workflow_file "quick" "$TEST_DIR")"
+    [[ "$result_quick" != "config-workflow:"* ]]  # quick は未定義なのでファイル検索にフォールバック
+}
+
+@test "find_workflow_file ignores workflows section when querying default" {
+    # .pi-runner.yaml に workflows.default のみ定義（workflow セクションなし）
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  default:
+    description: "Default in workflows section"
+    steps:
+      - implement
+EOF
+    
+    # workflows/default.yaml を作成
+    cat > "$TEST_DIR/workflows/default.yaml" << 'EOF'
+name: default
+steps:
+  - plan
+  - implement
+  - merge
+EOF
+    
+    # default は workflow セクションがないので workflows/default.yaml にフォールバック
+    result="$(find_workflow_file "default" "$TEST_DIR")"
+    [ "$result" = "$TEST_DIR/workflows/default.yaml" ]
+}
+
+@test "find_workflow_file handles workflows section with multiple entries" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  quick:
+    description: "Quick workflow"
+    steps:
+      - implement
+      - merge
+  
+  thorough:
+    description: "Thorough workflow"
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+  
+  custom:
+    description: "Custom workflow"
+    steps:
+      - implement
+      - review
+EOF
+    
+    # 各ワークフローが正しく検出されることを確認
+    [ "$(find_workflow_file "quick" "$TEST_DIR")" = "config-workflow:quick" ]
+    [ "$(find_workflow_file "thorough" "$TEST_DIR")" = "config-workflow:thorough" ]
+    [ "$(find_workflow_file "custom" "$TEST_DIR")" = "config-workflow:custom" ]
+}
+
+@test "find_workflow_file returns builtin when workflows section missing" {
+    # workflows セクションのない .pi-runner.yaml
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflow:
+  steps:
+    - plan
+    - implement
+EOF
+    
+    # ビルトインワークフローは検出される
+    result="$(find_workflow_file "simple" "$TEST_DIR")"
+    [[ "$result" == *"/workflows/simple.yaml" ]] || [ "$result" = "builtin:simple" ]
+}

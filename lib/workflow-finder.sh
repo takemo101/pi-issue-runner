@@ -12,21 +12,37 @@ source "$_WORKFLOW_FINDER_LIB_DIR/config.sh"
 # ===================
 
 # ワークフローファイル検索（優先順位順）
-# 優先順位:
+# デフォルトワークフロー（workflow_name="default"）の場合:
 #   1. .pi-runner.yaml（プロジェクトルート）の workflow セクション
+#   2. .pi/workflow.yaml
+#   3. workflows/default.yaml（プロジェクトローカル）
+#   4. pi-issue-runnerインストールディレクトリのworkflows/default.yaml
+#   5. ビルトイン default
+# 名前付きワークフロー（workflow_name != "default"）の場合:
+#   1. .pi-runner.yaml の workflows.{name} セクション → config-workflow:{name}
 #   2. .pi/workflow.yaml
 #   3. workflows/{name}.yaml（プロジェクトローカル）
 #   4. pi-issue-runnerインストールディレクトリのworkflows/{name}.yaml
-#   5. ビルトイン default
+#   5. ビルトイン {name}
 find_workflow_file() {
     local workflow_name="${1:-default}"
     local project_root="${2:-.}"
     
-    # 1. .pi-runner.yaml の存在確認
-    if [[ -f "$project_root/.pi-runner.yaml" ]]; then
-        if yaml_exists "$project_root/.pi-runner.yaml" ".workflow"; then
-            echo "$project_root/.pi-runner.yaml"
-            return 0
+    # デフォルトワークフローの場合: 従来通り .workflow セクションを検索
+    if [[ "$workflow_name" == "default" ]]; then
+        if [[ -f "$project_root/.pi-runner.yaml" ]]; then
+            if yaml_exists "$project_root/.pi-runner.yaml" ".workflow"; then
+                echo "$project_root/.pi-runner.yaml"
+                return 0
+            fi
+        fi
+    else
+        # 名前付きワークフローの場合: .workflows.{name} を優先検索
+        if [[ -f "$project_root/.pi-runner.yaml" ]]; then
+            if yaml_exists "$project_root/.pi-runner.yaml" ".workflows.${workflow_name}"; then
+                echo "config-workflow:${workflow_name}"
+                return 0
+            fi
         fi
     fi
     

@@ -40,24 +40,45 @@ get_workflow_steps_array() {
 # 利用可能なワークフロー一覧を表示
 list_available_workflows() {
     local project_root="${1:-.}"
+    local config_file="$project_root/.pi-runner.yaml"
     
-    # ビルトインワークフローを明示的に表示
-    echo "default: 完全なワークフロー（計画・実装・レビュー・マージ）"
-    echo "simple: 簡易ワークフロー（実装・マージのみ）"
-    echo "thorough: 徹底ワークフロー（計画・実装・テスト・レビュー・マージ）"
-    echo "ci-fix: CI失敗を検出し自動修正を試行"
+    # ビルトインと設定ファイルのワークフローを収集
+    declare -A workflows  # 連想配列（名前 → description）
     
-    # プロジェクト固有のワークフロー
+    # ビルトインワークフロー
+    workflows["default"]="完全なワークフロー（計画・実装・レビュー・マージ）"
+    workflows["simple"]="簡易ワークフロー（実装・マージのみ）"
+    workflows["thorough"]="徹底ワークフロー（計画・実装・テスト・レビュー・マージ）"
+    workflows["ci-fix"]="CI失敗を検出し自動修正を試行"
+    
+    # .pi-runner.yaml の workflows セクション（存在する場合）
+    if [[ -f "$config_file" ]] && yaml_exists "$config_file" ".workflows"; then
+        while IFS= read -r name; do
+            if [[ -n "$name" ]]; then
+                # description を取得（なければデフォルトメッセージ）
+                local desc
+                desc=$(yaml_get "$config_file" ".workflows.${name}.description" "(project workflow)")
+                workflows["$name"]="$desc"
+            fi
+        done < <(yaml_get_keys "$config_file" ".workflows")
+    fi
+    
+    # プロジェクト固有のワークフローファイル（workflows/*.yaml）
     if [[ -d "$project_root/workflows" ]]; then
         for f in "$project_root/workflows"/*.yaml; do
             if [[ -f "$f" ]]; then
                 local name
                 name="$(basename "$f" .yaml)"
-                # ビルトインワークフローを除外
-                if [[ "$name" != "default" && "$name" != "simple" && "$name" != "thorough" && "$name" != "ci-fix" ]]; then
-                    echo "$name: (custom workflow)"
+                # .pi-runner.yaml で定義済みでなければ追加
+                if [[ -z "${workflows[$name]:-}" ]]; then
+                    workflows["$name"]="(custom workflow file)"
                 fi
             fi
         done
     fi
+    
+    # ソートして出力
+    for name in $(printf '%s\n' "${!workflows[@]}" | sort); do
+        echo "$name: ${workflows[$name]}"
+    done
 }
