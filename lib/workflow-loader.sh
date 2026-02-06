@@ -109,6 +109,58 @@ get_workflow_steps() {
     echo "$steps"
 }
 
+# ワークフローのコンテキストを取得
+get_workflow_context() {
+    local workflow_file="$1"
+    local workflow_name="${2:-}"
+    
+    # ビルトインの場合はコンテキストなし
+    if [[ "$workflow_file" == builtin:* ]]; then
+        echo ""
+        return 0
+    fi
+    
+    # config-workflow:NAME 形式の処理（.pi-runner.yaml の workflows.{NAME}.context）
+    if [[ "$workflow_file" == config-workflow:* ]]; then
+        local workflow_name="${workflow_file#config-workflow:}"
+        load_config
+        local config_file="${CONFIG_FILE:-.pi-runner.yaml}"
+        
+        if [[ ! -f "$config_file" ]]; then
+            echo ""
+            return 0
+        fi
+        
+        local yaml_path=".workflows.${workflow_name}.context"
+        local context
+        context=$(yaml_get "$config_file" "$yaml_path" 2>/dev/null || echo "")
+        
+        echo "$context"
+        return 0
+    fi
+    
+    # ファイルが存在しない場合
+    if [[ ! -f "$workflow_file" ]]; then
+        echo ""
+        return 0
+    fi
+    
+    # YAMLファイルから .context キーを取得
+    local yaml_path
+    
+    # .pi-runner.yaml の場合は .workflow.context を参照
+    if [[ "$workflow_file" == *".pi-runner.yaml" ]]; then
+        yaml_path=".workflow.context"
+    else
+        yaml_path=".context"
+    fi
+    
+    local context
+    context=$(yaml_get "$workflow_file" "$yaml_path" 2>/dev/null || echo "")
+    
+    echo "$context"
+}
+
 # エージェントプロンプトを取得
 get_agent_prompt() {
     local agent_file="$1"

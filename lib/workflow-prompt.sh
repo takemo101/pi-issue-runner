@@ -100,6 +100,22 @@ Follow the workflow steps below.
 
 EOF
     
+    # ワークフローコンテキストを取得して注入（存在する場合のみ）
+    local workflow_context
+    workflow_context="$(get_workflow_context "$workflow_file" "$workflow_name" 2>/dev/null || true)"
+    
+    if [[ -n "$workflow_context" ]]; then
+        cat << EOF
+
+### Workflow Context
+
+$workflow_context
+
+---
+
+EOF
+    fi
+    
     # 各ステップのプロンプトを生成
     local step_num=1
     for step in $steps; do

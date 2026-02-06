@@ -497,3 +497,142 @@ EOF
     # クリーンアップ
     rm -f ".pi-runner.yaml"
 }
+
+# ====================
+# get_workflow_context テスト (Issue #914)
+# ====================
+
+@test "get_workflow_context returns context for config-workflow:frontend" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  frontend:
+    description: "Frontend workflow"
+    steps:
+      - plan
+      - implement
+      - review
+      - merge
+    context: |
+      ## 技術スタック
+      - React / Next.js / TypeScript
+      ## 重視すべき点
+      - レスポンシブデザイン
+      - アクセシビリティ
+EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_workflow_context "config-workflow:frontend")"
+    [[ "$result" == *"技術スタック"* ]]
+    [[ "$result" == *"React / Next.js / TypeScript"* ]]
+    [[ "$result" == *"重視すべき点"* ]]
+    [[ "$result" == *"レスポンシブデザイン"* ]]
+}
+
+@test "get_workflow_context returns empty for workflow without context" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  quick:
+    description: "Quick fix workflow"
+    steps:
+      - implement
+      - merge
+EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_workflow_context "config-workflow:quick")"
+    [ -z "$result" ]
+}
+
+@test "get_workflow_context returns empty for builtin workflow" {
+    result="$(get_workflow_context "builtin:default")"
+    [ -z "$result" ]
+}
+
+@test "get_workflow_context returns empty for missing config file" {
+    export CONFIG_FILE="$TEST_DIR/nonexistent.yaml"
+    
+    result="$(get_workflow_context "config-workflow:frontend")"
+    [ -z "$result" ]
+}
+
+@test "get_workflow_context returns empty for missing workflow file" {
+    result="$(get_workflow_context "$TEST_DIR/nonexistent.yaml")"
+    [ -z "$result" ]
+}
+
+@test "get_workflow_context returns context from YAML file" {
+    cat > "$TEST_DIR/workflows/custom.yaml" << 'EOF'
+name: custom
+steps:
+  - implement
+  - merge
+context: |
+  ## Custom Context
+  - Context line 1
+  - Context line 2
+EOF
+    
+    result="$(get_workflow_context "$TEST_DIR/workflows/custom.yaml")"
+    [[ "$result" == *"Custom Context"* ]]
+    [[ "$result" == *"Context line 1"* ]]
+    [[ "$result" == *"Context line 2"* ]]
+}
+
+@test "get_workflow_context returns context from .pi-runner.yaml workflow section" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflow:
+  steps:
+    - plan
+    - implement
+  context: |
+    ## Default Workflow Context
+    - Important note
+EOF
+    
+    result="$(get_workflow_context "$TEST_DIR/.pi-runner.yaml")"
+    [[ "$result" == *"Default Workflow Context"* ]]
+    [[ "$result" == *"Important note"* ]]
+}
+
+@test "get_workflow_context handles multiline context with special characters" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  backend:
+    steps:
+      - plan
+      - implement
+    context: |
+      ## Tech Stack
+      - Node.js / Express
+      - PostgreSQL (with @prisma/client)
+      
+      ## Important
+      - Use `async/await`
+      - Follow REST API design
+EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_workflow_context "config-workflow:backend")"
+    [[ "$result" == *"Tech Stack"* ]]
+    [[ "$result" == *"Node.js / Express"* ]]
+    [[ "$result" == *"@prisma/client"* ]]
+    [[ "$result" == *"async/await"* ]]
+}
+
+@test "get_workflow_context handles empty context field" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  test:
+    steps:
+      - implement
+    context:
+EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_workflow_context "config-workflow:test")"
+    [ -z "$result" ]
+}
