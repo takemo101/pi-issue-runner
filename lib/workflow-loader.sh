@@ -36,6 +36,42 @@ get_workflow_steps() {
         return 0
     fi
     
+    # config-workflow:NAME 形式の処理（.pi-runner.yaml の workflows.{NAME}.steps）
+    if [[ "$workflow_file" == config-workflow:* ]]; then
+        local workflow_name="${workflow_file#config-workflow:}"
+        load_config
+        local config_file="${CONFIG_FILE:-.pi-runner.yaml}"
+        
+        if [[ ! -f "$config_file" ]]; then
+            log_warn "Config file not found, using builtin"
+            echo "$_BUILTIN_WORKFLOW_DEFAULT"
+            return 0
+        fi
+        
+        local steps=""
+        local yaml_path=".workflows.${workflow_name}.steps"
+        
+        # 配列を取得してスペース区切りに変換
+        while IFS= read -r step; do
+            if [[ -n "$step" ]]; then
+                if [[ -z "$steps" ]]; then
+                    steps="$step"
+                else
+                    steps="$steps $step"
+                fi
+            fi
+        done < <(yaml_get_array "$config_file" "$yaml_path")
+        
+        if [[ -z "$steps" ]]; then
+            log_warn "No steps found in config-workflow:${workflow_name}, using builtin"
+            echo "$_BUILTIN_WORKFLOW_DEFAULT"
+            return 0
+        fi
+        
+        echo "$steps"
+        return 0
+    fi
+    
     # ファイルが存在しない場合
     if [[ ! -f "$workflow_file" ]]; then
         log_error "Workflow file not found: $workflow_file"

@@ -210,3 +210,230 @@ EOF
     [[ "$result" == *"### On Error"* ]]
     [[ "$result" == *"manual intervention"* ]]
 }
+
+# ====================
+# list_available_workflows テスト (Issue #913)
+# ====================
+
+@test "list_available_workflows shows builtin workflows" {
+    result="$(list_available_workflows "$TEST_DIR")"
+    [[ "$result" == *"default:"* ]]
+    [[ "$result" == *"simple:"* ]]
+    [[ "$result" == *"thorough:"* ]]
+    [[ "$result" == *"ci-fix:"* ]]
+}
+
+@test "list_available_workflows shows workflows from .pi-runner.yaml" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  quick:
+    description: "Quick fix workflow"
+    steps:
+      - implement
+      - merge
+  
+  custom:
+    description: "Custom workflow"
+    steps:
+      - plan
+      - implement
+      - review
+EOF
+    
+    result="$(list_available_workflows "$TEST_DIR")"
+    [[ "$result" == *"quick: Quick fix workflow"* ]]
+    [[ "$result" == *"custom: Custom workflow"* ]]
+}
+
+@test "list_available_workflows shows description from .pi-runner.yaml" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  thorough:
+    description: "Custom thorough workflow"
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+EOF
+    
+    result="$(list_available_workflows "$TEST_DIR")"
+    # ビルトインの thorough が .pi-runner.yaml の定義でオーバーライドされる
+    [[ "$result" == *"thorough: Custom thorough workflow"* ]]
+}
+
+@test "list_available_workflows deduplicates builtin names" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  default:
+    description: "Custom default workflow"
+    steps:
+      - implement
+      - merge
+  
+  ci-fix:
+    description: "Custom CI fix"
+    steps:
+      - ci-fix
+EOF
+    
+    result="$(list_available_workflows "$TEST_DIR")"
+    
+    # default と ci-fix がそれぞれ1回のみ表示される
+    default_count=$(echo "$result" | grep -c "^default:")
+    ci_fix_count=$(echo "$result" | grep -c "^ci-fix:")
+    
+    [ "$default_count" -eq 1 ]
+    [ "$ci_fix_count" -eq 1 ]
+    
+    # カスタムの description が表示される
+    [[ "$result" == *"default: Custom default workflow"* ]]
+    [[ "$result" == *"ci-fix: Custom CI fix"* ]]
+}
+
+@test "list_available_workflows handles missing workflows section gracefully" {
+    # workflows セクションがない .pi-runner.yaml
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflow:
+  steps:
+    - plan
+    - implement
+EOF
+    
+    result="$(list_available_workflows "$TEST_DIR")"
+    
+    # ビルトインワークフローのみ表示される（エラーにならない）
+    [[ "$result" == *"default:"* ]]
+    [[ "$result" == *"simple:"* ]]
+    [[ "$result" == *"thorough:"* ]]
+    [[ "$result" == *"ci-fix:"* ]]
+}
+
+@test "list_available_workflows shows workflows from workflows/*.yaml" {
+    cat > "$TEST_DIR/workflows/custom.yaml" << 'EOF'
+name: custom
+steps:
+  - plan
+  - implement
+EOF
+    
+    result="$(list_available_workflows "$TEST_DIR")"
+    [[ "$result" == *"custom: (custom workflow file)"* ]]
+}
+
+@test "list_available_workflows prioritizes .pi-runner.yaml over workflows/*.yaml" {
+    # workflows/ ディレクトリにファイルを作成
+    cat > "$TEST_DIR/workflows/myworkflow.yaml" << 'EOF'
+name: myworkflow
+steps:
+  - plan
+  - implement
+EOF
+    
+    # .pi-runner.yaml でも同じ名前を定義
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  myworkflow:
+    description: "From config"
+    steps:
+      - implement
+      - merge
+EOF
+    
+    result="$(list_available_workflows "$TEST_DIR")"
+    
+    # myworkflow が1回のみ表示され、.pi-runner.yaml の description が使われる
+    myworkflow_count=$(echo "$result" | grep -c "^myworkflow:")
+    [ "$myworkflow_count" -eq 1 ]
+    [[ "$result" == *"myworkflow: From config"* ]]
+}
+
+@test "list_available_workflows uses default description for workflows without description" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  nodesc:
+    steps:
+      - implement
+EOF
+    
+    result="$(list_available_workflows "$TEST_DIR")"
+    [[ "$result" == *"nodesc: (project workflow)"* ]]
+}
+
+@test "list_available_workflows output is sorted" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  zebra:
+    description: "Z workflow"
+    steps:
+      - implement
+  
+  alpha:
+    description: "A workflow"
+    steps:
+      - plan
+      - implement
+EOF
+    
+    result="$(list_available_workflows "$TEST_DIR")"
+    
+    # ソートされていることを確認（alpha が zebra より前）
+    alpha_line=$(echo "$result" | grep -n "^alpha:" | cut -d: -f1)
+    zebra_line=$(echo "$result" | grep -n "^zebra:" | cut -d: -f1)
+    
+    [ "$alpha_line" -lt "$zebra_line" ]
+}
+
+@test "list_available_workflows handles empty workflows directory" {
+    # workflows/ ディレクトリは存在するが空
+    result="$(list_available_workflows "$TEST_DIR")"
+    
+    # ビルトインワークフローのみ表示される
+    [[ "$result" == *"default:"* ]]
+    [[ "$result" == *"simple:"* ]]
+}
+
+@test "list_available_workflows handles missing workflows directory" {
+    # workflows/ ディレクトリが存在しない
+    rm -rf "$TEST_DIR/workflows"
+    
+    result="$(list_available_workflows "$TEST_DIR")"
+    
+    # ビルトインワークフローのみ表示される（エラーにならない）
+    [[ "$result" == *"default:"* ]]
+    [[ "$result" == *"simple:"* ]]
+}
+
+@test "list_available_workflows handles multiple workflows from different sources" {
+    # .pi-runner.yaml に workflows を定義
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  config1:
+    description: "Config workflow 1"
+    steps:
+      - implement
+  
+  config2:
+    description: "Config workflow 2"
+    steps:
+      - plan
+      - implement
+EOF
+    
+    # workflows/ ディレクトリにもファイルを作成
+    cat > "$TEST_DIR/workflows/file1.yaml" << 'EOF'
+name: file1
+steps:
+  - implement
+  - merge
+EOF
+    
+    result="$(list_available_workflows "$TEST_DIR")"
+    
+    # ビルトイン、config、ファイルの全てが表示される
+    [[ "$result" == *"default:"* ]]
+    [[ "$result" == *"config1: Config workflow 1"* ]]
+    [[ "$result" == *"config2: Config workflow 2"* ]]
+    [[ "$result" == *"file1: (custom workflow file)"* ]]
+}

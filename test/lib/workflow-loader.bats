@@ -336,3 +336,164 @@ EOF
     [[ "$result" == *"Implement the changes"* ]]
     [[ "$result" == *"#42"* ]]
 }
+
+# ====================
+# config-workflow:NAME 処理のテスト (Issue #913)
+# ====================
+
+@test "get_workflow_steps returns steps for config-workflow:quick" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  quick:
+    description: "Quick fix workflow"
+    steps:
+      - implement
+      - merge
+EOF
+    
+    # CONFIG_FILE を設定
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_workflow_steps "config-workflow:quick")"
+    [ "$result" = "implement merge" ]
+}
+
+@test "get_workflow_steps returns steps for config-workflow with multiple steps" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  thorough:
+    description: "Thorough workflow"
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_workflow_steps "config-workflow:thorough")"
+    [ "$result" = "plan implement test review merge" ]
+}
+
+@test "get_workflow_steps returns builtin when config-workflow steps empty" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  empty:
+    description: "Empty workflow"
+    steps: []
+EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_workflow_steps "config-workflow:empty")"
+    [ "$result" = "plan implement review merge" ]
+}
+
+@test "get_workflow_steps returns builtin when config-workflow steps missing" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  nosteps:
+    description: "Workflow without steps"
+EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_workflow_steps "config-workflow:nosteps")"
+    [ "$result" = "plan implement review merge" ]
+}
+
+@test "get_workflow_steps handles missing config file for config-workflow" {
+    export CONFIG_FILE="$TEST_DIR/nonexistent.yaml"
+    
+    result="$(get_workflow_steps "config-workflow:quick")"
+    [ "$result" = "plan implement review merge" ]
+}
+
+@test "get_workflow_steps handles config-workflow with single step" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  single:
+    description: "Single step workflow"
+    steps:
+      - implement
+EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_workflow_steps "config-workflow:single")"
+    [ "$result" = "implement" ]
+}
+
+@test "get_workflow_steps handles config-workflow with custom steps" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  custom:
+    description: "Custom workflow"
+    steps:
+      - research
+      - design
+      - implement
+      - validate
+EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_workflow_steps "config-workflow:custom")"
+    [ "$result" = "research design implement validate" ]
+}
+
+@test "get_workflow_steps handles multiple workflows in config" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  quick:
+    steps:
+      - implement
+      - merge
+  
+  thorough:
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+  
+  docs:
+    steps:
+      - implement
+EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    # 各ワークフローのステップを正しく取得できることを確認
+    result_quick="$(get_workflow_steps "config-workflow:quick")"
+    [ "$result_quick" = "implement merge" ]
+    
+    result_thorough="$(get_workflow_steps "config-workflow:thorough")"
+    [ "$result_thorough" = "plan implement test review merge" ]
+    
+    result_docs="$(get_workflow_steps "config-workflow:docs")"
+    [ "$result_docs" = "implement" ]
+}
+
+@test "get_workflow_steps uses default CONFIG_FILE when not set" {
+    # CONFIG_FILE が未設定の場合は .pi-runner.yaml をデフォルトで使用
+    cd "$TEST_DIR"
+    cat > ".pi-runner.yaml" << 'EOF'
+workflows:
+  test:
+    steps:
+      - implement
+      - merge
+EOF
+    
+    unset CONFIG_FILE
+    
+    result="$(get_workflow_steps "config-workflow:test")"
+    [ "$result" = "implement merge" ]
+    
+    # クリーンアップ
+    rm -f ".pi-runner.yaml"
+}
