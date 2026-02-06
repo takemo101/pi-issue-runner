@@ -44,36 +44,56 @@ improve_main() {
     # Set up trap for cleanup on interruption
     trap cleanup_improve_on_exit EXIT INT TERM
     
-    # Parse arguments
-    # shellcheck disable=SC2034  # Variables set by eval
-    eval "$(parse_improve_arguments "$@")"
+    # Parse arguments (sets _PARSE_* global variables)
+    parse_improve_arguments "$@"
+    
+    # Copy to local variables for clarity
+    # shellcheck disable=SC2154  # _PARSE_* variables set by parse_improve_arguments
+    local max_iterations="$_PARSE_max_iterations"
+    # shellcheck disable=SC2154
+    local max_issues="$_PARSE_max_issues"
+    # shellcheck disable=SC2154
+    local timeout="$_PARSE_timeout"
+    # shellcheck disable=SC2154
+    local iteration="$_PARSE_iteration"
+    # shellcheck disable=SC2154
+    local log_dir="$_PARSE_log_dir"
+    # shellcheck disable=SC2154
+    local session_label="$_PARSE_session_label"
+    # shellcheck disable=SC2154
+    local dry_run="$_PARSE_dry_run"
+    # shellcheck disable=SC2154
+    local review_only="$_PARSE_review_only"
+    # shellcheck disable=SC2154
+    local auto_continue="$_PARSE_auto_continue"
     
     # Validate iteration before environment setup (must run in current shell, not subshell)
-    # shellcheck disable=SC2154  # Variables set by eval above
     validate_improve_iteration "$iteration" "$max_iterations"
 
-    # Setup environment
-    # shellcheck disable=SC2034  # Variables set by eval
-    # shellcheck disable=SC2154  # Variables set by eval above
-    eval "$(setup_improve_environment "$iteration" "$max_iterations" "$session_label" "$log_dir" "$dry_run" "$review_only")"
+    # Setup environment (sets _PARSE_* global variables)
+    setup_improve_environment "$iteration" "$max_iterations" "$session_label" "$log_dir" "$dry_run" "$review_only"
+    
+    # Copy to local variables for clarity
+    # shellcheck disable=SC2154  # _PARSE_* variables set by setup_improve_environment
+    session_label="$_PARSE_session_label"
+    # shellcheck disable=SC2154
+    local log_file="$_PARSE_log_file"
+    # shellcheck disable=SC2154
+    local start_time="$_PARSE_start_time"
     
     # Phase 1: Review
-    # shellcheck disable=SC2154  # Variables set by eval above
     run_improve_review_phase "$max_issues" "$session_label" "$log_file" "$dry_run" "$review_only"
     
     # Phase 2: Fetch issues
     local created_issues
-    # shellcheck disable=SC2154  # start_time set by eval above
     created_issues="$(fetch_improve_created_issues "$start_time" "$max_issues" "$session_label")"
     
     # Phase 3: Execute in parallel
     execute_improve_issues_in_parallel "$created_issues"
     
     # Phase 4: Wait for completion
-    # shellcheck disable=SC2154  # timeout set by eval above
     wait_for_improve_completion "$timeout"
     
     # Phase 5: Next iteration
-    # shellcheck disable=SC2154  # auto_continue set by eval above
     start_improve_next_iteration "$iteration" "$max_iterations" "$max_issues" "$timeout" "$log_dir" "$session_label" "$auto_continue"
 }

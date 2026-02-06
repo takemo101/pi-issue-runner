@@ -310,9 +310,11 @@ get_config() {
         worktree_copy_files)
             echo "$CONFIG_WORKTREE_COPY_FILES"
             ;;
+        # @deprecated Use multiplexer_session_prefix instead of tmux_session_prefix
         tmux_session_prefix|multiplexer_session_prefix|session_prefix)
             echo "$CONFIG_MULTIPLEXER_SESSION_PREFIX"
             ;;
+        # @deprecated Use multiplexer_start_in_session instead of tmux_start_in_session
         tmux_start_in_session|multiplexer_start_in_session|start_in_session)
             echo "$CONFIG_MULTIPLEXER_START_IN_SESSION"
             ;;

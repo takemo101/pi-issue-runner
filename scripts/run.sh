@@ -516,7 +516,7 @@ display_summary_and_attach() {
     # アタッチ
     if [[ "$no_attach" == "false" ]]; then
         local start_in_session
-        start_in_session="$(get_config tmux_start_in_session)"
+        start_in_session="$(get_config multiplexer_start_in_session)"
         if [[ "$start_in_session" == "true" ]]; then
             log_info "Attaching to session..."
             attach_session "$session_name"

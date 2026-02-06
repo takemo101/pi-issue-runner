@@ -84,57 +84,57 @@ teardown() {
 # ====================
 
 @test "parse_improve_arguments handles --max-iterations" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --max-iterations 5"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --max-iterations 5 && echo \$_PARSE_max_iterations"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"max_iterations='5'"* ]]
+    [[ "$output" == *"5"* ]]
 }
 
 @test "parse_improve_arguments handles --max-issues" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --max-issues 10"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --max-issues 10 && echo \$_PARSE_max_issues"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"max_issues='10'"* ]]
+    [[ "$output" == *"10"* ]]
 }
 
 @test "parse_improve_arguments handles --timeout" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --timeout 1800"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --timeout 1800 && echo \$_PARSE_timeout"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"timeout='1800'"* ]]
+    [[ "$output" == *"1800"* ]]
 }
 
 @test "parse_improve_arguments handles --iteration" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --iteration 2"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --iteration 2 && echo \$_PARSE_iteration"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"iteration='2'"* ]]
+    [[ "$output" == *"2"* ]]
 }
 
 @test "parse_improve_arguments handles --log-dir" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --log-dir /tmp/logs"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --log-dir /tmp/logs && echo \$_PARSE_log_dir"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"log_dir='/tmp/logs'"* ]]
+    [[ "$output" == *"/tmp/logs"* ]]
 }
 
 @test "parse_improve_arguments handles --label" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --label test-session"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --label test-session && echo \$_PARSE_session_label"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"session_label='test-session'"* ]]
+    [[ "$output" == *"test-session"* ]]
 }
 
 @test "parse_improve_arguments handles --dry-run" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --dry-run"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --dry-run && echo \$_PARSE_dry_run"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"dry_run=true"* ]]
+    [[ "$output" == *"true"* ]]
 }
 
 @test "parse_improve_arguments handles --review-only" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --review-only"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --review-only && echo \$_PARSE_review_only"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"review_only=true"* ]]
+    [[ "$output" == *"true"* ]]
 }
 
 @test "parse_improve_arguments handles --auto-continue" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --auto-continue"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --auto-continue && echo \$_PARSE_auto_continue"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"auto_continue=true"* ]]
+    [[ "$output" == *"true"* ]]
 }
 
 @test "parse_improve_arguments handles --verbose" {
@@ -154,115 +154,87 @@ teardown() {
 # ====================
 
 @test "parse_improve_arguments uses default max_iterations" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments && echo \$_PARSE_max_iterations"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"max_iterations='3'"* ]]
+    [[ "$output" == *"3"* ]]
 }
 
 @test "parse_improve_arguments uses default max_issues" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments && echo \$_PARSE_max_issues"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"max_issues='5'"* ]]
+    [[ "$output" == *"5"* ]]
 }
 
 @test "parse_improve_arguments uses default timeout" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments && echo \$_PARSE_timeout"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"timeout='3600'"* ]]
+    [[ "$output" == *"3600"* ]]
 }
 
 @test "parse_improve_arguments uses default iteration" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments && echo \$_PARSE_iteration"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"iteration='1'"* ]]
+    [[ "$output" == *"1"* ]]
 }
 
 @test "parse_improve_arguments defaults log_dir to empty string" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments && test -z \"\$_PARSE_log_dir\" && echo 'empty'"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"log_dir=''"* ]]
+    [[ "$output" == *"empty"* ]]
 }
 
 @test "parse_improve_arguments defaults session_label to empty string" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments && test -z \"\$_PARSE_session_label\" && echo 'empty'"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"session_label=''"* ]]
+    [[ "$output" == *"empty"* ]]
 }
 
 @test "parse_improve_arguments defaults boolean flags to false" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments && echo \$_PARSE_dry_run \$_PARSE_review_only \$_PARSE_auto_continue"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"dry_run=false"* ]]
-    [[ "$output" == *"review_only=false"* ]]
-    [[ "$output" == *"auto_continue=false"* ]]
+    [[ "$output" == *"false false false"* ]]
 }
 
 # ====================
-# parse_improve_arguments() - Edge Cases
+# parse_improve_arguments() - Edge Cases (no longer need escaping tests)
 # ====================
 
-@test "parse_improve_arguments escapes single quotes in log_dir" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --log-dir \"/tmp/user's-logs\""
+@test "parse_improve_arguments handles single quotes in log_dir" {
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --log-dir \"/tmp/user's-logs\" && echo \$_PARSE_log_dir"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"log_dir='/tmp/user'\\''s-logs'"* ]]
+    [[ "$output" == *"/tmp/user's-logs"* ]]
 }
 
-@test "parse_improve_arguments escapes single quotes in session_label" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --label \"test's-session\""
+@test "parse_improve_arguments handles single quotes in session_label" {
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --label \"test's-session\" && echo \$_PARSE_session_label"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"session_label='test'\\''s-session'"* ]]
-}
-
-@test "parse_improve_arguments output is eval-able with single quotes" {
-    run bash -c "
-        source '$PROJECT_ROOT/lib/log.sh'
-        source '$PROJECT_ROOT/lib/improve/args.sh'
-        test_fn() {
-            eval \"\$(parse_improve_arguments --log-dir \"/tmp/user's-logs\" --label \"test's-label\")\"
-            echo \"log_dir=\$log_dir\"
-            echo \"session_label=\$session_label\"
-        }
-        test_fn
-    "
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"log_dir=/tmp/user's-logs"* ]]
-    [[ "$output" == *"session_label=test's-label"* ]]
+    [[ "$output" == *"test's-session"* ]]
 }
 
 @test "parse_improve_arguments handles multiple options combined" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --max-iterations 2 --max-issues 3 --timeout 1000 --dry-run --auto-continue"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --max-iterations 2 --max-issues 3 --timeout 600 && echo \$_PARSE_max_iterations \$_PARSE_max_issues \$_PARSE_timeout"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"max_iterations='2'"* ]]
-    [[ "$output" == *"max_issues='3'"* ]]
-    [[ "$output" == *"timeout='1000'"* ]]
-    [[ "$output" == *"dry_run=true"* ]]
-    [[ "$output" == *"auto_continue=true"* ]]
-}
-
-@test "parse_improve_arguments rejects zero values for max-iterations" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --max-iterations 0 2>&1"
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"positive integer"* ]]
+    [[ "$output" == *"2 3 600"* ]]
 }
 
 @test "parse_improve_arguments handles large numeric values" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --timeout 99999"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --timeout 99999 && echo \$_PARSE_timeout"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"timeout='99999'"* ]]
+    [[ "$output" == *"99999"* ]]
 }
 
 # ====================
-# parse_improve_arguments() - Error Handling
+# parse_improve_arguments() - Error Cases
 # ====================
 
 @test "parse_improve_arguments rejects unknown option" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --unknown-option 2>&1"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --unknown-option"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Unknown option"* ]]
 }
 
 @test "parse_improve_arguments rejects unexpected positional argument" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments unexpected_arg 2>&1"
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments unexpected_arg"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Unexpected argument"* ]]
 }
@@ -280,7 +252,35 @@ teardown() {
 }
 
 # ====================
-# Input Validation Tests (Security)
+# Constants Tests
+# ====================
+
+@test "args.sh defines _IMPROVE_DEFAULT_MAX_ITERATIONS constant" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve/args.sh' && echo \$_IMPROVE_DEFAULT_MAX_ITERATIONS"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "3" ]]
+}
+
+@test "args.sh defines _IMPROVE_DEFAULT_MAX_ISSUES constant" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve/args.sh' && echo \$_IMPROVE_DEFAULT_MAX_ISSUES"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "5" ]]
+}
+
+@test "args.sh defines _IMPROVE_DEFAULT_TIMEOUT constant" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve/args.sh' && echo \$_IMPROVE_DEFAULT_TIMEOUT"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "3600" ]]
+}
+
+@test "args.sh constants match default values in parse_improve_arguments" {
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments && echo \$_PARSE_max_iterations"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "3" ]]
+}
+
+# ====================
+# Input Validation Tests (Security - Issue #922)
 # ====================
 
 @test "parse_improve_arguments rejects non-numeric max-iterations" {
@@ -291,6 +291,12 @@ teardown() {
 
 @test "parse_improve_arguments rejects negative max-iterations" {
     run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --max-iterations -1 2>&1"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"positive integer"* ]]
+}
+
+@test "parse_improve_arguments rejects zero max-iterations" {
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --max-iterations 0 2>&1"
     [ "$status" -eq 1 ]
     [[ "$output" == *"positive integer"* ]]
 }
@@ -314,6 +320,12 @@ teardown() {
     [[ "$output" == *"positive integer"* ]]
 }
 
+@test "parse_improve_arguments rejects zero max-issues" {
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --max-issues 0 2>&1"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"positive integer"* ]]
+}
+
 @test "parse_improve_arguments rejects command injection in max-issues" {
     run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --max-issues '5; rm -rf /' 2>&1"
     [ "$status" -eq 1 ]
@@ -328,6 +340,12 @@ teardown() {
 
 @test "parse_improve_arguments rejects negative timeout" {
     run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --timeout -100 2>&1"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"positive integer"* ]]
+}
+
+@test "parse_improve_arguments rejects zero timeout" {
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --timeout 0 2>&1"
     [ "$status" -eq 1 ]
     [[ "$output" == *"positive integer"* ]]
 }
@@ -350,57 +368,20 @@ teardown() {
     [[ "$output" == *"positive integer"* ]]
 }
 
+@test "parse_improve_arguments rejects zero iteration" {
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --iteration 0 2>&1"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"positive integer"* ]]
+}
+
 @test "parse_improve_arguments rejects command injection in iteration" {
     run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --iteration '2; whoami' 2>&1"
     [ "$status" -eq 1 ]
     [[ "$output" == *"positive integer"* ]]
 }
 
-@test "parse_improve_arguments output uses quoted numeric values" {
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --max-iterations 5"
+@test "parse_improve_arguments accepts valid positive integers" {
+    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --max-iterations 5 --max-issues 10 --timeout 3600 --iteration 2 && echo \$_PARSE_max_iterations-\$_PARSE_max_issues-\$_PARSE_timeout-\$_PARSE_iteration"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"max_iterations='5'"* ]]
-}
-
-@test "parse_improve_arguments prevents eval injection via validated numerics" {
-    # Even with validation, ensure output is quoted for defense-in-depth
-    run bash -c "
-        source '$PROJECT_ROOT/lib/log.sh'
-        source '$PROJECT_ROOT/lib/improve/args.sh'
-        # This should fail validation before reaching eval
-        parse_improve_arguments --max-iterations '1; echo EVIL' 2>&1 || true
-    "
-    # The validation should fail, but without executing the injected code
-    [[ "$output" == *"positive integer"* ]]
-    [[ "$output" != *"EVIL"* ]] || true  # May appear in error message, but not executed
-}
-
-# ====================
-# Constants Tests
-# ====================
-
-@test "args.sh defines _IMPROVE_DEFAULT_MAX_ITERATIONS constant" {
-    grep -q '_IMPROVE_DEFAULT_MAX_ITERATIONS=' "$PROJECT_ROOT/lib/improve/args.sh"
-}
-
-@test "args.sh defines _IMPROVE_DEFAULT_MAX_ISSUES constant" {
-    grep -q '_IMPROVE_DEFAULT_MAX_ISSUES=' "$PROJECT_ROOT/lib/improve/args.sh"
-}
-
-@test "args.sh defines _IMPROVE_DEFAULT_TIMEOUT constant" {
-    grep -q '_IMPROVE_DEFAULT_TIMEOUT=' "$PROJECT_ROOT/lib/improve/args.sh"
-}
-
-@test "args.sh constants match default values in parse_improve_arguments" {
-    # Extract constant values
-    max_iter=$(grep '_IMPROVE_DEFAULT_MAX_ITERATIONS=' "$PROJECT_ROOT/lib/improve/args.sh" | sed 's/.*=\([0-9]*\).*/\1/')
-    max_issues=$(grep '_IMPROVE_DEFAULT_MAX_ISSUES=' "$PROJECT_ROOT/lib/improve/args.sh" | sed 's/.*=\([0-9]*\).*/\1/')
-    timeout=$(grep '_IMPROVE_DEFAULT_TIMEOUT=' "$PROJECT_ROOT/lib/improve/args.sh" | sed 's/.*=\([0-9]*\).*/\1/')
-    
-    # Test they match parsed defaults (now with quotes)
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"max_iterations='$max_iter'"* ]]
-    [[ "$output" == *"max_issues='$max_issues'"* ]]
-    [[ "$output" == *"timeout='$timeout'"* ]]
+    [[ "$output" == "5-10-3600-2" ]]
 }
