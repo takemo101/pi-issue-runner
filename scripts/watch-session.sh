@@ -166,7 +166,7 @@ check_pr_merge_status() {
             log_warn "PR #$pr_number exists but is not merged yet"
             log_warn "Completion marker detected but PR is still open - waiting for merge..."
             log_warn "This may indicate the AI output the marker too early"
-            send_notification "Warning" "PR #$pr_number is not merged yet for Issue #$issue_number"
+            log_warn "PR #$pr_number is not merged yet for Issue #$issue_number"
             return 1
         else
             log_info "PR #$pr_number state: $pr_state"
@@ -176,7 +176,7 @@ check_pr_merge_status() {
         log_warn "No PR found for Issue #$issue_number"
         log_warn "Completion marker detected but no PR was created - workflow may not have completed correctly"
         log_warn "Skipping cleanup. Please check the session manually."
-        send_notification "Warning" "No PR created for Issue #$issue_number - check session"
+        log_warn "No PR created for Issue #$issue_number - check session"
         return 1
     fi
 }
