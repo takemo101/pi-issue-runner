@@ -663,3 +663,110 @@ YAML
     [ "$(get_config hooks_on_success)" = "env success override" ]
     [ "$(get_config hooks_on_error)" = "./hooks/error.sh" ]
 }
+
+# ====================
+# セキュリティテスト（特殊文字のエスケープ）
+# ====================
+
+@test "config handles special characters safely - semicolon in YAML" {
+    unset _CONFIG_LOADED
+    
+    cat > "$TEST_CONFIG_FILE" << 'YAML'
+worktree:
+  base_dir: "test;echo hacked"
+YAML
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    # 値が正しく設定され、コマンドとして実行されていないことを確認
+    result="$(get_config worktree_base_dir)"
+    [ "$result" = "test;echo hacked" ]
+}
+
+@test "config handles special characters safely - quotes in YAML" {
+    unset _CONFIG_LOADED
+    
+    cat > "$TEST_CONFIG_FILE" << 'YAML'
+worktree:
+  base_dir: 'test"quotes"'
+YAML
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config worktree_base_dir)"
+    [ "$result" = 'test"quotes"' ]
+}
+
+@test "config handles special characters safely - backticks in YAML" {
+    unset _CONFIG_LOADED
+    
+    cat > "$TEST_CONFIG_FILE" << 'YAML'
+worktree:
+  base_dir: "test`whoami`"
+YAML
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    # バッククォートが実行されず、文字列として扱われることを確認
+    result="$(get_config worktree_base_dir)"
+    [ "$result" = 'test`whoami`' ]
+}
+
+@test "config handles special characters safely - dollar signs in YAML" {
+    unset _CONFIG_LOADED
+    
+    cat > "$TEST_CONFIG_FILE" << 'YAML'
+worktree:
+  base_dir: "test$HOME"
+YAML
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    # $HOME が展開されず、文字列として扱われることを確認
+    result="$(get_config worktree_base_dir)"
+    [ "$result" = 'test$HOME' ]
+}
+
+@test "config handles special characters safely - semicolon in env var" {
+    unset _CONFIG_LOADED
+    export PI_RUNNER_WORKTREE_BASE_DIR="env;echo hacked"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    # 値が正しく設定され、コマンドとして実行されていないことを確認
+    result="$(get_config worktree_base_dir)"
+    [ "$result" = "env;echo hacked" ]
+}
+
+@test "config handles special characters safely - command substitution in env var" {
+    unset _CONFIG_LOADED
+    export PI_RUNNER_WORKTREE_BASE_DIR='$(echo hacked)'
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    # コマンド置換が実行されず、文字列として扱われることを確認
+    result="$(get_config worktree_base_dir)"
+    [ "$result" = '$(echo hacked)' ]
+}
+
+@test "config handles empty values correctly" {
+    unset _CONFIG_LOADED
+    
+    cat > "$TEST_CONFIG_FILE" << 'YAML'
+worktree:
+  base_dir: ""
+YAML
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    # 空文字列が正しく処理されることを確認（デフォルトにフォールバック）
+    result="$(get_config worktree_base_dir)"
+    [ "$result" = ".worktrees" ]
+}
