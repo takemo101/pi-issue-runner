@@ -27,6 +27,8 @@ hooks:
 
 ### インラインコマンド
 
+> **⚠️ セキュリティ注意**: インラインhookコマンドはデフォルトで無効化されています。使用するには環境変数 `PI_RUNNER_ALLOW_INLINE_HOOKS=true` を設定してください。セキュリティの観点から、可能な限り[スクリプトファイル](#スクリプトファイル指定)を使用することを推奨します。詳細は[セキュリティドキュメント](./security.md#インラインhookの制御)を参照してください。
+
 ```yaml
 hooks:
   on_success: |
@@ -36,6 +38,13 @@ hooks:
     curl -X POST -H 'Content-Type: application/json' \
       -d '{"text": "Issue #{{issue_number}} でエラー: {{error_message}}"}' \
       $SLACK_WEBHOOK_URL
+```
+
+**有効化方法**:
+
+```bash
+export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+./scripts/run.sh 42
 ```
 
 ### 特定イベントのみ設定
