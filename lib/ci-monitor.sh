@@ -71,7 +71,7 @@ get_pr_checks_status() {
     
     # PRのチェック状態を取得
     local checks_json
-    checks_json=$(gh pr checks "$pr_number" --json state,conclusion 2>/dev/null || echo "[]")
+    checks_json=$(gh pr checks "$pr_number" --json state 2>/dev/null || echo "[]")
     
     # チェックがない場合は成功とみなす
     if [[ -z "$checks_json" || "$checks_json" == "[]" ]]; then
@@ -82,7 +82,7 @@ get_pr_checks_status() {
     # jqで解析
     if command -v jq &> /dev/null; then
         # 失敗があるかチェック
-        if echo "$checks_json" | jq -e 'any(.[]; .state == "FAILURE" or .conclusion == "failure")' > /dev/null 2>&1; then
+        if echo "$checks_json" | jq -e 'any(.[]; .state == "FAILURE")' > /dev/null 2>&1; then
             echo "failure"
             return 0
         fi
@@ -94,7 +94,7 @@ get_pr_checks_status() {
         fi
         
         # 全て成功
-        if echo "$checks_json" | jq -e 'all(.[]; .state == "SUCCESS" or .conclusion == "success")' > /dev/null 2>&1; then
+        if echo "$checks_json" | jq -e 'all(.[]; .state == "SUCCESS")' > /dev/null 2>&1; then
             echo "success"
             return 0
         fi
