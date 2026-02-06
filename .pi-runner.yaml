@@ -67,7 +67,7 @@ parallel:
   max_concurrent: 5
 
 # =====================================
-# ワークフロー設定
+# ワークフロー設定（デフォルト・後方互換）
 # =====================================
 workflow:
   # ワークフロー名
@@ -79,6 +79,81 @@ workflow:
     - implement
     - review
     - merge
+
+# =====================================
+# 複数ワークフロー定義
+# -w 省略時は auto（AIがIssue内容から自動選択）
+# =====================================
+workflows:
+  # 機能追加: 計画→実装→テスト→レビュー→マージ
+  feature:
+    description: 新機能・大規模変更（lib/scripts への新関数追加、新スクリプト作成）
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+    context: |
+      ## 技術スタック
+      - Bash 4.0+ / ShellCheck 準拠
+      - テスト: Bats (Bash Automated Testing System)
+      - YAML: yq + フォールバック簡易パーサー (lib/yaml.sh)
+
+      ## 方針
+      - 全ファイルに `set -euo pipefail` を設定
+      - 関数は小文字スネークケース、ローカル変数は `local` 宣言
+      - 新しい lib/ には対応する test/lib/*.bats を必ず作成
+      - 新しい scripts/ には対応する test/scripts/*.bats を必ず作成
+      - AGENTS.md のディレクトリ構造を更新すること
+
+  # バグ修正・リファクタリング: 実装→テスト→レビュー→マージ
+  fix:
+    description: バグ修正・リファクタリング・セキュリティ修正
+    steps:
+      - implement
+      - test
+      - review
+      - merge
+    context: |
+      ## 方針
+      - 回帰テスト (test/regression/) の追加を検討すること
+      - 修正範囲を最小限に抑える
+      - ShellCheck 警告を解消すること
+      - 既存テストが壊れないことを確認
+
+  # ドキュメント: 実装→マージ
+  docs:
+    description: ドキュメント更新（README, AGENTS.md, docs/ 以下）
+    steps:
+      - implement
+      - merge
+    context: |
+      ## 方針
+      - docs/ 以下の既存ドキュメントとの整合性を確認
+      - AGENTS.md のディレクトリ構造が実態と一致しているか確認
+      - コード例は実際に動作するものを記載
+
+  # テスト追加: 実装→レビュー→マージ
+  test:
+    description: テスト追加・テスト改善
+    steps:
+      - implement
+      - review
+      - merge
+    context: |
+      ## 方針
+      - Bats テストの規約に従う（test_helper.bash のモック関数を活用）
+      - setup/teardown で環境を確実にクリーンアップ
+      - 並列実行 (BATS_JOBS=4) でも安定するよう、グローバル状態を汚染しない
+      - reset_yaml_cache, _YQ_CHECK_RESULT="" を setup で呼ぶ
+
+  # 簡易修正: 実装→マージのみ
+  quickfix:
+    description: typo修正・設定値変更・コメント修正など軽微な変更
+    steps:
+      - implement
+      - merge
 
 # =====================================
 # 計画書設定
