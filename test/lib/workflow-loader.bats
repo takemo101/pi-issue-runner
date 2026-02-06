@@ -763,6 +763,9 @@ YAML_EOF
 }
 
 @test "get_all_workflows_info diagnostic - yaml_get_keys returns values" {
+    # YAMLキャッシュを明示的にリセット
+    reset_yaml_cache
+    
     cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
 workflows:
   quick:
@@ -776,4 +779,21 @@ YAML_EOF
     # yaml_get_keys が値を返すか確認
     result="$(yaml_get_keys "$CONFIG_FILE" ".workflows")"
     [ -n "$result" ]
+}
+
+@test "get_all_workflows_info diagnostic - simple parser works" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  quick:
+    description: 小規模修正
+    steps:
+      - implement
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    # 簡易パーサーを直接呼び出し
+    result="$(_simple_yaml_get_keys "$CONFIG_FILE" ".workflows")"
+    [ -n "$result" ]
+    [[ "$result" == *"quick"* ]]
 }
