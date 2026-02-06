@@ -774,6 +774,7 @@ YAML_EOF
 @test "get_all_workflows_info diagnostic - yaml_get_keys returns values" {
     # YAMLキャッシュを明示的にリセット
     reset_yaml_cache
+    _YQ_CHECK_RESULT=""
     
     cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
 workflows:
