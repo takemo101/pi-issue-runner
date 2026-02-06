@@ -7,6 +7,7 @@ set -euo pipefail
 
 _CI_RETRY_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_CI_RETRY_LIB_DIR/log.sh"
+source "$_CI_RETRY_LIB_DIR/status.sh"
 
 # ===================
 # 定数定義
@@ -22,7 +23,13 @@ MAX_RETRY_COUNT=3        # 最大リトライ回数
 # Usage: get_retry_state_file <issue_number>
 get_retry_state_file() {
     local issue_number="$1"
-    local state_dir="${PI_RUNNER_STATE_DIR:-/tmp/pi-runner-state}"
+    local state_dir
+    if [[ -n "${PI_RUNNER_STATE_DIR:-}" ]]; then
+        state_dir="$PI_RUNNER_STATE_DIR"
+    else
+        # status.sh と同じディレクトリに保存
+        state_dir="$(get_status_dir)"
+    fi
     mkdir -p "$state_dir"
     echo "$state_dir/ci-retry-$issue_number"
 }
