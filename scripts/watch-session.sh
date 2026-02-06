@@ -292,6 +292,24 @@ handle_complete() {
     # ステータスを保存
     save_status "$issue_number" "complete" "$session_name" "" 2>/dev/null || true
     
+    # 計画書を削除（ホスト環境で実行するため確実に反映される）
+    local plans_dir
+    plans_dir="$(get_config plans_dir 2>/dev/null)" || plans_dir="docs/plans"
+    local plan_file="${plans_dir}/issue-${issue_number}-plan.md"
+    if [[ -f "$plan_file" ]]; then
+        log_info "Deleting plan file: $plan_file"
+        rm -f "$plan_file" 2>/dev/null || true
+        
+        # git でコミット（失敗しても継続）
+        if git rev-parse --git-dir &>/dev/null 2>&1; then
+            git add -A 2>/dev/null || true
+            git commit -m "chore: remove plan for issue #${issue_number}" 2>/dev/null || true
+            git push origin main 2>/dev/null || log_warn "Failed to push plan deletion (may need manual push)"
+        fi
+    else
+        log_debug "No plan file found at: $plan_file"
+    fi
+    
     # on_success hookを実行（hook未設定時はデフォルト動作）
     run_hook "on_success" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "" "0" "" 2>/dev/null || true
     
