@@ -15,6 +15,9 @@
 
 ```
 pi-issue-runner/
+├── .github/
+│   └── workflows/
+│       └── ci.yaml    # CI設定
 ├── SKILL.md           # スキル定義（必須）
 ├── AGENTS.md          # 開発ガイド（このファイル）
 ├── README.md          # プロジェクト説明
@@ -101,6 +104,7 @@ pi-issue-runner/
 │   ├── coding-standards.md # コーディング規約
 │   ├── configuration.md   # 設定リファレンス
 │   ├── hooks.md           # Hook機能
+│   ├── multi-workflow-design.md # マルチワークフロー設計
 │   ├── overview.md        # 概要
 │   ├── parallel-execution.md # 並列実行
 │   ├── public-api.md        # 公開APIリファレンス
@@ -131,6 +135,13 @@ pi-issue-runner/
 │   │   ├── dependency.bats       # dependency.sh のテスト
 │   │   ├── github.bats      # github.sh のテスト
 │   │   ├── hooks.bats
+│   │   ├── improve/       # improve サブモジュールのテスト
+│   │   │   ├── args.bats
+│   │   │   ├── deps.bats
+│   │   │   ├── env.bats
+│   │   │   ├── execution.bats
+│   │   │   └── review.bats
+│   │   ├── improve.bats
 │   │   ├── log.bats
 │   │   ├── notify.bats
 │   │   ├── priority.bats
