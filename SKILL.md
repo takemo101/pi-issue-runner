@@ -15,7 +15,7 @@ GitHub Issueを入力として、Git worktreeを作成し、ターミナルマ�
 scripts/run.sh <issue-number> [options]
 
 Options:
-  -w, --workflow <name>  ワークフロー名（デフォルト: default、auto で自動選択）
+  -w, --workflow <name>  ワークフロー名（省略時: workflows セクションがあれば auto、なければ default）
   --list-workflows       利用可能なワークフロー一覧を表示
   --no-attach            バックグラウンドで起動
   --no-cleanup           自動クリーンアップを無効化
@@ -60,13 +60,12 @@ scripts/force-complete.sh 42 --error     # エラーとして完了
 scripts/nudge.sh <issue-number>          # セッションに続行を促すメッセージを送信
 scripts/nudge.sh 42 --message "続けてください"
 
-# 名前付きワークフロー（.pi-runner.yaml の workflows セクションで定義）
-scripts/run.sh 42 -w frontend            # フロントエンド用ワークフロー
-scripts/run.sh 42 -w backend             # バックエンド用ワークフロー
-scripts/run.sh 42 -w auto                # AIがIssue内容から自動選択
-
-# CI修正ワークフロー
-scripts/run.sh 42 --workflow ci-fix       # CI失敗の自動修正
+# ワークフロー選択
+# .pi-runner.yaml に workflows セクションがある場合、-w 省略時は auto（AI自動選択）
+scripts/run.sh 42                         # workflows あり → auto / なし → default
+scripts/run.sh 42 -w frontend            # 明示的にフロントエンド用ワークフローを指定
+scripts/run.sh 42 -w auto                # AIがIssue内容から自動選択（明示指定）
+scripts/run.sh 42 --workflow ci-fix       # CI修正ワークフロー
 
 # 継続的改善
 scripts/improve.sh                    # レビュー→Issue作成→実行→待機のループ
@@ -144,6 +143,25 @@ scripts/nudge.sh 42 --message "続けてください"
 |-----------|------|
 | `-m, --message TEXT` | 送信するメッセージ（デフォルト: "続けてください"） |
 | `-s, --session NAME` | セッション名を明示的に指定 |
+
+## ワークフロー選択ガイド
+
+`-w` オプションでワークフローを指定できます。プロジェクトの `.pi-runner.yaml` に `workflows` セクションが定義されている場合、**`-w` 省略時は自動的に `auto`**（AI自動選択）になります。
+
+### 判断基準
+
+| 状況 | 推奨する `-w` |
+|------|--------------|
+| Issue内容に応じてAIに任せたい | 省略（auto）または `-w auto` |
+| CI失敗の修正 | `-w ci-fix` |
+| typo・設定変更など小さな修正 | `-w simple` |
+| 特定のワークフローを使いたい | `-w <name>`（例: `-w frontend`） |
+
+### 利用可能なワークフロー確認
+
+```bash
+scripts/run.sh --list-workflows
+```
 
 ## 詳細ドキュメント
 

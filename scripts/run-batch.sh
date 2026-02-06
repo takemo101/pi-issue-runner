@@ -88,7 +88,8 @@ TIMEOUT=3600
 # shellcheck disable=SC2034
 INTERVAL=5
 # shellcheck disable=SC2034
-WORKFLOW_NAME="default"
+WORKFLOW_NAME=""
+WORKFLOW_SPECIFIED=false
 # shellcheck disable=SC2034
 BASE_BRANCH="HEAD"
 QUIET=false
@@ -100,6 +101,7 @@ source "$SCRIPT_DIR/../lib/github.sh"
 source "$SCRIPT_DIR/../lib/dependency.sh"
 source "$SCRIPT_DIR/../lib/status.sh"
 source "$SCRIPT_DIR/../lib/batch.sh"    # バッチ処理コア機能
+source "$SCRIPT_DIR/../lib/workflow.sh" # ワークフロー（resolve_default_workflow）
 
 # 設定ファイルの存在チェック（必須）
 require_config_file "pi-run-batch" || exit 1
@@ -169,6 +171,7 @@ parse_arguments() {
                     return 1
                 fi
                 WORKFLOW_NAME="$2"
+                WORKFLOW_SPECIFIED=true
                 shift 2
                 ;;
             --base)
@@ -236,6 +239,11 @@ main() {
     fi
 
     ALL_ISSUES=("${PARSE_ISSUES[@]}")
+
+    # -w 未指定時はデフォルトワークフローを自動解決
+    if [[ "$WORKFLOW_SPECIFIED" == "false" ]]; then
+        WORKFLOW_NAME="$(resolve_default_workflow ".")"
+    fi
 
     # バッチ処理用の設定構造体を作成
     declare -A batch_config=(

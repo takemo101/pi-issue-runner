@@ -19,6 +19,24 @@ source "$_WORKFLOW_LIB_DIR/log.sh"
 source "$_WORKFLOW_LIB_DIR/workflow-prompt.sh"
 
 # ===================
+# デフォルトワークフロー解決
+# ===================
+
+# -w 未指定時のデフォルトワークフロー名を決定
+# .pi-runner.yaml に workflows セクションがあれば "auto"、なければ "default"
+# Usage: resolve_default_workflow [project_root]
+resolve_default_workflow() {
+    local project_root="${1:-.}"
+    local config_file="$project_root/.pi-runner.yaml"
+    
+    if [[ -f "$config_file" ]] && yaml_exists "$config_file" ".workflows"; then
+        echo "auto"
+    else
+        echo "default"
+    fi
+}
+
+# ===================
 # ワークフロー管理
 # ===================
 

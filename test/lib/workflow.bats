@@ -438,3 +438,53 @@ EOF
     [[ "$result" == *"config2: Config workflow 2"* ]]
     [[ "$result" == *"file1: (custom workflow file)"* ]]
 }
+
+# ===================
+# resolve_default_workflow テスト
+# ===================
+
+@test "resolve_default_workflow returns auto when workflows section exists" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  frontend:
+    description: フロントエンド
+    steps:
+      - implement
+EOF
+    
+    result="$(resolve_default_workflow "$TEST_DIR")"
+    [ "$result" = "auto" ]
+}
+
+@test "resolve_default_workflow returns default when workflows section not defined" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflow:
+  steps:
+    - plan
+    - implement
+EOF
+    
+    result="$(resolve_default_workflow "$TEST_DIR")"
+    [ "$result" = "default" ]
+}
+
+@test "resolve_default_workflow returns default when no config file" {
+    result="$(resolve_default_workflow "$TEST_DIR/nonexistent")"
+    [ "$result" = "default" ]
+}
+
+@test "resolve_default_workflow returns auto with multiple workflows" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  frontend:
+    steps:
+      - implement
+  backend:
+    steps:
+      - plan
+      - implement
+EOF
+    
+    result="$(resolve_default_workflow "$TEST_DIR")"
+    [ "$result" = "auto" ]
+}

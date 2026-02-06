@@ -149,7 +149,8 @@ parse_run_arguments() {
     local issue_number=""
     local custom_branch=""
     local base_branch="HEAD"
-    local workflow_name="default"
+    local workflow_name=""
+    local workflow_specified=false
     local no_attach=false
     local reattach=false
     local force=false
@@ -174,6 +175,7 @@ parse_run_arguments() {
                 ;;
             --workflow|-w)
                 workflow_name="$2"
+                workflow_specified=true
                 shift 2
                 ;;
             --list-workflows)
@@ -230,6 +232,10 @@ parse_run_arguments() {
     _PARSE_issue_number="$issue_number"
     _PARSE_custom_branch="$custom_branch"
     _PARSE_base_branch="$base_branch"
+    # -w 未指定時はデフォルトワークフローを自動解決
+    if [[ "$workflow_specified" == "false" ]]; then
+        workflow_name="$(resolve_default_workflow ".")"
+    fi
     _PARSE_workflow_name="$workflow_name"
     _PARSE_no_attach="$no_attach"
     _PARSE_reattach="$reattach"
