@@ -179,8 +179,8 @@ mux_list_sessions() {
     local prefix
     prefix="$(get_config session_prefix)"
     
-    # Zellijのlist-sessionsの出力から名前を抽出
-    zellij list-sessions 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | awk '{print $1}' | grep "^${prefix}" || true
+    # Zellijのlist-sessionsの出力から名前を抽出（monitorセッションは除外）
+    zellij list-sessions 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | awk '{print $1}' | grep "^${prefix}" | grep -v "^${prefix}-monitor$" || true
 }
 
 # セッションの状態を取得

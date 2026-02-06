@@ -327,6 +327,34 @@ EOF
     [[ "$output" == *"pi-issue-99"* ]]
 }
 
+@test "mux_list_sessions excludes monitor session" {
+    cat > "$MOCK_DIR/tmux" << 'EOF'
+#!/usr/bin/env bash
+case "$1" in
+    "list-sessions")
+        if [[ "$2" == "-F" ]]; then
+            echo "pi-issue-42"
+            echo "pi-issue-99"
+            echo "pi-monitor"
+        fi
+        ;;
+    *)
+        exit 0
+        ;;
+esac
+EOF
+    chmod +x "$MOCK_DIR/tmux"
+    export PATH="$MOCK_DIR:$PATH"
+
+    source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
+
+    run mux_list_sessions
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"pi-issue-42"* ]]
+    [[ "$output" == *"pi-issue-99"* ]]
+    [[ "$output" != *"pi-monitor"* ]]
+}
+
 @test "mux_list_sessions returns empty when no sessions" {
     cat > "$MOCK_DIR/tmux" << 'EOF'
 #!/usr/bin/env bash

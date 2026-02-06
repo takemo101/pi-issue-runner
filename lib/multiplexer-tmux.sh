@@ -172,7 +172,7 @@ mux_list_sessions() {
     local prefix
     prefix="$(get_config session_prefix)"
     
-    tmux list-sessions -F "#{session_name}" 2>/dev/null | grep "^${prefix}" || true
+    tmux list-sessions -F "#{session_name}" 2>/dev/null | grep "^${prefix}" | grep -v "^${prefix}-monitor$" || true
 }
 
 # セッションの状態を取得
