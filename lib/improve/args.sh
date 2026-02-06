@@ -83,18 +83,38 @@ parse_improve_arguments() {
         case "$1" in
             --max-iterations)
                 max_iterations="$2"
+                if ! [[ "$max_iterations" =~ ^[0-9]+$ ]] || [[ "$max_iterations" -lt 1 ]]; then
+                    log_error "Max iterations must be a positive integer: $max_iterations"
+                    show_improve_usage >&2
+                    exit 1
+                fi
                 shift 2
                 ;;
             --max-issues)
                 max_issues="$2"
+                if ! [[ "$max_issues" =~ ^[0-9]+$ ]] || [[ "$max_issues" -lt 1 ]]; then
+                    log_error "Max issues must be a positive integer: $max_issues"
+                    show_improve_usage >&2
+                    exit 1
+                fi
                 shift 2
                 ;;
             --timeout)
                 timeout="$2"
+                if ! [[ "$timeout" =~ ^[0-9]+$ ]] || [[ "$timeout" -lt 1 ]]; then
+                    log_error "Timeout must be a positive integer: $timeout"
+                    show_improve_usage >&2
+                    exit 1
+                fi
                 shift 2
                 ;;
             --iteration)
                 iteration="$2"
+                if ! [[ "$iteration" =~ ^[0-9]+$ ]] || [[ "$iteration" -lt 1 ]]; then
+                    log_error "Iteration must be a positive integer: $iteration"
+                    show_improve_usage >&2
+                    exit 1
+                fi
                 shift 2
                 ;;
             --log-dir)
@@ -140,10 +160,10 @@ parse_improve_arguments() {
     done
 
     # Output variable assignments
-    echo "local max_iterations=$max_iterations"
-    echo "local max_issues=$max_issues"
-    echo "local timeout=$timeout"
-    echo "local iteration=$iteration"
+    echo "local max_iterations='${max_iterations}'"
+    echo "local max_issues='${max_issues}'"
+    echo "local timeout='${timeout}'"
+    echo "local iteration='${iteration}'"
     echo "local log_dir='${log_dir//\'/\'\\\'\'}'"
     echo "local session_label='${session_label//\'/\'\\\'\'}'"
     echo "local dry_run=$dry_run"
