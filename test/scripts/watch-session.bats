@@ -245,3 +245,158 @@ more output"
     result=$(simulate_startup_marker_detection "$baseline" "###TASK_COMPLETE_42###")
     [ "$result" = "not_detected" ]
 }
+
+# ====================
+# Issue #393, #648, #651: count_markers_outside_codeblock テスト
+# ====================
+
+@test "count_markers_outside_codeblock: marker outside codeblock is counted" {
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    local output="some text
+###TASK_COMPLETE_42###
+more text"
+    local result
+    result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 1 ]
+}
+
+@test "count_markers_outside_codeblock: indented marker outside codeblock is counted" {
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    local output="some text
+    ###TASK_COMPLETE_42###
+more text"
+    local result
+    result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 1 ]
+}
+
+@test "count_markers_outside_codeblock: marker inside codeblock is not counted" {
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    local output='some text
+```
+###TASK_COMPLETE_42###
+```
+more text'
+    local result
+    result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 0 ]
+}
+
+@test "count_markers_outside_codeblock: multiple markers in different codeblocks" {
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    local output='first codeblock
+```
+###TASK_COMPLETE_42###
+```
+second codeblock
+```
+###TASK_COMPLETE_42###
+```
+end'
+    local result
+    result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 0 ]
+}
+
+@test "count_markers_outside_codeblock: empty output returns 0" {
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    local result
+    result=$(count_markers_outside_codeblock "" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 0 ]
+}
+
+@test "count_markers_outside_codeblock: marker adjacent to codeblock boundary (marker before triple backticks)" {
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    # marker on line N, ``` on line N+1 → should be excluded
+    local output='some text
+###TASK_COMPLETE_42###
+```
+code here
+```
+end'
+    local result
+    result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 0 ]
+}
+
+@test "count_markers_outside_codeblock: marker adjacent to codeblock boundary (marker after triple backticks)" {
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    # ``` on line N-1, marker on line N → should be excluded
+    local output='some text
+```
+###TASK_COMPLETE_42###
+code here
+end'
+    local result
+    result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 0 ]
+}
+
+@test "count_markers_outside_codeblock: marker 2 lines away from codeblock is counted" {
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    # marker on line N, ``` on line N+2 → should be counted (outside ±1 range)
+    local output='some text
+###TASK_COMPLETE_42###
+normal line
+```
+code here
+```
+end'
+    local result
+    result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 1 ]
+}
+
+@test "count_markers_outside_codeblock: mixed markers - one inside, one outside" {
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    local output='outside marker
+###TASK_COMPLETE_42###
+some text
+```
+###TASK_COMPLETE_42###
+```
+end'
+    local result
+    result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 1 ]
+}
+
+@test "count_markers_outside_codeblock: marker at start of output is counted" {
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    local output='###TASK_COMPLETE_42###
+some text
+more text'
+    local result
+    result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 1 ]
+}
+
+@test "count_markers_outside_codeblock: marker at end of output is counted" {
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    local output='some text
+more text
+###TASK_COMPLETE_42###'
+    local result
+    result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 1 ]
+}
+
+@test "count_markers_outside_codeblock: tab-indented marker outside codeblock is counted" {
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    # Use printf to ensure actual tab character
+    local output
+    output=$(printf "some text\n\t###TASK_COMPLETE_42###\nmore text")
+    local result
+    result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 1 ]
+}
+
+@test "count_markers_outside_codeblock: error marker works the same way" {
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    local output='some text
+###TASK_ERROR_42###
+error message'
+    local result
+    result=$(count_markers_outside_codeblock "$output" "###TASK_ERROR_42###")
+    [ "$result" -eq 1 ]
+}
