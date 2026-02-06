@@ -337,7 +337,7 @@ fetch_issue_data() {
         local open_blockers
         if ! open_blockers=$(check_issue_blocked "$issue_number"); then
             log_error "Issue #$issue_number is blocked by the following issues:"
-            echo "$open_blockers" | jq -r '.[] | "  - #\(.number): \(.title) (\(.state))"'
+            echo "$open_blockers" | jq -r '.[] | "  - #\(.number): \(.title) (\(.state))"' >&2
             log_info "Complete the blocking issues first, or use --ignore-blockers to force execution."
             exit 2
         fi
@@ -524,20 +524,29 @@ display_summary_and_attach() {
 # Purpose: Orchestrate the workflow by calling subfunctions
 # ============================================================================
 main() {
+    # Each subfunction outputs "local var='value'" lines for eval.
+    # We capture output first, then eval, to properly propagate exit codes.
+    # (Direct `eval "$(func)"` swallows non-zero exits from the subshell.)
+    local _output
+
     # Parse arguments
-    eval "$(parse_run_arguments "$@")"
+    _output="$(parse_run_arguments "$@")" || exit $?
+    eval "$_output"
     
     # Validate inputs
     validate_run_inputs "$issue_number" "$list_workflows"
     
     # Handle existing session
-    eval "$(handle_existing_session "$issue_number" "$reattach" "$force")"
+    _output="$(handle_existing_session "$issue_number" "$reattach" "$force")" || exit $?
+    eval "$_output"
     
     # Fetch issue data
-    eval "$(fetch_issue_data "$issue_number" "$ignore_blockers")"
+    _output="$(fetch_issue_data "$issue_number" "$ignore_blockers")" || exit $?
+    eval "$_output"
     
     # Setup worktree
-    eval "$(setup_worktree "$issue_number" "$custom_branch" "$base_branch" "$force")"
+    _output="$(setup_worktree "$issue_number" "$custom_branch" "$base_branch" "$force")" || exit $?
+    eval "$_output"
     
     # Start agent session
     start_agent_session "$session_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path" "$workflow_name" "$issue_comments" "$extra_agent_args"
