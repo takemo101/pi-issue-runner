@@ -464,26 +464,30 @@ github:
 ```yaml
 hooks:
   on_start: ./scripts/notify-start.sh
-  on_success: echo "Task completed for Issue #{{issue_number}}"
+  on_success: echo "Task completed for Issue #$PI_ISSUE_NUMBER"
   on_error: |
     curl -X POST https://example.com/webhook \
-      -d '{"issue": {{issue_number}}, "error": "{{error_message}}"}'
+      -H 'Content-Type: application/json' \
+      -d "{\"issue\": \"$PI_ISSUE_NUMBER\", \"error\": \"$PI_ERROR_MESSAGE\"}"
   on_cleanup: ./scripts/cleanup-resources.sh
 ```
 
-#### テンプレート変数
+#### 環境変数
 
-hooks設定では以下のテンプレート変数が使用できます：
+hookスクリプトには以下の環境変数が渡されます：
 
-- `{{issue_number}}` - Issue番号
-- `{{issue_title}}` - Issueタイトル
-- `{{session_name}}` - セッション名
-- `{{branch_name}}` - ブランチ名
-- `{{worktree_path}}` - worktreeのパス
-- `{{error_message}}` - エラーメッセージ（on_errorのみ）
-- `{{exit_code}}` - 終了コード（on_errorのみ）
+| 環境変数 | 説明 | 利用可能イベント |
+|----------|------|-----------------|
+| `PI_ISSUE_NUMBER` | Issue番号 | 全て |
+| `PI_ISSUE_TITLE` | Issueタイトル | 全て |
+| `PI_SESSION_NAME` | セッション名 | 全て |
+| `PI_BRANCH_NAME` | ブランチ名 | 全て |
+| `PI_WORKTREE_PATH` | worktreeパス | 全て |
+| `PI_ERROR_MESSAGE` | エラーメッセージ | on_error |
+| `PI_EXIT_CODE` | 終了コード | 全て |
 
-詳細は [Hook機能ドキュメント](./hooks.md) を参照してください。
+> **⚠️ 非推奨**: テンプレート変数（`{{issue_number}}`等）はセキュリティ上の理由により非推奨です。
+> 環境変数を使用してください。詳細は [Hook機能ドキュメント](./hooks.md#マイグレーションガイド) を参照してください。
 
 ### agents
 
