@@ -156,6 +156,7 @@ scripts/run.sh 42
 # ワークフローを指定して起動（-w は --workflow の短縮形）
 scripts/run.sh 42 -w simple            # 簡易ワークフロー（実装・マージのみ）
 scripts/run.sh 42 --workflow default   # 完全ワークフロー（デフォルト）
+scripts/run.sh 42 -w auto             # AIがIssue内容から最適なワークフローを自動選択
 
 # 利用可能なワークフロー一覧を表示
 scripts/run.sh --list-workflows
@@ -324,6 +325,24 @@ agent:
   # command: /custom/path/pi
   # args:
   #   - --verbose
+
+# 複数ワークフロー定義（-w で指定）
+workflows:
+  frontend:
+    description: フロントエンド実装
+    steps:
+      - implement
+      - review
+      - merge
+    context: |
+      React / Next.js を使用
+  backend:
+    description: バックエンドAPI実装
+    steps:
+      - plan
+      - implement
+      - test
+      - merge
 ```
 
 ### マルチプレクサの切り替え
@@ -477,17 +496,82 @@ scripts/run.sh 42
 
 # 簡易ワークフロー
 scripts/run.sh 42 --workflow simple
+
+# AIによる自動選択
+scripts/run.sh 42 -w auto
 ```
 
-### カスタムワークフロー
+### 複数ワークフロー定義
 
-プロジェクト固有のワークフローを定義できます。以下の優先順位で読み込まれます：
+`.pi-runner.yaml` の `workflows` セクションで、用途別の名前付きワークフローを定義できます：
 
-1. `.pi-runner.yaml`（プロジェクトルート）
-2. `.pi/workflow.yaml`
-3. ビルトインワークフロー
+```yaml
+# .pi-runner.yaml
+workflows:
+  frontend:
+    description: フロントエンド実装
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+    context: |
+      ## 技術スタック
+      - React / Next.js / TypeScript
+      - Tailwind CSS
+      ## 方針
+      - コンポーネントは再利用可能に設計すること
 
-ワークフロー定義例:
+  backend:
+    description: バックエンドAPI実装
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+    context: |
+      ## 技術スタック
+      - Go / Echo
+      - PostgreSQL
+
+  hotfix:
+    description: 緊急修正（typo、設定変更など）
+    steps:
+      - implement
+      - merge
+```
+
+```bash
+# 名前付きワークフローを指定
+scripts/run.sh 42 -w frontend
+scripts/run.sh 43 -w backend
+scripts/run.sh 44 -w hotfix
+```
+
+#### `context` フィールド
+
+各ワークフローの `context` フィールドに、技術スタックやコーディング方針などを自由に記述できます。この内容はエージェントのプロンプトに「ワークフローコンテキスト」として注入されます。
+
+#### AIによるワークフロー自動選択（`-w auto`）
+
+`-w auto` を指定すると、Issue の内容と各ワークフローの `description` を照合して、AIが最適なワークフローを自動選択します：
+
+```bash
+scripts/run.sh 42 -w auto
+```
+
+`workflows` セクションが未定義の場合は、ビルトインワークフロー（default, simple, thorough, ci-fix）から選択します。
+
+### カスタムワークフロー（ファイルベース）
+
+ファイルベースのカスタムワークフローも引き続きサポートしています。以下の優先順位で読み込まれます：
+
+1. `.pi-runner.yaml` の `workflows` セクション（名前付き）
+2. `.pi-runner.yaml` の `workflow` セクション（デフォルト、後方互換）
+3. `.pi/workflow.yaml`
+4. ビルトインワークフロー（`workflows/*.yaml`）
 
 ```yaml
 # workflows/custom.yaml

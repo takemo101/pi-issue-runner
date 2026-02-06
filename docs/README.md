@@ -86,7 +86,10 @@ GitHub Issueを入力として、独立したworktree環境でpiインスタン�
   - ベストプラクティス
 
 - **[workflows.md](./workflows.md)** - ワークフロー
-  - ビルトインワークフロー（default, simple）
+  - ビルトインワークフロー（default, simple, thorough, ci-fix）
+  - 複数ワークフロー定義（`workflows` セクション）
+  - `context` フィールドによるプロンプト注入
+  - `-w auto` によるAI自動選択
   - カスタムワークフローの作成
   - エージェントテンプレート
 
@@ -142,6 +145,12 @@ GitHub Issueを入力として、独立したworktree環境でpiインスタン�
 ## 🔄 ドキュメント更新履歴
 
 詳細は [CHANGELOG.md](./CHANGELOG.md) を参照してください。
+
+- **2026-02-07**: 複数ワークフロー定義
+  - `workflows` セクションによる名前付きワークフロー定義
+  - `context` フィールドによるプロンプトへのコンテキスト注入
+  - `-w auto` によるAIワークフロー自動選択
+  - `yaml.sh` の3階層パス・複数行テキスト・`yaml_get_keys` 対応
 
 - **2026-02-03**: CI機能とバッチ処理
   - CI自動修正機能（ci-fix, ci-monitor, ci-retry, ci-classifier）

@@ -15,7 +15,7 @@ GitHub Issueを入力として、Git worktreeを作成し、ターミナルマ�
 scripts/run.sh <issue-number> [options]
 
 Options:
-  -w, --workflow <name>  ワークフロー名（デフォルト: default）
+  -w, --workflow <name>  ワークフロー名（デフォルト: default、auto で自動選択）
   --list-workflows       利用可能なワークフロー一覧を表示
   --no-attach            バックグラウンドで起動
   --no-cleanup           自動クリーンアップを無効化
@@ -59,6 +59,11 @@ scripts/force-complete.sh 42 --error     # エラーとして完了
 # メッセージ送信
 scripts/nudge.sh <issue-number>          # セッションに続行を促すメッセージを送信
 scripts/nudge.sh 42 --message "続けてください"
+
+# 名前付きワークフロー（.pi-runner.yaml の workflows セクションで定義）
+scripts/run.sh 42 -w frontend            # フロントエンド用ワークフロー
+scripts/run.sh 42 -w backend             # バックエンド用ワークフロー
+scripts/run.sh 42 -w auto                # AIがIssue内容から自動選択
 
 # CI修正ワークフロー
 scripts/run.sh 42 --workflow ci-fix       # CI失敗の自動修正
