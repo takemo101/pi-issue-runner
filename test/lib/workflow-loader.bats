@@ -14,9 +14,6 @@ setup() {
     
     source "$PROJECT_ROOT/lib/workflow-loader.sh"
     
-    # YAMLファイルキャッシュもリセット
-    reset_yaml_cache
-    
     # テスト用ディレクトリ構造を作成
     export TEST_DIR="$BATS_TEST_TMPDIR/loader_test"
     mkdir -p "$TEST_DIR/workflows"
@@ -645,6 +642,10 @@ EOF
 # ====================
 
 @test "get_all_workflows_info returns all workflows from .pi-runner.yaml" {
+    # キャッシュをリセット
+    reset_yaml_cache
+    _YQ_CHECK_RESULT=""
+    
     cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
 workflows:
   quick:
@@ -678,6 +679,10 @@ YAML_EOF
 }
 
 @test "get_all_workflows_info includes context field" {
+    # キャッシュをリセット
+    reset_yaml_cache
+    _YQ_CHECK_RESULT=""
+    
     cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
 workflows:
   frontend:
@@ -716,6 +721,10 @@ YAML_EOF
 }
 
 @test "get_all_workflows_info returns tab-separated format" {
+    # キャッシュをリセット
+    reset_yaml_cache
+    _YQ_CHECK_RESULT=""
+    
     cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
 workflows:
   test:
