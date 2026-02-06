@@ -54,9 +54,12 @@ hooks:
   on_error: ./hooks/on-error.sh  # エラー時のみhookを実行
 ```
 
-## テンプレート変数
+## テンプレート変数（非推奨）
 
-hookコマンド/スクリプト内で使用可能な変数：
+> **⚠️ 非推奨**: テンプレート変数（`{{...}}`）は**セキュリティ上の理由により非推奨**です。
+> 代わりに[環境変数](#環境変数)を使用してください。詳細は[マイグレーションガイド](#マイグレーションガイド)を参照してください。
+
+hookコマンド/スクリプト内で使用可能な変数（非推奨）：
 
 | 変数 | 説明 | 利用可能イベント |
 |------|------|-----------------|
@@ -158,7 +161,78 @@ hooks:
 
 hookスクリプトでエラーが発生しても、pi-issue-runnerのメイン処理は継続します。hookのエラーはログに記録されますが、セッションの監視やクリーンアップには影響しません。
 
+## マイグレーションガイド
+
+### テンプレート変数から環境変数への移行
+
+テンプレート変数（`{{...}}`）は**セキュリティ上の理由により非推奨**となりました。環境変数を使用してください。
+
+#### 問題点
+
+テンプレート変数は文字列置換によって展開されるため、Issueタイトルやエラーメッセージに特殊文字（`;`, `"`, `` ` ``, `$()` 等）が含まれる場合、意図しないコマンドが実行される可能性があります。
+
+**脆弱な例**:
+```yaml
+hooks:
+  on_success: echo "Issue #{{issue_number}} completed"
+```
+
+Issueタイトルが `Fix bug"; rm -rf /; echo "` の場合、意図しないコマンドが実行される可能性があります。
+
+#### 推奨される方法
+
+環境変数を使用することで、特殊文字が安全に処理されます。
+
+**安全な例**:
+```yaml
+hooks:
+  on_success: echo "Issue #$PI_ISSUE_NUMBER completed"
+```
+
+### 変数対応表
+
+| 非推奨: テンプレート変数 | 推奨: 環境変数 |
+|-------------------------|---------------|
+| `{{issue_number}}` | `$PI_ISSUE_NUMBER` |
+| `{{issue_title}}` | `$PI_ISSUE_TITLE` |
+| `{{session_name}}` | `$PI_SESSION_NAME` |
+| `{{branch_name}}` | `$PI_BRANCH_NAME` |
+| `{{worktree_path}}` | `$PI_WORKTREE_PATH` |
+| `{{error_message}}` | `$PI_ERROR_MESSAGE` |
+| `{{exit_code}}` | `$PI_EXIT_CODE` |
+
+### 移行例
+
+**変更前**（非推奨）:
+```yaml
+hooks:
+  on_success: |
+    terminal-notifier -title "完了" -message "Issue #{{issue_number}}: {{issue_title}}"
+  on_error: |
+    curl -X POST -H 'Content-Type: application/json' \
+      -d '{"text": "Issue #{{issue_number}} でエラー: {{error_message}}"}' \
+      $SLACK_WEBHOOK_URL
+```
+
+**変更後**（推奨）:
+```yaml
+hooks:
+  on_success: |
+    terminal-notifier -title "完了" -message "Issue #$PI_ISSUE_NUMBER: $PI_ISSUE_TITLE"
+  on_error: |
+    curl -X POST -H 'Content-Type: application/json' \
+      -d "{\"text\": \"Issue #$PI_ISSUE_NUMBER でエラー: $PI_ERROR_MESSAGE\"}" \
+      "$SLACK_WEBHOOK_URL"
+```
+
+### 注意事項
+
+- テンプレート変数を使用している場合、非推奨警告が表示されます
+- 環境変数は既に全てのhookで利用可能です
+- 移行は互換性を保ちながら行われます（段階的に移行可能）
+
 ## 関連ドキュメント
 
 - [設定ファイル](./configuration.md)
 - [ワークフロー](./workflows.md)
+- [セキュリティ](./security.md)

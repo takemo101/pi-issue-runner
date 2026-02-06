@@ -228,14 +228,14 @@ parse_run_arguments() {
 
     # Output variable assignments
     echo "local issue_number='$issue_number'"
-    echo "local custom_branch='${custom_branch//\'/\'\\\'\'}'"
-    echo "local base_branch='${base_branch//\'/\'\\\'\'}'"
-    echo "local workflow_name='${workflow_name//\'/\'\\\'\'}'"
+    echo "local custom_branch='${custom_branch//\x27/\x27\\\\\x27\x27}'"
+    echo "local base_branch='${base_branch//\x27/\x27\\\\\x27\x27}'"
+    echo "local workflow_name='${workflow_name//\x27/\x27\\\\\x27\x27}'"
     echo "local no_attach=$no_attach"
     echo "local reattach=$reattach"
     echo "local force=$force"
-    echo "local extra_agent_args='${extra_agent_args//\'/\'\\\'\'}'"
-    echo "local cleanup_mode='$cleanup_mode'"
+    echo "local extra_agent_args='${extra_agent_args//\x27/\x27\\\\\x27\x27}'"
+    echo "local cleanup_mode='${cleanup_mode//\x27/\x27\\\\\x27\x27}'"
     echo "local list_workflows=$list_workflows"
     echo "local ignore_blockers=$ignore_blockers"
 }
@@ -310,7 +310,7 @@ handle_existing_session() {
         fi
     fi
 
-    echo "local session_name='${session_name//\'/\'\\\'\'}'"
+    echo "local session_name='${session_name//\x27/\x27\\\\\x27\x27}'"
 }
 
 # ============================================================================
@@ -409,9 +409,9 @@ setup_worktree() {
     # エラー時クリーンアップ用にworktreeを登録
     register_worktree_for_cleanup "$full_worktree_path"
 
-    echo "local branch_name='${branch_name//\'/\'\\\'\'}'"
-    echo "local worktree_path='${worktree_path//\'/\'\\\'\'}'"
-    echo "local full_worktree_path='${full_worktree_path//\'/\'\\\'\'}'"
+    echo "local branch_name='${branch_name//\x27/\x27\\\\\x27\x27}'"
+    echo "local worktree_path='${worktree_path//\x27/\x27\\\\\x27\x27}'"
+    echo "local full_worktree_path='${full_worktree_path//\x27/\x27\\\\\x27\x27}'"
 }
 
 # ============================================================================

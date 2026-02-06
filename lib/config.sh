@@ -396,6 +396,7 @@ get_config() {
 # 設定の再読み込み（テスト用）
 reload_config() {
     _CONFIG_LOADED=""
+    reset_yaml_cache
     load_config "$@"
 }
 

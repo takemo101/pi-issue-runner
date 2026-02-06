@@ -165,7 +165,10 @@ save_status() {
         json="$(build_json_fallback "$issue_number" "$status" "$session_name" "$timestamp" "$error_message")"
     fi
     
-    echo "$json" > "$status_file"
+    # Atomic write: write to temp file and rename
+    local tmp_file="${status_file}.tmp.$$"
+    echo "$json" > "$tmp_file"
+    mv -f "$tmp_file" "$status_file"
     log_debug "Saved status for issue #$issue_number: $status"
 }
 
@@ -408,7 +411,10 @@ save_watcher_pid() {
     status_dir="$(get_status_dir)"
     local pid_file="${status_dir}/${issue_number}.watcher.pid"
     
-    echo "$pid" > "$pid_file"
+    # Atomic write: write to temp file and rename
+    local tmp_file="${pid_file}.tmp.$$"
+    echo "$pid" > "$tmp_file"
+    mv -f "$tmp_file" "$pid_file"
     log_debug "Saved watcher PID for issue #$issue_number: $pid"
 }
 
