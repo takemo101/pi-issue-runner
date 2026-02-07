@@ -102,7 +102,7 @@ _wait_for_available_slot() {
     
     while true; do
         local current_count
-        current_count="$(mux_count_active_sessions)"
+        current_count="$(count_active_sessions)"
         if [[ "$current_count" -lt "$max_concurrent" ]]; then
             return 0
         fi
@@ -114,7 +114,7 @@ _wait_for_available_slot() {
         for issue_num in "${ACTIVE_ISSUE_NUMBERS[@]}"; do
             local status
             status="$(get_status_value "$issue_num" 2>/dev/null || echo "")"
-            if [[ "$status" == "completed" || "$status" == "failed" || "$status" == "error" || "$status" == "merged" ]]; then
+            if [[ "$status" == "complete" || "$status" == "error" ]]; then
                 # Cleanup the tmux session if it's still lingering
                 local session_name
                 session_name="$(generate_session_name "$issue_num")"

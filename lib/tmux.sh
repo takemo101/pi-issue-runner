@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# tmux.sh - マルチプレクサ操作（後方互換性ラッパー）
+# tmux.sh - マルチプレクサ操作（公式API）
 #
-# このファイルは後方互換性のために維持されています。
-# 新しいコードでは lib/multiplexer.sh を直接使用してください。
+# このファイルはマルチプレクサ操作の公式APIを提供します。
+# 内部実装は lib/multiplexer.sh によって提供されています。
 #
 # 設定で multiplexer.type を変更することで、
 # tmux または zellij を使用できます。

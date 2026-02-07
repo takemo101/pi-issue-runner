@@ -53,6 +53,37 @@ HELP_EOF
     esac
 done
 
+# AGENTS.md の「既知の制約」セクション
+AGENTS_MD_SECTION='## 既知の制約
+
+<!-- エージェントが重要な知見を発見した際、ここに1行サマリーとリンクを追加する -->
+<!-- 例: - playwright-cli 0.0.63+: デフォルトセッション使用必須 → [詳細](docs/decisions/001-playwright-session.md) -->'
+
+# AGENTS.md に「既知の制約」セクションを追加
+update_agents_md() {
+    local agents_md="AGENTS.md"
+    
+    # AGENTS.md が存在しない場合はスキップ
+    if [[ ! -f "$agents_md" ]]; then
+        log_warn "AGENTS.md が見つかりません（スキップ）"
+        return 0
+    fi
+    
+    # 既に「既知の制約」セクションがある場合はスキップ
+    if grep -qF "## 既知の制約" "$agents_md" 2>/dev/null; then
+        log_warn "AGENTS.md に「既知の制約」セクションは既に存在します"
+        return 0
+    fi
+    
+    # ファイル末尾に追加
+    {
+        echo ""
+        echo "$AGENTS_MD_SECTION"
+    } >> "$agents_md"
+    
+    log_success "AGENTS.md に「既知の制約」セクションを追加"
+}
+
 # .pi-runner.yaml のテンプレート
 generate_config_content() {
     cat << 'EOF'
@@ -269,7 +300,16 @@ main() {
         create_file ".worktrees/.gitkeep" "$(generate_gitkeep_content)" "$force" || true
     fi
 
-    # 3. .gitignore 更新
+    # 3. docs/plans/ ディレクトリ（計画書保存先）
+    create_directory "docs/plans" || true
+
+    # 4. docs/decisions/ ディレクトリ（ADR保存先）
+    create_directory "docs/decisions" || true
+
+    # 5. AGENTS.md に「既知の制約」セクションを追加
+    update_agents_md
+
+    # 6. .gitignore 更新
     update_gitignore "$force"
 
     # full モードの場合は追加ファイルを作成
@@ -277,10 +317,10 @@ main() {
         echo ""
         echo "  [完全モード: 追加ファイル作成]"
         
-        # 4. agents/custom.md
+        # 6. agents/custom.md
         create_file "agents/custom.md" "$(generate_custom_agent_content)" "$force" || true
         
-        # 5. workflows/custom.yaml
+        # 7. workflows/custom.yaml
         create_file "workflows/custom.yaml" "$(generate_custom_workflow_content)" "$force" || true
     fi
 

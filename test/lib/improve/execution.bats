@@ -230,7 +230,7 @@ EOF
         source '$PROJECT_ROOT/lib/log.sh'
         # Stub functions needed by _wait_for_available_slot
         get_config() { echo '0'; }
-        mux_count_active_sessions() { echo '0'; }
+        count_active_sessions() { echo '0'; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         export SCRIPT_DIR='$SCRIPT_DIR'
@@ -252,7 +252,7 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '0'; }
-        mux_count_active_sessions() { echo '0'; }
+        count_active_sessions() { echo '0'; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         execute_improve_issues_in_parallel '' 2>&1
@@ -272,7 +272,7 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '0'; }
-        mux_count_active_sessions() { echo '0'; }
+        count_active_sessions() { echo '0'; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         export SCRIPT_DIR='$SCRIPT_DIR'
@@ -298,7 +298,7 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '0'; }
-        mux_count_active_sessions() { echo '0'; }
+        count_active_sessions() { echo '0'; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         export SCRIPT_DIR='$SCRIPT_DIR'
@@ -321,7 +321,7 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '0'; }
-        mux_count_active_sessions() { echo '0'; }
+        count_active_sessions() { echo '0'; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         export SCRIPT_DIR='$SCRIPT_DIR'
@@ -344,7 +344,7 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '0'; }
-        mux_count_active_sessions() { echo '5'; }
+        count_active_sessions() { echo '5'; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         _wait_for_available_slot 1
@@ -358,7 +358,7 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '2'; }
-        mux_count_active_sessions() { echo '1'; }
+        count_active_sessions() { echo '1'; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         _wait_for_available_slot 1
@@ -378,7 +378,7 @@ EOF
         generate_session_name() { echo \"pi-issue-\$1\"; }
         mux_session_exists() { return 0; }
         COUNTER_FILE='$counter_file'
-        mux_count_active_sessions() {
+        count_active_sessions() {
             local count=\$(cat \"\$COUNTER_FILE\")
             count=\$((count + 1))
             echo \"\$count\" > \"\$COUNTER_FILE\"
@@ -388,7 +388,7 @@ EOF
                 echo '1'
             fi
         }
-        get_status_value() { echo 'completed'; }
+        get_status_value() { echo 'complete'; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         _wait_for_available_slot 1
         echo 'done'
@@ -417,7 +417,7 @@ EOF
         mux_session_exists() { return 0; }
         COUNTER_FILE='$counter_file'
         # Simulate: first 2 calls under limit, 3rd at limit, then drops
-        mux_count_active_sessions() {
+        count_active_sessions() {
             local count=\$(cat \"\$COUNTER_FILE\")
             count=\$((count + 1))
             echo \"\$count\" > \"\$COUNTER_FILE\"
@@ -429,7 +429,7 @@ EOF
                 echo '1'
             fi
         }
-        get_status_value() { echo 'completed'; }
+        get_status_value() { echo 'complete'; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         export SCRIPT_DIR='$SCRIPT_DIR'
         

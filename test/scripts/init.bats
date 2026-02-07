@@ -49,6 +49,57 @@ teardown() {
     [ -d ".worktrees" ]
 }
 
+@test "init.sh creates docs/plans/ directory" {
+    run "$PROJECT_ROOT/scripts/init.sh"
+    [ "$status" -eq 0 ]
+    [ -d "docs/plans" ]
+}
+
+@test "init.sh creates docs/decisions/ directory" {
+    run "$PROJECT_ROOT/scripts/init.sh"
+    [ "$status" -eq 0 ]
+    [ -d "docs/decisions" ]
+}
+
+@test "init.sh adds known-constraints section to AGENTS.md" {
+    echo "# My Project" > AGENTS.md
+    run "$PROJECT_ROOT/scripts/init.sh"
+    [ "$status" -eq 0 ]
+    grep -qF "## 既知の制約" AGENTS.md
+}
+
+@test "init.sh skips AGENTS.md when not present" {
+    run "$PROJECT_ROOT/scripts/init.sh"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"AGENTS.md が見つかりません"* ]]
+}
+
+@test "init.sh does not duplicate known-constraints section" {
+    cat > AGENTS.md << 'EOF'
+# My Project
+
+## 既知の制約
+- 既存の制約
+EOF
+    run "$PROJECT_ROOT/scripts/init.sh"
+    [ "$status" -eq 0 ]
+    local count
+    count=$(grep -c "## 既知の制約" AGENTS.md)
+    [ "$count" -eq 1 ]
+}
+
+@test "init.sh --minimal does not create docs/plans/" {
+    run "$PROJECT_ROOT/scripts/init.sh" --minimal
+    [ "$status" -eq 0 ]
+    [ ! -d "docs/plans" ]
+}
+
+@test "init.sh --minimal does not create docs/decisions/" {
+    run "$PROJECT_ROOT/scripts/init.sh" --minimal
+    [ "$status" -eq 0 ]
+    [ ! -d "docs/decisions" ]
+}
+
 @test "init.sh creates .worktrees/.gitkeep" {
     run "$PROJECT_ROOT/scripts/init.sh"
     [ "$status" -eq 0 ]
