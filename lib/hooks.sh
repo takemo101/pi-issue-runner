@@ -129,8 +129,8 @@ _execute_hook() {
     fi
     
     # インラインコマンドの場合: 明示的許可が必要
-    if [[ "${PI_RUNNER_ALLOW_INLINE_HOOKS:-false}" != "true" ]]; then
-        log_warn "Inline hook commands are disabled for security."
+    if [[ "${PI_RUNNER_ALLOW_INLINE_HOOKS:-true}" != "true" ]]; then
+        log_warn "Inline hook commands are disabled."
         log_warn "To enable, set: export PI_RUNNER_ALLOW_INLINE_HOOKS=true"
         log_warn "Hook: $hook"
         return 0

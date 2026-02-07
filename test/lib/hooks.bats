@@ -325,7 +325,7 @@ EOF
 # セキュリティテスト
 # ====================
 
-@test "run_hook blocks inline command when PI_RUNNER_ALLOW_INLINE_HOOKS is not set" {
+@test "run_hook allows inline command when PI_RUNNER_ALLOW_INLINE_HOOKS is not set (default: true)" {
     cat > "$TEST_WORKDIR/.pi-runner.yaml" << 'EOF'
 hooks:
   on_success: echo "INLINE_EXECUTED_42"
@@ -335,17 +335,11 @@ EOF
     override_get_config
     mock_notify
     
-    # Do NOT set PI_RUNNER_ALLOW_INLINE_HOOKS
+    # Do NOT set PI_RUNNER_ALLOW_INLINE_HOOKS (default is now true)
     unset PI_RUNNER_ALLOW_INLINE_HOOKS
     
-    # Enable WARN level logging to capture the message
-    export LOG_LEVEL="WARN"
-    
-    result="$(run_hook "on_success" "42" "pi-42" "" "" "" "0" "" 2>&1)"
-    [[ "$result" == *"disabled for security"* ]]
-    # Check that the echo command was NOT executed by filtering out log lines
-    filtered=$(echo "$result" | grep -v "^\[" || true)
-    [[ -z "$filtered" ]]
+    result="$(run_hook "on_success" "42" "pi-42" "" "" "" "0" "")"
+    [[ "$result" == *"INLINE_EXECUTED_42"* ]]
 }
 
 @test "run_hook blocks inline command when PI_RUNNER_ALLOW_INLINE_HOOKS is false" {
@@ -364,7 +358,7 @@ EOF
     export LOG_LEVEL="WARN"
     
     result="$(run_hook "on_success" "42" "pi-42" "" "" "" "0" "" 2>&1)"
-    [[ "$result" == *"disabled for security"* ]]
+    [[ "$result" == *"disabled"* ]]
     # Check that the echo command was NOT executed by filtering out log lines
     filtered=$(echo "$result" | grep -v "^\[" || true)
     [[ -z "$filtered" ]]
