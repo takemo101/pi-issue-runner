@@ -139,6 +139,7 @@ pi-list:scripts/list.sh
 pi-attach:scripts/attach.sh
 pi-status:scripts/status.sh
 pi-stop:scripts/stop.sh
+pi-sweep:scripts/sweep.sh
 pi-cleanup:scripts/cleanup.sh
 pi-force-complete:scripts/force-complete.sh
 pi-improve:scripts/improve.sh

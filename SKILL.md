@@ -52,6 +52,10 @@ scripts/dashboard.sh --watch             # 自動更新（5秒ごと）
 scripts/attach.sh <session>              # セッションにアタッチ
 scripts/status.sh <session>              # 状態確認
 scripts/stop.sh <session>                # セッション停止
+scripts/sweep.sh                         # 全セッションのマーカーチェック・cleanup
+scripts/sweep.sh --dry-run               # 対象セッション表示のみ
+scripts/sweep.sh --force                 # PRマージ確認をスキップ
+scripts/sweep.sh --check-errors          # ERRORマーカーもチェック
 scripts/cleanup.sh <session>             # 手動クリーンアップ
 scripts/force-complete.sh <session>      # セッション強制完了
 scripts/force-complete.sh 42 --error     # エラーとして完了
