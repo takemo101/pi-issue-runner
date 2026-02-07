@@ -18,6 +18,9 @@ if [[ -n "${_EXECUTION_SH_SOURCED:-}" ]]; then
 fi
 _EXECUTION_SH_SOURCED="true"
 
+# Define script directory with fallback (allows standalone sourcing)
+_IMPROVE_EXEC_SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/scripts}"
+
 # Global: Track active sessions for cleanup on exit
 declare -a ACTIVE_ISSUE_NUMBERS=()
 
@@ -32,7 +35,7 @@ cleanup_improve_on_exit() {
         log_warn "Interrupted! Cleaning up ${#ACTIVE_ISSUE_NUMBERS[@]} active session(s)..."
         for issue in "${ACTIVE_ISSUE_NUMBERS[@]}"; do
             log_info "  Cleaning up Issue #$issue..."
-            "${SCRIPT_DIR}/cleanup.sh" "pi-issue-$issue" --force 2>/dev/null || true
+            "${_IMPROVE_EXEC_SCRIPT_DIR}/cleanup.sh" "pi-issue-$issue" --force 2>/dev/null || true
         done
         log_info "Cleanup completed."
     fi
@@ -120,7 +123,7 @@ _wait_for_available_slot() {
                 session_name="$(generate_session_name "$issue_num")"
                 if mux_session_exists "$session_name" 2>/dev/null; then
                     log_info "Cleaning up completed session: $session_name (status: $status)"
-                    "${SCRIPT_DIR}/cleanup.sh" "$session_name" --force 2>/dev/null || true
+                    "${_IMPROVE_EXEC_SCRIPT_DIR}/cleanup.sh" "$session_name" --force 2>/dev/null || true
                 fi
                 continue
             fi
@@ -152,7 +155,7 @@ execute_improve_issues_in_parallel() {
         _wait_for_available_slot 10
         
         echo "  Starting Issue #$issue..."
-        if "${SCRIPT_DIR}/run.sh" "$issue" --no-attach; then
+        if "${_IMPROVE_EXEC_SCRIPT_DIR}/run.sh" "$issue" --no-attach; then
             # Track active session for cleanup on interruption
             ACTIVE_ISSUE_NUMBERS+=("$issue")
         else
@@ -178,7 +181,7 @@ wait_for_improve_completion() {
     
     echo "  Waiting for: ${ACTIVE_ISSUE_NUMBERS[*]}"
     
-    if ! "${SCRIPT_DIR}/wait-for-sessions.sh" "${ACTIVE_ISSUE_NUMBERS[@]}" --timeout "$timeout" --cleanup; then
+    if ! "${_IMPROVE_EXEC_SCRIPT_DIR}/wait-for-sessions.sh" "${ACTIVE_ISSUE_NUMBERS[@]}" --timeout "$timeout" --cleanup; then
         log_warn "Some sessions failed or timed out"
     fi
     
