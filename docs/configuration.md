@@ -1016,6 +1016,11 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_HOOKS_ON_SUCCESS` | `hooks.on_success` |
 | `PI_RUNNER_HOOKS_ON_ERROR` | `hooks.on_error` |
 | `PI_RUNNER_HOOKS_ON_CLEANUP` | `hooks.on_cleanup` |
+| `PI_RUNNER_HOOKS_ON_IMPROVE_START` | `hooks.on_improve_start` |
+| `PI_RUNNER_HOOKS_ON_IMPROVE_END` | `hooks.on_improve_end` |
+| `PI_RUNNER_HOOKS_ON_ITERATION_START` | `hooks.on_iteration_start` |
+| `PI_RUNNER_HOOKS_ON_ITERATION_END` | `hooks.on_iteration_end` |
+| `PI_RUNNER_HOOKS_ON_REVIEW_COMPLETE` | `hooks.on_review_complete` |
 | `PI_RUNNER_AUTO_PROVIDER` | `auto.provider` |
 | `PI_RUNNER_AUTO_MODEL` | `auto.model` |
 
