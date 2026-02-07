@@ -168,6 +168,70 @@ EOF
 }
 
 # ====================
+# Sweep Integration Tests (Issue #1052)
+# ====================
+
+@test "lib/improve.sh defines _IMPROVE_SCRIPT_DIR for sweep.sh calls" {
+    # Verify that _IMPROVE_SCRIPT_DIR is defined in lib/improve.sh
+    grep -q "_IMPROVE_SCRIPT_DIR=" "$PROJECT_ROOT/lib/improve.sh"
+}
+
+@test "lib/improve.sh calls sweep.sh after wait_for_improve_completion" {
+    # Verify sweep.sh is called in the improve_main function
+    # Check that it appears after wait_for_improve_completion
+    local improve_main_section
+    improve_main_section=$(sed -n '/^improve_main()/,/^}/p' "$PROJECT_ROOT/lib/improve.sh")
+    
+    # Verify sweep.sh call exists
+    echo "$improve_main_section" | grep -q "sweep.sh"
+    
+    # Verify --force flag is used
+    echo "$improve_main_section" | grep -q "sweep.sh.*--force"
+}
+
+@test "lib/improve.sh sweep.sh call uses --force flag" {
+    # Verify --force flag is passed to sweep.sh
+    grep -q 'sweep.sh.*--force' "$PROJECT_ROOT/lib/improve.sh"
+}
+
+@test "lib/improve.sh sweep.sh call is non-fatal" {
+    # Verify that sweep.sh failure doesn't stop execution
+    # This is done by using 'if !' pattern or '|| true'
+    local improve_sh_content
+    improve_sh_content=$(<"$PROJECT_ROOT/lib/improve.sh")
+    
+    # Check for non-fatal pattern (if ! ... then ... fi)
+    if echo "$improve_sh_content" | grep -q 'if.*sweep\.sh.*then'; then
+        # Pattern found: if ! sweep.sh; then log_warn; fi
+        return 0
+    fi
+    
+    # Alternative pattern: sweep.sh || true
+    if echo "$improve_sh_content" | grep -q 'sweep\.sh.*||.*true'; then
+        return 0
+    fi
+    
+    # If neither pattern found, test should fail
+    return 1
+}
+
+@test "lib/improve.sh sweep.sh is called between Phase 4 and Phase 5" {
+    # Verify ordering: wait_for_improve_completion -> sweep.sh -> start_improve_next_iteration
+    local improve_main
+    improve_main=$(sed -n '/^improve_main()/,/^}/p' "$PROJECT_ROOT/lib/improve.sh")
+    
+    # Extract line numbers for each call
+    local wait_line sweep_line next_line
+    wait_line=$(echo "$improve_main" | grep -n "wait_for_improve_completion" | cut -d: -f1)
+    sweep_line=$(echo "$improve_main" | grep -n "sweep.sh" | cut -d: -f1)
+    next_line=$(echo "$improve_main" | grep -n "start_improve_next_iteration" | cut -d: -f1)
+    
+    # Verify ordering: wait < sweep < next
+    [[ "$wait_line" -lt "$sweep_line" ]]
+    [[ "$sweep_line" -lt "$next_line" ]]
+}
+
+# ====================
 # Note: Implementation details have been moved to lib/improve.sh
 # and are tested in test/lib/improve.bats
 # ====================
