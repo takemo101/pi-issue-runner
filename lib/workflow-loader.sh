@@ -39,8 +39,16 @@ get_workflow_steps() {
     # config-workflow:NAME 形式の処理（.pi-runner.yaml の workflows.{NAME}.steps）
     if [[ "$workflow_file" == config-workflow:* ]]; then
         local workflow_name="${workflow_file#config-workflow:}"
-        load_config
-        local config_file="${CONFIG_FILE:-.pi-runner.yaml}"
+        local config_file
+        if [[ -n "${CONFIG_FILE:-}" ]]; then
+            # CONFIG_FILE 環境変数が設定されている場合（テスト用）
+            load_config "$CONFIG_FILE"
+            config_file="$CONFIG_FILE"
+        else
+            # 通常の動作：設定ファイルを検索
+            load_config
+            config_file="$(config_file_found 2>/dev/null)" || config_file=".pi-runner.yaml"
+        fi
         
         if [[ ! -f "$config_file" ]]; then
             log_warn "Config file not found, using builtin"
@@ -123,8 +131,16 @@ get_workflow_context() {
     # config-workflow:NAME 形式の処理（.pi-runner.yaml の workflows.{NAME}.context）
     if [[ "$workflow_file" == config-workflow:* ]]; then
         local workflow_name="${workflow_file#config-workflow:}"
-        load_config
-        local config_file="${CONFIG_FILE:-.pi-runner.yaml}"
+        local config_file
+        if [[ -n "${CONFIG_FILE:-}" ]]; then
+            # CONFIG_FILE 環境変数が設定されている場合（テスト用）
+            load_config "$CONFIG_FILE"
+            config_file="$CONFIG_FILE"
+        else
+            # 通常の動作：設定ファイルを検索
+            load_config
+            config_file="$(config_file_found 2>/dev/null)" || config_file=".pi-runner.yaml"
+        fi
         
         if [[ ! -f "$config_file" ]]; then
             echo ""
@@ -167,8 +183,17 @@ get_all_workflows_info() {
     # shellcheck disable=SC2034  # project_root reserved for future use
     local project_root="${1:-.}"
     
-    # 設定ファイルのパスを決定（環境変数 > デフォルト）
-    local config_file="${CONFIG_FILE:-.pi-runner.yaml}"
+    # 設定ファイルのパスを決定
+    local config_file
+    if [[ -n "${CONFIG_FILE:-}" ]]; then
+        # CONFIG_FILE 環境変数が設定されている場合（テスト用）
+        load_config "$CONFIG_FILE"
+        config_file="$CONFIG_FILE"
+    else
+        # 通常の動作：設定ファイルを検索
+        load_config
+        config_file="$(config_file_found 2>/dev/null)" || config_file=".pi-runner.yaml"
+    fi
     
     # .pi-runner.yaml の workflows セクションが存在するか確認
     if [[ -f "$config_file" ]] && yaml_exists "$config_file" ".workflows"; then
