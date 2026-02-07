@@ -228,9 +228,10 @@ auto:
   provider: google
 EOF
     
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
     _CONFIG_LOADED=""
     CONFIG_AUTO_PROVIDER=""
-    load_config "$TEST_DIR/.pi-runner.yaml"
+    load_config "$CONFIG_FILE"
     
     result=$(_get_ai_provider)
     [ "$result" = "google" ]
@@ -249,9 +250,10 @@ auto:
   model: claude-3-haiku-20240307
 EOF
     
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
     _CONFIG_LOADED=""
     CONFIG_AUTO_MODEL=""
-    load_config "$TEST_DIR/.pi-runner.yaml"
+    load_config "$CONFIG_FILE"
     
     result=$(_get_ai_model)
     [ "$result" = "claude-3-haiku-20240307" ]
