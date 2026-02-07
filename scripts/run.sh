@@ -130,6 +130,7 @@ source "$SCRIPT_DIR/../lib/workflow.sh"
 source "$SCRIPT_DIR/../lib/hooks.sh"
 source "$SCRIPT_DIR/../lib/agent.sh"
 source "$SCRIPT_DIR/../lib/daemon.sh"
+source "$SCRIPT_DIR/../lib/status.sh"
 
 # 設定ファイルの存在チェック（必須）
 require_config_file "pi-run" || exit 1
@@ -455,6 +456,9 @@ start_agent_session() {
     
     # セッション作成成功 - クリーンアップ対象から除外
     unregister_worktree_for_cleanup
+    
+    # Issue #974: セッション作成直後にステータスを保存（レースコンディション回避）
+    save_status "$issue_number" "running" "$session_name"
     
     # on_start hookを実行
     run_hook "on_start" "$issue_number" "$session_name" "feature/$branch_name" "$full_worktree_path" "" "0" "$issue_title"
