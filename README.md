@@ -61,6 +61,7 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | `pi-attach` | セッションアタッチ |
 | `pi-status` | 状態確認 |
 | `pi-stop` | セッション停止 |
+| `pi-sweep` | 全セッションのマーカーチェック・cleanup |
 | `pi-cleanup` | クリーンアップ |
 | `pi-force-complete` | セッション強制完了 |
 | `pi-improve` | 継続的改善 |
