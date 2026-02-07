@@ -257,26 +257,19 @@ sanitize_issue_body() {
     fi
     
     # サニタイズ処理（sedを使用してクロスプラットフォーム互換性を確保）
-    # 1. $(( を一時的なプレースホルダーに置換（算術展開を保護）
-    sanitized=$(echo "$sanitized" | sed 's/\$((/__ARITH_OPEN__/g')
-    
-    # 2. $( を \$( にエスケープ（コマンド置換を無効化）
-    sanitized=$(echo "$sanitized" | sed 's/\$(/\\$(/g')
-    
-    # 3. プレースホルダーを \$(( に置換（算術展開を無効化）
-    sanitized=$(echo "$sanitized" | sed 's/__ARITH_OPEN__/\\$((/g')
-    
-    # 4. バッククォートをエスケープ
-    sanitized=$(echo "$sanitized" | sed 's/`/\\`/g')
-    
-    # 5. ${ を \${ にエスケープ（変数展開を無効化）
-    sanitized=$(echo "$sanitized" | sed 's/\${/\\${/g')
-    
-    # 6. <( を \<( にエスケープ（プロセス置換を無効化）
-    sanitized=$(echo "$sanitized" | sed 's/<(/\\<( /g')
-    
-    # 7. >( を \>( にエスケープ（プロセス置換を無効化）
-    sanitized=$(echo "$sanitized" | sed 's/>(/\\>(/g')
+    # printf '%s' を使用してechoの問題を回避：
+    # - 末尾の改行が追加されない
+    # - -n, -e で始まる文字列が誤解釈されない
+    # 
+    # 7つのsedコマンドを1回にまとめてパフォーマンスを改善
+    sanitized=$(printf '%s' "$sanitized" | sed \
+        -e 's/\$((/__ARITH_OPEN__/g' \
+        -e 's/\$(/\\$(/g' \
+        -e 's/__ARITH_OPEN__/\\$((/g' \
+        -e 's/`/\\`/g' \
+        -e 's/\${/\\${/g' \
+        -e 's/<(/\\<( /g' \
+        -e 's/>(/\\>(/g')
     
     echo "$sanitized"
 }
