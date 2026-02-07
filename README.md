@@ -631,13 +631,27 @@ steps:
 # .pi-runner.yaml
 hooks:
   on_start: ./hooks/on-start.sh
-  on_success: terminal-notifier -title "完了" -message "Issue #{{issue_number}} が完了しました"
+  on_success: terminal-notifier -title "完了" -message "Issue #$PI_ISSUE_NUMBER が完了しました"
   on_error: |
     curl -X POST -H 'Content-Type: application/json' \
-      -d '{"text": "Issue #{{issue_number}} でエラー"}' \
+      -d '{"text": "Issue #$PI_ISSUE_NUMBER でエラー"}' \
       $SLACK_WEBHOOK_URL
   on_cleanup: echo "クリーンアップ完了" >> ~/.pi-runner/activity.log
 ```
+
+### 利用可能な環境変数
+
+hookスクリプトには以下の環境変数が渡されます：
+
+| 環境変数 | 説明 |
+|----------|------|
+| `PI_ISSUE_NUMBER` | Issue番号 |
+| `PI_ISSUE_TITLE` | Issueタイトル |
+| `PI_SESSION_NAME` | セッション名 |
+| `PI_BRANCH_NAME` | ブランチ名 |
+| `PI_WORKTREE_PATH` | worktreeパス |
+| `PI_ERROR_MESSAGE` | エラーメッセージ（on_errorのみ） |
+| `PI_EXIT_CODE` | 終了コード |
 
 ### ⚠️ セキュリティ注意
 
