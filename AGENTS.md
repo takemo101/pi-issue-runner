@@ -219,6 +219,7 @@ pi-issue-runner/
 ./scripts/test.sh -f           # fail-fast モード
 ./scripts/test.sh lib          # test/lib/*.bats のみ
 ./scripts/test.sh scripts      # test/scripts/*.bats のみ
+./scripts/test.sh regression   # test/regression/*.bats のみ
 
 # Batsテスト直接実行
 bats test/**/*.bats

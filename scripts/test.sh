@@ -19,6 +19,7 @@
 # Target:
 #   lib               Run test/lib/*.bats only
 #   scripts           Run test/scripts/*.bats only
+#   regression        Run test/regression/*.bats only
 #   (default)         Run all Bats tests
 #
 # Exit codes:
