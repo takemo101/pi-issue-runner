@@ -8,6 +8,10 @@
 #   INSTALL_DIR=/usr/local/bin ./install.sh
 #
 # ラッパースクリプトを INSTALL_DIR に作成します。
+#
+# プラットフォーム:
+#   --with-deps / --deps-only は macOS (Homebrew) のみ対応
+#   Linux の場合は依存パッケージ (gh, tmux, jq, yq) を手動でインストールしてください
 
 set -euo pipefail
 
