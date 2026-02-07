@@ -9,6 +9,7 @@
 ## 目次
 
 - [マルチプレクサ操作](#マルチプレクサ操作)
+- [マーカー検出](#マーカー検出)
 - [依存関係解析](#依存関係解析)
 - [ワークフロー管理](#ワークフロー管理)
 - [Worktree管理](#worktree管理)
@@ -46,6 +47,62 @@ echo "Active sessions: $count"
 **関連関数**:
 - `mux_count_active_sessions` (lib/multiplexer-tmux.sh, lib/multiplexer-zellij.sh)
 - `check_concurrent_limit` (lib/multiplexer.sh / lib/tmux.sh)
+
+---
+
+## マーカー検出
+
+### count_markers_outside_codeblock
+
+**定義場所**: `lib/marker.sh`
+
+**説明**: セッション出力からコードブロック外のマーカー数をカウントします。マーカーがコードブロック（\`\`\`で囲まれた部分）内に出現した場合は除外されます。タスク完了やエラー検出に使用されます。
+
+**使用例**:
+```bash
+source lib/marker.sh
+
+# セッション出力を取得
+output=$(mux_get_session_output "issue-42-session" 100)
+
+# COMPLETEマーカーをカウント
+complete_marker="###TASK_COMPLETE_42###"
+count=$(count_markers_outside_codeblock "$output" "$complete_marker")
+
+if [[ "$count" -gt 0 ]]; then
+    echo "Task completed!"
+fi
+
+# ERRORマーカーをカウント
+error_marker="###TASK_ERROR_42###"
+error_count=$(count_markers_outside_codeblock "$output" "$error_marker")
+
+if [[ "$error_count" -gt 0 ]]; then
+    echo "Task failed with error!"
+fi
+```
+
+**引数**:
+1. `output` - セッション出力テキスト（複数行）
+2. `marker` - 検索するマーカー文字列（例: `###TASK_COMPLETE_42###`）
+
+**戻り値**:
+- コードブロック外のマーカー出現数（整数）
+- マーカーが見つからない場合は `0`
+
+**動作詳細**:
+- マーカーは行頭から出現する必要があります（前後に空白があってもOK）
+- 前後1行に \`\`\` がある場合、コードブロック内と判定して除外します
+- 複数のマーカーが出現した場合、全てカウントされます
+
+**使用箇所**:
+- `scripts/watch-session.sh` - セッション監視とタスク完了検出
+- `scripts/sweep.sh` - 全セッションの完了マーカースキャン
+- カスタム監視スクリプト
+
+**関連コマンド**:
+- `scripts/sweep.sh` - 全セッションのマーカーチェックと自動クリーンアップ
+- `scripts/watch-session.sh` - 個別セッションの監視
 
 ---
 
