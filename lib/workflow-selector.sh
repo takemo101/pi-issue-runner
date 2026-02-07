@@ -192,27 +192,65 @@ _select_workflow_by_rules() {
     local lower_title
     lower_title=$(echo "$issue_title" | tr '[:upper:]' '[:lower:]')
 
-    local selected=""
-
-    # プレフィックスパターンで判定
+    # プレフィックスからカテゴリを判定
+    local category=""
     case "$lower_title" in
         feat:*|feat\(*|feature:*)
-            selected="feature" ;;
+            category="feature" ;;
         fix:*|fix\(*|bug:*|bug\(*|refactor:*|refactor\(*|security:*|security\(*)
-            selected="fix" ;;
+            category="fix" ;;
         docs:*|docs\(*|doc:*|doc\(*)
-            selected="docs" ;;
+            category="docs" ;;
         test:*|test\(*|tests:*)
-            selected="test" ;;
+            category="test" ;;
         chore:*|chore\(*|typo:*|style:*|style\(*)
-            selected="quickfix" ;;
+            category="quickfix" ;;
     esac
 
-    # 選択されたワークフローが有効か検証
-    if [[ -n "$selected" ]] && echo "$valid_names" | grep -qx "$selected"; then
-        echo "$selected"
+    if [[ -z "$category" ]]; then
+        return 1
+    fi
+
+    # カテゴリ名がそのまま有効なワークフロー名として存在する場合（後方互換性）
+    if echo "$valid_names" | grep -qx "$category"; then
+        echo "$category"
         return 0
     fi
 
+    # カテゴリから優先順位付きの候補を選択
+    local candidates=""
+    case "$category" in
+        feature)
+            # 新機能 → 完全なワークフロー（計画・実装・レビュー）が望ましい
+            candidates="default thorough" ;;
+        fix)
+            # バグ修正・リファクタリング → 簡易ワークフロー（実装・マージ）で十分
+            candidates="simple default" ;;
+        docs)
+            # ドキュメント更新 → 簡易ワークフロー
+            candidates="simple default" ;;
+        test)
+            # テスト追加 → テストステップを含む徹底ワークフロー
+            candidates="thorough default" ;;
+        quickfix)
+            # chore/typo/style → 最も簡易なワークフロー
+            candidates="simple default" ;;
+    esac
+
+    # 候補から有効なワークフローを選択（優先順位順）
+    for candidate in $candidates; do
+        if echo "$valid_names" | grep -qx "$candidate"; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+
+    # フォールバック: valid_names に "default" があればそれを返す
+    if echo "$valid_names" | grep -qx "default"; then
+        echo "default"
+        return 0
+    fi
+
+    # どれもマッチしない場合は失敗
     return 1
 }

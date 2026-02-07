@@ -157,8 +157,9 @@ quickfix"
     local valid="default
 simple"
     # feat: would normally map to "feature" but it's not in valid_names
-    run _select_workflow_by_rules "feat: add command" "$valid"
-    [ "$status" -ne 0 ]
+    # With the fix, it should fall back to "default" which IS in valid_names
+    result=$(_select_workflow_by_rules "feat: add command" "$valid")
+    [ "$result" = "default" ]
 }
 
 # ===================
@@ -261,4 +262,94 @@ EOF
     CONFIG_AUTO_MODEL=""
     result=$(_get_ai_model)
     [ "$result" = "claude-haiku-4-5" ]
+}
+
+# ===================
+# 回帰テスト: Issue #1016
+# ===================
+
+@test "Issue #1016: feat: prefix works with real built-in workflows" {
+    local valid="default
+simple
+thorough
+ci-fix"
+    result=$(_select_workflow_by_rules "feat: add new command" "$valid")
+    [ "$result" = "default" ]
+}
+
+@test "Issue #1016: fix: prefix works with real built-in workflows" {
+    local valid="default
+simple
+thorough
+ci-fix"
+    result=$(_select_workflow_by_rules "fix: resolve bug" "$valid")
+    [ "$result" = "simple" ]
+}
+
+@test "Issue #1016: bug: prefix works with real built-in workflows" {
+    local valid="default
+simple
+thorough
+ci-fix"
+    result=$(_select_workflow_by_rules "bug: crash on startup" "$valid")
+    [ "$result" = "simple" ]
+}
+
+@test "Issue #1016: docs: prefix works with real built-in workflows" {
+    local valid="default
+simple
+thorough
+ci-fix"
+    result=$(_select_workflow_by_rules "docs: update README" "$valid")
+    [ "$result" = "simple" ]
+}
+
+@test "Issue #1016: test: prefix works with real built-in workflows" {
+    local valid="default
+simple
+thorough
+ci-fix"
+    result=$(_select_workflow_by_rules "test: add edge cases" "$valid")
+    [ "$result" = "thorough" ]
+}
+
+@test "Issue #1016: chore: prefix works with real built-in workflows" {
+    local valid="default
+simple
+thorough
+ci-fix"
+    result=$(_select_workflow_by_rules "chore: update deps" "$valid")
+    [ "$result" = "simple" ]
+}
+
+@test "Issue #1016: refactor: prefix works with real built-in workflows" {
+    local valid="default
+simple
+thorough
+ci-fix"
+    result=$(_select_workflow_by_rules "refactor: simplify code" "$valid")
+    [ "$result" = "simple" ]
+}
+
+@test "Issue #1016: security: prefix works with real built-in workflows" {
+    local valid="default
+simple
+thorough
+ci-fix"
+    result=$(_select_workflow_by_rules "security: sanitize input" "$valid")
+    [ "$result" = "simple" ]
+}
+
+@test "Issue #1016: falls back to default when only ci-fix is available" {
+    local valid="ci-fix
+default"
+    result=$(_select_workflow_by_rules "feat: new feature" "$valid")
+    [ "$result" = "default" ]
+}
+
+@test "Issue #1016: unknown prefix with built-in workflows falls back to default" {
+    local valid="default
+simple"
+    result=$(resolve_auto_workflow_name "something unusual" "body" "$TEST_DIR")
+    [ "$result" = "default" ]
 }
