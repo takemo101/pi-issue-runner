@@ -8,6 +8,9 @@ worktree:
   # worktreeの作成先ディレクトリ
   base_dir: ".worktrees"
 
+  # デフォルトのベースブランチ（--base オプションで上書き可能）
+  base_branch: "origin/main"
+
   # worktree作成時にコピーするファイル
   copy_files:
     - .env

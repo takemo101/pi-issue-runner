@@ -313,6 +313,7 @@ worktree:
   copy_files:
     - ".env"
     - ".env.local"
+    - ".envrc"
 
 # マルチプレクサ設定
 multiplexer:
@@ -320,46 +321,82 @@ multiplexer:
   session_prefix: "pi"
   start_in_session: true
 
-# pi設定（後方互換性あり）
-pi:
-  command: "pi"
-  args: []
+# エージェント設定（複数エージェント対応）
+agent:
+  type: pi  # pi, claude, opencode, custom
+  args:
+    - --provider
+    - anthropic
+    - --model
+    - claude-sonnet-4-5
 
 # GitHub設定
 github:
   include_comments: true  # Issueコメントを含める（デフォルト: true）
   max_comments: 10        # 最大コメント数（0 = 無制限）
 
+# 並列実行設定
+parallel:
+  max_concurrent: 5  # 同時実行数の上限（0 = 無制限）
+
+# auto ワークフロー選択設定
+auto:
+  provider: anthropic
+  model: claude-haiku-4-5  # 軽量モデル推奨
+
+# 複数ワークフロー定義（-w で指定、省略時は auto）
+workflows:
+  default:
+    description: 標準ワークフロー（計画・実装・レビュー・マージ）
+    steps:
+      - plan
+      - implement
+      - review
+      - merge
+  feature:
+    description: 新機能・大規模変更（新関数追加、新スクリプト作成）
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+    context: |
+      Bash 4.0+ / ShellCheck 準拠 / Bats テスト必須
+  fix:
+    description: バグ修正・リファクタリング・セキュリティ修正
+    steps:
+      - implement
+      - test
+      - review
+      - merge
+  docs:
+    description: ドキュメント更新（README, AGENTS.md, docs/ 以下）
+    steps:
+      - implement
+      - merge
+  test:
+    description: テスト追加・テスト改善
+    steps:
+      - implement
+      - review
+      - merge
+  quickfix:
+    description: typo修正・設定値変更・コメント修正など軽微な変更
+    steps:
+      - implement
+      - merge
+
+# 計画書設定
+plans:
+  keep_recent: 10
+  dir: "docs/plans"
+
 # improve-logs クリーンアップ設定
 improve_logs:
   keep_recent: 10    # 直近N件のログを保持（0=全て保持）
   keep_days: 7       # N日以内のログを保持（0=日数制限なし）
   dir: .improve-logs # ログディレクトリ
-
-# エージェント設定（複数エージェント対応）
-agent:
-  type: pi  # pi, claude, opencode, custom
-  # command: /custom/path/pi
-  # args:
-  #   - --verbose
-
-# 複数ワークフロー定義（-w で指定）
-workflows:
-  frontend:
-    description: フロントエンド実装
-    steps:
-      - implement
-      - review
-      - merge
-    context: |
-      React / Next.js を使用
-  backend:
-    description: バックエンドAPI実装
-    steps:
-      - plan
-      - implement
-      - test
-      - merge
 ```
 
 ### マルチプレクサの切り替え
@@ -525,8 +562,16 @@ scripts/run.sh 42 -w auto
 ```yaml
 # .pi-runner.yaml
 workflows:
-  frontend:
-    description: フロントエンド実装
+  default:
+    description: 標準ワークフロー（計画・実装・レビュー・マージ）
+    steps:
+      - plan
+      - implement
+      - review
+      - merge
+
+  feature:
+    description: 新機能・大規模変更（新関数追加、新スクリプト作成）
     steps:
       - plan
       - implement
@@ -535,26 +580,35 @@ workflows:
       - merge
     context: |
       ## 技術スタック
-      - React / Next.js / TypeScript
-      - Tailwind CSS
+      - Bash 4.0+ / ShellCheck 準拠
+      - テスト: Bats (Bash Automated Testing System)
       ## 方針
-      - コンポーネントは再利用可能に設計すること
+      - 新しい lib/ には対応する test/lib/*.bats を必ず作成
+      - AGENTS.md のディレクトリ構造を更新すること
 
-  backend:
-    description: バックエンドAPI実装
+  fix:
+    description: バグ修正・リファクタリング・セキュリティ修正
     steps:
-      - plan
       - implement
       - test
       - review
       - merge
-    context: |
-      ## 技術スタック
-      - Go / Echo
-      - PostgreSQL
 
-  hotfix:
-    description: 緊急修正（typo、設定変更など）
+  docs:
+    description: ドキュメント更新（README, AGENTS.md, docs/ 以下）
+    steps:
+      - implement
+      - merge
+
+  test:
+    description: テスト追加・テスト改善
+    steps:
+      - implement
+      - review
+      - merge
+
+  quickfix:
+    description: typo修正・設定値変更・コメント修正など軽微な変更
     steps:
       - implement
       - merge
@@ -562,9 +616,9 @@ workflows:
 
 ```bash
 # 名前付きワークフローを指定
-scripts/run.sh 42 -w frontend
-scripts/run.sh 43 -w backend
-scripts/run.sh 44 -w hotfix
+scripts/run.sh 42 -w feature
+scripts/run.sh 43 -w fix
+scripts/run.sh 44 -w quickfix
 ```
 
 #### `context` フィールド
