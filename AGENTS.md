@@ -73,6 +73,7 @@ pi-issue-runner/
 │   ├── log.sh         # ログ出力
 │   ├── notify.sh      # 通知機能
 │   ├── priority.sh    # 優先度計算
+│   ├── session-resolver.sh  # セッション名解決ユーティリティ
 │   ├── status.sh      # 状態管理
 │   ├── template.sh    # テンプレート処理
 │   ├── tmux.sh        # マルチプレクサ操作（後方互換ラッパー）
@@ -149,6 +150,7 @@ pi-issue-runner/
 │   │   ├── log.bats
 │   │   ├── notify.bats
 │   │   ├── priority.bats
+│   │   ├── session-resolver.bats
 │   │   ├── status.bats
 │   │   ├── template.bats
 │   │   ├── multiplexer.bats
