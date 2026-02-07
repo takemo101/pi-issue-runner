@@ -292,8 +292,8 @@ hooks:
   # ✅ 安全: 環境変数を使用
   on_success: "echo 'Task completed: #$PI_ISSUE_NUMBER'"
   
-  # ✅ 安全: 信頼できるスクリプトファイル
-  on_error: "./scripts/notify-error.sh"
+  # ✅ 安全: 信頼できるスクリプトファイル（例: ./hooks/notify-error.sh をユーザーが作成）
+  on_error: "./hooks/notify-error.sh"
   
   # ⚠️ 注意: 外部サービスへの送信は機密情報に注意
   on_start: "curl -X POST https://example.com/webhook -d '{\"issue\": \"$PI_ISSUE_NUMBER\"}'"
