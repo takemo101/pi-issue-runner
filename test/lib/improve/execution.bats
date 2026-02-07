@@ -386,7 +386,7 @@ EOF
                 echo '1'
             fi
         }
-        get_status_value() { echo 'completed'; }
+        get_status_value() { echo 'complete'; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         _wait_for_available_slot 1
         echo 'done'
@@ -425,7 +425,7 @@ EOF
                 echo '1'
             fi
         }
-        get_status_value() { echo 'completed'; }
+        get_status_value() { echo 'complete'; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         export SCRIPT_DIR='$SCRIPT_DIR'
         

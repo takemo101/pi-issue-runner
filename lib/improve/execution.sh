@@ -114,7 +114,7 @@ _wait_for_available_slot() {
         for issue_num in "${ACTIVE_ISSUE_NUMBERS[@]}"; do
             local status
             status="$(get_status_value "$issue_num" 2>/dev/null || echo "")"
-            if [[ "$status" == "completed" || "$status" == "failed" || "$status" == "error" || "$status" == "merged" ]]; then
+            if [[ "$status" == "complete" || "$status" == "error" ]]; then
                 # Cleanup the tmux session if it's still lingering
                 local prefix
                 prefix="$(get_config session_prefix)"
