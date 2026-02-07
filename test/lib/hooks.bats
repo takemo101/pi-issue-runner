@@ -325,7 +325,7 @@ EOF
 # セキュリティテスト
 # ====================
 
-@test "run_hook allows inline command when PI_RUNNER_ALLOW_INLINE_HOOKS is not set (default: true)" {
+@test "run_hook blocks inline command when PI_RUNNER_ALLOW_INLINE_HOOKS is not set (default: false)" {
     cat > "$TEST_WORKDIR/.pi-runner.yaml" << 'EOF'
 hooks:
   on_success: echo "INLINE_EXECUTED_42"
@@ -335,11 +335,22 @@ EOF
     override_get_config
     mock_notify
     
-    # Do NOT set PI_RUNNER_ALLOW_INLINE_HOOKS (default is now true)
+    # Do NOT set PI_RUNNER_ALLOW_INLINE_HOOKS (default is now false)
     unset PI_RUNNER_ALLOW_INLINE_HOOKS
     
-    result="$(run_hook "on_success" "42" "pi-42" "" "" "" "0" "")"
-    [[ "$result" == *"INLINE_EXECUTED_42"* ]]
+    # Enable WARN level logging to capture the warning message
+    export LOG_LEVEL="WARN"
+    
+    result="$(run_hook "on_success" "42" "pi-42" "" "" "" "0" "" 2>&1)"
+    
+    # Should show warning that inline hooks are disabled
+    [[ "$result" == *"Inline hook commands are disabled"* ]]
+    # The hook command text appears in the warning, but should NOT be executed as output
+    # Check that it's only in the warning line, not as actual execution output
+    [[ "$result" == *"Hook: echo"*"INLINE_EXECUTED_42"* ]]  # Present in warning
+    # Count lines - should only have 3 warning lines, no execution output
+    line_count=$(echo "$result" | wc -l | tr -d ' ')
+    [ "$line_count" -eq 3 ]
 }
 
 @test "run_hook blocks inline command when PI_RUNNER_ALLOW_INLINE_HOOKS is false" {
