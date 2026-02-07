@@ -88,6 +88,10 @@ setup_improve_environment() {
         echo ""
     } >&2
 
+    # Export iteration info for hook usage
+    export _IMPROVE_ITERATION="$iteration"
+    export _IMPROVE_MAX_ITERATIONS="$max_iterations"
+    
     # Set global variables (no escaping needed - direct assignment is safe)
     _PARSE_session_label="$session_label"
     _PARSE_log_file="$log_file"

@@ -2,7 +2,9 @@
 # hooks.sh - イベントhook実行
 #
 # セッションのライフサイクルイベントでカスタムスクリプトを実行する。
-# 対応イベント: on_start, on_success, on_error, on_cleanup
+# 対応イベント: on_start, on_success, on_error, on_cleanup,
+#              on_improve_start, on_improve_end, on_iteration_start,
+#              on_iteration_end, on_review_complete
 
 set -euo pipefail
 
@@ -37,7 +39,9 @@ fi
 
 # hook設定を取得
 # Usage: get_hook <event>
-# Events: on_start, on_success, on_error, on_cleanup
+# Events: on_start, on_success, on_error, on_cleanup,
+#         on_improve_start, on_improve_end, on_iteration_start,
+#         on_iteration_end, on_review_complete
 # Returns: hookの値（スクリプトパスまたはインラインコマンド）
 get_hook() {
     local event="$1"
@@ -54,16 +58,22 @@ get_hook() {
 # ===================
 
 # hookを実行
-# Usage: run_hook <event> <issue_number> <session_name> [branch_name] [worktree_path] [error_message] [exit_code] [issue_title]
+# Usage: run_hook <event> <issue_number> <session_name> [branch_name] [worktree_path] [error_message] [exit_code] [issue_title] [iteration] [max_iterations] [issues_created] [issues_succeeded] [issues_failed] [review_issues_count]
 run_hook() {
     local event="$1"
-    local issue_number="$2"
-    local session_name="$3"
+    local issue_number="${2:-}"
+    local session_name="${3:-}"
     local branch_name="${4:-}"
     local worktree_path="${5:-}"
     local error_message="${6:-}"
     local exit_code="${7:-0}"
     local issue_title="${8:-}"
+    local iteration="${9:-}"
+    local max_iterations="${10:-}"
+    local issues_created="${11:-}"
+    local issues_succeeded="${12:-}"
+    local issues_failed="${13:-}"
+    local review_issues_count="${14:-}"
     
     local hook
     hook="$(get_hook "$event")"
@@ -76,14 +86,46 @@ run_hook() {
     
     log_info "Running hook for event: $event"
     
-    # 環境変数を設定
-    export PI_ISSUE_NUMBER="$issue_number"
-    export PI_ISSUE_TITLE="$issue_title"
-    export PI_SESSION_NAME="$session_name"
-    export PI_BRANCH_NAME="$branch_name"
-    export PI_WORKTREE_PATH="$worktree_path"
-    export PI_ERROR_MESSAGE="$error_message"
+    # 環境変数を設定（セッション関連）
+    if [[ -n "$issue_number" ]]; then
+        export PI_ISSUE_NUMBER="$issue_number"
+    fi
+    if [[ -n "$issue_title" ]]; then
+        export PI_ISSUE_TITLE="$issue_title"
+    fi
+    if [[ -n "$session_name" ]]; then
+        export PI_SESSION_NAME="$session_name"
+    fi
+    if [[ -n "$branch_name" ]]; then
+        export PI_BRANCH_NAME="$branch_name"
+    fi
+    if [[ -n "$worktree_path" ]]; then
+        export PI_WORKTREE_PATH="$worktree_path"
+    fi
+    if [[ -n "$error_message" ]]; then
+        export PI_ERROR_MESSAGE="$error_message"
+    fi
     export PI_EXIT_CODE="$exit_code"
+    
+    # 環境変数を設定（improve関連）
+    if [[ -n "$iteration" ]]; then
+        export PI_ITERATION="$iteration"
+    fi
+    if [[ -n "$max_iterations" ]]; then
+        export PI_MAX_ITERATIONS="$max_iterations"
+    fi
+    if [[ -n "$issues_created" ]]; then
+        export PI_ISSUES_CREATED="$issues_created"
+    fi
+    if [[ -n "$issues_succeeded" ]]; then
+        export PI_ISSUES_SUCCEEDED="$issues_succeeded"
+    fi
+    if [[ -n "$issues_failed" ]]; then
+        export PI_ISSUES_FAILED="$issues_failed"
+    fi
+    if [[ -n "$review_issues_count" ]]; then
+        export PI_REVIEW_ISSUES_COUNT="$review_issues_count"
+    fi
     
     # hook実行（テンプレート展開は非推奨、環境変数を使用）
     _execute_hook "$hook" || {

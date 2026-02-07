@@ -52,6 +52,19 @@ Issueを作成しない場合は「問題は見つかりませんでした」と
     
     echo ""
     echo "[PHASE 1] Review complete. Log saved to: $log_file"
+    
+    # Hook: レビュー完了（ログファイルから問題数を推定）
+    local review_issues_count=0
+    if [[ -f "$log_file" ]]; then
+        # "gh issue create" または "Created issue" の出現回数をカウント
+        review_issues_count=$(grep -cE "(gh issue create|Created issue #)" "$log_file" 2>/dev/null || echo "0")
+    fi
+    
+    if declare -f run_hook &>/dev/null; then
+        run_hook "on_review_complete" "" "" "" "" "" "" "" \
+            "${_IMPROVE_ITERATION:-1}" "${_IMPROVE_MAX_ITERATIONS:-1}" \
+            "" "" "" "$review_issues_count"
+    fi
 
     # Exit early for review-only or dry-run modes
     if [[ "$review_only" == "true" ]]; then

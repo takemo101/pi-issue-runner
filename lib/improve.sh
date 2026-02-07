@@ -27,6 +27,7 @@ source "$_IMPROVE_LIB_DIR/log.sh"
 source "$_IMPROVE_LIB_DIR/github.sh"
 source "$_IMPROVE_LIB_DIR/status.sh"
 source "$_IMPROVE_LIB_DIR/tmux.sh"
+source "$_IMPROVE_LIB_DIR/hooks.sh"
 
 # Source improve sub-modules
 source "$_IMPROVE_LIB_DIR/improve/deps.sh"
@@ -90,6 +91,10 @@ improve_main() {
     # shellcheck disable=SC2154
     local start_time="$_PARSE_start_time"
     
+    # Hook: improve開始
+    run_hook "on_improve_start" "" "" "" "" "" "" "" \
+        "$iteration" "$max_iterations" "" "" "" ""
+    
     # Phase 1: Review
     run_improve_review_phase "$max_issues" "$session_label" "$log_file" "$dry_run" "$review_only"
     
@@ -108,6 +113,32 @@ improve_main() {
     if ! "$_IMPROVE_SCRIPT_DIR/sweep.sh" --force 2>&1 | grep -v '^$'; then
         log_warn "Sweep encountered issues (non-fatal)"
     fi
+    
+    # Hook: improve終了（統計収集）
+    local total_succeeded=0
+    local total_failed=0
+    local total_created=0
+    
+    # Count issues from the current iteration by parsing created_issues
+    if [[ -n "$created_issues" ]]; then
+        total_created=$(echo "$created_issues" | wc -l | tr -d ' ')
+        
+        # Count succeeded and failed by checking session status
+        while IFS= read -r issue; do
+            [[ -z "$issue" ]] && continue
+            local status
+            status="$(get_status_value "$issue" 2>/dev/null || echo "")"
+            if [[ "$status" == "complete" ]]; then
+                total_succeeded=$((total_succeeded + 1))
+            elif [[ "$status" == "error" ]]; then
+                total_failed=$((total_failed + 1))
+            fi
+        done <<< "$created_issues"
+    fi
+    
+    run_hook "on_improve_end" "" "" "" "" "" "" "" \
+        "$iteration" "$max_iterations" \
+        "$total_created" "$total_succeeded" "$total_failed" ""
     
     # Phase 5: Next iteration
     start_improve_next_iteration "$iteration" "$max_iterations" "$max_issues" "$timeout" "$log_dir" "$session_label" "$auto_continue"
