@@ -721,8 +721,6 @@ auto:
   model: claude-haiku-4-5-20250218   # 軽量モデル推奨（省略時: claude-haiku-4-5-20250218）
 ```
 
-環境変数 `PI_RUNNER_AI_PROVIDER` / `PI_RUNNER_AUTO_MODEL` でも上書き可能（環境変数が優先）。
-
 > **ベストプラクティス**: AI が正確に選択できるよう、`description` には対象となるタスクの特徴（規模、領域、技術スタックなど）を具体的に記述してください。
 
 #### ワークフロー名の重複

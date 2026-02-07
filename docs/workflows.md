@@ -495,14 +495,7 @@ auto:
   model: claude-haiku-4-5-20250218   # 軽量モデル推奨
 ```
 
-環境変数でも上書き可能（環境変数が優先）：
-
-| 変数 | 説明 | デフォルト |
-|------|------|-----------|
-| `PI_RUNNER_AI_PROVIDER` | auto選択用のAIプロバイダー | `anthropic` |
-| `PI_RUNNER_AUTO_MODEL` | auto選択用のモデル | `claude-haiku-4-5-20250218` |
-
-**優先順位**: 環境変数 > `.pi-runner.yaml` の `auto` セクション > `agent.args` の `--provider` > デフォルト値
+**優先順位**: `.pi-runner.yaml` の `auto` セクション > `agent.args` の `--provider` > デフォルト値
 
 ### プロンプトの生成結果
 
