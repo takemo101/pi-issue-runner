@@ -9,7 +9,7 @@
 # Usage: ./scripts/generate-config.sh [options]
 #
 # Options:
-#   --output, -o FILE   Output file path (default: .pi-runner.yaml)
+#   -o, --output FILE   Output file path (default: .pi-runner.yaml)
 #   --dry-run           Print to stdout without writing
 #   --force             Overwrite existing config
 #   --no-ai             Skip AI generation, use static fallback only
@@ -251,14 +251,17 @@ generate_with_ai() {
     log_info "AIで設定を生成中..."
 
     local response
+    local exit_code=0
     response=$(echo "$prompt" | timeout 60 "$pi_command" --print \
         --provider "${PI_RUNNER_AUTO_PROVIDER:-anthropic}" \
         --model "${PI_RUNNER_AUTO_MODEL:-claude-haiku-4-5}" \
         --no-tools \
-        --no-session 2>/dev/null) || {
-        log_debug "AI generation failed (exit code: $?)"
+        --no-session 2>/dev/null) || exit_code=$?
+
+    if [[ "$exit_code" -ne 0 ]]; then
+        log_debug "AI generation failed (exit code: $exit_code)"
         return 1
-    }
+    fi
 
     # Strip markdown fences if AI included them
     response="$(echo "$response" | sed '/^```yaml$/d; /^```$/d; /^```yml$/d')"
@@ -409,11 +412,11 @@ validate_config() {
         ajv validate -s "$schema_file" -d "$config_file" --spec=draft7
     elif command -v yq &>/dev/null && command -v python3 &>/dev/null; then
         log_info "Validating with python jsonschema..."
-        yq -o json "$config_file" | python3 -c "
-import json, sys
+        SCHEMA_FILE="$schema_file" yq -o json "$config_file" | python3 -c "
+import json, os, sys
 try:
     from jsonschema import validate, ValidationError
-    with open('$schema_file') as f:
+    with open(os.environ['SCHEMA_FILE']) as f:
         schema = json.load(f)
     data = json.load(sys.stdin)
     validate(instance=data, schema=schema)
