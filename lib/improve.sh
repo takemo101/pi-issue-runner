@@ -19,6 +19,7 @@ fi
 _IMPROVE_SH_SOURCED="true"
 
 _IMPROVE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_IMPROVE_SCRIPT_DIR="$_IMPROVE_LIB_DIR/../scripts"
 
 # Source required dependencies
 source "$_IMPROVE_LIB_DIR/config.sh"
@@ -101,6 +102,12 @@ improve_main() {
     
     # Phase 4: Wait for completion
     wait_for_improve_completion "$timeout"
+    
+    # Phase 4.5: Sweep completed sessions
+    log_info "Sweeping completed sessions..."
+    if ! "$_IMPROVE_SCRIPT_DIR/sweep.sh" --force 2>&1 | grep -v '^$'; then
+        log_warn "Sweep encountered issues (non-fatal)"
+    fi
     
     # Phase 5: Next iteration
     start_improve_next_iteration "$iteration" "$max_iterations" "$max_issues" "$timeout" "$log_dir" "$session_label" "$auto_continue"
