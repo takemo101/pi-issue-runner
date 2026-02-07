@@ -28,6 +28,7 @@ pi-init
 pi-nudge
 pi-context
 pi-generate-config
+pi-verify-config-docs
 "
 
 echo "Uninstalling pi-issue-runner from $INSTALL_DIR..."
