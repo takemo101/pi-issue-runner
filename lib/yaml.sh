@@ -13,10 +13,10 @@ fi
 _YAML_SH_SOURCED="true"
 
 # ロギング機能を読み込み（条件付き）
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "${SCRIPT_DIR}/log.sh" ]]; then
+_YAML_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "${_YAML_LIB_DIR}/log.sh" ]]; then
     # shellcheck source=lib/log.sh
-    source "${SCRIPT_DIR}/log.sh"
+    source "${_YAML_LIB_DIR}/log.sh"
 fi
 
 # log_warn が定義されていない場合のフォールバック

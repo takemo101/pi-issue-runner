@@ -22,8 +22,8 @@ fi
 _SESSION_RESOLVER_SH_SOURCED="true"
 
 # Source dependencies
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/tmux.sh"
+_SESSION_RESOLVER_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$_SESSION_RESOLVER_LIB_DIR/tmux.sh"
 
 # ============================================================================
 # resolve_session_target - Resolve issue number and session name from input
