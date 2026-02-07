@@ -703,3 +703,112 @@ EOF
     result="$(yaml_get_keys "$workflows_yaml" ".workflows" | sort | tr '\n' ' ' | sed 's/ $//')"
     [ "$result" = "ci-fix test-workflow" ]
 }
+
+# ====================
+# 4階層以上のパステスト（深さ制限検証）(Issue #977)
+# ====================
+
+@test "_simple_yaml_get warns on 4-level path and returns default" {
+    local deep_yaml="${BATS_TEST_TMPDIR}/deep.yaml"
+    cat > "$deep_yaml" << 'EOF'
+level1:
+  level2:
+    level3:
+      level4: value
+EOF
+    
+    # yq を無効化して簡易パーサーを強制
+    _YQ_CHECK_RESULT="0"
+    
+    # デフォルト値が返されることを確認（stderrは無視）
+    result=$(_simple_yaml_get "$deep_yaml" ".level1.level2.level3.level4" "default_value" 2>/dev/null)
+    [ "$result" = "default_value" ]
+    
+    # yqキャッシュをリセット（後続テストのため）
+    _YQ_CHECK_RESULT=""
+}
+
+@test "_simple_yaml_get_array warns on 4-level path and returns empty" {
+    local deep_yaml="${BATS_TEST_TMPDIR}/deep-array.yaml"
+    cat > "$deep_yaml" << 'EOF'
+level1:
+  level2:
+    level3:
+      items:
+        - item1
+        - item2
+EOF
+    
+    # yq を無効化して簡易パーサーを強制
+    _YQ_CHECK_RESULT="0"
+    
+    # 空が返されることを確認（stderrは無視）
+    result=$(_simple_yaml_get_array "$deep_yaml" ".level1.level2.level3.items" 2>/dev/null)
+    [ -z "$result" ]
+    
+    # yqキャッシュをリセット（後続テストのため）
+    _YQ_CHECK_RESULT=""
+}
+
+@test "_simple_yaml_exists returns false on 4-level path" {
+    local deep_yaml="${BATS_TEST_TMPDIR}/deep-exists.yaml"
+    cat > "$deep_yaml" << 'EOF'
+level1:
+  level2:
+    level3:
+      level4: value
+EOF
+    
+    # yq を無効化して簡易パーサーを強制
+    _YQ_CHECK_RESULT="0"
+    
+    # 警告ログをキャプチャ
+    run _simple_yaml_exists "$deep_yaml" ".level1.level2.level3.level4"
+    
+    # falseが返されることを確認（終了コード1）
+    [ "$status" -eq 1 ]
+    
+    # yqキャッシュをリセット（後続テストのため）
+    _YQ_CHECK_RESULT=""
+}
+
+@test "_simple_yaml_get warns on 5-level path" {
+    local deep_yaml="${BATS_TEST_TMPDIR}/very-deep.yaml"
+    cat > "$deep_yaml" << 'EOF'
+a:
+  b:
+    c:
+      d:
+        e: value
+EOF
+    
+    # yq を無効化して簡易パーサーを強制
+    _YQ_CHECK_RESULT="0"
+    
+    # デフォルト値が返されることを確認（stderrは無視）
+    result=$(_simple_yaml_get "$deep_yaml" ".a.b.c.d.e" "fallback" 2>/dev/null)
+    [ "$result" = "fallback" ]
+    
+    # yqキャッシュをリセット（後続テストのため）
+    _YQ_CHECK_RESULT=""
+}
+
+@test "_simple_yaml_get still works for 3-level paths" {
+    local three_level_yaml="${BATS_TEST_TMPDIR}/three-level-verify.yaml"
+    cat > "$three_level_yaml" << 'EOF'
+workflows:
+  quick:
+    description: "Quick workflow"
+EOF
+    
+    # yq を無効化して簡易パーサーを強制
+    _YQ_CHECK_RESULT="0"
+    
+    result="$(_simple_yaml_get "$three_level_yaml" ".workflows.quick.description")"
+    
+    # 正常に値が返されることを確認
+    [ "$result" = "Quick workflow" ]
+    
+    # yqキャッシュをリセット（後続テストのため）
+    _YQ_CHECK_RESULT=""
+}

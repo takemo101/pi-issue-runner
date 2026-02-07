@@ -12,6 +12,20 @@ if [[ -n "${_YAML_SH_SOURCED:-}" ]]; then
 fi
 _YAML_SH_SOURCED="true"
 
+# ロギング機能を読み込み（条件付き）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "${SCRIPT_DIR}/log.sh" ]]; then
+    # shellcheck source=lib/log.sh
+    source "${SCRIPT_DIR}/log.sh"
+fi
+
+# log_warn が定義されていない場合のフォールバック
+if ! declare -f log_warn > /dev/null 2>&1; then
+    log_warn() {
+        echo "[WARN] $*" >&2
+    }
+fi
+
 # ===================
 # yq チェック
 # ===================
@@ -217,8 +231,18 @@ _simple_yaml_get() {
     local path="$2"
     local default="${3:-}"
     
-    # パスを最大3階層に分解
+    # パス階層数を検証（簡易パーサーは最大3階層まで対応）
     local path_parts="${path#.}"  # 先頭のドットを除去
+    local depth
+    depth=$(echo "$path_parts" | tr "." "\n" | wc -l | tr -d ' ')
+    if [[ "$depth" -gt 3 ]]; then
+        log_warn "Simple YAML parser only supports up to 3 levels of nesting: $path"
+        log_warn "Install yq for full YAML support: brew install yq"
+        echo "$default"
+        return 0
+    fi
+    
+    # パスを最大3階層に分解（path_partsは既に定義済み）
     local section=""
     local subsection=""
     local key=""
@@ -294,14 +318,15 @@ _simple_yaml_get() {
         fi
         
         # レベル2: セクション内のサブセクション (例: workflows: の下の quick:)
-        if [[ -n "$section" && -z "$subsection" && "$current_section" == "$section" ]]; then
+        if [[ -n "$section" && "$current_section" == "$section" ]]; then
+            # サブセクションの検出（常に実行）
             if [[ "$line" =~ ^[[:space:]]{2}([a-z0-9_-]+):[[:space:]]*$ ]]; then
                 current_subsection="${BASH_REMATCH[1]}"
                 continue
             fi
             
             # レベル2: セクション内のキー（値あり、サブセクションなし）
-            if [[ "$line" =~ ^[[:space:]]{2}([a-z0-9_-]+):[[:space:]]+(.*) ]]; then
+            if [[ -z "$subsection" && "$line" =~ ^[[:space:]]{2}([a-z0-9_-]+):[[:space:]]+(.*) ]]; then
                 local line_key="${BASH_REMATCH[1]}"
                 local line_value="${BASH_REMATCH[2]}"
                 
@@ -365,8 +390,17 @@ _simple_yaml_get_array() {
     local file="$1"
     local path="$2"
     
-    # パスを最大3階層に分解
+    # パス階層数を検証（簡易パーサーは最大3階層まで対応）
     local path_parts="${path#.}"  # 先頭のドットを除去
+    local depth
+    depth=$(echo "$path_parts" | tr "." "\n" | wc -l | tr -d ' ')
+    if [[ "$depth" -gt 3 ]]; then
+        log_warn "Simple YAML parser only supports up to 3 levels of nesting: $path"
+        log_warn "Install yq for full YAML support: brew install yq"
+        return 0
+    fi
+    
+    # パスを最大3階層に分解（path_partsは既に定義済み）
     local section=""
     local subsection=""
     local key=""
@@ -483,8 +517,17 @@ _simple_yaml_exists() {
     local file="$1"
     local path="$2"
     
-    # パスを最大3階層に分解
+    # パス階層数を検証（簡易パーサーは最大3階層まで対応）
     local path_parts="${path#.}"  # 先頭のドットを除去
+    local depth
+    depth=$(echo "$path_parts" | tr "." "\n" | wc -l | tr -d ' ')
+    if [[ "$depth" -gt 3 ]]; then
+        log_warn "Simple YAML parser only supports up to 3 levels of nesting: $path"
+        log_warn "Install yq for full YAML support: brew install yq"
+        return 1
+    fi
+    
+    # パスを最大3階層に分解（path_partsは既に定義済み）
     local section=""
     local subsection=""
     local key=""
