@@ -89,7 +89,7 @@ echo "Layer 1: $layer1"  # → "43"
 - 次に実行すべきタスクの推奨 (`scripts/next.sh`)
 
 **関連関数**:
-- `calculate_dependency_layers` (lib/dependency.sh)
+- `compute_layers` (lib/dependency.sh)
 - `get_max_layer` (lib/dependency.sh)
 
 ---
@@ -203,7 +203,7 @@ echo "Updated max concurrent: $max_concurrent"
 ```
 
 **戻り値**:
-- なし（グローバル変数 `_CONFIG_CACHE` を更新）
+- なし（グローバル変数 `_CONFIG_LOADED` をリセットし、個別の `CONFIG_*` 変数を再読み込みします）
 
 **使用予定箇所**:
 - デーモンプロセスでの設定更新
@@ -218,7 +218,6 @@ echo "Updated max concurrent: $max_concurrent"
 **関連関数**:
 - `load_config` (lib/config.sh)
 - `get_config` (lib/config.sh)
-- `set_config` (lib/config.sh)
 
 ---
 
@@ -248,7 +247,7 @@ echo "Updated workflow name: $value"
 ```
 
 **戻り値**:
-- なし（グローバル変数 `_YQ_CACHE` をクリア）
+- なし（グローバル変数 `_YAML_CACHE_FILE` と `_YAML_CACHE_CONTENT` をクリアします）
 
 **使用予定箇所**:
 - ユニットテストでのクリーンアップ
@@ -258,7 +257,7 @@ echo "Updated workflow name: $value"
 **関連関数**:
 - `yaml_get` (lib/yaml.sh)
 - `yaml_get_array` (lib/yaml.sh)
-- `check_yq_cli` (lib/yaml.sh)
+- `check_yq` (lib/yaml.sh)
 
 ---
 
@@ -365,10 +364,10 @@ DEBUG (最も詳細)
 1. **内部実装への直接アクセス**
    ```bash
    # ❌ BAD: 内部変数に直接アクセス
-   echo "$_CONFIG_CACHE"
+   echo "$_CONFIG_LOADED"
    
    # ✅ GOOD: 公開API関数を使用
-   value=$(get_config key_name)
+   value=$(get_config worktree_base_dir)
    ```
 
 2. **プライベート関数の呼び出し**
