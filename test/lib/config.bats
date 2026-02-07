@@ -13,6 +13,7 @@ setup() {
     # 設定をリセット
     unset _CONFIG_LOADED
     unset CONFIG_WORKTREE_BASE_DIR
+    unset CONFIG_WORKTREE_BASE_BRANCH
     unset CONFIG_TMUX_SESSION_PREFIX
     unset CONFIG_WORKTREE_COPY_FILES
     unset CONFIG_PI_ARGS
@@ -29,6 +30,7 @@ setup() {
     unset CONFIG_GITHUB_INCLUDE_COMMENTS
     unset CONFIG_GITHUB_MAX_COMMENTS
     unset PI_RUNNER_WORKTREE_BASE_DIR
+    unset PI_RUNNER_WORKTREE_BASE_BRANCH
     unset PI_RUNNER_MULTIPLEXER_SESSION_PREFIX
     unset PI_RUNNER_AGENT_TYPE
     unset PI_RUNNER_AGENT_COMMAND
@@ -790,4 +792,59 @@ YAML
     
     result="$(get_config hooks_on_start)"
     [ "$result" = 'echo "Test: $VAR" && dir C:\test' ]
+}
+
+# ============================================================================
+# base_branch configuration tests (Issue #1025)
+# ============================================================================
+
+@test "get_config returns base_branch from yaml" {
+    cat > "$BATS_TEST_TMPDIR/test-config.yaml" <<'YAML'
+worktree:
+  base_branch: origin/develop
+YAML
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$BATS_TEST_TMPDIR/test-config.yaml"
+    
+    result="$(get_config worktree_base_branch)"
+    [ "$result" = "origin/develop" ]
+}
+
+@test "get_config returns default base_branch when not configured" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
+    
+    result="$(get_config worktree_base_branch)"
+    [ "$result" = "HEAD" ]
+}
+
+@test "environment variable overrides base_branch config" {
+    cat > "$BATS_TEST_TMPDIR/test-config.yaml" <<'YAML'
+worktree:
+  base_branch: origin/develop
+YAML
+    
+    export PI_RUNNER_WORKTREE_BASE_BRANCH="origin/main"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$BATS_TEST_TMPDIR/test-config.yaml"
+    
+    result="$(get_config worktree_base_branch)"
+    [ "$result" = "origin/main" ]
+    
+    unset PI_RUNNER_WORKTREE_BASE_BRANCH
+}
+
+@test "base_branch supports various branch formats" {
+    cat > "$BATS_TEST_TMPDIR/test-config.yaml" <<'YAML'
+worktree:
+  base_branch: remotes/origin/feature/test-branch
+YAML
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$BATS_TEST_TMPDIR/test-config.yaml"
+    
+    result="$(get_config worktree_base_branch)"
+    [ "$result" = "remotes/origin/feature/test-branch" ]
 }

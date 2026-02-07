@@ -152,7 +152,7 @@ setup_cleanup_trap cleanup_worktree_on_error
 parse_run_arguments() {
     local issue_number=""
     local custom_branch=""
-    local base_branch="HEAD"
+    local base_branch=""
     local workflow_name=""
     local workflow_specified=false
     local no_attach=false
@@ -557,6 +557,14 @@ main() {
     
     # Validate inputs
     validate_run_inputs "$issue_number" "$list_workflows"
+    
+    # Resolve base_branch with priority: --base option > config > HEAD default
+    if [[ -z "$base_branch" ]]; then
+        base_branch="$(get_config worktree_base_branch)"
+        if [[ -z "$base_branch" ]]; then
+            base_branch="HEAD"
+        fi
+    fi
     
     # Handle existing session (sets _SESSION_name)
     handle_existing_session "$issue_number" "$reattach" "$force" || exit $?

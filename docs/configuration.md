@@ -26,6 +26,11 @@ worktree:
   # デフォルト: .worktrees
   base_dir: .worktrees
   
+  # デフォルトのベースブランチ
+  # --base オプションで上書き可能
+  # デフォルト: HEAD
+  base_branch: origin/develop
+  
   # worktree作成時にコピーするファイル
   # デフォルト: .env .env.local .envrc
   copy_files:
@@ -253,6 +258,7 @@ agents:
 | キー | 型 | デフォルト | 説明 |
 |------|------|-----------|------|
 | `base_dir` | string | `.worktrees` | worktreeの作成先ディレクトリ |
+| `base_branch` | string | `HEAD` | worktree作成時のデフォルトベースブランチ（`--base`オプションで上書き可能） |
 | `copy_files` | string[] | `.env .env.local .envrc` | worktree作成時にコピーするファイル |
 
 #### copy_filesの使い方
@@ -945,6 +951,7 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | 環境変数 | 設定項目 |
 |---------|---------|
 | `PI_RUNNER_WORKTREE_BASE_DIR` | `worktree.base_dir` |
+| `PI_RUNNER_WORKTREE_BASE_BRANCH` | `worktree.base_branch` |
 | `PI_RUNNER_WORKTREE_COPY_FILES` | `worktree.copy_files` |
 | `PI_RUNNER_MULTIPLEXER_TYPE` | `multiplexer.type` |
 | `PI_RUNNER_MULTIPLEXER_SESSION_PREFIX` | `multiplexer.session_prefix` |
