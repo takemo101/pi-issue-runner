@@ -228,6 +228,10 @@ EOF
     
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
+        # Stub functions needed by _wait_for_available_slot
+        get_config() { echo '0'; }
+        mux_count_active_sessions() { echo '0'; }
+        get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         export SCRIPT_DIR='$SCRIPT_DIR'
         
@@ -247,6 +251,9 @@ EOF
 @test "execute_improve_issues_in_parallel handles empty issue list" {
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
+        get_config() { echo '0'; }
+        mux_count_active_sessions() { echo '0'; }
+        get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         execute_improve_issues_in_parallel '' 2>&1
     "
@@ -264,6 +271,9 @@ EOF
     
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
+        get_config() { echo '0'; }
+        mux_count_active_sessions() { echo '0'; }
+        get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         export SCRIPT_DIR='$SCRIPT_DIR'
         
@@ -287,6 +297,9 @@ EOF
     
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
+        get_config() { echo '0'; }
+        mux_count_active_sessions() { echo '0'; }
+        get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         export SCRIPT_DIR='$SCRIPT_DIR'
         
@@ -307,6 +320,9 @@ EOF
     
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
+        get_config() { echo '0'; }
+        mux_count_active_sessions() { echo '0'; }
+        get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         export SCRIPT_DIR='$SCRIPT_DIR'
         
@@ -318,6 +334,109 @@ EOF
     "
     [ "$status" -eq 0 ]
     [[ "$output" == *"ACTIVE_ISSUE_NUMBERS count: 0"* ]]
+}
+
+# ====================
+# _wait_for_available_slot() Tests
+# ====================
+
+@test "_wait_for_available_slot returns immediately when no limit configured" {
+    run bash -c "
+        source '$PROJECT_ROOT/lib/log.sh'
+        get_config() { echo '0'; }
+        mux_count_active_sessions() { echo '5'; }
+        get_status_value() { echo ''; }
+        source '$PROJECT_ROOT/lib/improve/execution.sh'
+        _wait_for_available_slot 1
+        echo 'done'
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"done"* ]]
+}
+
+@test "_wait_for_available_slot returns immediately when under limit" {
+    run bash -c "
+        source '$PROJECT_ROOT/lib/log.sh'
+        get_config() { echo '2'; }
+        mux_count_active_sessions() { echo '1'; }
+        get_status_value() { echo ''; }
+        source '$PROJECT_ROOT/lib/improve/execution.sh'
+        _wait_for_available_slot 1
+        echo 'done'
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"done"* ]]
+}
+
+@test "_wait_for_available_slot waits then proceeds when slot opens" {
+    local counter_file="$BATS_TEST_TMPDIR/call_count"
+    echo "0" > "$counter_file"
+    
+    run bash -c "
+        source '$PROJECT_ROOT/lib/log.sh'
+        get_config() { echo '2'; }
+        COUNTER_FILE='$counter_file'
+        mux_count_active_sessions() {
+            local count=\$(cat \"\$COUNTER_FILE\")
+            count=\$((count + 1))
+            echo \"\$count\" > \"\$COUNTER_FILE\"
+            if [[ \$count -le 1 ]]; then
+                echo '2'
+            else
+                echo '1'
+            fi
+        }
+        get_status_value() { echo 'completed'; }
+        source '$PROJECT_ROOT/lib/improve/execution.sh'
+        _wait_for_available_slot 1
+        echo 'done'
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Concurrent limit (2) reached"* ]]
+    [[ "$output" == *"done"* ]]
+}
+
+@test "execute_improve_issues_in_parallel waits for slot when concurrent limit reached" {
+    # Create mock run.sh that succeeds
+    cat > "$SCRIPT_DIR/run.sh" << 'EOF'
+#!/usr/bin/env bash
+echo "started: $1"
+exit 0
+EOF
+    chmod +x "$SCRIPT_DIR/run.sh"
+    
+    local counter_file="$BATS_TEST_TMPDIR/call_count"
+    echo "0" > "$counter_file"
+    
+    run bash -c "
+        source '$PROJECT_ROOT/lib/log.sh'
+        get_config() { echo '2'; }
+        COUNTER_FILE='$counter_file'
+        # Simulate: first 2 calls under limit, 3rd at limit, then drops
+        mux_count_active_sessions() {
+            local count=\$(cat \"\$COUNTER_FILE\")
+            count=\$((count + 1))
+            echo \"\$count\" > \"\$COUNTER_FILE\"
+            if [[ \$count -le 2 ]]; then
+                echo '0'
+            elif [[ \$count -le 3 ]]; then
+                echo '2'
+            else
+                echo '1'
+            fi
+        }
+        get_status_value() { echo 'completed'; }
+        source '$PROJECT_ROOT/lib/improve/execution.sh'
+        export SCRIPT_DIR='$SCRIPT_DIR'
+        
+        issues=\$'42\n43\n44'
+        execute_improve_issues_in_parallel \"\$issues\" 2>&1
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"started: 42"* ]]
+    [[ "$output" == *"started: 43"* ]]
+    [[ "$output" == *"Concurrent limit (2) reached"* ]]
+    [[ "$output" == *"started: 44"* ]]
 }
 
 # ====================

@@ -86,6 +86,44 @@ fetch_improve_created_issues() {
 }
 
 # ============================================================================
+# Wait for a session slot to become available
+# Polls active sessions until at least one completes or concurrent limit allows
+# Arguments: $1=check_interval (default: 10)
+# ============================================================================
+_wait_for_available_slot() {
+    local interval="${1:-10}"
+    local max_concurrent
+    max_concurrent="$(get_config parallel_max_concurrent)"
+    
+    # No limit configured
+    if [[ -z "$max_concurrent" || "$max_concurrent" == "0" ]]; then
+        return 0
+    fi
+    
+    while true; do
+        local current_count
+        current_count="$(mux_count_active_sessions)"
+        if [[ "$current_count" -lt "$max_concurrent" ]]; then
+            return 0
+        fi
+        echo "  Concurrent limit ($max_concurrent) reached ($current_count active). Waiting ${interval}s for a slot..."
+        sleep "$interval"
+        
+        # Update ACTIVE_ISSUE_NUMBERS: remove completed sessions
+        local still_active=()
+        for issue_num in "${ACTIVE_ISSUE_NUMBERS[@]}"; do
+            local status
+            status="$(get_status_value "$issue_num" 2>/dev/null || echo "")"
+            if [[ "$status" == "completed" || "$status" == "failed" || "$status" == "error" || "$status" == "merged" ]]; then
+                continue
+            fi
+            still_active+=("$issue_num")
+        done
+        ACTIVE_ISSUE_NUMBERS=("${still_active[@]+"${still_active[@]}"}")
+    done
+}
+
+# ============================================================================
 # Start parallel execution of issues
 # Arguments: $1=newline-separated issue numbers
 # ============================================================================
@@ -102,6 +140,10 @@ execute_improve_issues_in_parallel() {
     
     while IFS= read -r issue; do
         [[ -z "$issue" ]] && continue
+        
+        # Wait for an available slot before starting
+        _wait_for_available_slot 10
+        
         echo "  Starting Issue #$issue..."
         if "${SCRIPT_DIR}/run.sh" "$issue" --no-attach; then
             # Track active session for cleanup on interruption

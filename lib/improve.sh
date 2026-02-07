@@ -24,6 +24,8 @@ _IMPROVE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_IMPROVE_LIB_DIR/config.sh"
 source "$_IMPROVE_LIB_DIR/log.sh"
 source "$_IMPROVE_LIB_DIR/github.sh"
+source "$_IMPROVE_LIB_DIR/status.sh"
+source "$_IMPROVE_LIB_DIR/tmux.sh"
 
 # Source improve sub-modules
 source "$_IMPROVE_LIB_DIR/improve/deps.sh"
