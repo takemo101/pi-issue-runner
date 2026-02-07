@@ -176,7 +176,7 @@ _get_ai_model() {
     fi
 
     # 2. デフォルト（高速・安価なモデル）
-    echo "claude-haiku-4-5-20250218"
+    echo "claude-haiku-4-5"
 }
 
 # ===================

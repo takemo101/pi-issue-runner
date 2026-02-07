@@ -260,5 +260,5 @@ EOF
     _CONFIG_LOADED=""
     CONFIG_AUTO_MODEL=""
     result=$(_get_ai_model)
-    [ "$result" = "claude-haiku-4-5-20250218" ]
+    [ "$result" = "claude-haiku-4-5" ]
 }

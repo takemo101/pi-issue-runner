@@ -202,8 +202,8 @@ auto:
   provider: anthropic
   
   # AIモデル（軽量・高速なモデル推奨）
-  # デフォルト: claude-haiku-4-5-20250218
-  model: claude-haiku-4-5-20250218
+  # デフォルト: claude-haiku-4-5
+  model: claude-haiku-4-5
 
 # =====================================
 # 計画書設定
@@ -731,7 +731,7 @@ AI呼び出しが失敗した場合は、Issue タイトルのプレフィック
 ```yaml
 auto:
   provider: anthropic                # AIプロバイダー（省略時: agent設定から推定 or anthropic）
-  model: claude-haiku-4-5-20250218   # 軽量モデル推奨（省略時: claude-haiku-4-5-20250218）
+  model: claude-haiku-4-5   # 軽量モデル推奨（省略時: claude-haiku-4-5）
 ```
 
 > **ベストプラクティス**: AI が正確に選択できるよう、`description` には対象となるタスクの特徴（規模、領域、技術スタックなど）を具体的に記述してください。

@@ -492,7 +492,7 @@ GitHub Issue #{{issue_number}} の変更をステージング環境にデプロ�
 ```yaml
 auto:
   provider: anthropic                # AIプロバイダー（省略時: agent設定から推定 or anthropic）
-  model: claude-haiku-4-5-20250218   # 軽量モデル推奨
+  model: claude-haiku-4-5   # 軽量モデル推奨
 ```
 
 **優先順位**: `.pi-runner.yaml` の `auto` セクション > `agent.args` の `--provider` > デフォルト値
