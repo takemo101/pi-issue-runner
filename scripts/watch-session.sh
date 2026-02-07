@@ -38,6 +38,7 @@ source "$WATCHER_SCRIPT_DIR/../lib/notify.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/worktree.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/hooks.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/cleanup-orphans.sh"
+source "$WATCHER_SCRIPT_DIR/../lib/marker.sh"
 
 usage() {
     cat << EOF
@@ -217,50 +218,6 @@ check_pr_merge_status() {
     
     # Should not reach here, but return error code as fallback
     return 1
-}
-
-# コードブロック外のマーカー数をカウント
-# コードブロック内（前後1行に```がある）のマーカーは除外
-# Usage: count_markers_outside_codeblock <output> <marker>
-# Returns: コードブロック外のマーカー数
-count_markers_outside_codeblock() {
-    local output="$1"
-    local marker="$2"
-    local count=0
-    
-    # 出力を行番号付きで処理
-    local line_numbers
-    line_numbers=$(echo "$output" | grep -nE "^[[:space:]]*${marker}$" 2>/dev/null | cut -d: -f1) || true
-    
-    if [[ -z "$line_numbers" ]]; then
-        echo "0"
-        return
-    fi
-    
-    # 各マーカー行について、前後1行にコードブロックマーカーがあるかチェック
-    local total_lines
-    total_lines=$(echo "$output" | wc -l)
-    
-    while IFS= read -r line_num; do
-        [[ -z "$line_num" ]] && continue
-        
-        # 前後1行の範囲を計算
-        local start=$((line_num - 1))
-        local end=$((line_num + 1))
-        [[ $start -lt 1 ]] && start=1
-        [[ $end -gt $total_lines ]] && end=$total_lines
-        
-        # 前後1行を取得（マーカー行自体は除く）
-        local context
-        context=$(echo "$output" | sed -n "${start},${end}p" | grep -v -E "^[[:space:]]*${marker}$") || context=""
-        
-        # コンテキストにコードブロックマーカー（```）が含まれていなければカウント
-        if ! echo "$context" | grep -qF '```'; then
-            count=$((count + 1))
-        fi
-    done <<< "$line_numbers"
-    
-    echo "$count"
 }
 
 # エラーハンドリング関数

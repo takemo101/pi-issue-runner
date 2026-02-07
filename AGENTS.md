@@ -32,6 +32,7 @@ pi-issue-runner/
 │   ├── status.sh      # 状態確認
 │   ├── attach.sh      # セッションアタッチ
 │   ├── stop.sh        # セッション停止
+│   ├── sweep.sh       # 全セッションのマーカーチェック・cleanup
 │   ├── mux-all.sh     # 全セッション表示（マルチプレクサ対応）
 │   ├── cleanup.sh     # クリーンアップ
 │   ├── ci-fix-helper.sh  # CI修正ヘルパー（lib/ci-fix.shのラッパー）
@@ -71,6 +72,7 @@ pi-issue-runner/
 │   │   ├── execution.sh # 実行・監視フェーズ
 │   │   └── review.sh  # レビューフェーズ
 │   ├── log.sh         # ログ出力
+│   ├── marker.sh      # マーカー検出ユーティリティ
 │   ├── notify.sh      # 通知機能
 │   ├── priority.sh    # 優先度計算
 │   ├── session-resolver.sh  # セッション名解決ユーティリティ
@@ -148,6 +150,7 @@ pi-issue-runner/
 │   │   │   └── review.bats
 │   │   ├── improve.bats
 │   │   ├── log.bats
+│   │   ├── marker.bats           # marker.sh のテスト
 │   │   ├── notify.bats
 │   │   ├── priority.bats
 │   │   ├── session-resolver.bats
@@ -183,6 +186,7 @@ pi-issue-runner/
 │   │   ├── restart-watcher.bats  # restart-watcher.sh のテスト
 │   │   ├── status.bats
 │   │   ├── stop.bats
+│   │   ├── sweep.bats            # sweep.sh のテスト
 │   │   ├── test.bats
 │   │   ├── verify-config-docs.bats
 │   │   ├── wait-for-sessions.bats
@@ -234,6 +238,10 @@ shellcheck -x scripts/*.sh lib/*.sh  # 直接実行
 # 手動テスト
 ./scripts/list.sh -v
 ./scripts/status.sh 42
+
+# 全セッションのマーカーチェック
+./scripts/sweep.sh --dry-run
+./scripts/sweep.sh --force
 
 # 継続的改善
 ./scripts/improve.sh --max-iterations 1
