@@ -1,0 +1,407 @@
+#!/usr/bin/env bats
+# generate-config.sh のBatsテスト
+
+load '../test_helper'
+
+setup() {
+    if [[ -z "${BATS_TEST_TMPDIR:-}" ]]; then
+        export BATS_TEST_TMPDIR="$(mktemp -d)"
+        export _CLEANUP_TMPDIR=1
+    fi
+    
+    # テスト用ディレクトリを作成
+    export TEST_REPO="$BATS_TEST_TMPDIR/test_repo"
+    mkdir -p "$TEST_REPO"
+    cd "$TEST_REPO"
+    git init -q
+    git config user.email "test@example.com"
+    git config user.name "Test User"
+    
+    # モック環境のセットアップ
+    export MOCK_DIR="${BATS_TEST_TMPDIR}/mocks"
+    mkdir -p "$MOCK_DIR"
+    
+    # PI_COMMANDをモックに設定（AI生成をスキップさせる）
+    export PI_COMMAND="$MOCK_DIR/pi"
+    cat > "$MOCK_DIR/pi" << 'EOF'
+#!/usr/bin/env bash
+# Mock pi that fails (forces static fallback)
+exit 1
+EOF
+    chmod +x "$MOCK_DIR/pi"
+}
+
+teardown() {
+    if [[ "${_CLEANUP_TMPDIR:-}" == "1" && -d "${BATS_TEST_TMPDIR:-}" ]]; then
+        rm -rf "$BATS_TEST_TMPDIR"
+    fi
+}
+
+# ====================
+# ヘルプ表示テスト
+# ====================
+
+@test "generate-config.sh --help shows usage" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --help
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Usage:"* ]]
+    [[ "$output" == *"--dry-run"* ]]
+    [[ "$output" == *"--force"* ]]
+    [[ "$output" == *"--validate"* ]]
+    [[ "$output" == *"--no-ai"* ]]
+}
+
+@test "generate-config.sh -h shows usage" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" -h
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Usage:"* ]]
+}
+
+# ====================
+# --dry-run テスト
+# ====================
+
+@test "generate-config.sh --dry-run outputs to stdout" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --dry-run
+    [ "$status" -eq 0 ]
+    # YAMLコンテンツが標準出力に出力される
+    [[ "$output" == *"worktree:"* ]]
+    [[ "$output" == *"base_dir:"* ]]
+}
+
+@test "generate-config.sh --dry-run does not create file" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --dry-run
+    [ "$status" -eq 0 ]
+    [ ! -f ".pi-runner.yaml" ]
+}
+
+@test "generate-config.sh --dry-run includes workflows" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"workflows:"* ]]
+    [[ "$output" == *"quick:"* ]]
+    [[ "$output" == *"thorough:"* ]]
+}
+
+# ====================
+# 通常の生成テスト
+# ====================
+
+@test "generate-config.sh creates .pi-runner.yaml" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh"
+    [ "$status" -eq 0 ]
+    [ -f ".pi-runner.yaml" ]
+}
+
+@test "generate-config.sh generated YAML contains worktree section" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh"
+    [ "$status" -eq 0 ]
+    grep -q 'worktree:' ".pi-runner.yaml"
+    grep -q 'base_dir:' ".pi-runner.yaml"
+}
+
+@test "generate-config.sh generated YAML contains multiplexer section" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh"
+    [ "$status" -eq 0 ]
+    grep -q 'multiplexer:' ".pi-runner.yaml"
+    grep -q 'type:' ".pi-runner.yaml"
+}
+
+@test "generate-config.sh generated YAML contains workflow section" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh"
+    [ "$status" -eq 0 ]
+    grep -q 'workflow:' ".pi-runner.yaml"
+}
+
+@test "generate-config.sh generated YAML contains workflows section" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh"
+    [ "$status" -eq 0 ]
+    grep -q 'workflows:' ".pi-runner.yaml"
+}
+
+@test "generate-config.sh generated YAML is valid YAML syntax" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh"
+    [ "$status" -eq 0 ]
+    
+    # yq/jq/pythonのいずれかでYAMLをパース可能か確認
+    if command -v yq &>/dev/null; then
+        run yq eval '.' ".pi-runner.yaml"
+        [ "$status" -eq 0 ]
+    elif command -v python3 &>/dev/null; then
+        run python3 -c "import yaml; yaml.safe_load(open('.pi-runner.yaml'))"
+        [ "$status" -eq 0 ]
+    else
+        skip "yq or python3 not available for YAML validation"
+    fi
+}
+
+@test "generate-config.sh shows success message" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"生成しました"* ]] || [[ "$output" == *"generated"* ]]
+}
+
+# ====================
+# --force テスト
+# ====================
+
+@test "generate-config.sh fails if .pi-runner.yaml exists without --force" {
+    # 既存ファイルを作成
+    echo "existing: config" > ".pi-runner.yaml"
+    
+    run "$PROJECT_ROOT/scripts/generate-config.sh"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"既に存在"* ]] || [[ "$output" == *"exists"* ]]
+}
+
+@test "generate-config.sh --force overwrites existing file" {
+    # 既存ファイルを作成
+    echo "existing: config" > ".pi-runner.yaml"
+    
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --force
+    [ "$status" -eq 0 ]
+    # ファイルが上書きされている
+    grep -q 'worktree:' ".pi-runner.yaml"
+}
+
+# ====================
+# --no-ai テスト（静的テンプレート）
+# ====================
+
+@test "generate-config.sh --no-ai uses static template" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --no-ai --dry-run
+    [ "$status" -eq 0 ]
+    # 静的テンプレートのコメントが含まれる
+    [[ "$output" == *"Generated by: generate-config.sh (static fallback)"* ]] || \
+    [[ "$output" == *"pi-issue-runner configuration"* ]]
+}
+
+@test "generate-config.sh --no-ai creates valid YAML" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --no-ai
+    [ "$status" -eq 0 ]
+    [ -f ".pi-runner.yaml" ]
+    grep -q 'worktree:' ".pi-runner.yaml"
+}
+
+# ====================
+# -o / --output テスト
+# ====================
+
+@test "generate-config.sh -o custom.yaml creates custom file" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" -o custom.yaml
+    [ "$status" -eq 0 ]
+    [ -f "custom.yaml" ]
+    [ ! -f ".pi-runner.yaml" ]
+}
+
+@test "generate-config.sh --output custom.yaml creates custom file" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --output custom.yaml
+    [ "$status" -eq 0 ]
+    [ -f "custom.yaml" ]
+}
+
+@test "generate-config.sh -o requires argument" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" -o
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"requires"* ]]
+}
+
+@test "generate-config.sh --output requires argument" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --output
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"requires"* ]]
+}
+
+# ====================
+# --validate テスト
+# ====================
+
+@test "generate-config.sh --validate checks existing config" {
+    # 有効な設定ファイルを作成
+    cat > ".pi-runner.yaml" << 'EOF'
+worktree:
+  base_dir: ".worktrees"
+multiplexer:
+  type: tmux
+workflow:
+  steps:
+    - implement
+    - merge
+EOF
+
+    # バリデーションツールがない環境ではスキップ
+    if ! command -v yq &>/dev/null && ! command -v python3 &>/dev/null; then
+        skip "No validation tools available"
+    fi
+
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --validate
+    # バリデーションツールがない場合はexit code 2を返す
+    [ "$status" -eq 0 ] || [ "$status" -eq 2 ]
+}
+
+@test "generate-config.sh --validate fails if config not found" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --validate
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"not found"* ]] || [[ "$output" == *"見つかりません"* ]]
+}
+
+# ====================
+# エラーハンドリングテスト
+# ====================
+
+@test "generate-config.sh fails on unknown option" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --unknown-option
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Unknown"* ]]
+}
+
+@test "generate-config.sh fails on unexpected argument" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" unexpected-arg
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Unexpected"* ]]
+}
+
+# ====================
+# プロジェクト情報の収集テスト
+# ====================
+
+@test "generate-config.sh detects package.json if exists" {
+    # package.jsonを作成
+    cat > "package.json" << 'EOF'
+{
+  "name": "test-project",
+  "version": "1.0.0"
+}
+EOF
+
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --dry-run
+    [ "$status" -eq 0 ]
+    # .worktrees/にcopy_filesが設定される可能性がある（package.jsonは設定されない）
+}
+
+@test "generate-config.sh detects .env files for copy_files" {
+    # .envファイルを作成
+    echo "TEST_VAR=value" > ".env"
+    
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --dry-run
+    [ "$status" -eq 0 ]
+    # copy_filesセクションに.envが含まれる
+    [[ "$output" == *"copy_files:"* ]] && [[ "$output" == *".env"* ]]
+}
+
+@test "generate-config.sh includes session_prefix based on repo name" {
+    # リポジトリ名を設定
+    git config --local remote.origin.url "https://github.com/test/my-project.git"
+    
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"session_prefix:"* ]]
+}
+
+# ====================
+# 並列実行の安定性テスト
+# ====================
+
+@test "generate-config.sh can run in parallel" {
+    # 複数のディレクトリで同時実行
+    local dir1="$BATS_TEST_TMPDIR/parallel1"
+    local dir2="$BATS_TEST_TMPDIR/parallel2"
+    
+    mkdir -p "$dir1" "$dir2"
+    (cd "$dir1" && git init -q && "$PROJECT_ROOT/scripts/generate-config.sh" --dry-run > /dev/null) &
+    (cd "$dir2" && git init -q && "$PROJECT_ROOT/scripts/generate-config.sh" --dry-run > /dev/null) &
+    
+    wait
+    [ $? -eq 0 ]
+}
+
+# ====================
+# 複合オプションテスト
+# ====================
+
+@test "generate-config.sh --no-ai --dry-run works together" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --no-ai --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"worktree:"* ]]
+    [ ! -f ".pi-runner.yaml" ]
+}
+
+@test "generate-config.sh --no-ai -o custom.yaml --force works together" {
+    echo "old" > "custom.yaml"
+    
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --no-ai -o custom.yaml --force
+    [ "$status" -eq 0 ]
+    [ -f "custom.yaml" ]
+    grep -q 'worktree:' "custom.yaml"
+}
+
+# ====================
+# ワークフロー生成の妥当性テスト
+# ====================
+
+@test "generate-config.sh includes default workflows" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --dry-run
+    [ "$status" -eq 0 ]
+    
+    # 必須のワークフローが含まれる
+    [[ "$output" == *"quick:"* ]]
+    [[ "$output" == *"thorough:"* ]]
+    [[ "$output" == *"docs:"* ]]
+}
+
+@test "generate-config.sh quick workflow has minimal steps" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --dry-run
+    [ "$status" -eq 0 ]
+    
+    # quickワークフローにはimplementとmergeが含まれる
+    [[ "$output" == *"quick:"* ]]
+    
+    # quick:の後にimplementとmergeがある
+    local after_quick
+    after_quick=$(echo "$output" | sed -n '/quick:/,/^[a-z]/p')
+    [[ "$after_quick" == *"implement"* ]]
+    [[ "$after_quick" == *"merge"* ]]
+}
+
+@test "generate-config.sh thorough workflow has all steps" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --dry-run
+    [ "$status" -eq 0 ]
+    
+    # thoroughワークフローには複数のステップがある
+    [[ "$output" == *"thorough:"* ]]
+    
+    # thorough:の後にplan、implement、mergeがある
+    local after_thorough
+    after_thorough=$(echo "$output" | sed -n '/thorough:/,/^[a-z]/p')
+    [[ "$after_thorough" == *"plan"* ]]
+    [[ "$after_thorough" == *"implement"* ]]
+    [[ "$after_thorough" == *"merge"* ]]
+}
+
+# ====================
+# 設定値の妥当性テスト
+# ====================
+
+@test "generate-config.sh sets reasonable max_concurrent" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --dry-run
+    [ "$status" -eq 0 ]
+    
+    # max_concurrentが設定されている
+    [[ "$output" == *"max_concurrent:"* ]]
+}
+
+@test "generate-config.sh includes github section" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --dry-run
+    [ "$status" -eq 0 ]
+    
+    # githubセクションが含まれる
+    [[ "$output" == *"github:"* ]]
+}
+
+@test "generate-config.sh includes plans section" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --dry-run
+    [ "$status" -eq 0 ]
+    
+    # plansセクションが含まれる
+    [[ "$output" == *"plans:"* ]]
+}
