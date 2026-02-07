@@ -94,25 +94,6 @@ run_hook() {
     log_info "Hook completed for event: $event"
 }
 
-# テンプレート変数を展開（非推奨）
-# 
-# @deprecated このテンプレート展開機能は非推奨です。
-# セキュリティ上の理由により、環境変数（PI_ISSUE_NUMBER等）を使用してください。
-# 詳細: docs/hooks.md のマイグレーションガイドを参照
-_expand_hook_template() {
-    local hook="$1"
-    
-    # 非推奨警告（テンプレート変数が含まれる場合のみ）
-    if [[ "$hook" =~ \{\{[a-z_]+\}\} ]]; then
-        log_warn "Template variables ({{...}}) are deprecated for security reasons."
-        log_warn "Please use environment variables instead: \$PI_ISSUE_NUMBER, \$PI_ISSUE_TITLE, etc."
-        log_warn "See docs/hooks.md for migration guide."
-    fi
-    
-    # テンプレート展開せず、そのまま返す（環境変数を使用するため）
-    echo "$hook"
-}
-
 # hookを実行（ファイルまたはインラインコマンド）
 _execute_hook() {
     local hook="$1"

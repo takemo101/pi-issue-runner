@@ -107,46 +107,6 @@ EOF
 }
 
 # ====================
-# _expand_hook_template テスト（非推奨）
-# ====================
-
-@test "_expand_hook_template shows deprecation warning for template variables" {
-    source "$PROJECT_ROOT/lib/hooks.sh"
-    override_get_config
-    mock_notify
-    
-    # Enable WARN level logging to capture the warning
-    export LOG_LEVEL="WARN"
-    
-    result="$(_expand_hook_template 'Issue #{{issue_number}} completed' 2>&1)"
-    [[ "$result" == *"deprecated"* ]]
-    [[ "$result" == *"environment variables"* ]]
-}
-
-@test "_expand_hook_template returns hook unchanged (no template expansion)" {
-    source "$PROJECT_ROOT/lib/hooks.sh"
-    override_get_config
-    mock_notify
-    
-    # Suppress warnings for this test
-    export LOG_LEVEL="ERROR"
-    
-    result="$(_expand_hook_template 'Issue #{{issue_number}} completed')"
-    [ "$result" = 'Issue #{{issue_number}} completed' ]
-}
-
-@test "_expand_hook_template does not warn when no template variables" {
-    source "$PROJECT_ROOT/lib/hooks.sh"
-    override_get_config
-    mock_notify
-    
-    export LOG_LEVEL="WARN"
-    
-    result="$(_expand_hook_template 'echo "No templates here"' 2>&1)"
-    [[ "$result" != *"deprecated"* ]]
-}
-
-# ====================
 # run_hook テスト（デフォルト動作）
 # ====================
 
