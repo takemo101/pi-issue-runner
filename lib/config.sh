@@ -204,57 +204,32 @@ _parse_config_file() {
     _parse_array_configs "$config_file"
 }
 
+# YAML配列をスペース区切り文字列として変数に設定
+# Usage: _load_array_config <config_file> <yaml_path> <config_var_name>
+_load_array_config() {
+    local config_file="$1"
+    local yaml_path="$2"
+    local var_name="$3"
+    local result=""
+    
+    while IFS= read -r item; do
+        if [[ -n "$item" ]]; then
+            result="${result:+$result }$item"
+        fi
+    done < <(yaml_get_array "$config_file" "$yaml_path")
+    
+    if [[ -n "$result" ]]; then
+        printf -v "$var_name" "%s" "$result"
+    fi
+}
+
 # 配列設定をパース
 _parse_array_configs() {
     local config_file="$1"
     
-    # worktree.copy_files
-    local copy_files_list=""
-    while IFS= read -r item; do
-        if [[ -n "$item" ]]; then
-            if [[ -z "$copy_files_list" ]]; then
-                copy_files_list="$item"
-            else
-                copy_files_list="$copy_files_list $item"
-            fi
-        fi
-    done < <(yaml_get_array "$config_file" ".worktree.copy_files")
-    
-    if [[ -n "$copy_files_list" ]]; then
-        CONFIG_WORKTREE_COPY_FILES="$copy_files_list"
-    fi
-    
-    # pi.args
-    local pi_args_list=""
-    while IFS= read -r item; do
-        if [[ -n "$item" ]]; then
-            if [[ -z "$pi_args_list" ]]; then
-                pi_args_list="$item"
-            else
-                pi_args_list="$pi_args_list $item"
-            fi
-        fi
-    done < <(yaml_get_array "$config_file" ".pi.args")
-    
-    if [[ -n "$pi_args_list" ]]; then
-        CONFIG_PI_ARGS="$pi_args_list"
-    fi
-    
-    # agent.args
-    local agent_args_list=""
-    while IFS= read -r item; do
-        if [[ -n "$item" ]]; then
-            if [[ -z "$agent_args_list" ]]; then
-                agent_args_list="$item"
-            else
-                agent_args_list="$agent_args_list $item"
-            fi
-        fi
-    done < <(yaml_get_array "$config_file" ".agent.args")
-    
-    if [[ -n "$agent_args_list" ]]; then
-        CONFIG_AGENT_ARGS="$agent_args_list"
-    fi
+    _load_array_config "$config_file" ".worktree.copy_files" "CONFIG_WORKTREE_COPY_FILES"
+    _load_array_config "$config_file" ".pi.args" "CONFIG_PI_ARGS"
+    _load_array_config "$config_file" ".agent.args" "CONFIG_AGENT_ARGS"
 }
 
 # Environment variable to config variable mapping table
