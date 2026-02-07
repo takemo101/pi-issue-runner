@@ -827,13 +827,15 @@ github:
 
 ```yaml
 hooks:
-  on_start: ./scripts/notify-start.sh
+  # 例: ./hooks/notify-start.sh (ユーザーが作成)
+  on_start: ./hooks/notify-start.sh
   on_success: echo "Task completed for Issue #$PI_ISSUE_NUMBER"
   on_error: |
     curl -X POST https://example.com/webhook \
       -H 'Content-Type: application/json' \
       -d "{\"issue\": \"$PI_ISSUE_NUMBER\", \"error\": \"$PI_ERROR_MESSAGE\"}"
-  on_cleanup: ./scripts/cleanup-resources.sh
+  # 例: ./hooks/cleanup-resources.sh (ユーザーが作成)
+  on_cleanup: ./hooks/cleanup-resources.sh
 ```
 
 #### 環境変数
