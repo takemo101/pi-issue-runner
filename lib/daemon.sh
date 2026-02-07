@@ -41,7 +41,7 @@ daemonize() {
     # サブシェル内で実行し、即座にバックグラウンド化
     # nohupでSIGHUPを無視し、標準入出力を適切にリダイレクト
     (
-        # SIGHUPを無視
+        # SIGHUPを無視（最優先で設定）
         trap '' HUP
         
         # 標準入出力を閉じる（またはリダイレクト）
@@ -55,6 +55,8 @@ daemonize() {
         echo "$bg_pid" > "$pid_file"
         
         # jobsテーブルから削除（親シェルに影響与えない）
+        # Note: サブシェル内では disown が失敗する場合があるが、
+        # trap '' HUP で SIGHUP を無視しているため問題ない
         disown %1 2>/dev/null || disown "$bg_pid" 2>/dev/null || true
         
         # 親が先に終了しても子プロセスは継続
@@ -65,7 +67,7 @@ daemonize() {
     
     # サブシェルがPIDを書き込むのを待つ
     local attempts=0
-    local max_attempts=50  # 最大5秒待機
+    local max_attempts=100  # 最大10秒待機（高負荷時のタイムアウト対策）
     while [[ $attempts -lt $max_attempts ]]; do
         if [[ -s "$pid_file" ]]; then
             break
@@ -89,9 +91,22 @@ daemonize() {
     if [[ -n "$child_pid" ]] && [[ "$child_pid" =~ ^[0-9]+$ ]]; then
         echo "$child_pid"
     else
-        # PIDが取得できなかった場合はwrapperのPIDを返す（フォールバック）
-        # 実際には子プロセスは異なるPIDで動作している
-        echo "$wrapper_pid"
+        # PIDが取得できなかった場合は、pgrepでプロセスを検索（フォールバック）
+        # wrapper PIDは既に再利用されている可能性があるため、コマンドパターンで検索
+        echo "Warning: PID file timeout. Attempting to find process by pattern..." >&2
+        
+        # コマンドラインからプロセスを検索
+        local cmd_pattern="${*}"
+        local found_pid
+        found_pid=$(find_daemon_pid "$cmd_pattern" 2>/dev/null || echo "")
+        
+        if [[ -n "$found_pid" ]] && [[ "$found_pid" =~ ^[0-9]+$ ]]; then
+            echo "$found_pid"
+        else
+            # プロセスが見つからない場合はエラーを報告
+            echo "Error: Failed to retrieve daemon PID" >&2
+            return 1
+        fi
     fi
     
     return 0
