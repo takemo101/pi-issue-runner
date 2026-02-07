@@ -465,6 +465,90 @@ EOF
     [[ "$result" == *'Test $(echo SUBSHELL_INJECTION) title'* ]]
 }
 
+# ====================
+# improve関連hookテスト
+# ====================
+
+@test "get_hook returns improve hook value from config file" {
+    cat > "$TEST_WORKDIR/.pi-runner.yaml" << 'EOF'
+hooks:
+  on_improve_start: echo "improve started"
+  on_improve_end: echo "improve ended"
+  on_iteration_start: echo "iteration started"
+  on_iteration_end: echo "iteration ended"
+  on_review_complete: echo "review complete"
+EOF
+
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    override_get_config
+
+    result="$(get_hook "on_improve_start")"
+    [ "$result" = 'echo "improve started"' ]
+
+    result="$(get_hook "on_improve_end")"
+    [ "$result" = 'echo "improve ended"' ]
+
+    result="$(get_hook "on_iteration_start")"
+    [ "$result" = 'echo "iteration started"' ]
+
+    result="$(get_hook "on_iteration_end")"
+    [ "$result" = 'echo "iteration ended"' ]
+
+    result="$(get_hook "on_review_complete")"
+    [ "$result" = 'echo "review complete"' ]
+}
+
+@test "run_hook sets improve-related environment variables" {
+    mkdir -p "$TEST_WORKDIR/hooks"
+    cat > "$TEST_WORKDIR/hooks/test-improve-env.sh" << 'EOF'
+#!/bin/bash
+echo "ITERATION:$PI_ITERATION"
+echo "MAX_ITERATIONS:$PI_MAX_ITERATIONS"
+echo "ISSUES_CREATED:$PI_ISSUES_CREATED"
+echo "ISSUES_SUCCEEDED:$PI_ISSUES_SUCCEEDED"
+echo "ISSUES_FAILED:$PI_ISSUES_FAILED"
+echo "REVIEW_COUNT:$PI_REVIEW_ISSUES_COUNT"
+EOF
+    chmod +x "$TEST_WORKDIR/hooks/test-improve-env.sh"
+
+    cat > "$TEST_WORKDIR/.pi-runner.yaml" << EOF
+hooks:
+  on_iteration_end: $TEST_WORKDIR/hooks/test-improve-env.sh
+EOF
+
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    override_get_config
+    mock_notify
+
+    result="$(run_hook "on_iteration_end" "" "" "" "" "" "0" "" "2" "5" "3" "2" "1" "")"
+    [[ "$result" == *"ITERATION:2"* ]]
+    [[ "$result" == *"MAX_ITERATIONS:5"* ]]
+    [[ "$result" == *"ISSUES_CREATED:3"* ]]
+    [[ "$result" == *"ISSUES_SUCCEEDED:2"* ]]
+    [[ "$result" == *"ISSUES_FAILED:1"* ]]
+}
+
+@test "run_hook sets review_issues_count for on_review_complete" {
+    mkdir -p "$TEST_WORKDIR/hooks"
+    cat > "$TEST_WORKDIR/hooks/test-review-env.sh" << 'EOF'
+#!/bin/bash
+echo "REVIEW_COUNT:$PI_REVIEW_ISSUES_COUNT"
+EOF
+    chmod +x "$TEST_WORKDIR/hooks/test-review-env.sh"
+
+    cat > "$TEST_WORKDIR/.pi-runner.yaml" << EOF
+hooks:
+  on_review_complete: $TEST_WORKDIR/hooks/test-review-env.sh
+EOF
+
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    override_get_config
+    mock_notify
+
+    result="$(run_hook "on_review_complete" "" "" "" "" "" "0" "" "1" "3" "" "" "" "7")"
+    [[ "$result" == *"REVIEW_COUNT:7"* ]]
+}
+
 @test "run_hook is safe from command injection with special characters" {
     cat > "$TEST_WORKDIR/.pi-runner.yaml" << 'EOF'
 hooks:

@@ -206,3 +206,23 @@ hooks:
   # クリーンアップ後（コメント解除で有効化）
   on_cleanup: |
     echo "Cleanup completed for Issue #$PI_ISSUE_NUMBER"
+
+  # improve開始時
+  on_improve_start: |
+    osascript -e 'display notification "改善ループを開始します（最大 '"$PI_MAX_ITERATIONS"' 回）" with title "Pi Issue Runner" subtitle "🔄 improve開始" sound name "Pop"'
+
+  # improve終了時
+  on_improve_end: |
+    osascript -e 'display notification "改善ループ完了: 作成 '"$PI_ISSUES_CREATED"' / 成功 '"$PI_ISSUES_SUCCEEDED"' / 失敗 '"$PI_ISSUES_FAILED"'" with title "Pi Issue Runner" subtitle "🏁 improve終了" sound name "Glass"'
+
+  # イテレーション開始時
+  on_iteration_start: |
+    osascript -e 'display notification "イテレーション '"$PI_ITERATION"'/'"$PI_MAX_ITERATIONS"' を開始" with title "Pi Issue Runner" subtitle "🔁 イテレーション開始" sound name "Pop"'
+
+  # イテレーション終了時
+  on_iteration_end: |
+    osascript -e 'display notification "イテレーション '"$PI_ITERATION"'/'"$PI_MAX_ITERATIONS"' 完了: 成功 '"$PI_ISSUES_SUCCEEDED"' / 失敗 '"$PI_ISSUES_FAILED"'" with title "Pi Issue Runner" subtitle "✅ イテレーション終了" sound name "Purr"'
+
+  # レビュー完了時
+  on_review_complete: |
+    osascript -e 'display notification "レビュー完了: '"$PI_REVIEW_ISSUES_COUNT"' 件の問題を発見" with title "Pi Issue Runner" subtitle "🔍 レビュー完了" sound name "Tink"'
