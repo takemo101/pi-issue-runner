@@ -90,7 +90,7 @@ _select_workflow_by_ai() {
 
     # ワークフロー名と説明の一覧テキスト
     local workflows_text=""
-    while IFS=$'\t' read -r name description steps context; do
+    while IFS=$'\t' read -r name description _steps _context; do
         if [[ -n "$name" ]]; then
             workflows_text+="- ${name}: ${description}"$'\n'
         fi
