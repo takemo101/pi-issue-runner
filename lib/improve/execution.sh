@@ -109,12 +109,20 @@ _wait_for_available_slot() {
         echo "  Concurrent limit ($max_concurrent) reached ($current_count active). Waiting ${interval}s for a slot..."
         sleep "$interval"
         
-        # Update ACTIVE_ISSUE_NUMBERS: remove completed sessions
+        # Update ACTIVE_ISSUE_NUMBERS: remove completed sessions and cleanup stale ones
         local still_active=()
         for issue_num in "${ACTIVE_ISSUE_NUMBERS[@]}"; do
             local status
             status="$(get_status_value "$issue_num" 2>/dev/null || echo "")"
             if [[ "$status" == "completed" || "$status" == "failed" || "$status" == "error" || "$status" == "merged" ]]; then
+                # Cleanup the tmux session if it's still lingering
+                local prefix
+                prefix="$(get_config session_prefix)"
+                local session_name="${prefix}-issue-${issue_num}"
+                if mux_session_exists "$session_name" 2>/dev/null; then
+                    log_info "Cleaning up completed session: $session_name (status: $status)"
+                    "${SCRIPT_DIR}/cleanup.sh" "$session_name" --force 2>/dev/null || true
+                fi
                 continue
             fi
             still_active+=("$issue_num")
