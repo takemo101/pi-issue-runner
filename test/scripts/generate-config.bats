@@ -231,8 +231,14 @@ workflow:
 EOF
 
     # バリデーションツールがない環境ではスキップ
-    if ! command -v yq &>/dev/null && ! command -v python3 &>/dev/null; then
+    if ! command -v yq &>/dev/null && ! command -v python3 &>/dev/null && \
+       ! command -v ajv &>/dev/null && ! command -v check-jsonschema &>/dev/null; then
         skip "No validation tools available"
+    fi
+
+    # スキーマファイルが存在しない場合もスキップ
+    if [[ ! -f "$PROJECT_ROOT/schemas/pi-runner.schema.json" ]]; then
+        skip "Schema file not found"
     fi
 
     run "$PROJECT_ROOT/scripts/generate-config.sh" --validate
