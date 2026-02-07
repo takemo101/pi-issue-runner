@@ -404,10 +404,10 @@ EOF
 }
 
 @test "generate_workflow_prompt context works with builtin workflows" {
-    # ビルトインワークフローは context を持たないことを確認
+    # ビルトインワークフローは context を持つことを確認 (Issue #1040)
     result="$(generate_workflow_prompt "default" "1" "Title" "Body" "branch" "/path" "$TEST_DIR")"
     
-    [[ "$result" != *"### Workflow Context"* ]]
+    [[ "$result" == *"### Workflow Context"* ]]
 }
 
 @test "generate_workflow_prompt context works with file-based workflows" {
