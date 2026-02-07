@@ -147,41 +147,76 @@ setup_watch_environment() {
     error_marker_ref="###TASK_ERROR_${issue_number_ref}###"
 }
 
-# Check PR merge status
+# Check PR merge status with retry logic
+# Usage: check_pr_merge_status <session_name> <branch_name> <issue_number> [max_attempts] [retry_interval]
+# Returns: 0 if PR is merged or closed, 1 if still open/not found after all retries, 2 if timed out
 check_pr_merge_status() {
     local session_name="$1"
     local branch_name="$2"
     local issue_number="$3"
+    local max_attempts="${4:-10}"        # Default: 10 attempts
+    local retry_interval="${5:-60}"     # Default: 60 seconds between retries
     
-    local pr_number
-    local pr_state
-    pr_number=$(gh pr list --state all --head "$branch_name" --json number -q '.[0].number' 2>/dev/null) || pr_number=""
+    local attempt=1
     
-    if [[ -n "$pr_number" ]]; then
-        pr_state=$(gh pr view "$pr_number" --json state -q '.state' 2>/dev/null) || pr_state=""
+    while [[ $attempt -le $max_attempts ]]; do
+        local pr_number
+        local pr_state
+        pr_number=$(gh pr list --state all --head "$branch_name" --json number -q '.[0].number' 2>/dev/null) || pr_number=""
         
-        if [[ "$pr_state" == "MERGED" ]]; then
-            log_info "PR #$pr_number is MERGED - workflow completed successfully"
-            return 0
-        elif [[ "$pr_state" == "OPEN" ]]; then
-            log_warn "PR #$pr_number exists but is not merged yet"
-            log_warn "Completion marker detected but PR is still open - waiting for merge..."
-            log_warn "This may indicate the AI output the marker too early"
-            notify_error "$session_name" "$issue_number" "PR #$pr_number is not merged yet"
-            log_warn "PR #$pr_number is not merged yet for Issue #$issue_number"
-            return 1
+        if [[ -n "$pr_number" ]]; then
+            pr_state=$(gh pr view "$pr_number" --json state -q '.state' 2>/dev/null) || pr_state=""
+            
+            if [[ "$pr_state" == "MERGED" ]]; then
+                log_info "PR #$pr_number is MERGED - workflow completed successfully"
+                return 0
+            elif [[ "$pr_state" == "CLOSED" ]]; then
+                log_info "PR #$pr_number is CLOSED - treating as completion"
+                return 0
+            elif [[ "$pr_state" == "OPEN" ]]; then
+                if [[ $attempt -eq 1 ]]; then
+                    log_warn "PR #$pr_number exists but is not merged yet"
+                    log_warn "Completion marker detected but PR is still open - waiting for merge..."
+                    log_warn "This may indicate the AI output the marker too early"
+                    notify_error "$session_name" "$issue_number" "PR #$pr_number is not merged yet - will retry"
+                fi
+                
+                if [[ $attempt -lt $max_attempts ]]; then
+                    log_info "PR merge check attempt $attempt/$max_attempts - retrying in ${retry_interval}s..."
+                    sleep "$retry_interval"
+                    attempt=$((attempt + 1))
+                    continue
+                else
+                    log_error "PR #$pr_number is still not merged after $max_attempts attempts"
+                    log_error "Timeout waiting for PR merge. Session will continue monitoring."
+                    return 2  # Timeout
+                fi
+            else
+                log_info "PR #$pr_number state: $pr_state - treating as completion"
+                return 0
+            fi
         else
-            log_info "PR #$pr_number state: $pr_state"
-            return 0
+            if [[ $attempt -eq 1 ]]; then
+                log_warn "No PR found for Issue #$issue_number"
+                log_warn "Completion marker detected but no PR was created - workflow may not have completed correctly"
+            fi
+            
+            if [[ $attempt -lt $max_attempts ]]; then
+                log_info "PR creation check attempt $attempt/$max_attempts - retrying in ${retry_interval}s..."
+                sleep "$retry_interval"
+                attempt=$((attempt + 1))
+                continue
+            else
+                log_error "No PR created for Issue #$issue_number after $max_attempts attempts"
+                log_error "Timeout waiting for PR creation. Session will continue monitoring."
+                notify_error "$session_name" "$issue_number" "No PR created for Issue #$issue_number after timeout"
+                return 2  # Timeout
+            fi
         fi
-    else
-        log_warn "No PR found for Issue #$issue_number"
-        log_warn "Completion marker detected but no PR was created - workflow may not have completed correctly"
-        log_warn "Skipping cleanup. Please check the session manually."
-        notify_error "$session_name" "$issue_number" "No PR created for Issue #$issue_number"
-        log_warn "No PR created for Issue #$issue_number - check session"
-        return 1
-    fi
+    done
+    
+    # Should not reach here, but return error code as fallback
+    return 1
 }
 
 # コードブロック外のマーカー数をカウント
@@ -400,7 +435,7 @@ _post_cleanup_maintenance() {
 
 # 完了ハンドリング関数
 # Usage: handle_complete <session_name> <issue_number> <auto_attach> <cleanup_args>
-# Returns: 0 on success, 1 on cleanup failure
+# Returns: 0 on success, 1 on cleanup failure, 2 on PR merge timeout (continue monitoring)
 handle_complete() {
     local session_name="$1"
     local issue_number="$2"
@@ -419,8 +454,18 @@ handle_complete() {
     # 3. Hook実行
     _run_completion_hooks "$issue_number" "$session_name" "$branch_name" "$worktree_path"
     
-    # 4. PR確認
-    if ! check_pr_merge_status "$session_name" "$branch_name" "$issue_number"; then
+    # 4. PR確認（リトライロジック付き）
+    local pr_check_result
+    check_pr_merge_status "$session_name" "$branch_name" "$issue_number"
+    pr_check_result=$?
+    
+    if [[ $pr_check_result -eq 2 ]]; then
+        # Timeout: PR が見つからないまたはマージされないままタイムアウト
+        log_warn "PR merge timeout. Will continue monitoring for manual completion."
+        return 2
+    elif [[ $pr_check_result -ne 0 ]]; then
+        # その他のエラー
+        log_error "PR check failed with unexpected error"
         return 1
     fi
     
@@ -492,9 +537,16 @@ main() {
     if [[ "$initial_complete_count" -gt 0 ]]; then
         log_info "Completion marker already present at startup (outside codeblock)"
         
-        if handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"; then
+        handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"
+        local complete_result=$?
+        
+        if [[ $complete_result -eq 0 ]]; then
             log_info "Cleanup completed successfully"
             exit 0
+        elif [[ $complete_result -eq 2 ]]; then
+            # PR merge timeout at startup: continue monitoring
+            log_warn "PR merge timeout at startup. Will continue monitoring..."
+            # Fall through to monitoring loop
         else
             log_error "Cleanup failed"
             exit 1
@@ -551,9 +603,18 @@ main() {
         if [[ "$marker_count_current" -gt "$marker_count_baseline" ]]; then
             log_info "Completion marker detected outside codeblock! (baseline: $marker_count_baseline, current: $marker_count_current)"
             
-            if handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"; then
+            handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"
+            local complete_result=$?
+            
+            if [[ $complete_result -eq 0 ]]; then
                 log_info "Cleanup completed successfully"
                 exit 0
+            elif [[ $complete_result -eq 2 ]]; then
+                # PR merge timeout: continue monitoring
+                log_warn "PR merge timeout. Continuing to monitor session..."
+                baseline_output="$output"  # Update baseline to prevent re-triggering
+                sleep "$interval"
+                continue
             else
                 log_error "Cleanup failed"
                 exit 1
