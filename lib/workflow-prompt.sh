@@ -15,6 +15,125 @@ fi
 # are expected to be loaded by workflow.sh before this file
 
 # ===================
+# プロンプト生成ヘルパー関数
+# ===================
+
+# 自律実行モードのヘッダーを出力
+_emit_autonomous_header() {
+    cat << 'EOF'
+> **⚡ AUTONOMOUS EXECUTION MODE**
+> This session runs fully automatically. You MUST:
+> - **NOT wait for user input**
+> - **NOT ask for confirmation**
+> - **NOT ask questions**
+> - Proceed immediately to the next step after completing each task
+> - Make best-effort decisions when uncertain
+> - Execute autonomously until completion without stopping
+
+> **🚫 PROHIBITED ACTIONS**
+> - **Do NOT run `gh issue close`** - Issues are closed automatically via PR merge with `Closes #xxx`
+> - **Do NOT open editors** - Use `git commit -m`, `git merge --no-edit`, `gh pr create --body`
+> - **Do NOT use interactive commands**
+EOF
+}
+
+# Issue ヘッダー（タイトルと説明）を出力
+_emit_issue_header() {
+    local issue_number="$1"
+    local issue_title="$2"
+    local issue_body="$3"
+    
+    cat << EOF
+Implement GitHub Issue #$issue_number
+
+EOF
+    _emit_autonomous_header
+    cat << EOF
+
+## Title
+$issue_title
+
+## Description
+$issue_body
+EOF
+}
+
+# コンテキストセクションを出力（コンテキストがある場合のみ）
+_emit_context_section() {
+    local issue_number="$1"
+    
+    if declare -f load_all_context > /dev/null 2>&1; then
+        local context_content
+        context_content="$(load_all_context "$issue_number" 2>/dev/null || true)"
+        
+        if [[ -n "$context_content" ]]; then
+            cat << EOF
+
+## 過去のコンテキスト
+
+$context_content
+EOF
+        fi
+    fi
+}
+
+# コメントセクションを出力（コメントがある場合のみ）
+_emit_comments_section() {
+    local issue_comments="$1"
+    
+    if [[ -n "$issue_comments" ]]; then
+        cat << EOF
+
+## Comments
+
+$issue_comments
+EOF
+    fi
+}
+
+# フッター（コミットタイプ・エラー・完了）を出力
+_emit_prompt_footer() {
+    local issue_number="$1"
+    
+    cat << EOF
+
+---
+
+### Commit Types
+- feat: New feature
+- fix: Bug fix
+- docs: Documentation
+- refactor: Code refactoring
+- test: Adding tests
+- chore: Maintenance
+
+### On Error
+- If tests fail, fix the issue before committing
+- If PR merge fails, report the error
+- **For unrecoverable errors**, output the error marker:
+  - Prefix: \`###TASK\`
+  - Middle: \`_ERROR_\`
+  - Issue number: \`${issue_number}\`
+  - Suffix: \`###\`
+
+This will notify the user and allow manual intervention.
+
+### On Completion
+**CRITICAL**: After completing all workflow steps (including PR merge), you MUST output the completion marker.
+
+The marker format combines these parts (no spaces):
+- Prefix: \`###TASK\`
+- Middle: \`_COMPLETE_\`
+- Issue number: \`${issue_number}\`
+- Suffix: \`###\`
+
+Combine them and output as a single line. This marker is monitored by an external process that will automatically clean up the worktree and terminate this tmux session.
+
+Do NOT skip this step.
+EOF
+}
+
+# ===================
 # プロンプト生成
 # ===================
 
@@ -33,55 +152,14 @@ _generate_auto_mode_prompt() {
     local workflows_info
     workflows_info=$(get_all_workflows_info "$project_root")
     
-    # プロンプトヘッダー
-    cat << EOF
-Implement GitHub Issue #$issue_number
-
-> **⚡ AUTONOMOUS EXECUTION MODE**
-> This session runs fully automatically. You MUST:
-> - **NOT wait for user input**
-> - **NOT ask for confirmation**
-> - **NOT ask questions**
-> - Proceed immediately to the next step after completing each task
-> - Make best-effort decisions when uncertain
-> - Execute autonomously until completion without stopping
-
-> **🚫 PROHIBITED ACTIONS**
-> - **Do NOT run \`gh issue close\`** - Issues are closed automatically via PR merge with \`Closes #xxx\`
-> - **Do NOT open editors** - Use \`git commit -m\`, \`git merge --no-edit\`, \`gh pr create --body\`
-> - **Do NOT use interactive commands**
-
-## Title
-$issue_title
-
-## Description
-$issue_body
-EOF
+    # Issue ヘッダーを出力
+    _emit_issue_header "$issue_number" "$issue_title" "$issue_body"
     
-    # コンテキストセクションを追加（コンテキストがある場合のみ）
-    if declare -f load_all_context > /dev/null 2>&1; then
-        local context_content
-        context_content="$(load_all_context "$issue_number" 2>/dev/null || true)"
-        
-        if [[ -n "$context_content" ]]; then
-            cat << EOF
-
-## 過去のコンテキスト
-
-$context_content
-EOF
-        fi
-    fi
+    # コンテキストセクションを出力
+    _emit_context_section "$issue_number"
     
-    # コメントセクションを追加（コメントがある場合のみ）
-    if [[ -n "$issue_comments" ]]; then
-        cat << EOF
-
-## Comments
-
-$issue_comments
-EOF
-    fi
+    # コメントセクションを出力
+    _emit_comments_section "$issue_comments"
     
     cat << EOF
 
@@ -159,41 +237,10 @@ EOF
 - **Issue番号**: #$issue_number
 - **ブランチ**: $branch_name
 - **作業ディレクトリ**: $worktree_path
-
----
-
-### Commit Types
-- feat: New feature
-- fix: Bug fix
-- docs: Documentation
-- refactor: Code refactoring
-- test: Adding tests
-- chore: Maintenance
-
-### On Error
-- If tests fail, fix the issue before committing
-- If PR merge fails, report the error
-- **For unrecoverable errors**, output the error marker:
-  - Prefix: \`###TASK\`
-  - Middle: \`_ERROR_\`
-  - Issue number: \`${issue_number}\`
-  - Suffix: \`###\`
-
-This will notify the user and allow manual intervention.
-
-### On Completion
-**CRITICAL**: After completing all workflow steps (including PR merge), you MUST output the completion marker.
-
-The marker format combines these parts (no spaces):
-- Prefix: \`###TASK\`
-- Middle: \`_COMPLETE_\`
-- Issue number: \`${issue_number}\`
-- Suffix: \`###\`
-
-Combine them and output as a single line. This marker is monitored by an external process that will automatically clean up the worktree and terminate this tmux session.
-
-Do NOT skip this step.
 EOF
+    
+    # フッターを出力
+    _emit_prompt_footer "$issue_number"
 }
 
 # ワークフロープロンプトを生成する
@@ -223,55 +270,14 @@ generate_workflow_prompt() {
     local steps
     steps=$(get_workflow_steps "$workflow_file")
     
-    # プロンプトヘッダー
-    cat << EOF
-Implement GitHub Issue #$issue_number
-
-> **⚡ AUTONOMOUS EXECUTION MODE**
-> This session runs fully automatically. You MUST:
-> - **NOT wait for user input**
-> - **NOT ask for confirmation**
-> - **NOT ask questions**
-> - Proceed immediately to the next step after completing each task
-> - Make best-effort decisions when uncertain
-> - Execute autonomously until completion without stopping
-
-> **🚫 PROHIBITED ACTIONS**
-> - **Do NOT run \`gh issue close\`** - Issues are closed automatically via PR merge with \`Closes #xxx\`
-> - **Do NOT open editors** - Use \`git commit -m\`, \`git merge --no-edit\`, \`gh pr create --body\`
-> - **Do NOT use interactive commands**
-
-## Title
-$issue_title
-
-## Description
-$issue_body
-EOF
+    # Issue ヘッダーを出力
+    _emit_issue_header "$issue_number" "$issue_title" "$issue_body"
     
-    # コンテキストセクションを追加（コンテキストがある場合のみ）
-    if declare -f load_all_context > /dev/null 2>&1; then
-        local context_content
-        context_content="$(load_all_context "$issue_number" 2>/dev/null || true)"
-        
-        if [[ -n "$context_content" ]]; then
-            cat << EOF
-
-## 過去のコンテキスト
-
-$context_content
-EOF
-        fi
-    fi
+    # コンテキストセクションを出力
+    _emit_context_section "$issue_number"
     
-    # コメントセクションを追加（コメントがある場合のみ）
-    if [[ -n "$issue_comments" ]]; then
-        cat << EOF
-
-## Comments
-
-$issue_comments
-EOF
-    fi
+    # コメントセクションを出力
+    _emit_comments_section "$issue_comments"
     
     cat << EOF
 
@@ -321,42 +327,8 @@ EOF
         ((step_num++)) || true
     done
     
-    # フッター（コミット情報）
-    cat << EOF
----
-
-### Commit Types
-- feat: New feature
-- fix: Bug fix
-- docs: Documentation
-- refactor: Code refactoring
-- test: Adding tests
-- chore: Maintenance
-
-### On Error
-- If tests fail, fix the issue before committing
-- If PR merge fails, report the error
-- **For unrecoverable errors**, output the error marker:
-  - Prefix: \`###TASK\`
-  - Middle: \`_ERROR_\`
-  - Issue number: \`${issue_number}\`
-  - Suffix: \`###\`
-
-This will notify the user and allow manual intervention.
-
-### On Completion
-**CRITICAL**: After completing all workflow steps (including PR merge), you MUST output the completion marker.
-
-The marker format combines these parts (no spaces):
-- Prefix: \`###TASK\`
-- Middle: \`_COMPLETE_\`
-- Issue number: \`${issue_number}\`
-- Suffix: \`###\`
-
-Combine them and output as a single line. This marker is monitored by an external process that will automatically clean up the worktree and terminate this tmux session.
-
-Do NOT skip this step.
-EOF
+    # フッターを出力
+    _emit_prompt_footer "$issue_number"
 }
 
 # ワークフロープロンプトをファイルに書き出す
