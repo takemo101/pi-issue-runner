@@ -79,12 +79,12 @@ execute_issue() {
 #   $1: config への参照（連想配列）
 #   $2: issue_number
 execute_issue_async() {
-    local -n _config_ref="$1"
+    local -n _eia_config="$1"
     local issue_number="$2"
 
-    local script_dir="${_config_ref[script_dir]}"
-    local workflow_name="${_config_ref[workflow_name]}"
-    local base_branch="${_config_ref[base_branch]}"
+    local script_dir="${_eia_config[script_dir]}"
+    local workflow_name="${_eia_config[workflow_name]}"
+    local base_branch="${_eia_config[base_branch]}"
 
     local run_script
     run_script="${script_dir}/run.sh"
@@ -108,15 +108,15 @@ execute_issue_async() {
 # 戻り値: 0=全成功, 1=一部失敗
 wait_for_layer_completion() {
     # shellcheck disable=SC2178  # nameref to array is intentional
-    local -n _failed_issues_ref="$1"
+    local -n _wlc_failed="$1"
     # shellcheck disable=SC2178  # nameref to array is intentional
-    local -n _completed_issues_ref="$2"
-    local -n _config_ref="$3"
+    local -n _wlc_completed="$2"
+    local -n _wlc_config="$3"
     shift 3
     local -a issues=("$@")
 
-    local timeout="${_config_ref[timeout]}"
-    local interval="${_config_ref[interval]}"
+    local timeout="${_wlc_config[timeout]}"
+    local interval="${_wlc_config[interval]}"
 
     local start_time
     start_time=$(date +%s)
@@ -132,14 +132,14 @@ wait_for_layer_completion() {
             case "$status" in
                 complete)
                     # shellcheck disable=SC2076
-                    if [[ ! " ${_completed_issues_ref[*]} " =~ " $issue " ]]; then
-                        _completed_issues_ref+=("$issue")
+                    if [[ ! " ${_wlc_completed[*]} " =~ " $issue " ]]; then
+                        _wlc_completed+=("$issue")
                     fi
                     ;;
                 error)
                     # shellcheck disable=SC2076
-                    if [[ ! " ${_failed_issues_ref[*]} " =~ " $issue " ]]; then
-                        _failed_issues_ref+=("$issue")
+                    if [[ ! " ${_wlc_failed[*]} " =~ " $issue " ]]; then
+                        _wlc_failed+=("$issue")
                     fi
                     has_layer_error=true
                     ;;
@@ -179,24 +179,24 @@ wait_for_layer_completion() {
 # 戻り値: 0=成功, 1=失敗
 execute_layer_sequential() {
     # shellcheck disable=SC2178  # nameref to array is intentional
-    local -n _failed_issues_ref="$1"
+    local -n _els_failed="$1"
     # shellcheck disable=SC2178  # nameref to array is intentional
-    local -n _completed_issues_ref="$2"
-    local -n _config_ref="$3"
+    local -n _els_completed="$2"
+    local -n _els_config="$3"
     shift 3
     local -a layer_issue_array=("$@")
 
-    local continue_on_error="${_config_ref[continue_on_error]}"
+    local continue_on_error="${_els_config[continue_on_error]}"
 
     for issue in "${layer_issue_array[@]}"; do
-        if ! execute_issue _config_ref "$issue"; then
-            _failed_issues_ref+=("$issue")
+        if ! execute_issue _els_config "$issue"; then
+            _els_failed+=("$issue")
             if [[ "$continue_on_error" != "true" ]]; then
                 log_error "Issue #$issue failed, aborting"
                 return 1
             fi
         else
-            _completed_issues_ref+=("$issue")
+            _els_completed+=("$issue")
         fi
     done
 
@@ -212,22 +212,22 @@ execute_layer_sequential() {
 # 戻り値: 0=成功, 1=失敗
 execute_layer_parallel() {
     # shellcheck disable=SC2178  # nameref to array is intentional
-    local -n _failed_issues_ref="$1"
+    local -n _elp_failed="$1"
     # shellcheck disable=SC2178  # nameref to array is intentional
-    local -n _completed_issues_ref="$2"
-    local -n _config_ref="$3"
+    local -n _elp_completed="$2"
+    local -n _elp_config="$3"
     shift 3
     local -a layer_issue_array=("$@")
 
-    local quiet="${_config_ref[quiet]}"
-    local continue_on_error="${_config_ref[continue_on_error]}"
+    local quiet="${_elp_config[quiet]}"
+    local continue_on_error="${_elp_config[continue_on_error]}"
 
     # 並列実行
     for issue in "${layer_issue_array[@]}"; do
         if [[ "$quiet" != "true" ]]; then
             log_info "Starting pi-issue-$issue..."
         fi
-        execute_issue_async _config_ref "$issue"
+        execute_issue_async _elp_config "$issue"
     done
 
     # 完了待機
@@ -235,7 +235,7 @@ execute_layer_parallel() {
         log_info "Waiting for completion..."
     fi
 
-    if ! wait_for_layer_completion _failed_issues_ref _completed_issues_ref _config_ref "${layer_issue_array[@]}"; then
+    if ! wait_for_layer_completion _elp_failed _elp_completed _elp_config "${layer_issue_array[@]}"; then
         if [[ "$continue_on_error" != "true" ]]; then
             log_error "Layer failed, aborting"
             return 1
