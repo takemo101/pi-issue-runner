@@ -718,7 +718,7 @@ AI呼び出しが失敗した場合は、Issue タイトルのプレフィック
 ```yaml
 auto:
   provider: anthropic                # AIプロバイダー（省略時: agent設定から推定 or anthropic）
-  model: claude-3-5-haiku-20241022   # 軽量モデル推奨（省略時: claude-3-5-haiku-20241022）
+  model: claude-haiku-4-5-20250218   # 軽量モデル推奨（省略時: claude-haiku-4-5-20250218）
 ```
 
 環境変数 `PI_RUNNER_AI_PROVIDER` / `PI_RUNNER_AUTO_MODEL` でも上書き可能（環境変数が優先）。

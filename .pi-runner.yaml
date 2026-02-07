@@ -88,8 +88,8 @@ auto:
   provider: anthropic
 
   # auto選択用のモデル（軽量・高速なモデル推奨）
-  # 省略時: claude-3-5-haiku-20241022
-  model: claude-3-5-haiku-20241022
+  # 省略時: claude-haiku-4-5-20250218
+  model: claude-haiku-4-5-20250218
 
 # =====================================
 # 複数ワークフロー定義

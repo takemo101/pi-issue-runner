@@ -274,7 +274,7 @@ EOF
     _CONFIG_LOADED=""
     CONFIG_AUTO_MODEL=""
     result=$(_get_ai_model)
-    [ "$result" = "claude-3-5-haiku-20241022" ]
+    [ "$result" = "claude-haiku-4-5-20250218" ]
 }
 
 @test "_get_ai_provider env var takes precedence over config" {

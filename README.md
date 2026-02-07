@@ -576,7 +576,7 @@ scripts/run.sh 42
 ```yaml
 auto:
   provider: anthropic                # AIプロバイダー
-  model: claude-3-5-haiku-20241022   # 軽量モデル推奨
+  model: claude-haiku-4-5-20250218   # 軽量モデル推奨
 ```
 
 環境変数 `PI_RUNNER_AI_PROVIDER` / `PI_RUNNER_AUTO_MODEL` でも上書き可能です。
