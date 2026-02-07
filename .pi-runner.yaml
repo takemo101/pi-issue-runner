@@ -195,16 +195,16 @@ improve_logs:
 hooks:
   # 成功時の通知
   on_success: |
-    osascript -e 'display notification "Issue #{{issue_number}} が完了しました" with title "Pi Issue Runner" subtitle "✅ 完了" sound name "Glass"'
+    osascript -e 'display notification "Issue #'"$PI_ISSUE_NUMBER"' が完了しました" with title "Pi Issue Runner" subtitle "✅ 完了" sound name "Glass"'
 
   # エラー時の通知
   on_error: |
-    osascript -e 'display notification "{{error_message}}" with title "Pi Issue Runner" subtitle "❌ Issue #{{issue_number}} エラー" sound name "Basso"'
+    osascript -e 'display notification "'"$PI_ERROR_MESSAGE"'" with title "Pi Issue Runner" subtitle "❌ Issue #'"$PI_ISSUE_NUMBER"' エラー" sound name "Basso"'
 
   # セッション開始時（コメント解除で有効化）
   on_start: |
-    osascript -e 'display notification "Issue #{{issue_number}} を開始しました" with title "Pi Issue Runner" subtitle "🚀 開始" sound name "Pop"'
+    osascript -e 'display notification "Issue #'"$PI_ISSUE_NUMBER"' を開始しました" with title "Pi Issue Runner" subtitle "🚀 開始" sound name "Pop"'
 
   # クリーンアップ後（コメント解除で有効化）
   on_cleanup: |
-    echo "Cleanup completed for Issue #{{issue_number}}"
+    echo "Cleanup completed for Issue #$PI_ISSUE_NUMBER"

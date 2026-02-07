@@ -193,6 +193,19 @@ workflows:
       - 既存コード・ドキュメントとの整合性
 
 # =====================================
+# auto ワークフロー選択設定
+# =====================================
+# `-w auto` で AI が workflows から自動選択する際の設定
+auto:
+  # AIプロバイダー
+  # デフォルト: agent設定から推定 or anthropic
+  provider: anthropic
+  
+  # AIモデル（軽量・高速なモデル推奨）
+  # デフォルト: claude-haiku-4-5-20250218
+  model: claude-haiku-4-5-20250218
+
+# =====================================
 # 計画書設定
 # =====================================
 plans:
@@ -958,6 +971,8 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_HOOKS_ON_SUCCESS` | `hooks.on_success` |
 | `PI_RUNNER_HOOKS_ON_ERROR` | `hooks.on_error` |
 | `PI_RUNNER_HOOKS_ON_CLEANUP` | `hooks.on_cleanup` |
+| `PI_RUNNER_AUTO_PROVIDER` | `auto.provider` |
+| `PI_RUNNER_AUTO_MODEL` | `auto.model` |
 
 ### 例: CI環境での使用
 
