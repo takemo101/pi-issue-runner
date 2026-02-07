@@ -783,6 +783,9 @@ pi-issue-runner/
 │   │   └── yaml.bats        # yaml.sh のテスト
 │   ├── scripts/             # スクリプトの統合テスト
 │   ├── regression/          # 回帰テスト
+│   │   ├── critical-fixes.bats
+│   │   ├── eval-injection.bats
+│   │   └── pr-merge-timeout.bats
 │   ├── fixtures/            # テスト用フィクスチャ
 │   └── test_helper.bash     # Bats共通ヘルパー
 └── .worktrees/              # worktree作成先（実行時に生成）
@@ -885,7 +888,9 @@ test/
 │   ├── wait-for-sessions.bats   # wait-for-sessions.sh のテスト
 │   └── watch-session.bats       # watch-session.sh のテスト
 ├── regression/                  # 回帰テスト
-│   └── critical-fixes.bats
+│   ├── critical-fixes.bats
+│   ├── eval-injection.bats
+│   └── pr-merge-timeout.bats
 ├── fixtures/                    # テスト用フィクスチャ
 │   └── sample-config.yaml
 └── test_helper.bash             # Bats共通ヘルパー（モック関数含む）
