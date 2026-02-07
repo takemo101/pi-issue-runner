@@ -36,6 +36,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_CI_FIX_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_CI_FIX_SH_SOURCED="true"
+
 __CI_FIX_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$__CI_FIX_LIB_DIR/log.sh"
 source "$__CI_FIX_LIB_DIR/github.sh"

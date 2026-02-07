@@ -3,6 +3,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_PRIORITY_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_PRIORITY_SH_SOURCED="true"
+
 _PRIORITY_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_PRIORITY_LIB_DIR/log.sh"
 source "$_PRIORITY_LIB_DIR/github.sh"

@@ -10,6 +10,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_DEPS_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_DEPS_SH_SOURCED="true"
+
 # ============================================================================
 # Check dependencies for improve workflow
 # Returns: 0 if all dependencies are met, 1 otherwise

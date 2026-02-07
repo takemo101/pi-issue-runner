@@ -5,6 +5,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_MULTIPLEXER_ZELLIJ_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_MULTIPLEXER_ZELLIJ_SH_SOURCED="true"
+
 # Zellijがインストールされているか確認
 mux_check() {
     if ! command -v zellij &> /dev/null; then

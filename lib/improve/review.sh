@@ -7,6 +7,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_REVIEW_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_REVIEW_SH_SOURCED="true"
+
 # ============================================================================
 # Execute project review using pi --print
 # Arguments: $1=max_issues, $2=session_label, $3=log_file, $4=dry_run,

@@ -6,6 +6,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_HOOKS_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_HOOKS_SH_SOURCED="true"
+
 _HOOKS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 依存ライブラリの読み込み（未読み込みの場合のみ）

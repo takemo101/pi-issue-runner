@@ -5,6 +5,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_CI_RETRY_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_CI_RETRY_SH_SOURCED="true"
+
 _CI_RETRY_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_CI_RETRY_LIB_DIR/log.sh"
 source "$_CI_RETRY_LIB_DIR/status.sh"

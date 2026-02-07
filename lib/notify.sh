@@ -12,6 +12,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_NOTIFY_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_NOTIFY_SH_SOURCED="true"
+
 _NOTIFY_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_NOTIFY_LIB_DIR/config.sh"
 source "$_NOTIFY_LIB_DIR/log.sh"

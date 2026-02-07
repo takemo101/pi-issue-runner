@@ -12,6 +12,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_IMPROVE_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_IMPROVE_SH_SOURCED="true"
+
 _IMPROVE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source required dependencies

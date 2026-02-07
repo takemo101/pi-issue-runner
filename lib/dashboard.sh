@@ -3,6 +3,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_DASHBOARD_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_DASHBOARD_SH_SOURCED="true"
+
 _DASHBOARD_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Bash 4.0以上を要求（連想配列のサポート）

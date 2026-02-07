@@ -6,6 +6,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_DAEMON_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_DAEMON_SH_SOURCED="true"
+
 # コマンドをデーモン化して実行
 # Usage: daemonize <log_file> <command> [args...]
 # Returns: デーモンプロセスのPID（setsid使用時）、または子シェルのPID（互換モード時）

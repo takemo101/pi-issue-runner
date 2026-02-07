@@ -9,6 +9,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_TMUX_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_TMUX_SH_SOURCED="true"
+
 _TMUX_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # multiplexer.sh をロード（これが実際の実装を提供）
