@@ -281,109 +281,75 @@ _apply_env_overrides() {
     done
 }
 
-# 設定値を取得
+# Configuration key to variable name mapping table
+# Format: "config_key:CONFIG_VAR_NAME"
+declare -A _CONFIG_KEY_MAP=(
+    [worktree_base_dir]=CONFIG_WORKTREE_BASE_DIR
+    [worktree_copy_files]=CONFIG_WORKTREE_COPY_FILES
+    [multiplexer_type]=CONFIG_MULTIPLEXER_TYPE
+    [multiplexer_session_prefix]=CONFIG_MULTIPLEXER_SESSION_PREFIX
+    [multiplexer_start_in_session]=CONFIG_MULTIPLEXER_START_IN_SESSION
+    [pi_command]=CONFIG_PI_COMMAND
+    [pi_args]=CONFIG_PI_ARGS
+    [parallel_max_concurrent]=CONFIG_PARALLEL_MAX_CONCURRENT
+    [plans_keep_recent]=CONFIG_PLANS_KEEP_RECENT
+    [plans_dir]=CONFIG_PLANS_DIR
+    [github_include_comments]=CONFIG_GITHUB_INCLUDE_COMMENTS
+    [github_max_comments]=CONFIG_GITHUB_MAX_COMMENTS
+    [agent_type]=CONFIG_AGENT_TYPE
+    [agent_command]=CONFIG_AGENT_COMMAND
+    [agent_args]=CONFIG_AGENT_ARGS
+    [agent_template]=CONFIG_AGENT_TEMPLATE
+    [agents_plan]=CONFIG_AGENTS_PLAN
+    [agents_implement]=CONFIG_AGENTS_IMPLEMENT
+    [agents_review]=CONFIG_AGENTS_REVIEW
+    [agents_merge]=CONFIG_AGENTS_MERGE
+    [agents_test]=CONFIG_AGENTS_TEST
+    [agents_ci_fix]=CONFIG_AGENTS_CI_FIX
+    [auto_provider]=CONFIG_AUTO_PROVIDER
+    [auto_model]=CONFIG_AUTO_MODEL
+    [improve_logs_keep_recent]=CONFIG_IMPROVE_LOGS_KEEP_RECENT
+    [improve_logs_keep_days]=CONFIG_IMPROVE_LOGS_KEEP_DAYS
+    [improve_logs_dir]=CONFIG_IMPROVE_LOGS_DIR
+    [hooks_on_start]=CONFIG_HOOKS_ON_START
+    [hooks_on_success]=CONFIG_HOOKS_ON_SUCCESS
+    [hooks_on_error]=CONFIG_HOOKS_ON_ERROR
+    [hooks_on_cleanup]=CONFIG_HOOKS_ON_CLEANUP
+)
+
+# Deprecated key aliases mapping
+# Format: "deprecated_key:canonical_key"
+declare -A _CONFIG_DEPRECATED_KEYS=(
+    # @deprecated Use multiplexer_session_prefix instead of tmux_session_prefix
+    [tmux_session_prefix]=multiplexer_session_prefix
+    [session_prefix]=multiplexer_session_prefix
+    # @deprecated Use multiplexer_start_in_session instead of tmux_start_in_session
+    [tmux_start_in_session]=multiplexer_start_in_session
+    [start_in_session]=multiplexer_start_in_session
+)
+
+# 設定値を取得（テーブル駆動）
 get_config() {
     local key="$1"
-    case "$key" in
-        worktree_base_dir)
-            echo "$CONFIG_WORKTREE_BASE_DIR"
-            ;;
-        worktree_copy_files)
-            echo "$CONFIG_WORKTREE_COPY_FILES"
-            ;;
-        # @deprecated Use multiplexer_session_prefix instead of tmux_session_prefix
-        tmux_session_prefix|multiplexer_session_prefix|session_prefix)
-            echo "$CONFIG_MULTIPLEXER_SESSION_PREFIX"
-            ;;
-        # @deprecated Use multiplexer_start_in_session instead of tmux_start_in_session
-        tmux_start_in_session|multiplexer_start_in_session|start_in_session)
-            echo "$CONFIG_MULTIPLEXER_START_IN_SESSION"
-            ;;
-        multiplexer_type)
-            echo "$CONFIG_MULTIPLEXER_TYPE"
-            ;;
-        pi_command)
-            echo "$CONFIG_PI_COMMAND"
-            ;;
-        pi_args)
-            echo "$CONFIG_PI_ARGS"
-            ;;
-        parallel_max_concurrent)
-            echo "$CONFIG_PARALLEL_MAX_CONCURRENT"
-            ;;
-        plans_keep_recent)
-            echo "$CONFIG_PLANS_KEEP_RECENT"
-            ;;
-        plans_dir)
-            echo "$CONFIG_PLANS_DIR"
-            ;;
-        github_include_comments)
-            echo "$CONFIG_GITHUB_INCLUDE_COMMENTS"
-            ;;
-        github_max_comments)
-            echo "$CONFIG_GITHUB_MAX_COMMENTS"
-            ;;
-        agent_type)
-            echo "$CONFIG_AGENT_TYPE"
-            ;;
-        agent_command)
-            echo "$CONFIG_AGENT_COMMAND"
-            ;;
-        agent_args)
-            echo "$CONFIG_AGENT_ARGS"
-            ;;
-        agent_template)
-            echo "$CONFIG_AGENT_TEMPLATE"
-            ;;
-        agents_plan)
-            echo "$CONFIG_AGENTS_PLAN"
-            ;;
-        agents_implement)
-            echo "$CONFIG_AGENTS_IMPLEMENT"
-            ;;
-        agents_review)
-            echo "$CONFIG_AGENTS_REVIEW"
-            ;;
-        agents_merge)
-            echo "$CONFIG_AGENTS_MERGE"
-            ;;
-        agents_test)
-            echo "$CONFIG_AGENTS_TEST"
-            ;;
-        agents_ci_fix)
-            echo "$CONFIG_AGENTS_CI_FIX"
-            ;;
-        auto_provider)
-            echo "$CONFIG_AUTO_PROVIDER"
-            ;;
-        auto_model)
-            echo "$CONFIG_AUTO_MODEL"
-            ;;
-        improve_logs_keep_recent)
-            echo "$CONFIG_IMPROVE_LOGS_KEEP_RECENT"
-            ;;
-        improve_logs_keep_days)
-            echo "$CONFIG_IMPROVE_LOGS_KEEP_DAYS"
-            ;;
-        improve_logs_dir)
-            echo "$CONFIG_IMPROVE_LOGS_DIR"
-            ;;
-        hooks_on_start)
-            echo "$CONFIG_HOOKS_ON_START"
-            ;;
-        hooks_on_success)
-            echo "$CONFIG_HOOKS_ON_SUCCESS"
-            ;;
-        hooks_on_error)
-            echo "$CONFIG_HOOKS_ON_ERROR"
-            ;;
-        hooks_on_cleanup)
-            echo "$CONFIG_HOOKS_ON_CLEANUP"
-            ;;
-        *)
-            echo ""
-            ;;
-    esac
+    local canonical_key="$key"
+    
+    # Handle deprecated keys (temporarily disable nounset for array subscript access)
+    set +u
+    if [[ -n "${_CONFIG_DEPRECATED_KEYS[$key]:-}" ]]; then
+        canonical_key="${_CONFIG_DEPRECATED_KEYS[$key]}"
+    fi
+    
+    # Look up the variable name from the mapping table
+    local var_name="${_CONFIG_KEY_MAP[$canonical_key]:-}"
+    set -u
+    
+    if [[ -n "$var_name" ]]; then
+        # Use indirect expansion to get the variable value
+        echo "${!var_name}"
+    else
+        # Unknown key - return empty string
+        echo ""
+    fi
 }
 
 # 設定の再読み込み（テスト用）
@@ -393,36 +359,14 @@ reload_config() {
     load_config "$@"
 }
 
-# 設定を表示（デバッグ用）
+# 設定を表示（デバッグ用、テーブル駆動）
 show_config() {
     echo "=== Configuration ==="
-    echo "worktree_base_dir: $CONFIG_WORKTREE_BASE_DIR"
-    echo "worktree_copy_files: $CONFIG_WORKTREE_COPY_FILES"
-    echo "multiplexer_type: $CONFIG_MULTIPLEXER_TYPE"
-    echo "multiplexer_session_prefix: $CONFIG_MULTIPLEXER_SESSION_PREFIX"
-    echo "multiplexer_start_in_session: $CONFIG_MULTIPLEXER_START_IN_SESSION"
-    echo "pi_command: $CONFIG_PI_COMMAND"
-    echo "pi_args: $CONFIG_PI_ARGS"
-    echo "parallel_max_concurrent: $CONFIG_PARALLEL_MAX_CONCURRENT"
-    echo "plans_keep_recent: $CONFIG_PLANS_KEEP_RECENT"
-    echo "plans_dir: $CONFIG_PLANS_DIR"
-    echo "github_include_comments: $CONFIG_GITHUB_INCLUDE_COMMENTS"
-    echo "github_max_comments: $CONFIG_GITHUB_MAX_COMMENTS"
-    echo "agent_type: $CONFIG_AGENT_TYPE"
-    echo "agent_command: $CONFIG_AGENT_COMMAND"
-    echo "agent_args: $CONFIG_AGENT_ARGS"
-    echo "agent_template: $CONFIG_AGENT_TEMPLATE"
-    echo "agents_plan: $CONFIG_AGENTS_PLAN"
-    echo "agents_implement: $CONFIG_AGENTS_IMPLEMENT"
-    echo "agents_review: $CONFIG_AGENTS_REVIEW"
-    echo "agents_merge: $CONFIG_AGENTS_MERGE"
-    echo "agents_test: $CONFIG_AGENTS_TEST"
-    echo "agents_ci_fix: $CONFIG_AGENTS_CI_FIX"
-    echo "improve_logs_keep_recent: $CONFIG_IMPROVE_LOGS_KEEP_RECENT"
-    echo "improve_logs_keep_days: $CONFIG_IMPROVE_LOGS_KEEP_DAYS"
-    echo "improve_logs_dir: $CONFIG_IMPROVE_LOGS_DIR"
-    echo "hooks_on_start: $CONFIG_HOOKS_ON_START"
-    echo "hooks_on_success: $CONFIG_HOOKS_ON_SUCCESS"
-    echo "hooks_on_error: $CONFIG_HOOKS_ON_ERROR"
-    echo "hooks_on_cleanup: $CONFIG_HOOKS_ON_CLEANUP"
+    
+    # Iterate over all config keys in sorted order (quote array subscript)
+    local key var_name
+    for key in $(printf '%s\n' "${!_CONFIG_KEY_MAP[@]}" | sort); do
+        var_name="${_CONFIG_KEY_MAP["$key"]}"
+        echo "$key: ${!var_name}"
+    done
 }
