@@ -1,0 +1,278 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/takemo101/pi-issue-runner/schemas/pi-runner.schema.json",
+  "title": "pi-issue-runner configuration",
+  "description": "Configuration file schema for .pi-runner.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "worktree": {
+      "type": "object",
+      "description": "Git worktree settings",
+      "additionalProperties": false,
+      "properties": {
+        "base_dir": {
+          "type": "string",
+          "default": ".worktrees",
+          "description": "Directory where worktrees are created"
+        },
+        "copy_files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [".env", ".env.local", ".envrc"],
+          "description": "Files to copy into new worktrees"
+        }
+      }
+    },
+    "multiplexer": {
+      "type": "object",
+      "description": "Terminal multiplexer settings",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["tmux", "zellij"],
+          "default": "tmux",
+          "description": "Multiplexer to use"
+        },
+        "session_prefix": {
+          "type": "string",
+          "default": "pi",
+          "description": "Session name prefix (session name: {prefix}-issue-{number})"
+        },
+        "start_in_session": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to start inside a multiplexer session"
+        }
+      }
+    },
+    "pi": {
+      "type": "object",
+      "description": "Pi command settings (legacy, use 'agent' for new projects)",
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "string",
+          "default": "pi",
+          "description": "Path to the pi command"
+        },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Additional arguments to pass to pi"
+        }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "description": "Coding agent settings (multi-agent support)",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["pi", "claude", "opencode", "custom"],
+          "description": "Agent preset"
+        },
+        "command": {
+          "type": "string",
+          "description": "Custom agent command (for type: custom)"
+        },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Additional arguments to pass to the agent"
+        },
+        "template": {
+          "type": "string",
+          "description": "Command template for custom agents (e.g., '{{command}} {{args}} --file \"{{prompt_file}}\"')"
+        }
+      }
+    },
+    "parallel": {
+      "type": "object",
+      "description": "Parallel execution settings",
+      "additionalProperties": false,
+      "properties": {
+        "max_concurrent": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Maximum concurrent sessions (0 = unlimited)"
+        }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "description": "Default workflow (used when -w is not specified)",
+      "additionalProperties": false,
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["plan", "implement", "review", "merge"],
+          "description": "Steps to execute"
+        }
+      }
+    },
+    "workflows": {
+      "type": "object",
+      "description": "Named workflows (selected with -w NAME or -w auto)",
+      "additionalProperties": {
+        "$ref": "#/definitions/namedWorkflow"
+      }
+    },
+    "plans": {
+      "type": "object",
+      "description": "Plan document settings",
+      "additionalProperties": false,
+      "properties": {
+        "keep_recent": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 10,
+          "description": "Number of recent plans to keep (0 = keep all)"
+        },
+        "dir": {
+          "type": "string",
+          "default": "docs/plans",
+          "description": "Directory for plan documents"
+        }
+      }
+    },
+    "improve_logs": {
+      "type": "object",
+      "description": "Improve logs cleanup settings",
+      "additionalProperties": false,
+      "properties": {
+        "keep_recent": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 10,
+          "description": "Number of recent log files to keep (0 = keep all)"
+        },
+        "keep_days": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 7,
+          "description": "Keep logs within N days (0 = no limit)"
+        },
+        "dir": {
+          "type": "string",
+          "default": ".improve-logs",
+          "description": "Log file directory"
+        }
+      }
+    },
+    "github": {
+      "type": "object",
+      "description": "GitHub integration settings",
+      "additionalProperties": false,
+      "properties": {
+        "include_comments": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include issue comments in prompts"
+        },
+        "max_comments": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 10,
+          "description": "Maximum number of comments to include (0 = unlimited)"
+        }
+      }
+    },
+    "hooks": {
+      "type": "object",
+      "description": "Lifecycle hook scripts",
+      "additionalProperties": false,
+      "properties": {
+        "on_start": {
+          "type": "string",
+          "description": "Script/command to run on session start"
+        },
+        "on_success": {
+          "type": "string",
+          "description": "Script/command to run on session success"
+        },
+        "on_error": {
+          "type": "string",
+          "description": "Script/command to run on session error"
+        },
+        "on_cleanup": {
+          "type": "string",
+          "description": "Script/command to run on cleanup"
+        }
+      }
+    },
+    "agents": {
+      "type": "object",
+      "description": "Agent template file paths per step",
+      "additionalProperties": { "type": "string" },
+      "properties": {
+        "plan": {
+          "type": "string",
+          "description": "Template file for plan step"
+        },
+        "implement": {
+          "type": "string",
+          "description": "Template file for implement step"
+        },
+        "review": {
+          "type": "string",
+          "description": "Template file for review step"
+        },
+        "merge": {
+          "type": "string",
+          "description": "Template file for merge step"
+        },
+        "test": {
+          "type": "string",
+          "description": "Template file for test step"
+        },
+        "ci-fix": {
+          "type": "string",
+          "description": "Template file for ci-fix step"
+        }
+      }
+    },
+    "auto": {
+      "type": "object",
+      "description": "AI auto-selection settings for -w auto",
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "type": "string",
+          "description": "AI provider (default: inferred from agent settings or 'anthropic')"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model for auto-selection (default: claude-haiku-4-5-20250218)"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "namedWorkflow": {
+      "type": "object",
+      "required": ["steps"],
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Workflow description (used by --list-workflows and -w auto)"
+        },
+        "steps": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Steps to execute in order"
+        },
+        "context": {
+          "type": "string",
+          "description": "Workflow-specific context injected into all step prompts"
+        }
+      }
+    }
+  }
+}

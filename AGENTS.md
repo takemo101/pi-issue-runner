@@ -37,6 +37,7 @@ pi-issue-runner/
 │   ├── ci-fix-helper.sh  # CI修正ヘルパー（lib/ci-fix.shのラッパー）
 │   ├── context.sh     # コンテキスト管理
 │   ├── dashboard.sh   # ダッシュボード表示
+│   ├── generate-config.sh  # プロジェクト解析・設定生成
 │   ├── force-complete.sh  # セッション強制完了
 │   ├── improve.sh     # 継続的改善スクリプト
 │   ├── next.sh        # 次のタスク取得
@@ -97,6 +98,8 @@ pi-issue-runner/
 │   ├── review.md      # レビューエージェント
 │   ├── test.md        # テストエージェント
 │   └── merge.md       # マージエージェント
+├── schemas/           # JSON Schema
+│   └── pi-runner.schema.json  # .pi-runner.yaml のスキーマ
 ├── docs/              # ドキュメント
 │   ├── README.md          # ドキュメント索引
 │   ├── CHANGELOG.md       # 変更履歴
