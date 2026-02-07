@@ -116,10 +116,9 @@ _wait_for_available_slot() {
             status="$(get_status_value "$issue_num" 2>/dev/null || echo "")"
             if [[ "$status" == "complete" || "$status" == "error" ]]; then
                 # Cleanup the tmux session if it's still lingering
-                local prefix
-                prefix="$(get_config session_prefix)"
-                local session_name="${prefix}-issue-${issue_num}"
-                if session_exists "$session_name" 2>/dev/null; then
+                local session_name
+                session_name="$(generate_session_name "$issue_num")"
+                if mux_session_exists "$session_name" 2>/dev/null; then
                     log_info "Cleaning up completed session: $session_name (status: $status)"
                     "${SCRIPT_DIR}/cleanup.sh" "$session_name" --force 2>/dev/null || true
                 fi

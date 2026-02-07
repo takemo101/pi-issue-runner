@@ -375,6 +375,8 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '2'; }
+        generate_session_name() { echo \"pi-issue-\$1\"; }
+        mux_session_exists() { return 0; }
         COUNTER_FILE='$counter_file'
         count_active_sessions() {
             local count=\$(cat \"\$COUNTER_FILE\")
@@ -411,6 +413,8 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '2'; }
+        generate_session_name() { echo \"pi-issue-\$1\"; }
+        mux_session_exists() { return 0; }
         COUNTER_FILE='$counter_file'
         # Simulate: first 2 calls under limit, 3rd at limit, then drops
         count_active_sessions() {
