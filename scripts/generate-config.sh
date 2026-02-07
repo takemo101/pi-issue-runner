@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # ============================================================================
-# generate-config.sh - Analyze project and generate .pi-runner.yaml
+# generate-config.sh - Analyze project and generate .pi-runner.yaml using AI
 #
-# Scans the current project structure, detects languages, frameworks,
-# and development patterns, then generates an optimized .pi-runner.yaml.
+# Collects project structure information (languages, frameworks, files)
+# and uses AI (pi --print) to generate an optimized .pi-runner.yaml.
+# Falls back to static template generation when AI is unavailable.
 #
 # Usage: ./scripts/generate-config.sh [options]
 #
@@ -11,7 +12,7 @@
 #   --output, -o FILE   Output file path (default: .pi-runner.yaml)
 #   --dry-run           Print to stdout without writing
 #   --force             Overwrite existing config
-#   --no-workflows      Skip workflow generation
+#   --no-ai             Skip AI generation, use static fallback only
 #   --validate          Validate existing config against schema
 #   -h, --help          Show help message
 #
@@ -33,478 +34,352 @@ else
     log_warn()    { echo "[WARN] $*" >&2; }
     log_error()   { echo "[ERROR] $*" >&2; }
     log_success() { echo "[OK] $*"; }
+    log_debug()   { [[ "${DEBUG:-}" == "1" ]] && echo "[DEBUG] $*" >&2 || true; }
 fi
 
 # ============================================================================
-# Detection functions
+# Project information collection
 # ============================================================================
 
-# Detect programming languages and frameworks
-detect_stack() {
+# Collect project context for AI prompt
+# Gathers: file tree, key config files, detected stack info
+collect_project_context() {
     local project_dir="${1:-.}"
-    
-    DETECTED_LANGUAGES=()
-    DETECTED_FRAMEWORKS=()
-    DETECTED_TEST_FRAMEWORKS=()
-    DETECTED_PACKAGE_MANAGERS=()
-    DETECTED_CI=()
-    
-    # --- Node.js / TypeScript ---
+    local context=""
+
+    # --- Directory structure (depth 3, excluding noise) ---
+    context+="## Directory Structure"$'\n'
+    context+="$(find "$project_dir" -maxdepth 3 \
+        -not -path '*/node_modules/*' \
+        -not -path '*/.git/*' \
+        -not -path '*/.worktrees/*' \
+        -not -path '*/vendor/*' \
+        -not -path '*/dist/*' \
+        -not -path '*/build/*' \
+        -not -path '*/__pycache__/*' \
+        -not -path '*/.next/*' \
+        -not -path '*/.nuxt/*' \
+        -not -name '*.pyc' \
+        -not -name '*.lock' \
+        -not -name 'package-lock.json' \
+        2>/dev/null | head -200 | sed 's|^\./||')"$'\n\n'
+
+    # --- Key config files content ---
+    # package.json (truncated)
     if [[ -f "$project_dir/package.json" ]]; then
-        DETECTED_LANGUAGES+=("javascript")
-        DETECTED_PACKAGE_MANAGERS+=("npm")
-        
-        [[ -f "$project_dir/yarn.lock" ]] && DETECTED_PACKAGE_MANAGERS+=("yarn")
-        [[ -f "$project_dir/pnpm-lock.yaml" ]] && DETECTED_PACKAGE_MANAGERS+=("pnpm")
-        [[ -f "$project_dir/bun.lockb" ]] && DETECTED_PACKAGE_MANAGERS+=("bun")
-        
-        if [[ -f "$project_dir/tsconfig.json" ]]; then
-            DETECTED_LANGUAGES+=("typescript")
-        fi
-        
-        # Detect frameworks from package.json
-        if command -v jq &>/dev/null && [[ -f "$project_dir/package.json" ]]; then
-            local deps
-            deps="$(jq -r '(.dependencies // {}) + (.devDependencies // {}) | keys[]' "$project_dir/package.json" 2>/dev/null || true)"
-            
-            echo "$deps" | grep -qx "next" && DETECTED_FRAMEWORKS+=("nextjs")
-            echo "$deps" | grep -qx "react" && DETECTED_FRAMEWORKS+=("react")
-            echo "$deps" | grep -qx "vue" && DETECTED_FRAMEWORKS+=("vue")
-            echo "$deps" | grep -qx "svelte" && DETECTED_FRAMEWORKS+=("svelte")
-            echo "$deps" | grep -qx "@angular/core" && DETECTED_FRAMEWORKS+=("angular")
-            echo "$deps" | grep -qx "express" && DETECTED_FRAMEWORKS+=("express")
-            echo "$deps" | grep -qx "fastify" && DETECTED_FRAMEWORKS+=("fastify")
-            echo "$deps" | grep -qx "@nestjs/core" && DETECTED_FRAMEWORKS+=("nestjs")
-            echo "$deps" | grep -qx "hono" && DETECTED_FRAMEWORKS+=("hono")
-            echo "$deps" | grep -qx "tailwindcss" && DETECTED_FRAMEWORKS+=("tailwindcss")
-            echo "$deps" | grep -qx "@prisma/client" && DETECTED_FRAMEWORKS+=("prisma")
-            echo "$deps" | grep -qx "drizzle-orm" && DETECTED_FRAMEWORKS+=("drizzle")
-            
-            # Test frameworks
-            echo "$deps" | grep -qx "jest" && DETECTED_TEST_FRAMEWORKS+=("jest")
-            echo "$deps" | grep -qx "vitest" && DETECTED_TEST_FRAMEWORKS+=("vitest")
-            echo "$deps" | grep -qx "mocha" && DETECTED_TEST_FRAMEWORKS+=("mocha")
-            { echo "$deps" | grep -qx "playwright" || echo "$deps" | grep -qx "@playwright/test"; } && DETECTED_TEST_FRAMEWORKS+=("playwright")
-            echo "$deps" | grep -qx "cypress" && DETECTED_TEST_FRAMEWORKS+=("cypress")
-        fi
+        context+="## package.json"$'\n'
+        context+='```json'$'\n'
+        context+="$(head -80 "$project_dir/package.json")"$'\n'
+        context+='```'$'\n\n'
     fi
-    
-    # --- Python ---
-    if [[ -f "$project_dir/pyproject.toml" || -f "$project_dir/setup.py" || -f "$project_dir/requirements.txt" || -f "$project_dir/Pipfile" ]]; then
-        DETECTED_LANGUAGES+=("python")
-        [[ -f "$project_dir/Pipfile" ]] && DETECTED_PACKAGE_MANAGERS+=("pipenv")
-        [[ -f "$project_dir/poetry.lock" ]] && DETECTED_PACKAGE_MANAGERS+=("poetry")
-        [[ -f "$project_dir/uv.lock" ]] && DETECTED_PACKAGE_MANAGERS+=("uv")
-        
-        # Python frameworks
-        local py_deps=""
-        if [[ -f "$project_dir/requirements.txt" ]]; then
-            py_deps="$(cat "$project_dir/requirements.txt")"
-        elif [[ -f "$project_dir/pyproject.toml" ]]; then
-            py_deps="$(cat "$project_dir/pyproject.toml")"
-        fi
-        
-        if [[ -n "$py_deps" ]]; then
-            echo "$py_deps" | grep -qi "django" && DETECTED_FRAMEWORKS+=("django")
-            echo "$py_deps" | grep -qi "flask" && DETECTED_FRAMEWORKS+=("flask")
-            echo "$py_deps" | grep -qi "fastapi" && DETECTED_FRAMEWORKS+=("fastapi")
-            echo "$py_deps" | grep -qi "pytest" && DETECTED_TEST_FRAMEWORKS+=("pytest")
-        fi
+
+    # pyproject.toml
+    if [[ -f "$project_dir/pyproject.toml" ]]; then
+        context+="## pyproject.toml"$'\n'
+        context+='```toml'$'\n'
+        context+="$(head -60 "$project_dir/pyproject.toml")"$'\n'
+        context+='```'$'\n\n'
     fi
-    
-    # --- Ruby ---
+
+    # Gemfile
     if [[ -f "$project_dir/Gemfile" ]]; then
-        DETECTED_LANGUAGES+=("ruby")
-        DETECTED_PACKAGE_MANAGERS+=("bundler")
-        
-        local gemfile_content
-        gemfile_content="$(cat "$project_dir/Gemfile")"
-        echo "$gemfile_content" | grep -q "rails" && DETECTED_FRAMEWORKS+=("rails")
-        echo "$gemfile_content" | grep -q "rspec" && DETECTED_TEST_FRAMEWORKS+=("rspec")
-        echo "$gemfile_content" | grep -q "minitest" && DETECTED_TEST_FRAMEWORKS+=("minitest")
+        context+="## Gemfile"$'\n'
+        context+='```ruby'$'\n'
+        context+="$(head -40 "$project_dir/Gemfile")"$'\n'
+        context+='```'$'\n\n'
     fi
-    
-    # --- Go ---
+
+    # go.mod
     if [[ -f "$project_dir/go.mod" ]]; then
-        DETECTED_LANGUAGES+=("go")
-        DETECTED_PACKAGE_MANAGERS+=("go-modules")
-        DETECTED_TEST_FRAMEWORKS+=("go-test")
+        context+="## go.mod"$'\n'
+        context+='```'$'\n'
+        context+="$(head -30 "$project_dir/go.mod")"$'\n'
+        context+='```'$'\n\n'
     fi
-    
-    # --- Rust ---
+
+    # Cargo.toml
     if [[ -f "$project_dir/Cargo.toml" ]]; then
-        DETECTED_LANGUAGES+=("rust")
-        DETECTED_PACKAGE_MANAGERS+=("cargo")
-        DETECTED_TEST_FRAMEWORKS+=("cargo-test")
+        context+="## Cargo.toml"$'\n'
+        context+='```toml'$'\n'
+        context+="$(head -40 "$project_dir/Cargo.toml")"$'\n'
+        context+='```'$'\n\n'
     fi
-    
-    # --- PHP ---
+
+    # composer.json
     if [[ -f "$project_dir/composer.json" ]]; then
-        DETECTED_LANGUAGES+=("php")
-        DETECTED_PACKAGE_MANAGERS+=("composer")
-        
-        if command -v jq &>/dev/null; then
-            local php_deps
-            php_deps="$(jq -r '(.require // {}) + (."require-dev" // {}) | keys[]' "$project_dir/composer.json" 2>/dev/null || true)"
-            echo "$php_deps" | grep -q "laravel/framework" && DETECTED_FRAMEWORKS+=("laravel")
-            echo "$php_deps" | grep -q "symfony/" && DETECTED_FRAMEWORKS+=("symfony")
-            echo "$php_deps" | grep -q "phpunit/" && DETECTED_TEST_FRAMEWORKS+=("phpunit")
+        context+="## composer.json"$'\n'
+        context+='```json'$'\n'
+        context+="$(head -60 "$project_dir/composer.json")"$'\n'
+        context+='```'$'\n\n'
+    fi
+
+    # build.gradle / pom.xml (first lines)
+    if [[ -f "$project_dir/build.gradle.kts" ]]; then
+        context+="## build.gradle.kts (excerpt)"$'\n'
+        context+='```kotlin'$'\n'
+        context+="$(head -30 "$project_dir/build.gradle.kts")"$'\n'
+        context+='```'$'\n\n'
+    elif [[ -f "$project_dir/build.gradle" ]]; then
+        context+="## build.gradle (excerpt)"$'\n'
+        context+='```groovy'$'\n'
+        context+="$(head -30 "$project_dir/build.gradle")"$'\n'
+        context+='```'$'\n\n'
+    fi
+
+    # tsconfig.json
+    if [[ -f "$project_dir/tsconfig.json" ]]; then
+        context+="## tsconfig.json"$'\n'
+        context+='```json'$'\n'
+        context+="$(cat "$project_dir/tsconfig.json")"$'\n'
+        context+='```'$'\n\n'
+    fi
+
+    # README (first 50 lines for project overview)
+    if [[ -f "$project_dir/README.md" ]]; then
+        context+="## README.md (excerpt)"$'\n'
+        context+='```markdown'$'\n'
+        context+="$(head -50 "$project_dir/README.md")"$'\n'
+        context+='```'$'\n\n'
+    fi
+
+    # AGENTS.md (development guide)
+    if [[ -f "$project_dir/AGENTS.md" ]]; then
+        context+="## AGENTS.md (excerpt)"$'\n'
+        context+='```markdown'$'\n'
+        context+="$(head -80 "$project_dir/AGENTS.md")"$'\n'
+        context+='```'$'\n\n'
+    fi
+
+    # CI config
+    if [[ -d "$project_dir/.github/workflows" ]]; then
+        context+="## CI Workflow files"$'\n'
+        for wf in "$project_dir/.github/workflows"/*.{yml,yaml}; do
+            [[ -f "$wf" ]] || continue
+            context+="### $(basename "$wf")"$'\n'
+            context+='```yaml'$'\n'
+            context+="$(head -40 "$wf")"$'\n'
+            context+='```'$'\n\n'
+        done
+    fi
+
+    # Existing env files (names only, not content)
+    context+="## Environment files found"$'\n'
+    local env_candidates=(.env .env.local .env.development .env.development.local .envrc .npmrc .yarnrc.yml .tool-versions .node-version .nvmrc .python-version .ruby-version)
+    for f in "${env_candidates[@]}"; do
+        if [[ -f "$project_dir/$f" ]]; then
+            context+="- $f"$'\n'
         fi
-    fi
-    
-    # --- Java / Kotlin ---
-    if [[ -f "$project_dir/pom.xml" ]]; then
-        DETECTED_LANGUAGES+=("java")
-        DETECTED_PACKAGE_MANAGERS+=("maven")
-    elif [[ -f "$project_dir/build.gradle" || -f "$project_dir/build.gradle.kts" ]]; then
-        DETECTED_LANGUAGES+=("java")
-        DETECTED_PACKAGE_MANAGERS+=("gradle")
-        [[ -f "$project_dir/build.gradle.kts" ]] && DETECTED_LANGUAGES+=("kotlin")
-    fi
-    
-    # --- Shell ---
-    if [[ -f "$project_dir/.shellcheckrc" ]] || find "$project_dir" -maxdepth 2 -name "*.sh" -type f 2>/dev/null | head -1 | grep -q .; then
-        DETECTED_LANGUAGES+=("bash")
-    fi
-    if find "$project_dir/test" -name "*.bats" -type f 2>/dev/null | head -1 | grep -q .; then
-        DETECTED_TEST_FRAMEWORKS+=("bats")
-    fi
-    
-    # --- CI detection ---
-    [[ -d "$project_dir/.github/workflows" ]] && DETECTED_CI+=("github-actions")
-    [[ -f "$project_dir/.gitlab-ci.yml" ]] && DETECTED_CI+=("gitlab-ci")
-    [[ -f "$project_dir/.circleci/config.yml" ]] && DETECTED_CI+=("circleci")
-    [[ -f "$project_dir/Jenkinsfile" ]] && DETECTED_CI+=("jenkins")
-    
-    return 0
+    done
+    context+=$'\n'
+
+    # Available multiplexer
+    context+="## Available tools"$'\n'
+    command -v tmux &>/dev/null && context+="- tmux: available"$'\n' || true
+    command -v zellij &>/dev/null && context+="- zellij: available"$'\n' || true
+    command -v pi &>/dev/null && context+="- pi: available"$'\n' || true
+    command -v claude &>/dev/null && context+="- claude: available"$'\n' || true
+    context+=$'\n'
+
+    # Repository name
+    local repo_name
+    repo_name="$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")"
+    context+="## Repository name: ${repo_name}"$'\n'
+
+    echo "$context"
 }
+
+# ============================================================================
+# AI-powered generation
+# ============================================================================
+
+# Build the prompt for AI config generation
+build_ai_prompt() {
+    local project_context="$1"
+    local schema_file="$PROJECT_ROOT/schemas/pi-runner.schema.json"
+
+    local prompt=""
+
+    prompt+="You are a configuration generator for pi-issue-runner, a tool that processes GitHub Issues using AI coding agents in Git worktrees."$'\n\n'
+
+    prompt+="Based on the project information below, generate an optimal \`.pi-runner.yaml\` configuration file."$'\n\n'
+
+    prompt+="# Requirements"$'\n'
+    prompt+="- Output ONLY the YAML content, no explanation, no markdown fences"$'\n'
+    prompt+="- Include helpful comments in the YAML (in Japanese)"$'\n'
+    prompt+="- The YAML must conform to the JSON Schema provided below"$'\n'
+    prompt+="- Detect the appropriate multiplexer (tmux/zellij) from available tools"$'\n'
+    prompt+="- Detect the appropriate agent (pi/claude) from available tools"$'\n'
+    prompt+="- Use the repository name as session_prefix"$'\n'
+    prompt+="- Include copy_files only for env files that actually exist"$'\n'
+    prompt+="- Generate workflows that match the project's tech stack and development patterns"$'\n'
+    prompt+="- Each workflow's description should be specific enough for AI auto-selection (-w auto)"$'\n'
+    prompt+="- Each workflow's context should describe the project-specific tech stack and conventions"$'\n'
+    prompt+="- Always include: quick (minimal), thorough (full), docs (documentation) workflows"$'\n'
+    prompt+="- Add frontend/backend workflows only if the project has those aspects"$'\n'
+    prompt+="- If the project has test frameworks, include test step in default workflow"$'\n'
+    prompt+="- Set parallel.max_concurrent to a reasonable value (e.g., 3)"$'\n\n'
+
+    # Schema
+    if [[ -f "$schema_file" ]]; then
+        prompt+="# JSON Schema for .pi-runner.yaml"$'\n'
+        prompt+='```json'$'\n'
+        prompt+="$(cat "$schema_file")"$'\n'
+        prompt+='```'$'\n\n'
+    fi
+
+    # Project context
+    prompt+="# Project Information"$'\n'
+    prompt+="$project_context"$'\n'
+
+    echo "$prompt"
+}
+
+# Generate config using AI (pi --print)
+generate_with_ai() {
+    local project_context="$1"
+
+    # Determine pi command
+    local pi_command="${PI_COMMAND:-pi}"
+    if ! command -v "$pi_command" &>/dev/null; then
+        log_debug "pi command not found: $pi_command"
+        return 1
+    fi
+
+    local prompt
+    prompt="$(build_ai_prompt "$project_context")"
+
+    log_info "AIで設定を生成中..."
+
+    local response
+    response=$(echo "$prompt" | timeout 60 "$pi_command" --print \
+        --provider "${PI_RUNNER_AUTO_PROVIDER:-anthropic}" \
+        --model "${PI_RUNNER_AUTO_MODEL:-claude-haiku-4-5}" \
+        --no-tools \
+        --no-session 2>/dev/null) || {
+        log_debug "AI generation failed (exit code: $?)"
+        return 1
+    }
+
+    # Strip markdown fences if AI included them
+    response="$(echo "$response" | sed '/^```yaml$/d; /^```$/d; /^```yml$/d')"
+
+    # Basic validation: must contain 'worktree:' or 'workflow:'
+    if ! echo "$response" | grep -q 'worktree:\|workflow:\|workflows:'; then
+        log_debug "AI response doesn't look like valid config"
+        return 1
+    fi
+
+    echo "$response"
+}
+
+# ============================================================================
+# Static fallback generation
+# ============================================================================
 
 # Detect files that should be copied to worktrees
 detect_copy_files() {
     local project_dir="${1:-.}"
-    
     DETECTED_COPY_FILES=()
-    
+
     local candidates=(
-        ".env"
-        ".env.local"
-        ".env.development"
-        ".env.development.local"
-        ".envrc"
-        ".npmrc"
-        ".yarnrc.yml"
-        "config/master.key"
-        "config/credentials.yml.enc"
-        "config/database.yml"
-        ".ruby-version"
-        ".node-version"
-        ".nvmrc"
-        ".python-version"
-        ".tool-versions"
+        ".env" ".env.local" ".env.development" ".env.development.local"
+        ".envrc" ".npmrc" ".yarnrc.yml"
+        "config/master.key" "config/credentials.yml.enc" "config/database.yml"
+        ".ruby-version" ".node-version" ".nvmrc" ".python-version" ".tool-versions"
     )
-    
+
     for file in "${candidates[@]}"; do
-        if [[ -f "$project_dir/$file" ]]; then
-            DETECTED_COPY_FILES+=("$file")
-        fi
+        [[ -f "$project_dir/$file" ]] && DETECTED_COPY_FILES+=("$file")
     done
-    
+
     return 0
 }
 
-# Check if array contains a value (safe for empty arrays)
-_array_contains() {
-    local needle="$1"
-    shift
-    local item
-    for item in "$@"; do
-        [[ "$item" == "$needle" ]] && return 0
-    done
-    return 1
-}
+# Generate static fallback YAML (no AI)
+generate_static_yaml() {
+    detect_copy_files "."
 
-# Detect project type categories for workflow suggestion
-detect_project_type() {
-    local has_frontend=false
-    local has_backend=false
-    local has_fullstack=false
-    local has_cli=false
-    local has_lib=false
-    
-    # Frontend indicators
-    if [[ ${#DETECTED_FRAMEWORKS[@]} -gt 0 ]]; then
-        for fw in react vue svelte angular nextjs; do
-            if _array_contains "$fw" "${DETECTED_FRAMEWORKS[@]}"; then
-                has_frontend=true
-                break
-            fi
-        done
-        
-        # Backend indicators
-        for fw in express fastify nestjs hono django flask fastapi rails laravel symfony; do
-            if _array_contains "$fw" "${DETECTED_FRAMEWORKS[@]}"; then
-                has_backend=true
-                break
-            fi
-        done
-        
-        # Fullstack
-        if [[ "$has_frontend" == "true" && "$has_backend" == "true" ]]; then
-            has_fullstack=true
-        fi
-        if _array_contains "nextjs" "${DETECTED_FRAMEWORKS[@]}"; then
-            has_fullstack=true
-        fi
-    fi
-    
-    # CLI / Library
-    if [[ "${#DETECTED_FRAMEWORKS[@]}" -eq 0 ]]; then
-        if [[ ${#DETECTED_LANGUAGES[@]} -gt 0 ]] && _array_contains "bash" "${DETECTED_LANGUAGES[@]}"; then
-            has_cli=true
-        elif [[ -d "bin/" ]] || [[ -d "cmd/" ]]; then
-            has_cli=true
-        else
-            has_lib=true
-        fi
-    fi
-    
-    PROJECT_HAS_FRONTEND="$has_frontend"
-    PROJECT_HAS_BACKEND="$has_backend"
-    PROJECT_HAS_FULLSTACK="$has_fullstack"
-    PROJECT_HAS_CLI="$has_cli"
-    PROJECT_HAS_LIB="$has_lib"
-    PROJECT_HAS_TESTS="${#DETECTED_TEST_FRAMEWORKS[@]}"
-}
-
-# ============================================================================
-# YAML generation
-# ============================================================================
-
-# Generate the YAML config
-generate_yaml() {
-    local include_workflows="${1:-true}"
-    
     cat << 'HEADER'
 # pi-issue-runner configuration
-# Generated by: generate-config.sh
-# Schema: https://github.com/takemo101/pi-issue-runner/schemas/pi-runner.schema.json
+# Generated by: generate-config.sh (static fallback)
 # Docs: https://github.com/takemo101/pi-issue-runner/blob/main/docs/configuration.md
 HEADER
-    
+
     echo ""
-    
-    # --- worktree ---
-    echo "# ====================================="
-    echo "# Worktree設定"
-    echo "# ====================================="
     echo "worktree:"
     echo "  base_dir: \".worktrees\""
-    
+
     if [[ ${#DETECTED_COPY_FILES[@]} -gt 0 ]]; then
         echo "  copy_files:"
         for f in "${DETECTED_COPY_FILES[@]}"; do
             echo "    - \"$f\""
         done
-    else
-        echo "  # copy_files:"
-        echo "  #   - .env"
-        echo "  #   - .env.local"
     fi
-    
+
     echo ""
-    
-    # --- multiplexer ---
-    echo "# ====================================="
-    echo "# マルチプレクサ設定"
-    echo "# ====================================="
     echo "multiplexer:"
-    
-    # Detect available multiplexer
     if command -v zellij &>/dev/null && ! command -v tmux &>/dev/null; then
         echo "  type: zellij"
     else
         echo "  type: tmux"
     fi
-    
-    # Use repo name as prefix if possible
+
     local repo_name
     repo_name="$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")"
-    repo_name="$(echo "$repo_name" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')"
-    if [[ -n "$repo_name" && "$repo_name" != "." ]]; then
-        echo "  session_prefix: \"$repo_name\""
-    else
-        echo "  session_prefix: \"pi\""
-    fi
-    
+    repo_name="$(echo "$repo_name" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g; s/--*/-/g; s/^-//; s/-$//')"
+    echo "  session_prefix: \"${repo_name:-pi}\""
+
     echo ""
-    
-    # --- agent ---
-    echo "# ====================================="
-    echo "# エージェント設定"
-    echo "# ====================================="
     if command -v pi &>/dev/null; then
         echo "agent:"
         echo "  type: pi"
-        echo "  # args:"
-        echo "  #   - --model"
-        echo "  #   - claude-sonnet-4-20250514"
     elif command -v claude &>/dev/null; then
         echo "agent:"
         echo "  type: claude"
-    else
-        echo "# agent:"
-        echo "#   type: pi"
-        echo "#   args:"
-        echo "#     - --model"
-        echo "#     - claude-sonnet-4-20250514"
     fi
-    
+
     echo ""
-    
-    # --- parallel ---
-    echo "# ====================================="
-    echo "# 並列実行設定"
-    echo "# ====================================="
     echo "parallel:"
     echo "  max_concurrent: 3"
-    
+
     echo ""
-    
-    # --- default workflow ---
-    echo "# ====================================="
-    echo "# デフォルトワークフロー"
-    echo "# ====================================="
     echo "workflow:"
-    if [[ "$PROJECT_HAS_TESTS" -gt 0 ]]; then
-        echo "  steps:"
-        echo "    - plan"
-        echo "    - implement"
-        echo "    - test"
-        echo "    - review"
-        echo "    - merge"
-    else
-        echo "  steps:"
-        echo "    - plan"
-        echo "    - implement"
-        echo "    - review"
-        echo "    - merge"
-    fi
-    
+    echo "  steps:"
+    echo "    - plan"
+    echo "    - implement"
+    echo "    - review"
+    echo "    - merge"
+
     echo ""
-    
-    # --- named workflows ---
-    if [[ "$include_workflows" == "true" ]]; then
-        echo "# ====================================="
-        echo "# 名前付きワークフロー"
-        echo "# ====================================="
-        echo "workflows:"
-        
-        # Quick workflow (always useful)
-        echo "  quick:"
-        echo "    description: 小規模修正（typo、設定変更、1ファイル程度の変更）"
-        echo "    steps:"
-        echo "      - implement"
-        echo "      - merge"
-        echo ""
-        
-        # Thorough workflow (always useful)
-        echo "  thorough:"
-        echo "    description: 大規模機能開発（複数ファイル、新機能、アーキテクチャ変更）"
-        echo "    steps:"
-        echo "      - plan"
-        echo "      - implement"
-        echo "      - test"
-        echo "      - review"
-        echo "      - merge"
-        echo ""
-        
-        # Frontend workflow
-        if [[ "$PROJECT_HAS_FRONTEND" == "true" ]]; then
-            echo "  frontend:"
-            echo "    description: フロントエンド実装（UIコンポーネント、スタイリング、画面レイアウト）"
-            echo "    steps:"
-            echo "      - plan"
-            echo "      - implement"
-            echo "      - review"
-            echo "      - merge"
-            echo "    context: |"
-            echo "      ## 技術スタック"
-            # List frontend frameworks
-            for fw in "${DETECTED_FRAMEWORKS[@]}"; do
-                case "$fw" in
-                    react|vue|svelte|angular|nextjs|tailwindcss)
-                        echo "      - $fw"
-                        ;;
-                esac
-            done
-            if printf '%s\n' "${DETECTED_LANGUAGES[@]}" | grep -qx "typescript" 2>/dev/null; then
-                echo "      - TypeScript"
-            fi
-            echo "      "
-            echo "      ## 重視すべき点"
-            echo "      - レスポンシブデザイン"
-            echo "      - アクセシビリティ"
-            echo "      - コンポーネントの再利用性"
-            echo ""
-        fi
-        
-        # Backend workflow
-        if [[ "$PROJECT_HAS_BACKEND" == "true" ]]; then
-            echo "  backend:"
-            echo "    description: バックエンドAPI実装（DB操作、認証、ビジネスロジック）"
-            echo "    steps:"
-            echo "      - plan"
-            echo "      - implement"
-            echo "      - test"
-            echo "      - review"
-            echo "      - merge"
-            echo "    context: |"
-            echo "      ## 技術スタック"
-            for fw in "${DETECTED_FRAMEWORKS[@]}"; do
-                case "$fw" in
-                    express|fastify|nestjs|hono|django|flask|fastapi|rails|laravel|symfony|prisma|drizzle)
-                        echo "      - $fw"
-                        ;;
-                esac
-            done
-            echo "      "
-            echo "      ## 重視すべき点"
-            echo "      - API設計"
-            echo "      - 入力バリデーション"
-            echo "      - エラーハンドリング"
-            echo "      - テストの充実"
-            echo ""
-        fi
-        
-        # Docs workflow
-        echo "  docs:"
-        echo "    description: ドキュメント作成・更新（README、仕様書、ADR）"
-        echo "    steps:"
-        echo "      - implement"
-        echo "      - review"
-        echo "      - merge"
-        echo "    context: |"
-        echo "      ## 目的"
-        echo "      ドキュメントの作成・更新に特化する。"
-        echo "      コードの変更は原則行わない。"
-    fi
-    
+    echo "workflows:"
+    echo "  quick:"
+    echo "    description: 小規模修正（typo、設定変更、1ファイル程度の変更）"
+    echo "    steps:"
+    echo "      - implement"
+    echo "      - merge"
     echo ""
-    
-    # --- github ---
-    echo "# ====================================="
-    echo "# GitHub設定"
-    echo "# ====================================="
+    echo "  thorough:"
+    echo "    description: 大規模機能開発（複数ファイル、新機能、アーキテクチャ変更）"
+    echo "    steps:"
+    echo "      - plan"
+    echo "      - implement"
+    echo "      - test"
+    echo "      - review"
+    echo "      - merge"
+    echo ""
+    echo "  docs:"
+    echo "    description: ドキュメント作成・更新（README、仕様書、ADR）"
+    echo "    steps:"
+    echo "      - implement"
+    echo "      - review"
+    echo "      - merge"
+
+    echo ""
     echo "github:"
     echo "  include_comments: true"
     echo "  max_comments: 10"
-    
+
     echo ""
-    
-    # --- plans ---
-    echo "# ====================================="
-    echo "# 計画書設定"
-    echo "# ====================================="
     echo "plans:"
     echo "  keep_recent: 10"
     echo "  dir: \"docs/plans\""
@@ -517,17 +392,17 @@ HEADER
 validate_config() {
     local config_file="${1:-.pi-runner.yaml}"
     local schema_file="$PROJECT_ROOT/schemas/pi-runner.schema.json"
-    
+
     if [[ ! -f "$config_file" ]]; then
         log_error "Config file not found: $config_file"
         return 1
     fi
-    
+
     if [[ ! -f "$schema_file" ]]; then
         log_error "Schema file not found: $schema_file"
         return 1
     fi
-    
+
     # Try different validation tools
     if command -v ajv &>/dev/null; then
         log_info "Validating with ajv..."
@@ -563,51 +438,6 @@ except ValidationError as e:
 }
 
 # ============================================================================
-# Report
-# ============================================================================
-
-print_detection_report() {
-    echo ""
-    echo "📋 プロジェクト解析結果"
-    echo "========================"
-    
-    if [[ ${#DETECTED_LANGUAGES[@]} -gt 0 ]]; then
-        echo "言語:               $(IFS=', '; echo "${DETECTED_LANGUAGES[*]}")"
-    else
-        echo "言語:               (未検出)"
-    fi
-    
-    if [[ ${#DETECTED_FRAMEWORKS[@]} -gt 0 ]]; then
-        echo "フレームワーク:     $(IFS=', '; echo "${DETECTED_FRAMEWORKS[*]}")"
-    fi
-    
-    if [[ ${#DETECTED_TEST_FRAMEWORKS[@]} -gt 0 ]]; then
-        echo "テスト:             $(IFS=', '; echo "${DETECTED_TEST_FRAMEWORKS[*]}")"
-    fi
-    
-    if [[ ${#DETECTED_PACKAGE_MANAGERS[@]} -gt 0 ]]; then
-        echo "パッケージマネージャ: $(IFS=', '; echo "${DETECTED_PACKAGE_MANAGERS[*]}")"
-    fi
-    
-    if [[ ${#DETECTED_CI[@]} -gt 0 ]]; then
-        echo "CI:                 $(IFS=', '; echo "${DETECTED_CI[*]}")"
-    fi
-    
-    if [[ ${#DETECTED_COPY_FILES[@]} -gt 0 ]]; then
-        echo "コピー対象ファイル: $(IFS=', '; echo "${DETECTED_COPY_FILES[*]}")"
-    fi
-    
-    echo ""
-    echo "プロジェクトタイプ:"
-    [[ "$PROJECT_HAS_FULLSTACK" == "true" ]] && echo "  ✅ フルスタック" || true
-    [[ "$PROJECT_HAS_FRONTEND" == "true" && "$PROJECT_HAS_FULLSTACK" != "true" ]] && echo "  ✅ フロントエンド" || true
-    [[ "$PROJECT_HAS_BACKEND" == "true" && "$PROJECT_HAS_FULLSTACK" != "true" ]] && echo "  ✅ バックエンド" || true
-    [[ "$PROJECT_HAS_CLI" == "true" ]] && echo "  ✅ CLI / スクリプト" || true
-    [[ "$PROJECT_HAS_LIB" == "true" ]] && echo "  ✅ ライブラリ" || true
-    echo ""
-}
-
-# ============================================================================
 # Main
 # ============================================================================
 
@@ -615,9 +445,9 @@ main() {
     local output_file=".pi-runner.yaml"
     local dry_run=false
     local force=false
-    local include_workflows=true
+    local no_ai=false
     local validate_only=false
-    
+
     while [[ $# -gt 0 ]]; do
         case "$1" in
             -o|--output)
@@ -636,8 +466,8 @@ main() {
                 force=true
                 shift
                 ;;
-            --no-workflows)
-                include_workflows=false
+            --no-ai)
+                no_ai=true
                 shift
                 ;;
             --validate)
@@ -648,19 +478,26 @@ main() {
                 cat << 'HELP'
 Usage: generate-config.sh [options]
 
-プロジェクトの構造を解析し、最適な .pi-runner.yaml を生成します。
+プロジェクトの構造をAIで解析し、最適な .pi-runner.yaml を生成します。
+AI (pi --print) が利用できない場合は静的テンプレートにフォールバックします。
 
 Options:
     -o, --output FILE   出力ファイルパス (default: .pi-runner.yaml)
     --dry-run           ファイルに書き込まず標準出力に表示
     --force             既存ファイルを上書き
-    --no-workflows      ワークフロー生成をスキップ
+    --no-ai             AI生成をスキップし、静的テンプレートのみ使用
     --validate          既存の設定をスキーマで検証
     -h, --help          このヘルプを表示
 
+Environment Variables:
+    PI_COMMAND                  piコマンドのパス (default: pi)
+    PI_RUNNER_AUTO_PROVIDER     AIプロバイダー (default: anthropic)
+    PI_RUNNER_AUTO_MODEL        AIモデル (default: claude-haiku-4-5)
+
 Examples:
-    generate-config.sh                  # 解析して .pi-runner.yaml を生成
+    generate-config.sh                  # AI解析して .pi-runner.yaml を生成
     generate-config.sh --dry-run        # 結果をプレビュー
+    generate-config.sh --no-ai          # 静的テンプレートで生成
     generate-config.sh --validate       # 既存設定を検証
     generate-config.sh -o custom.yaml   # カスタム出力先
 HELP
@@ -676,36 +513,46 @@ HELP
                 ;;
         esac
     done
-    
+
     # Validate mode
     if [[ "$validate_only" == "true" ]]; then
         validate_config "$output_file"
         return $?
     fi
-    
+
     # Check existing file
     if [[ -f "$output_file" && "$force" != "true" && "$dry_run" != "true" ]]; then
         log_error "$output_file は既に存在します。--force で上書きするか、--dry-run でプレビューしてください。"
         exit 1
     fi
-    
-    # Run detection
-    log_info "プロジェクトを解析中..."
-    detect_stack "."
-    detect_copy_files "."
-    detect_project_type
-    
-    # Print report
-    print_detection_report
-    
+
     # Generate config
-    local yaml_content
-    yaml_content="$(generate_yaml "$include_workflows")"
-    
+    local yaml_content=""
+
+    if [[ "$no_ai" != "true" ]]; then
+        # Collect project context
+        log_info "プロジェクト情報を収集中..."
+        local project_context
+        project_context="$(collect_project_context ".")"
+
+        # Try AI generation
+        yaml_content="$(generate_with_ai "$project_context")" || {
+            log_warn "AI生成に失敗しました。静的テンプレートにフォールバックします。"
+            yaml_content=""
+        }
+    fi
+
+    # Fallback to static generation
+    if [[ -z "$yaml_content" ]]; then
+        if [[ "$no_ai" == "true" ]]; then
+            log_info "静的テンプレートで生成中..."
+        fi
+        yaml_content="$(generate_static_yaml)"
+    fi
+
+    # Output
     if [[ "$dry_run" == "true" ]]; then
-        echo "--- 生成される設定 ---"
         echo "$yaml_content"
-        echo "--- ここまで ---"
     else
         echo "$yaml_content" > "$output_file"
         log_success "$output_file を生成しました"
