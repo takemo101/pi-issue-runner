@@ -127,6 +127,105 @@ try_auto_fix() {
     esac
 }
 
+# ===================
+# Lint修正 - プロジェクトタイプ別ヘルパー
+# ===================
+
+# Rustプロジェクトのlint修正
+# Usage: _fix_lint_rust
+# Returns: 0=修正成功, 1=修正失敗
+_fix_lint_rust() {
+    if ! command -v cargo &> /dev/null; then
+        log_error "cargo not found. Cannot auto-fix lint issues."
+        return 1
+    fi
+    if cargo clippy --fix --allow-dirty --allow-staged --all-targets --all-features 2>&1; then
+        log_info "Clippy fix applied successfully"
+        return 0
+    else
+        log_error "Clippy fix failed"
+        return 1
+    fi
+}
+
+# Nodeプロジェクトのlint修正
+# Usage: _fix_lint_node
+# Returns: 0=修正成功, 1=修正失敗, 2=自動修正不可
+_fix_lint_node() {
+    # npm scriptsにlint:fixがあればそれを使用、なければeslintを試行
+    if grep -q '"lint:fix"' package.json 2>/dev/null; then
+        log_info "Running npm run lint:fix..."
+        if npm run lint:fix 2>&1; then
+            log_info "Lint fix applied successfully"
+            return 0
+        else
+            log_warn "npm run lint:fix failed"
+            return 1
+        fi
+    elif command -v npx &> /dev/null; then
+        log_info "Trying npx eslint --fix..."
+        if npx eslint --fix . 2>&1; then
+            log_info "ESLint fix applied successfully"
+            return 0
+        else
+            log_warn "ESLint fix failed or not configured"
+            return 2  # 自動修正不可
+        fi
+    else
+        log_warn "No linter found for Node project"
+        return 2  # 自動修正不可
+    fi
+}
+
+# Pythonプロジェクトのlint修正
+# Usage: _fix_lint_python
+# Returns: 0=修正成功, 1=修正失敗, 2=自動修正不可
+_fix_lint_python() {
+    # autopep8で自動修正を試行
+    if command -v autopep8 &> /dev/null; then
+        log_info "Running autopep8..."
+        if autopep8 --in-place --aggressive --aggressive --recursive . 2>&1; then
+            log_info "autopep8 fix applied successfully"
+            return 0
+        else
+            log_error "autopep8 fix failed"
+            return 1
+        fi
+    else
+        log_warn "autopep8 not found. Install with: pip install autopep8"
+        return 2  # 自動修正不可
+    fi
+}
+
+# Goプロジェクトのlint修正
+# Usage: _fix_lint_go
+# Returns: 0=修正成功, 1=修正失敗, 2=自動修正不可
+_fix_lint_go() {
+    # golangci-lintがあれば使用
+    if command -v golangci-lint &> /dev/null; then
+        log_info "Running golangci-lint run --fix..."
+        if golangci-lint run --fix 2>&1; then
+            log_info "golangci-lint fix applied successfully"
+            return 0
+        else
+            log_warn "golangci-lint fix failed"
+            return 1
+        fi
+    else
+        log_warn "golangci-lint not found. Install from: https://golangci-lint.run/usage/install/"
+        return 2  # 自動修正不可
+    fi
+}
+
+# Bashプロジェクトのlint修正
+# Usage: _fix_lint_bash
+# Returns: 2=自動修正不可（ShellCheckは自動修正をサポートしない）
+_fix_lint_bash() {
+    # ShellCheckは自動修正をサポートしていない
+    log_warn "Bash linting (shellcheck) does not support auto-fix"
+    return 2  # 自動修正不可
+}
+
 # Lint修正を試行（汎用版）
 # Usage: try_fix_lint [worktree_path]
 # Returns: 0=修正成功, 1=修正失敗, 2=自動修正不可
@@ -147,79 +246,19 @@ try_fix_lint() {
         
         case "$project_type" in
             rust)
-                if ! command -v cargo &> /dev/null; then
-                    log_error "cargo not found. Cannot auto-fix lint issues."
-                    return 1
-                fi
-                if cargo clippy --fix --allow-dirty --allow-staged --all-targets --all-features 2>&1; then
-                    log_info "Clippy fix applied successfully"
-                    return 0
-                else
-                    log_error "Clippy fix failed"
-                    return 1
-                fi
+                _fix_lint_rust
                 ;;
             node)
-                # npm scriptsにlint:fixがあればそれを使用、なければeslintを試行
-                if grep -q '"lint:fix"' package.json 2>/dev/null; then
-                    log_info "Running npm run lint:fix..."
-                    if npm run lint:fix 2>&1; then
-                        log_info "Lint fix applied successfully"
-                        return 0
-                    else
-                        log_warn "npm run lint:fix failed"
-                        return 1
-                    fi
-                elif command -v npx &> /dev/null; then
-                    log_info "Trying npx eslint --fix..."
-                    if npx eslint --fix . 2>&1; then
-                        log_info "ESLint fix applied successfully"
-                        return 0
-                    else
-                        log_warn "ESLint fix failed or not configured"
-                        return 2  # 自動修正不可
-                    fi
-                else
-                    log_warn "No linter found for Node project"
-                    return 2  # 自動修正不可
-                fi
+                _fix_lint_node
                 ;;
             python)
-                # autopep8で自動修正を試行
-                if command -v autopep8 &> /dev/null; then
-                    log_info "Running autopep8..."
-                    if autopep8 --in-place --aggressive --aggressive --recursive . 2>&1; then
-                        log_info "autopep8 fix applied successfully"
-                        return 0
-                    else
-                        log_error "autopep8 fix failed"
-                        return 1
-                    fi
-                else
-                    log_warn "autopep8 not found. Install with: pip install autopep8"
-                    return 2  # 自動修正不可
-                fi
+                _fix_lint_python
                 ;;
             go)
-                # golangci-lintがあれば使用
-                if command -v golangci-lint &> /dev/null; then
-                    log_info "Running golangci-lint run --fix..."
-                    if golangci-lint run --fix 2>&1; then
-                        log_info "golangci-lint fix applied successfully"
-                        return 0
-                    else
-                        log_warn "golangci-lint fix failed"
-                        return 1
-                    fi
-                else
-                    log_warn "golangci-lint not found. Install from: https://golangci-lint.run/usage/install/"
-                    return 2  # 自動修正不可
-                fi
+                _fix_lint_go
                 ;;
             bash)
-                # ShellCheckは自動修正をサポートしていない
-                log_warn "Bash linting (shellcheck) does not support auto-fix"
-                return 2  # 自動修正不可
+                _fix_lint_bash
                 ;;
             *)
                 log_warn "Unknown project type. Cannot auto-fix lint."
@@ -227,6 +266,122 @@ try_fix_lint() {
                 ;;
         esac
     )
+}
+
+# ===================
+# フォーマット修正 - プロジェクトタイプ別ヘルパー
+# ===================
+
+# Rustプロジェクトのフォーマット修正
+# Usage: _fix_format_rust
+# Returns: 0=修正成功, 1=修正失敗
+_fix_format_rust() {
+    if ! command -v cargo &> /dev/null; then
+        log_error "cargo not found. Cannot auto-fix format issues."
+        return 1
+    fi
+    if cargo fmt --all 2>&1; then
+        log_info "Format fix applied successfully"
+        return 0
+    else
+        log_error "Format fix failed"
+        return 1
+    fi
+}
+
+# Nodeプロジェクトのフォーマット修正
+# Usage: _fix_format_node
+# Returns: 0=修正成功, 1=修正失敗, 2=自動修正不可
+_fix_format_node() {
+    # npm scriptsにformatがあればそれを使用、なければprettierを試行
+    if grep -q '"format"' package.json 2>/dev/null; then
+        log_info "Running npm run format..."
+        if npm run format 2>&1; then
+            log_info "Format fix applied successfully"
+            return 0
+        else
+            log_warn "npm run format failed"
+            return 1
+        fi
+    elif command -v npx &> /dev/null; then
+        log_info "Trying npx prettier --write..."
+        if npx prettier --write . 2>&1; then
+            log_info "Prettier fix applied successfully"
+            return 0
+        else
+            log_warn "Prettier fix failed or not configured"
+            return 2  # 自動修正不可
+        fi
+    else
+        log_warn "No formatter found for Node project"
+        return 2  # 自動修正不可
+    fi
+}
+
+# Pythonプロジェクトのフォーマット修正
+# Usage: _fix_format_python
+# Returns: 0=修正成功, 1=修正失敗, 2=自動修正不可
+_fix_format_python() {
+    # blackを優先、なければautopep8
+    if command -v black &> /dev/null; then
+        log_info "Running black..."
+        if black . 2>&1; then
+            log_info "black fix applied successfully"
+            return 0
+        else
+            log_error "black fix failed"
+            return 1
+        fi
+    elif command -v autopep8 &> /dev/null; then
+        log_info "Running autopep8..."
+        if autopep8 --in-place --recursive . 2>&1; then
+            log_info "autopep8 fix applied successfully"
+            return 0
+        else
+            log_error "autopep8 fix failed"
+            return 1
+        fi
+    else
+        log_warn "No formatter found for Python project (black or autopep8)"
+        return 2  # 自動修正不可
+    fi
+}
+
+# Goプロジェクトのフォーマット修正
+# Usage: _fix_format_go
+# Returns: 0=修正成功, 1=修正失敗
+_fix_format_go() {
+    if ! command -v gofmt &> /dev/null; then
+        log_error "gofmt not found. Cannot auto-fix format issues."
+        return 1
+    fi
+    if gofmt -w . 2>&1; then
+        log_info "gofmt fix applied successfully"
+        return 0
+    else
+        log_error "gofmt fix failed"
+        return 1
+    fi
+}
+
+# Bashプロジェクトのフォーマット修正
+# Usage: _fix_format_bash
+# Returns: 0=修正成功, 1=修正失敗, 2=自動修正不可
+_fix_format_bash() {
+    # shfmtがあれば使用
+    if command -v shfmt &> /dev/null; then
+        log_info "Running shfmt..."
+        if shfmt -w -i 4 . 2>&1; then
+            log_info "shfmt fix applied successfully"
+            return 0
+        else
+            log_error "shfmt fix failed"
+            return 1
+        fi
+    else
+        log_warn "shfmt not found. Install from: https://github.com/mvdan/sh"
+        return 2  # 自動修正不可
+    fi
 }
 
 # フォーマット修正を試行（汎用版）
@@ -249,96 +404,19 @@ try_fix_format() {
         
         case "$project_type" in
             rust)
-                if ! command -v cargo &> /dev/null; then
-                    log_error "cargo not found. Cannot auto-fix format issues."
-                    return 1
-                fi
-                if cargo fmt --all 2>&1; then
-                    log_info "Format fix applied successfully"
-                    return 0
-                else
-                    log_error "Format fix failed"
-                    return 1
-                fi
+                _fix_format_rust
                 ;;
             node)
-                # npm scriptsにformatがあればそれを使用、なければprettierを試行
-                if grep -q '"format"' package.json 2>/dev/null; then
-                    log_info "Running npm run format..."
-                    if npm run format 2>&1; then
-                        log_info "Format fix applied successfully"
-                        return 0
-                    else
-                        log_warn "npm run format failed"
-                        return 1
-                    fi
-                elif command -v npx &> /dev/null; then
-                    log_info "Trying npx prettier --write..."
-                    if npx prettier --write . 2>&1; then
-                        log_info "Prettier fix applied successfully"
-                        return 0
-                    else
-                        log_warn "Prettier fix failed or not configured"
-                        return 2  # 自動修正不可
-                    fi
-                else
-                    log_warn "No formatter found for Node project"
-                    return 2  # 自動修正不可
-                fi
+                _fix_format_node
                 ;;
             python)
-                # blackを優先、なければautopep8
-                if command -v black &> /dev/null; then
-                    log_info "Running black..."
-                    if black . 2>&1; then
-                        log_info "black fix applied successfully"
-                        return 0
-                    else
-                        log_error "black fix failed"
-                        return 1
-                    fi
-                elif command -v autopep8 &> /dev/null; then
-                    log_info "Running autopep8..."
-                    if autopep8 --in-place --recursive . 2>&1; then
-                        log_info "autopep8 fix applied successfully"
-                        return 0
-                    else
-                        log_error "autopep8 fix failed"
-                        return 1
-                    fi
-                else
-                    log_warn "No formatter found for Python project (black or autopep8)"
-                    return 2  # 自動修正不可
-                fi
+                _fix_format_python
                 ;;
             go)
-                if ! command -v gofmt &> /dev/null; then
-                    log_error "gofmt not found. Cannot auto-fix format issues."
-                    return 1
-                fi
-                if gofmt -w . 2>&1; then
-                    log_info "gofmt fix applied successfully"
-                    return 0
-                else
-                    log_error "gofmt fix failed"
-                    return 1
-                fi
+                _fix_format_go
                 ;;
             bash)
-                # shfmtがあれば使用
-                if command -v shfmt &> /dev/null; then
-                    log_info "Running shfmt..."
-                    if shfmt -w -i 4 . 2>&1; then
-                        log_info "shfmt fix applied successfully"
-                        return 0
-                    else
-                        log_error "shfmt fix failed"
-                        return 1
-                    fi
-                else
-                    log_warn "shfmt not found. Install from: https://github.com/mvdan/sh"
-                    return 2  # 自動修正不可
-                fi
+                _fix_format_bash
                 ;;
             *)
                 log_warn "Unknown project type. Cannot auto-fix format."
@@ -346,6 +424,134 @@ try_fix_format() {
                 ;;
         esac
     )
+}
+
+# ===================
+# ローカル検証 - プロジェクトタイプ別ヘルパー
+# ===================
+
+# Rustプロジェクトの検証
+# Usage: _validate_rust
+# Returns: 0=検証成功, 1=検証失敗
+_validate_rust() {
+    if ! command -v cargo &> /dev/null; then
+        log_warn "cargo not found. Skipping validation."
+        return 0
+    fi
+    log_info "Running cargo clippy..."
+    if ! cargo clippy --all-targets --all-features -- -D warnings 2>&1; then
+        log_error "Clippy check failed"
+        return 1
+    fi
+    log_info "Running cargo test..."
+    if ! cargo test --lib 2>&1; then
+        log_error "Test failed"
+        return 1
+    fi
+    return 0
+}
+
+# Nodeプロジェクトの検証
+# Usage: _validate_node
+# Returns: 0=検証成功, 1=検証失敗
+_validate_node() {
+    # Check if lint script exists in package.json scripts section
+    if command -v jq &>/dev/null; then
+        if jq -e '.scripts.lint' package.json >/dev/null 2>&1; then
+            log_info "Running npm run lint..."
+            if ! npm run lint 2>&1; then
+                log_error "Lint check failed"
+                return 1
+            fi
+        fi
+        if jq -e '.scripts.test' package.json >/dev/null 2>&1; then
+            log_info "Running npm test..."
+            if ! npm test 2>&1; then
+                log_error "Test failed"
+                return 1
+            fi
+        fi
+    else
+        # Fallback: check if scripts section contains lint/test
+        if grep -E '"scripts"[[:space:]]*:[[:space:]]*\{[^}]*"lint"' package.json >/dev/null 2>&1; then
+            log_info "Running npm run lint..."
+            if ! npm run lint 2>&1; then
+                log_error "Lint check failed"
+                return 1
+            fi
+        fi
+        if grep -E '"scripts"[[:space:]]*:[[:space:]]*\{[^}]*"test"' package.json >/dev/null 2>&1; then
+            log_info "Running npm test..."
+            if ! npm test 2>&1; then
+                log_error "Test failed"
+                return 1
+            fi
+        fi
+    fi
+    return 0
+}
+
+# Pythonプロジェクトの検証
+# Usage: _validate_python
+# Returns: 0=検証成功, 1=検証失敗
+_validate_python() {
+    if command -v flake8 &>/dev/null; then
+        log_info "Running flake8..."
+        if ! flake8 . 2>&1; then
+            log_error "Flake8 check failed"
+            return 1
+        fi
+    fi
+    if command -v pytest &>/dev/null; then
+        log_info "Running pytest..."
+        if ! pytest --tb=short 2>&1; then
+            log_error "Test failed"
+            return 1
+        fi
+    fi
+    return 0
+}
+
+# Goプロジェクトの検証
+# Usage: _validate_go
+# Returns: 0=検証成功, 1=検証失敗
+_validate_go() {
+    if ! command -v go &> /dev/null; then
+        log_warn "go not found. Skipping validation."
+        return 0
+    fi
+    log_info "Running go vet..."
+    if ! go vet ./... 2>&1; then
+        log_error "Go vet failed"
+        return 1
+    fi
+    log_info "Running go test..."
+    if ! go test ./... 2>&1; then
+        log_error "Test failed"
+        return 1
+    fi
+    return 0
+}
+
+# Bashプロジェクトの検証
+# Usage: _validate_bash
+# Returns: 0=検証成功, 1=検証失敗
+_validate_bash() {
+    if command -v shellcheck &>/dev/null; then
+        log_info "Running shellcheck..."
+        if ! shellcheck -x scripts/*.sh lib/*.sh 2>&1; then
+            log_error "ShellCheck failed"
+            return 1
+        fi
+    fi
+    if command -v bats &>/dev/null; then
+        log_info "Running bats..."
+        if ! bats test/ 2>&1; then
+            log_error "Bats test failed"
+            return 1
+        fi
+    fi
+    return 0
 }
 
 # ローカル検証を実行
@@ -362,103 +568,19 @@ run_local_validation() {
         cd "$worktree_path" || return 1
         case "$project_type" in
             rust)
-                if ! command -v cargo &> /dev/null; then
-                    log_warn "cargo not found. Skipping validation."
-                    return 0
-                fi
-                log_info "Running cargo clippy..."
-                if ! cargo clippy --all-targets --all-features -- -D warnings 2>&1; then
-                    log_error "Clippy check failed"
-                    return 1
-                fi
-                log_info "Running cargo test..."
-                if ! cargo test --lib 2>&1; then
-                    log_error "Test failed"
-                    return 1
-                fi
+                _validate_rust
                 ;;
             node)
-                # Check if lint script exists in package.json scripts section
-                if command -v jq &>/dev/null; then
-                    if jq -e '.scripts.lint' package.json >/dev/null 2>&1; then
-                        log_info "Running npm run lint..."
-                        if ! npm run lint 2>&1; then
-                            log_error "Lint check failed"
-                            return 1
-                        fi
-                    fi
-                    if jq -e '.scripts.test' package.json >/dev/null 2>&1; then
-                        log_info "Running npm test..."
-                        if ! npm test 2>&1; then
-                            log_error "Test failed"
-                            return 1
-                        fi
-                    fi
-                else
-                    # Fallback: check if scripts section contains lint/test
-                    if grep -E '"scripts"[[:space:]]*:[[:space:]]*\{[^}]*"lint"' package.json >/dev/null 2>&1; then
-                        log_info "Running npm run lint..."
-                        if ! npm run lint 2>&1; then
-                            log_error "Lint check failed"
-                            return 1
-                        fi
-                    fi
-                    if grep -E '"scripts"[[:space:]]*:[[:space:]]*\{[^}]*"test"' package.json >/dev/null 2>&1; then
-                        log_info "Running npm test..."
-                        if ! npm test 2>&1; then
-                            log_error "Test failed"
-                            return 1
-                        fi
-                    fi
-                fi
+                _validate_node
                 ;;
             python)
-                if command -v flake8 &>/dev/null; then
-                    log_info "Running flake8..."
-                    if ! flake8 . 2>&1; then
-                        log_error "Flake8 check failed"
-                        return 1
-                    fi
-                fi
-                if command -v pytest &>/dev/null; then
-                    log_info "Running pytest..."
-                    if ! pytest --tb=short 2>&1; then
-                        log_error "Test failed"
-                        return 1
-                    fi
-                fi
+                _validate_python
                 ;;
             go)
-                if ! command -v go &> /dev/null; then
-                    log_warn "go not found. Skipping validation."
-                    return 0
-                fi
-                log_info "Running go vet..."
-                if ! go vet ./... 2>&1; then
-                    log_error "Go vet failed"
-                    return 1
-                fi
-                log_info "Running go test..."
-                if ! go test ./... 2>&1; then
-                    log_error "Test failed"
-                    return 1
-                fi
+                _validate_go
                 ;;
             bash)
-                if command -v shellcheck &>/dev/null; then
-                    log_info "Running shellcheck..."
-                    if ! shellcheck -x scripts/*.sh lib/*.sh 2>&1; then
-                        log_error "ShellCheck failed"
-                        return 1
-                    fi
-                fi
-                if command -v bats &>/dev/null; then
-                    log_info "Running bats..."
-                    if ! bats test/ 2>&1; then
-                        log_error "Bats test failed"
-                        return 1
-                    fi
-                fi
+                _validate_bash
                 ;;
             *)
                 log_warn "Unknown project type: $project_type. Skipping validation."
