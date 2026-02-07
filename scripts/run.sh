@@ -12,6 +12,7 @@
 #   issue-number    GitHub Issue number to process
 #
 # Options:
+#   -i, --issue NUMBER  Issue number (alternative to positional argument)
 #   -b, --branch NAME   Custom branch name (default: issue-<num>-<title>)
 #   --base BRANCH       Base branch (default: HEAD)
 #   -w, --workflow NAME Workflow name (default: default)
@@ -51,6 +52,7 @@ Arguments:
     issue-number    GitHub Issue番号
 
 Options:
+    -i, --issue NUMBER  Issue番号（位置引数の代替）
     -b, --branch NAME   カスタムブランチ名（デフォルト: issue-<num>-<title>）
     --base BRANCH       ベースブランチ（デフォルト: HEAD）
     -w, --workflow NAME ワークフロー名（デフォルト: default）
@@ -70,6 +72,7 @@ Options:
 
 Examples:
     $(basename "$0") 42
+    $(basename "$0") --issue 42
     $(basename "$0") 42 -w simple
     $(basename "$0") 42 --no-attach
     $(basename "$0") 42 --no-cleanup
