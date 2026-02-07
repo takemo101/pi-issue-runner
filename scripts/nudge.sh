@@ -32,6 +32,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/tmux.sh"
+source "$SCRIPT_DIR/../lib/session-resolver.sh"
 
 # デフォルトメッセージ
 DEFAULT_MESSAGE="続けてください"
@@ -141,14 +142,9 @@ main() {
             exit 1
         fi
         
-        # Issue番号かセッション名か判定
-        if [[ "$target" =~ ^[0-9]+$ ]]; then
-            # Issue番号からセッション名を生成
-            load_config
-            session_name="$(generate_session_name "$target")"
-        else
-            session_name="$target"
-        fi
+        # Issue番号またはセッション名から両方を解決
+        load_config
+        IFS=$'\t' read -r _ session_name < <(resolve_session_target "$target")
     fi
 
     send_nudge "$session_name" "$message"

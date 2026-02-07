@@ -29,6 +29,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/tmux.sh"
+source "$SCRIPT_DIR/../lib/session-resolver.sh"
 
 usage() {
     cat << EOF
@@ -76,15 +77,9 @@ main() {
 
     load_config
 
-    # Issue番号かセッション名か判定
+    # Issue番号またはセッション名から両方を解決
     local session_name
-
-    if [[ "$target" =~ ^[0-9]+$ ]]; then
-        # Issue番号からセッション名を生成
-        session_name="$(generate_session_name "$target")"
-    else
-        session_name="$target"
-    fi
+    IFS=$'\t' read -r _ session_name < <(resolve_session_target "$target")
 
     log_info "Attaching to session: $session_name"
     attach_session "$session_name"

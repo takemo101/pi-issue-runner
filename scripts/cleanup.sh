@@ -51,6 +51,7 @@ source "$SCRIPT_DIR/../lib/hooks.sh"
 source "$SCRIPT_DIR/../lib/cleanup-plans.sh"
 source "$SCRIPT_DIR/../lib/cleanup-orphans.sh"
 source "$SCRIPT_DIR/../lib/cleanup-improve-logs.sh"
+source "$SCRIPT_DIR/../lib/session-resolver.sh"
 
 usage() {
     cat << EOF
@@ -217,17 +218,9 @@ execute_single_cleanup() {
     local keep_session="$4"
     local keep_worktree="$5"
     
-    # Issue番号かセッション名か判定
-    local session_name
-    local issue_number
-
-    if [[ "$target" =~ ^[0-9]+$ ]]; then
-        issue_number="$target"
-        session_name="$(generate_session_name "$issue_number")"
-    else
-        session_name="$target"
-        issue_number="$(extract_issue_number "$session_name")"
-    fi
+    # Issue番号またはセッション名から両方を解決
+    local issue_number session_name
+    IFS=$'\t' read -r issue_number session_name < <(resolve_session_target "$target")
 
     log_info "=== Cleanup ==="
     log_info "Target: $session_name (Issue #$issue_number)"
