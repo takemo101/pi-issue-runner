@@ -28,7 +28,7 @@ daemonize() {
     # Linuxでsetsidが利用可能な場合はそれを使用（最も確実な方法）
     if command -v setsid &> /dev/null; then
         setsid "$@" >> "$log_file" 2>&1 &
-        echo $!
+        echo "$!"
         return 0
     fi
     
