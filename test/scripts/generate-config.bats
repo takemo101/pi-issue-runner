@@ -218,16 +218,23 @@ teardown() {
 # ====================
 
 @test "generate-config.sh --validate checks existing config" {
-    # 有効な設定ファイルを作成
+    # 有効な設定ファイルを作成（スキーマに準拠）
     cat > ".pi-runner.yaml" << 'EOF'
 worktree:
   base_dir: ".worktrees"
+  copy_files: []
 multiplexer:
   type: tmux
+  session_prefix: "pi"
 workflow:
   steps:
     - implement
     - merge
+workflows:
+  quick:
+    steps:
+      - implement
+      - merge
 EOF
 
     # バリデーションツールがない環境ではスキップ
@@ -242,7 +249,7 @@ EOF
     fi
 
     run "$PROJECT_ROOT/scripts/generate-config.sh" --validate
-    # バリデーションツールがない場合はexit code 2を返す
+    # バリデーションツールがない場合はexit code 2を返す、それ以外は成功を期待
     [ "$status" -eq 0 ] || [ "$status" -eq 2 ]
 }
 
