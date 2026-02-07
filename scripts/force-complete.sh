@@ -34,6 +34,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/tmux.sh"
+source "$SCRIPT_DIR/../lib/session-resolver.sh"
 
 usage() {
     cat << EOF
@@ -113,22 +114,13 @@ main() {
 
     load_config
 
-    # Issue番号かセッション名か判定
-    local session_name
-    local issue_number
-
-    if [[ "$target" =~ ^[0-9]+$ ]]; then
-        # Issue番号からセッション名を生成
-        issue_number="$target"
-        session_name="$(generate_session_name "$issue_number")"
-    else
-        session_name="$target"
-        # セッション名からIssue番号を抽出
-        issue_number="$(extract_issue_number "$session_name")"
-        if [[ -z "$issue_number" ]]; then
-            log_error "Could not extract issue number from session name: $session_name"
-            exit 1
-        fi
+    # Issue番号またはセッション名から両方を解決
+    local issue_number session_name
+    IFS=$'\t' read -r issue_number session_name < <(resolve_session_target "$target")
+    
+    if [[ -z "$issue_number" ]]; then
+        log_error "Could not extract issue number from session name: $session_name"
+        exit 1
     fi
 
     # セッション存在確認

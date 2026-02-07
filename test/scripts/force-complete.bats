@@ -127,20 +127,16 @@ teardown() {
     grep -q "usage()" "$PROJECT_ROOT/scripts/force-complete.sh"
 }
 
-@test "force-complete.sh calls generate_session_name" {
-    grep -q "generate_session_name" "$PROJECT_ROOT/scripts/force-complete.sh"
+@test "force-complete.sh sources session-resolver.sh" {
+    grep -q "session-resolver.sh" "$PROJECT_ROOT/scripts/force-complete.sh"
 }
 
-@test "force-complete.sh calls extract_issue_number" {
-    grep -q "extract_issue_number" "$PROJECT_ROOT/scripts/force-complete.sh"
+@test "force-complete.sh uses resolve_session_target" {
+    grep -q "resolve_session_target" "$PROJECT_ROOT/scripts/force-complete.sh"
 }
 
 @test "force-complete.sh calls session_exists" {
     grep -q "session_exists" "$PROJECT_ROOT/scripts/force-complete.sh"
-}
-
-@test "force-complete.sh handles numeric issue number" {
-    grep -q '\[0-9\]' "$PROJECT_ROOT/scripts/force-complete.sh"
 }
 
 @test "force-complete.sh sends completion marker" {

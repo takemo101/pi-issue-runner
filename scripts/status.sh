@@ -33,6 +33,7 @@ source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/github.sh"
 source "$SCRIPT_DIR/../lib/tmux.sh"
 source "$SCRIPT_DIR/../lib/worktree.sh"
+source "$SCRIPT_DIR/../lib/session-resolver.sh"
 
 usage() {
     cat << EOF
@@ -82,19 +83,9 @@ main() {
 
     load_config
 
-    # Issue番号かセッション名か判定
-    local session_name
-    local issue_number
-
-    if [[ "$target" =~ ^[0-9]+$ ]]; then
-        # Issue番号
-        issue_number="$target"
-        session_name="$(generate_session_name "$issue_number")"
-    else
-        # セッション名
-        session_name="$target"
-        issue_number="$(extract_issue_number "$session_name")"
-    fi
+    # Issue番号またはセッション名から両方を解決
+    local issue_number session_name
+    IFS=$'\t' read -r issue_number session_name < <(resolve_session_target "$target")
 
     echo "=== Task Status ==="
     echo ""
