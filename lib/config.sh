@@ -333,13 +333,15 @@ get_config() {
     local key="$1"
     local canonical_key="$key"
     
-    # Handle deprecated keys
+    # Handle deprecated keys (temporarily disable nounset for array subscript access)
+    set +u
     if [[ -n "${_CONFIG_DEPRECATED_KEYS[$key]:-}" ]]; then
         canonical_key="${_CONFIG_DEPRECATED_KEYS[$key]}"
     fi
     
     # Look up the variable name from the mapping table
     local var_name="${_CONFIG_KEY_MAP[$canonical_key]:-}"
+    set -u
     
     if [[ -n "$var_name" ]]; then
         # Use indirect expansion to get the variable value
@@ -361,10 +363,10 @@ reload_config() {
 show_config() {
     echo "=== Configuration ==="
     
-    # Iterate over all config keys in sorted order
+    # Iterate over all config keys in sorted order (quote array subscript)
     local key var_name
     for key in $(printf '%s\n' "${!_CONFIG_KEY_MAP[@]}" | sort); do
-        var_name="${_CONFIG_KEY_MAP[$key]}"
+        var_name="${_CONFIG_KEY_MAP["$key"]}"
         echo "$key: ${!var_name}"
     done
 }
