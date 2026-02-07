@@ -169,6 +169,7 @@ pi-issue-runner/
 │   │   ├── context.bats
 │   │   ├── dashboard.bats
 │   │   ├── force-complete.bats  # force-complete.sh のテスト
+│   │   ├── generate-config.bats  # generate-config.sh のテスト
 │   │   ├── improve.bats
 │   │   ├── init.bats
 │   │   ├── list.bats
