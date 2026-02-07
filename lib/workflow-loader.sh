@@ -130,7 +130,6 @@ get_workflow_steps() {
 # ワークフローのコンテキストを取得
 get_workflow_context() {
     local workflow_file="$1"
-    local workflow_name="${2:-}"
     
     # ビルトインの場合はコンテキストなし
     if [[ "$workflow_file" == builtin:* ]]; then

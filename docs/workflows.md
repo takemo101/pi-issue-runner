@@ -24,6 +24,12 @@ steps:
   - implement # コードの実装
   - review    # セルフレビュー
   - merge     # PRの作成とマージ
+context: |
+  ## ワークフローの方針
+  - 計画を立ててから実装を行う
+  - 実装後は必ずレビューを実施
+  - テストを追加・更新する
+  - コミットメッセージは明確に記述する
 ```
 
 ### simple - 簡易ワークフロー
@@ -42,6 +48,11 @@ description: 簡易ワークフロー（実装・マージのみ）
 steps:
   - implement # コードの実装
   - merge     # PRの作成とマージ
+context: |
+  ## ワークフローの方針
+  - 小規模な修正に最適（typo修正、設定変更、ドキュメント更新等）
+  - 迅速に実装してマージする
+  - 明らかな変更の場合は計画・レビューをスキップ可能
 ```
 
 ### thorough - 徹底ワークフロー
@@ -66,6 +77,13 @@ steps:
   - test
   - review
   - merge
+context: |
+  ## ワークフローの方針
+  - 重要な機能追加や変更に使用する
+  - 詳細な計画を立ててから実装する
+  - テストを必ず追加・実行する
+  - レビューで品質を確保する
+  - エラーハンドリングとエッジケースを考慮する
 ```
 
 ### ci-fix - CI修正ワークフロー
@@ -82,6 +100,12 @@ name: ci-fix
 description: CI失敗を検出し自動修正を試行
 steps:
   - ci-fix
+context: |
+  ## ワークフローの方針
+  - CI失敗ログを分析して原因を特定する
+  - 自動修正可能な場合は修正を適用する（フォーマット、lint等）
+  - テスト失敗やビルドエラーはAIによる修正が必要
+  - 最大リトライ回数に達した場合はエスカレーションする
 ```
 
 **使用例**:
@@ -111,7 +135,13 @@ steps:
 
 `context` フィールドに記述した内容は、ワークフローの全ステップのプロンプトに「Workflow Context」セクションとして注入されます。技術スタック、重視すべき点、注意事項などを記述することで、AI の実行品質を向上させます。
 
-### 基本的な使い方
+> **対応場所**: `context` フィールドは以下の両方でサポートされています：
+> - `.pi-runner.yaml` の `workflows.{NAME}.context`
+> - `workflows/{NAME}.yaml` の `context`
+> 
+> **優先順位**: `.pi-runner.yaml` の `workflows.{NAME}.context` > `workflows/{NAME}.yaml` の `context`
+
+### 基本的な使い方（`.pi-runner.yaml`）
 
 ```yaml
 # .pi-runner.yaml
@@ -133,6 +163,32 @@ workflows:
       - アクセシビリティ (WCAG 2.1 AA)
       - コンポーネントの再利用性
       - パフォーマンス（Core Web Vitals）
+```
+
+### ファイルベースの使い方（`workflows/*.yaml`）
+
+ファイルベースでワークフローを管理する場合も、同様に `context` フィールドを使用できます：
+
+```yaml
+# workflows/backend.yaml
+name: backend
+description: バックエンドAPI実装
+steps:
+  - plan
+  - implement
+  - test
+  - review
+  - merge
+context: |
+  ## 技術スタック
+  - Node.js / Express / TypeScript
+  - PostgreSQL / Prisma
+  
+  ## 重視すべき点
+  - RESTful API設計
+  - 入力バリデーション
+  - エラーハンドリングとログ
+  - ユニットテスト・統合テストの充実
 ```
 
 ### プロンプトへの注入イメージ
