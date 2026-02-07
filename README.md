@@ -69,6 +69,10 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | `pi-nudge` | セッションにメッセージ送信 |
 | `pi-init` | プロジェクト初期化 |
 | `pi-context` | コンテキスト管理 |
+| `pi-dashboard` | ダッシュボード表示 |
+| `pi-ci-fix` | CI修正ヘルパー |
+| `pi-next` | 次のタスク取得 |
+| `pi-restart-watcher` | Watcher再起動 |
 | `pi-mux-all` | 全セッション表示（タイル表示） |
 | `pi-generate-config` | プロジェクト解析・設定生成 |
 
