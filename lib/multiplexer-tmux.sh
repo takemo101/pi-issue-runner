@@ -134,7 +134,7 @@ mux_kill_session() {
     # 終了を待機
     local waited=0
     while mux_session_exists "$session_name" && [[ "$waited" -lt "$max_wait" ]]; do
-        sleep 0.5
+        sleep 1
         waited=$((waited + 1))
     done
     
@@ -155,7 +155,7 @@ mux_kill_session() {
             done <<< "$pane_pids"
             
             if [[ "$any_running" == "true" ]]; then
-                sleep 0.5
+                sleep 1
                 pid_waited=$((pid_waited + 1))
             fi
         done
