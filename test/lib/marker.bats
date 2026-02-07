@@ -101,3 +101,64 @@ More text
     result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
     [ "$result" -eq 0 ]
 }
+
+@test "count_markers_outside_codeblock ignores marker in multi-line code block" {
+    local output='```bash
+echo "start"
+###TASK_COMPLETE_42###
+echo "end"
+```'
+    local result
+    result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 0 ]
+}
+
+@test "count_markers_outside_codeblock counts marker between code blocks" {
+    local output='```
+code block 1
+```
+###TASK_COMPLETE_42###
+```
+code block 2
+```'
+    local result
+    result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 1 ]
+}
+
+@test "count_markers_outside_codeblock handles multiple code blocks correctly" {
+    local output='###TASK_COMPLETE_42###
+```
+code block 1
+###TASK_COMPLETE_42###
+```
+###TASK_COMPLETE_42###
+```
+code block 2
+###TASK_COMPLETE_42###
+```
+###TASK_COMPLETE_42###'
+    local result
+    result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 3 ]
+}
+
+@test "count_markers_outside_codeblock handles indented code blocks" {
+    local output='  ```
+  ###TASK_COMPLETE_42###
+  ```'
+    local result
+    result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 0 ]
+}
+
+@test "count_markers_outside_codeblock handles code block with language specifier" {
+    local output='```javascript
+const x = 1;
+###TASK_COMPLETE_42###
+console.log(x);
+```'
+    local result
+    result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 0 ]
+}
