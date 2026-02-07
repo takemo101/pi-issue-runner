@@ -45,6 +45,10 @@ get_workflow_steps() {
     # config-workflow:NAME 形式の処理（.pi-runner.yaml の workflows.{NAME}.steps）
     if [[ "$workflow_file" == config-workflow:* ]]; then
         local workflow_name="${workflow_file#config-workflow:}"
+        # 設定ファイルのパスを決定
+        # - CONFIG_FILE 環境変数が設定されている場合はそれを使用（テスト用）
+        # - 未設定の場合は config_file_found() で自動検索
+        # NOTE: このパターンは #954 で追加され、#942 の重複issue でも同様の問題が報告された
         local config_file
         if [[ -n "${CONFIG_FILE:-}" ]]; then
             # CONFIG_FILE 環境変数が設定されている場合（テスト用）
@@ -137,6 +141,7 @@ get_workflow_context() {
     # config-workflow:NAME 形式の処理（.pi-runner.yaml の workflows.{NAME}.context）
     if [[ "$workflow_file" == config-workflow:* ]]; then
         local workflow_name="${workflow_file#config-workflow:}"
+        # 設定ファイルのパスを決定（同上）
         local config_file
         if [[ -n "${CONFIG_FILE:-}" ]]; then
             # CONFIG_FILE 環境変数が設定されている場合（テスト用）
@@ -189,7 +194,7 @@ get_all_workflows_info() {
     # shellcheck disable=SC2034  # project_root reserved for future use
     local project_root="${1:-.}"
     
-    # 設定ファイルのパスを決定
+    # 設定ファイルのパスを決定（同上）
     local config_file
     if [[ -n "${CONFIG_FILE:-}" ]]; then
         # CONFIG_FILE 環境変数が設定されている場合（テスト用）
