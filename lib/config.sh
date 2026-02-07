@@ -49,6 +49,10 @@ CONFIG_AGENTS_MERGE="${CONFIG_AGENTS_MERGE:-}"       # mergeステップのエ�
 CONFIG_AGENTS_TEST="${CONFIG_AGENTS_TEST:-}"         # testステップのエージェントファイルパス
 CONFIG_AGENTS_CI_FIX="${CONFIG_AGENTS_CI_FIX:-}"     # ci-fixステップのエージェントファイルパス
 
+# auto ワークフロー選択設定
+CONFIG_AUTO_PROVIDER="${CONFIG_AUTO_PROVIDER:-}"    # auto選択用のAIプロバイダー（空 = agent設定から推定 or anthropic）
+CONFIG_AUTO_MODEL="${CONFIG_AUTO_MODEL:-}"          # auto選択用のモデル（空 = claude-3-5-haiku-20241022）
+
 # Hooks設定
 CONFIG_HOOKS_ON_START="${CONFIG_HOOKS_ON_START:-}"       # セッション開始時のhook
 CONFIG_HOOKS_ON_SUCCESS="${CONFIG_HOOKS_ON_SUCCESS:-}"   # セッション成功時のhook
@@ -161,6 +165,8 @@ _CONFIG_SIMPLE_MAPPINGS=(
     ".agents.merge:CONFIG_AGENTS_MERGE"
     ".agents.test:CONFIG_AGENTS_TEST"
     ".agents.ci-fix:CONFIG_AGENTS_CI_FIX"
+    ".auto.provider:CONFIG_AUTO_PROVIDER"
+    ".auto.model:CONFIG_AUTO_MODEL"
     ".improve_logs.keep_recent:CONFIG_IMPROVE_LOGS_KEEP_RECENT"
     ".improve_logs.keep_days:CONFIG_IMPROVE_LOGS_KEEP_DAYS"
     ".improve_logs.dir:CONFIG_IMPROVE_LOGS_DIR"
@@ -371,6 +377,12 @@ get_config() {
             ;;
         agents_ci_fix)
             echo "$CONFIG_AGENTS_CI_FIX"
+            ;;
+        auto_provider)
+            echo "$CONFIG_AUTO_PROVIDER"
+            ;;
+        auto_model)
+            echo "$CONFIG_AUTO_MODEL"
             ;;
         improve_logs_keep_recent)
             echo "$CONFIG_IMPROVE_LOGS_KEEP_RECENT"

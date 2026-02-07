@@ -485,12 +485,24 @@ GitHub Issue #{{issue_number}} の変更をステージング環境にデプロ�
 3. 選択されたワークフロー名で通常の `generate_workflow_prompt()` を実行
 4. `agents/*.md` のステップ別テンプレートが展開された具体的なプロンプトが生成される
 
-### 環境変数
+### 設定
+
+`.pi-runner.yaml` で auto 選択用のプロバイダーとモデルを指定できます：
+
+```yaml
+auto:
+  provider: anthropic                # AIプロバイダー（省略時: agent設定から推定 or anthropic）
+  model: claude-3-5-haiku-20241022   # 軽量モデル推奨
+```
+
+環境変数でも上書き可能（環境変数が優先）：
 
 | 変数 | 説明 | デフォルト |
 |------|------|-----------|
 | `PI_RUNNER_AI_PROVIDER` | auto選択用のAIプロバイダー | `anthropic` |
 | `PI_RUNNER_AUTO_MODEL` | auto選択用のモデル | `claude-3-5-haiku-20241022` |
+
+**優先順位**: 環境変数 > `.pi-runner.yaml` の `auto` セクション > `agent.args` の `--provider` > デフォルト値
 
 ### プロンプトの生成結果
 

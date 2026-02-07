@@ -713,12 +713,15 @@ GitHub Issue #{{issue_number}} に関する技術調査を行います。
 
 AI呼び出しが失敗した場合は、Issue タイトルのプレフィックス（`feat:` → feature, `fix:` → fix, `docs:` → docs 等）によるルールベース判定、さらに失敗した場合は `default` にフォールバックします。
 
-**環境変数:**
+**設定（`.pi-runner.yaml`）:**
 
-| 変数 | 説明 | デフォルト |
-|------|------|-----------|
-| `PI_RUNNER_AI_PROVIDER` | auto選択用のAIプロバイダー | `anthropic` |
-| `PI_RUNNER_AUTO_MODEL` | auto選択用のモデル | `claude-3-5-haiku-20241022` |
+```yaml
+auto:
+  provider: anthropic                # AIプロバイダー（省略時: agent設定から推定 or anthropic）
+  model: claude-3-5-haiku-20241022   # 軽量モデル推奨（省略時: claude-3-5-haiku-20241022）
+```
+
+環境変数 `PI_RUNNER_AI_PROVIDER` / `PI_RUNNER_AUTO_MODEL` でも上書き可能（環境変数が優先）。
 
 > **ベストプラクティス**: AI が正確に選択できるよう、`description` には対象となるタスクの特徴（規模、領域、技術スタックなど）を具体的に記述してください。
 

@@ -226,8 +226,25 @@ EOF
     [ "$output" = "openai" ]
 }
 
+@test "_get_ai_provider returns config value from .pi-runner.yaml" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+auto:
+  provider: google
+EOF
+    
+    unset PI_RUNNER_AI_PROVIDER 2>/dev/null || true
+    _CONFIG_LOADED=""
+    CONFIG_AUTO_PROVIDER=""
+    load_config "$TEST_DIR/.pi-runner.yaml"
+    
+    result=$(_get_ai_provider)
+    [ "$result" = "google" ]
+}
+
 @test "_get_ai_provider returns anthropic as default" {
     unset PI_RUNNER_AI_PROVIDER 2>/dev/null || true
+    _CONFIG_LOADED=""
+    CONFIG_AUTO_PROVIDER=""
     result=$(_get_ai_provider)
     [ "$result" = "anthropic" ]
 }
@@ -237,8 +254,39 @@ EOF
     [ "$output" = "gpt-4" ]
 }
 
+@test "_get_ai_model returns config value from .pi-runner.yaml" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+auto:
+  model: claude-3-haiku-20240307
+EOF
+    
+    unset PI_RUNNER_AUTO_MODEL 2>/dev/null || true
+    _CONFIG_LOADED=""
+    CONFIG_AUTO_MODEL=""
+    load_config "$TEST_DIR/.pi-runner.yaml"
+    
+    result=$(_get_ai_model)
+    [ "$result" = "claude-3-haiku-20240307" ]
+}
+
 @test "_get_ai_model returns haiku as default" {
     unset PI_RUNNER_AUTO_MODEL 2>/dev/null || true
+    _CONFIG_LOADED=""
+    CONFIG_AUTO_MODEL=""
     result=$(_get_ai_model)
     [ "$result" = "claude-3-5-haiku-20241022" ]
+}
+
+@test "_get_ai_provider env var takes precedence over config" {
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+auto:
+  provider: google
+EOF
+    
+    _CONFIG_LOADED=""
+    CONFIG_AUTO_PROVIDER=""
+    load_config "$TEST_DIR/.pi-runner.yaml"
+    
+    PI_RUNNER_AI_PROVIDER="openai" run _get_ai_provider
+    [ "$output" = "openai" ]
 }

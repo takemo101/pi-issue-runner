@@ -139,10 +139,17 @@ _get_ai_provider() {
         return 0
     fi
 
-    # 2. .pi-runner.yaml の agent 設定から推定
-    # agent.args に --provider が含まれていれば取得
+    # 2. .pi-runner.yaml の auto.provider
     if declare -f get_config &> /dev/null; then
         load_config 2>/dev/null || true
+        local config_provider
+        config_provider=$(get_config auto_provider 2>/dev/null || true)
+        if [[ -n "$config_provider" ]]; then
+            echo "$config_provider"
+            return 0
+        fi
+
+        # 3. agent.args の --provider から推定
         local args
         args=$(get_config agent_args 2>/dev/null || true)
         if [[ "$args" =~ --provider[[:space:]]+([a-zA-Z0-9_-]+) ]]; then
@@ -151,19 +158,30 @@ _get_ai_provider() {
         fi
     fi
 
-    # 3. デフォルト
+    # 4. デフォルト
     echo "anthropic"
 }
 
 # auto 選択用のモデルを取得（軽量モデル推奨）
 _get_ai_model() {
-    # 1. 環境変数（auto選択専用）
+    # 1. 環境変数
     if [[ -n "${PI_RUNNER_AUTO_MODEL:-}" ]]; then
         echo "$PI_RUNNER_AUTO_MODEL"
         return 0
     fi
 
-    # 2. デフォルト（高速・安価なモデル）
+    # 2. .pi-runner.yaml の auto.model
+    if declare -f get_config &> /dev/null; then
+        load_config 2>/dev/null || true
+        local config_model
+        config_model=$(get_config auto_model 2>/dev/null || true)
+        if [[ -n "$config_model" ]]; then
+            echo "$config_model"
+            return 0
+        fi
+    fi
+
+    # 3. デフォルト（高速・安価なモデル）
     echo "claude-3-5-haiku-20241022"
 }
 

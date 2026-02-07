@@ -571,12 +571,15 @@ scripts/run.sh 42
 2. **ルールベース** — Issueタイトルのプレフィックス（`feat:` / `fix:` / `docs:` / `test:` 等）で判定
 3. **フォールバック** — 上記いずれも失敗した場合は `default`
 
-**環境変数でカスタマイズ:**
+**設定（`.pi-runner.yaml`）:**
 
-| 変数 | 説明 | デフォルト |
-|------|------|-----------|
-| `PI_RUNNER_AI_PROVIDER` | auto選択用のAIプロバイダー | `anthropic` |
-| `PI_RUNNER_AUTO_MODEL` | auto選択用のモデル | `claude-3-5-haiku-20241022` |
+```yaml
+auto:
+  provider: anthropic                # AIプロバイダー
+  model: claude-3-5-haiku-20241022   # 軽量モデル推奨
+```
+
+環境変数 `PI_RUNNER_AI_PROVIDER` / `PI_RUNNER_AUTO_MODEL` でも上書き可能です。
 
 ### カスタムワークフロー（ファイルベース）
 
