@@ -37,7 +37,6 @@ pi-issue-runner/
 │   ├── ci-fix-helper.sh  # CI修正ヘルパー（lib/ci-fix.shのラッパー）
 │   ├── context.sh     # コンテキスト管理
 │   ├── dashboard.sh   # ダッシュボード表示
-│   ├── generate-config.sh  # プロジェクト解析・設定生成
 │   ├── force-complete.sh  # セッション強制完了
 │   ├── improve.sh     # 継続的改善スクリプト
 │   ├── next.sh        # 次のタスク取得
