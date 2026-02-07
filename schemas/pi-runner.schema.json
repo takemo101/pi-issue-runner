@@ -16,6 +16,11 @@
           "default": ".worktrees",
           "description": "Directory where worktrees are created"
         },
+        "base_branch": {
+          "type": "string",
+          "default": "HEAD",
+          "description": "Default base branch for worktree creation"
+        },
         "copy_files": {
           "type": "array",
           "items": { "type": "string" },
