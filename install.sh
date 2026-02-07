@@ -148,6 +148,7 @@ pi-ci-fix:scripts/ci-fix-helper.sh
 pi-next:scripts/next.sh
 pi-restart-watcher:scripts/restart-watcher.sh
 pi-mux-all:scripts/mux-all.sh
+pi-generate-config:scripts/generate-config.sh
 "
 
 echo "Installing pi-issue-runner to $INSTALL_DIR..."
