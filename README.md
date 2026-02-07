@@ -11,6 +11,11 @@ GitHub Issueを入力として、Git worktreeを作成し、ターミナルマ�
 - **簡単なクリーンアップ**: セッションとworktreeを一括削除
 - **自動クリーンアップ**: タスク完了時に `###TASK_COMPLETE_<issue_number>###` マーカーを出力すると、外部プロセスが自動的にworktreeとセッションをクリーンアップします
 
+## 動作環境
+
+- **macOS** (Homebrew)
+- **Linux** (依存パッケージは手動インストールが必要)
+
 ## 前提条件
 
 - **Bash 4.0以上** (macOSの場合: `brew install bash`)
@@ -19,6 +24,9 @@ GitHub Issueを入力として、Git worktreeを作成し、ターミナルマ�
 - `pi`
 - `jq` (JSON処理)
 - `yq` (オプション - YAML解析の精度向上。なくても動作します)
+
+> **Note**: `install.sh --with-deps` は macOS (Homebrew) のみ対応しています。  
+> Linux では依存パッケージ（`gh`, `tmux`, `jq`, `yq`）を手動でインストールしてください。
 
 ## インストール
 
