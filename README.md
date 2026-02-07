@@ -687,6 +687,7 @@ pi-issue-runner/
 │   ├── ci-fix-helper.sh    # CI修正ヘルパー（lib/ci-fix.shのラッパー）
 │   ├── context.sh          # コンテキスト管理
 │   ├── dashboard.sh        # ダッシュボード表示
+│   ├── generate-config.sh  # プロジェクト解析・設定生成
 │   ├── force-complete.sh   # セッション強制完了
 │   ├── next.sh             # 次のタスク取得
 │   ├── nudge.sh            # セッションへメッセージ送信
@@ -713,9 +714,17 @@ pi-issue-runner/
 │   ├── dependency.sh       # 依存関係解析・レイヤー計算
 │   ├── github.sh           # GitHub CLI操作
 │   ├── hooks.sh            # イベントhook機能
+│   ├── improve.sh          # 継続的改善ライブラリ（オーケストレーター）
+│   ├── improve/            # 継続的改善モジュール群
+│   │   ├── args.sh         # 引数解析
+│   │   ├── deps.sh         # 依存関係チェック
+│   │   ├── env.sh          # 環境セットアップ
+│   │   ├── execution.sh    # 実行・監視フェーズ
+│   │   └── review.sh       # レビューフェーズ
 │   ├── log.sh              # ログ出力
 │   ├── notify.sh           # 通知機能
 │   ├── priority.sh         # 優先度計算
+│   ├── session-resolver.sh # セッション名解決ユーティリティ
 │   ├── status.sh           # ステータスファイル管理
 │   ├── template.sh         # テンプレート処理
 │   ├── tmux.sh             # マルチプレクサ操作（後方互換ラッパー）
@@ -725,6 +734,7 @@ pi-issue-runner/
 │   ├── workflow-finder.sh  # ワークフロー検索
 │   ├── workflow-loader.sh  # ワークフロー読み込み
 │   ├── workflow-prompt.sh  # プロンプト処理
+│   ├── workflow-selector.sh # ワークフロー自動選択（auto モード）
 │   ├── workflow.sh         # ワークフローエンジン
 │   ├── worktree.sh         # Git worktree操作
 │   └── yaml.sh             # YAMLパーサー
