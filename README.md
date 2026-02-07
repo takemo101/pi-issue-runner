@@ -62,6 +62,7 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | `pi-init` | プロジェクト初期化 |
 | `pi-context` | コンテキスト管理 |
 | `pi-mux-all` | 全セッション表示（タイル表示） |
+| `pi-generate-config` | プロジェクト解析・設定生成 |
 
 | オプション | 説明 |
 |-----------|------|
