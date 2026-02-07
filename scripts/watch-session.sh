@@ -260,24 +260,29 @@ handle_error() {
     fi
 }
 
-# 完了ハンドリング関数
-# Usage: handle_complete <session_name> <issue_number> <auto_attach> <cleanup_args>
-# Returns: 0 on success, 1 on cleanup failure
-handle_complete() {
-    local session_name="$1"
-    local issue_number="$2"
-    local auto_attach="$3"
-    local cleanup_args="${4:-}"
+# Resolve worktree information for an issue
+# Usage: _resolve_worktree_info <issue_number> <worktree_path_var> <branch_name_var>
+# Sets: worktree_path_var and branch_name_var via nameref
+_resolve_worktree_info() {
+    local issue_number="$1"
+    local -n worktree_path_ref="$2"
+    local -n branch_name_ref="$3"
     
-    log_info "Session completed: $session_name (Issue #$issue_number)"
+    worktree_path_ref=""
+    branch_name_ref=""
     
-    # worktreeパスとブランチ名を取得
-    local worktree_path=""
-    local branch_name=""
-    worktree_path="$(find_worktree_by_issue "$issue_number" 2>/dev/null)" || worktree_path=""
-    if [[ -n "$worktree_path" ]]; then
-        branch_name="$(get_worktree_branch "$worktree_path" 2>/dev/null)" || branch_name=""
+    worktree_path_ref="$(find_worktree_by_issue "$issue_number" 2>/dev/null)" || worktree_path_ref=""
+    if [[ -n "$worktree_path_ref" ]]; then
+        # shellcheck disable=SC2034  # Used via nameref
+        branch_name_ref="$(get_worktree_branch "$worktree_path_ref" 2>/dev/null)" || branch_name_ref=""
     fi
+}
+
+# Save completion status and handle plan file deletion
+# Usage: _complete_status_and_plans <issue_number> <session_name>
+_complete_status_and_plans() {
+    local issue_number="$1"
+    local session_name="$2"
     
     # ステータスを保存
     save_status "$issue_number" "complete" "$session_name" "" 2>/dev/null || true
@@ -299,14 +304,26 @@ handle_complete() {
     else
         log_debug "No plan file found at: $plan_file"
     fi
+}
+
+# Run completion hooks
+# Usage: _run_completion_hooks <issue_number> <session_name> <branch_name> <worktree_path>
+_run_completion_hooks() {
+    local issue_number="$1"
+    local session_name="$2"
+    local branch_name="$3"
+    local worktree_path="$4"
     
     # on_success hookを実行（hook未設定時はデフォルト動作）
     run_hook "on_success" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "" "0" "" 2>/dev/null || true
-    
-    # PRがマージされているか確認
-    if ! check_pr_merge_status "$session_name" "$branch_name" "$issue_number"; then
-        return 1
-    fi
+}
+
+# Run cleanup with retry logic
+# Usage: _run_cleanup_with_retry <session_name> <cleanup_args>
+# Returns: 0 on success, 1 on failure
+_run_cleanup_with_retry() {
+    local session_name="$1"
+    local cleanup_args="${2:-}"
     
     log_info "Running cleanup..."
     
@@ -353,6 +370,12 @@ handle_complete() {
         return 1
     fi
     
+    return 0
+}
+
+# Post-cleanup maintenance: orphan detection and plan rotation
+# Usage: _post_cleanup_maintenance
+_post_cleanup_maintenance() {
     # orphaned worktreeの検出と修復
     log_info "Checking for any orphaned worktrees with 'complete' status..."
     local orphaned_count
@@ -373,6 +396,41 @@ handle_complete() {
     "$WATCHER_SCRIPT_DIR/cleanup.sh" --rotate-plans 2>/dev/null || {
         log_warn "Plan rotation failed (non-critical)"
     }
+}
+
+# 完了ハンドリング関数
+# Usage: handle_complete <session_name> <issue_number> <auto_attach> <cleanup_args>
+# Returns: 0 on success, 1 on cleanup failure
+handle_complete() {
+    local session_name="$1"
+    local issue_number="$2"
+    local auto_attach="$3"
+    local cleanup_args="${4:-}"
+    
+    log_info "Session completed: $session_name (Issue #$issue_number)"
+    
+    # 1. worktreeパスとブランチ名を取得
+    local worktree_path branch_name
+    _resolve_worktree_info "$issue_number" worktree_path branch_name
+    
+    # 2. ステータスと計画書の処理
+    _complete_status_and_plans "$issue_number" "$session_name"
+    
+    # 3. Hook実行
+    _run_completion_hooks "$issue_number" "$session_name" "$branch_name" "$worktree_path"
+    
+    # 4. PR確認
+    if ! check_pr_merge_status "$session_name" "$branch_name" "$issue_number"; then
+        return 1
+    fi
+    
+    # 5. Cleanup実行
+    if ! _run_cleanup_with_retry "$session_name" "$cleanup_args"; then
+        return 1
+    fi
+    
+    # 6. 事後処理
+    _post_cleanup_maintenance
     
     log_info "Cleanup completed successfully"
     
