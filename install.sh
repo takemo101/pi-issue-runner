@@ -154,6 +154,7 @@ pi-next:scripts/next.sh
 pi-restart-watcher:scripts/restart-watcher.sh
 pi-mux-all:scripts/mux-all.sh
 pi-generate-config:scripts/generate-config.sh
+pi-sweep:scripts/sweep.sh
 pi-test:scripts/test.sh
 pi-verify-config-docs:scripts/verify-config-docs.sh
 "

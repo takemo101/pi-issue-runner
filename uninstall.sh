@@ -28,6 +28,7 @@ pi-init
 pi-nudge
 pi-context
 pi-generate-config
+pi-sweep
 pi-verify-config-docs
 "
 
