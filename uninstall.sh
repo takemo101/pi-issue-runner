@@ -27,6 +27,7 @@ pi-watch
 pi-init
 pi-nudge
 pi-context
+pi-generate-config
 "
 
 echo "Uninstalling pi-issue-runner from $INSTALL_DIR..."
