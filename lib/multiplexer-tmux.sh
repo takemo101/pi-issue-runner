@@ -5,6 +5,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_MULTIPLEXER_TMUX_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_MULTIPLEXER_TMUX_SH_SOURCED="true"
+
 # tmuxがインストールされているか確認
 mux_check() {
     if ! command -v tmux &> /dev/null; then

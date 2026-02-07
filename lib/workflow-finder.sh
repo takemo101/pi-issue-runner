@@ -3,6 +3,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_WORKFLOW_FINDER_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_WORKFLOW_FINDER_SH_SOURCED="true"
+
 _WORKFLOW_FINDER_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_WORKFLOW_FINDER_LIB_DIR/yaml.sh"
 source "$_WORKFLOW_FINDER_LIB_DIR/config.sh"

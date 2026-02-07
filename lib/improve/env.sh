@@ -7,6 +7,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_ENV_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_ENV_SH_SOURCED="true"
+
 # ============================================================================
 # Validate iteration number against maximum
 # Arguments: $1=current iteration, $2=max iterations

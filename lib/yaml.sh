@@ -6,6 +6,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_YAML_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_YAML_SH_SOURCED="true"
+
 # ===================
 # yq チェック
 # ===================

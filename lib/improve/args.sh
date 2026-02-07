@@ -7,6 +7,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_ARGS_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_ARGS_SH_SOURCED="true"
+
 # Constants
 readonly _IMPROVE_DEFAULT_MAX_ITERATIONS=3
 readonly _IMPROVE_DEFAULT_MAX_ISSUES=5

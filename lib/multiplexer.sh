@@ -5,6 +5,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_MULTIPLEXER_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_MULTIPLEXER_SH_SOURCED="true"
+
 _MUX_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_MUX_LIB_DIR/config.sh"
 source "$_MUX_LIB_DIR/log.sh"

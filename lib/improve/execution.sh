@@ -12,6 +12,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_EXECUTION_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_EXECUTION_SH_SOURCED="true"
+
 # Global: Track active sessions for cleanup on exit
 declare -a ACTIVE_ISSUE_NUMBERS=()
 

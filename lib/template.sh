@@ -3,6 +3,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_TEMPLATE_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_TEMPLATE_SH_SOURCED="true"
+
 # ビルトインエージェントプロンプト（最小限）
 _BUILTIN_AGENT_PLAN='Plan the implementation for issue #{{issue_number}}.
 Read the issue description and create an implementation plan.'

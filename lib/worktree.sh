@@ -3,6 +3,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_WORKTREE_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_WORKTREE_SH_SOURCED="true"
+
 # 現在のディレクトリを取得
 _WORKTREE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

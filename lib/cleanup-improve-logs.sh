@@ -3,6 +3,12 @@
 
 set -euo pipefail
 
+# ソースガード（多重読み込み防止）
+if [[ -n "${_CLEANUP_IMPROVE_LOGS_SH_SOURCED:-}" ]]; then
+    return 0
+fi
+_CLEANUP_IMPROVE_LOGS_SH_SOURCED="true"
+
 # 自身のディレクトリを取得
 _CLEANUP_IMPROVE_LOGS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
