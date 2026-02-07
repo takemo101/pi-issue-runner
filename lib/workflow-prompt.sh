@@ -304,7 +304,7 @@ EOF
     
     # ワークフローコンテキストを取得して注入（存在する場合のみ）
     local workflow_context
-    workflow_context="$(get_workflow_context "$workflow_file" "$workflow_name" 2>/dev/null || true)"
+    workflow_context="$(get_workflow_context "$workflow_file" 2>/dev/null || true)"
     
     if [[ -n "$workflow_context" ]]; then
         cat << EOF

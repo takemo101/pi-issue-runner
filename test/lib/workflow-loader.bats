@@ -641,6 +641,76 @@ EOF
 }
 
 # ====================
+# Issue #1040: context フィールドのサポート確認
+# ====================
+
+@test "Issue #1040: workflows/*.yaml supports context field" {
+    cat > "$TEST_DIR/workflows/backend.yaml" << 'EOF'
+name: backend
+description: Backend API workflow
+steps:
+  - plan
+  - implement
+  - test
+  - review
+  - merge
+context: |
+  ## Tech Stack
+  - Node.js / Express / TypeScript
+  - PostgreSQL / Prisma
+  
+  ## Important
+  - RESTful API design
+  - Input validation
+EOF
+    
+    result="$(get_workflow_context "$TEST_DIR/workflows/backend.yaml")"
+    [[ "$result" == *"Tech Stack"* ]]
+    [[ "$result" == *"Node.js / Express / TypeScript"* ]]
+    [[ "$result" == *"RESTful API design"* ]]
+}
+
+@test "Issue #1040: builtin workflows have context" {
+    # workflows/default.yaml のコンテキストを読み込めることを確認
+    local workflow_file="$PROJECT_ROOT/workflows/default.yaml"
+    
+    result="$(get_workflow_context "$workflow_file")"
+    [[ -n "$result" ]]
+    [[ "$result" == *"ワークフローの方針"* ]] || [[ "$result" == *"workflow"* ]]
+}
+
+@test "Issue #1040: priority - .pi-runner.yaml overrides workflows/*.yaml" {
+    # workflows/*.yaml にコンテキストを設定
+    cat > "$TEST_DIR/workflows/frontend.yaml" << 'EOF'
+name: frontend
+description: Frontend workflow
+steps:
+  - implement
+context: |
+  This is from workflows/frontend.yaml
+EOF
+    
+    # .pi-runner.yaml でオーバーライド
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  frontend:
+    description: Frontend workflow (overridden)
+    steps:
+      - plan
+      - implement
+    context: |
+      This is from .pi-runner.yaml
+EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    # config-workflow:frontend は .pi-runner.yaml を優先
+    result="$(get_workflow_context "config-workflow:frontend")"
+    [[ "$result" == *".pi-runner.yaml"* ]]
+    [[ "$result" != *"workflows/frontend.yaml"* ]]
+}
+
+# ====================
 # get_all_workflows_info テスト
 # ====================
 
