@@ -822,6 +822,8 @@ github:
 
 ### hooks
 
+#### セッションライフサイクル
+
 | キー | 型 | デフォルト | 説明 |
 |------|------|-----------|------|
 | `on_start` | string | (なし) | セッション開始時に実行するスクリプトまたはコマンド |
@@ -829,10 +831,21 @@ github:
 | `on_error` | string | (なし) | セッションエラー時に実行するスクリプトまたはコマンド |
 | `on_cleanup` | string | (なし) | クリーンアップ時に実行するスクリプトまたはコマンド |
 
+#### 継続的改善（improve.sh）ライフサイクル
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `on_improve_start` | string | (なし) | improve.sh 全体の開始時に実行するスクリプトまたはコマンド |
+| `on_improve_end` | string | (なし) | improve.sh 全体の終了時に実行するスクリプトまたはコマンド |
+| `on_iteration_start` | string | (なし) | 各イテレーション開始時に実行するスクリプトまたはコマンド |
+| `on_iteration_end` | string | (なし) | 各イテレーション完了時に実行するスクリプトまたはコマンド |
+| `on_review_complete` | string | (なし) | レビュー完了・Issue作成前に実行するスクリプトまたはコマンド |
+
 #### 使用例
 
 ```yaml
 hooks:
+  # セッションライフサイクル
   # 例: ./hooks/notify-start.sh (ユーザーが作成)
   on_start: ./hooks/notify-start.sh
   on_success: echo "Task completed for Issue #$PI_ISSUE_NUMBER"
@@ -842,21 +855,44 @@ hooks:
       -d "{\"issue\": \"$PI_ISSUE_NUMBER\", \"error\": \"$PI_ERROR_MESSAGE\"}"
   # 例: ./hooks/cleanup-resources.sh (ユーザーが作成)
   on_cleanup: ./hooks/cleanup-resources.sh
+  
+  # 継続的改善（improve.sh）ライフサイクル
+  on_improve_start: |
+    echo "🔄 Improve started: iteration $PI_ITERATION/$PI_MAX_ITERATIONS"
+  on_review_complete: |
+    echo "📋 Review found $PI_REVIEW_ISSUES_COUNT issues"
+  on_iteration_end: |
+    echo "✅ Iteration $PI_ITERATION: $PI_ISSUES_SUCCEEDED succeeded, $PI_ISSUES_FAILED failed"
+  on_improve_end: |
+    osascript -e 'display notification "改善完了: $PI_ISSUES_SUCCEEDED/$PI_ISSUES_CREATED 成功" with title "Pi Runner"'
 ```
 
 #### 環境変数
 
 hookスクリプトには以下の環境変数が渡されます：
 
+**セッション関連**:
+
 | 環境変数 | 説明 | 利用可能イベント |
 |----------|------|-----------------|
-| `PI_ISSUE_NUMBER` | Issue番号 | 全て |
-| `PI_ISSUE_TITLE` | Issueタイトル | 全て |
-| `PI_SESSION_NAME` | セッション名 | 全て |
-| `PI_BRANCH_NAME` | ブランチ名 | 全て |
-| `PI_WORKTREE_PATH` | worktreeパス | 全て |
+| `PI_ISSUE_NUMBER` | Issue番号 | on_start, on_success, on_error, on_cleanup |
+| `PI_ISSUE_TITLE` | Issueタイトル | on_start, on_success, on_error, on_cleanup |
+| `PI_SESSION_NAME` | セッション名 | on_start, on_success, on_error, on_cleanup |
+| `PI_BRANCH_NAME` | ブランチ名 | on_start, on_success, on_error, on_cleanup |
+| `PI_WORKTREE_PATH` | worktreeパス | on_start, on_success, on_error, on_cleanup |
 | `PI_ERROR_MESSAGE` | エラーメッセージ | on_error |
-| `PI_EXIT_CODE` | 終了コード | 全て |
+| `PI_EXIT_CODE` | 終了コード | on_error, on_cleanup |
+
+**継続的改善（improve.sh）関連**:
+
+| 環境変数 | 説明 | 利用可能イベント |
+|----------|------|-----------------|
+| `PI_ITERATION` | 現在のイテレーション番号 | on_iteration_start, on_iteration_end, on_review_complete |
+| `PI_MAX_ITERATIONS` | 最大イテレーション数 | on_improve_start, on_improve_end, on_iteration_start, on_iteration_end, on_review_complete |
+| `PI_ISSUES_CREATED` | 作成されたIssue数 | on_iteration_end, on_improve_end |
+| `PI_ISSUES_SUCCEEDED` | 成功したIssue数 | on_iteration_end, on_improve_end |
+| `PI_ISSUES_FAILED` | 失敗したIssue数 | on_iteration_end, on_improve_end |
+| `PI_REVIEW_ISSUES_COUNT` | レビューで発見された問題数 | on_review_complete |
 
 > **⚠️ 非推奨**: テンプレート変数（`{{issue_number}}`等）はセキュリティ上の理由により非推奨です。
 > 環境変数を使用してください。詳細は [Hook機能ドキュメント](./hooks.md#マイグレーションガイド) を参照してください。
@@ -980,6 +1016,11 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_HOOKS_ON_SUCCESS` | `hooks.on_success` |
 | `PI_RUNNER_HOOKS_ON_ERROR` | `hooks.on_error` |
 | `PI_RUNNER_HOOKS_ON_CLEANUP` | `hooks.on_cleanup` |
+| `PI_RUNNER_HOOKS_ON_IMPROVE_START` | `hooks.on_improve_start` |
+| `PI_RUNNER_HOOKS_ON_IMPROVE_END` | `hooks.on_improve_end` |
+| `PI_RUNNER_HOOKS_ON_ITERATION_START` | `hooks.on_iteration_start` |
+| `PI_RUNNER_HOOKS_ON_ITERATION_END` | `hooks.on_iteration_end` |
+| `PI_RUNNER_HOOKS_ON_REVIEW_COMPLETE` | `hooks.on_review_complete` |
 | `PI_RUNNER_AUTO_PROVIDER` | `auto.provider` |
 | `PI_RUNNER_AUTO_MODEL` | `auto.model` |
 

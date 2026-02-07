@@ -4,12 +4,24 @@ pi-issue-runnerは、セッションのライフサイクルイベントでカ�
 
 ## 対応イベント
 
+### セッションライフサイクル
+
 | イベント | 発火タイミング |
 |----------|----------------|
 | `on_start` | セッション開始時 |
 | `on_success` | タスク正常完了時 |
 | `on_error` | エラー検出時 |
 | `on_cleanup` | クリーンアップ完了後 |
+
+### 継続的改善（improve.sh）ライフサイクル
+
+| イベント | 発火タイミング |
+|----------|----------------|
+| `on_improve_start` | improve.sh 全体の開始時 |
+| `on_improve_end` | improve.sh 全体の終了時 |
+| `on_iteration_start` | 各イテレーション開始時 |
+| `on_iteration_end` | 各イテレーション完了時 |
+| `on_review_complete` | レビュー完了・Issue作成前 |
 
 ## 設定方法
 
@@ -75,15 +87,28 @@ hookコマンド/スクリプト内で使用可能な変数（非推奨）：
 
 hookスクリプトには環境変数としても値が渡されます：
 
-| 環境変数 | 説明 |
-|----------|------|
-| `PI_ISSUE_NUMBER` | Issue番号 |
-| `PI_ISSUE_TITLE` | Issueタイトル |
-| `PI_SESSION_NAME` | セッション名 |
-| `PI_BRANCH_NAME` | ブランチ名 |
-| `PI_WORKTREE_PATH` | worktreeパス |
-| `PI_ERROR_MESSAGE` | エラーメッセージ（on_errorのみ） |
-| `PI_EXIT_CODE` | 終了コード |
+### セッション関連
+
+| 環境変数 | 説明 | 利用可能イベント |
+|----------|------|-----------------|
+| `PI_ISSUE_NUMBER` | Issue番号 | on_start, on_success, on_error, on_cleanup |
+| `PI_ISSUE_TITLE` | Issueタイトル | on_start, on_success, on_error, on_cleanup |
+| `PI_SESSION_NAME` | セッション名 | on_start, on_success, on_error, on_cleanup |
+| `PI_BRANCH_NAME` | ブランチ名 | on_start, on_success, on_error, on_cleanup |
+| `PI_WORKTREE_PATH` | worktreeパス | on_start, on_success, on_error, on_cleanup |
+| `PI_ERROR_MESSAGE` | エラーメッセージ | on_error |
+| `PI_EXIT_CODE` | 終了コード | on_error, on_cleanup |
+
+### 継続的改善（improve.sh）関連
+
+| 環境変数 | 説明 | 利用可能イベント |
+|----------|------|-----------------|
+| `PI_ITERATION` | 現在のイテレーション番号 | on_iteration_start, on_iteration_end, on_review_complete |
+| `PI_MAX_ITERATIONS` | 最大イテレーション数 | on_improve_start, on_improve_end, on_iteration_start, on_iteration_end, on_review_complete |
+| `PI_ISSUES_CREATED` | 作成されたIssue数 | on_iteration_end, on_improve_end |
+| `PI_ISSUES_SUCCEEDED` | 成功したIssue数 | on_iteration_end, on_improve_end |
+| `PI_ISSUES_FAILED` | 失敗したIssue数 | on_iteration_end, on_improve_end |
+| `PI_REVIEW_ISSUES_COUNT` | レビューで発見された問題数 | on_review_complete |
 
 ### 環境変数の使用例
 
@@ -145,6 +170,32 @@ hooks:
   on_start: echo "[$(date)] Issue #{{issue_number}} started" >> ~/.pi-runner/activity.log
   on_success: echo "[$(date)] Issue #{{issue_number}} completed" >> ~/.pi-runner/activity.log
   on_error: echo "[$(date)] Issue #{{issue_number}} error: {{error_message}}" >> ~/.pi-runner/activity.log
+```
+
+### 継続的改善（improve.sh）の進捗通知
+
+```yaml
+hooks:
+  on_improve_start: |
+    osascript -e 'display notification "改善プロセスを開始します" with title "Pi Issue Runner" subtitle "🔄 Iteration $PI_ITERATION/$PI_MAX_ITERATIONS"'
+  on_review_complete: |
+    echo "📋 Review found $PI_REVIEW_ISSUES_COUNT issues"
+  on_iteration_start: |
+    echo "📍 Starting iteration $PI_ITERATION/$PI_MAX_ITERATIONS"
+  on_iteration_end: |
+    osascript -e 'display notification "Iteration $PI_ITERATION 完了: $PI_ISSUES_SUCCEEDED 成功 / $PI_ISSUES_FAILED 失敗" with title "Pi Issue Runner"'
+  on_improve_end: |
+    osascript -e 'display notification "改善プロセス完了: 全 $PI_ISSUES_CREATED 件中 $PI_ISSUES_SUCCEEDED 件成功" with title "Pi Issue Runner" sound name "Glass"'
+```
+
+### 継続的改善の統計記録
+
+```yaml
+hooks:
+  on_iteration_end: |
+    echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ"),iteration-$PI_ITERATION,created=$PI_ISSUES_CREATED,succeeded=$PI_ISSUES_SUCCEEDED,failed=$PI_ISSUES_FAILED" >> .improve-stats.csv
+  on_improve_end: |
+    echo "Improve iteration $PI_ITERATION complete: $PI_ISSUES_SUCCEEDED/$PI_ISSUES_CREATED succeeded" >> .improve-summary.log
 ```
 
 ### macOS通知（カスタマイズ）

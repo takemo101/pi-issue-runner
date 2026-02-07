@@ -59,6 +59,11 @@ CONFIG_HOOKS_ON_START="${CONFIG_HOOKS_ON_START:-}"       # セッション開始
 CONFIG_HOOKS_ON_SUCCESS="${CONFIG_HOOKS_ON_SUCCESS:-}"   # セッション成功時のhook
 CONFIG_HOOKS_ON_ERROR="${CONFIG_HOOKS_ON_ERROR:-}"       # セッションエラー時のhook
 CONFIG_HOOKS_ON_CLEANUP="${CONFIG_HOOKS_ON_CLEANUP:-}"   # クリーンアップ時のhook
+CONFIG_HOOKS_ON_IMPROVE_START="${CONFIG_HOOKS_ON_IMPROVE_START:-}"     # improve開始時のhook
+CONFIG_HOOKS_ON_IMPROVE_END="${CONFIG_HOOKS_ON_IMPROVE_END:-}"         # improve終了時のhook
+CONFIG_HOOKS_ON_ITERATION_START="${CONFIG_HOOKS_ON_ITERATION_START:-}" # イテレーション開始時のhook
+CONFIG_HOOKS_ON_ITERATION_END="${CONFIG_HOOKS_ON_ITERATION_END:-}"     # イテレーション終了時のhook
+CONFIG_HOOKS_ON_REVIEW_COMPLETE="${CONFIG_HOOKS_ON_REVIEW_COMPLETE:-}" # レビュー完了時のhook
 
 # 設定ファイルを探す
 find_config_file() {
@@ -176,6 +181,11 @@ _CONFIG_SIMPLE_MAPPINGS=(
     ".hooks.on_success:CONFIG_HOOKS_ON_SUCCESS"
     ".hooks.on_error:CONFIG_HOOKS_ON_ERROR"
     ".hooks.on_cleanup:CONFIG_HOOKS_ON_CLEANUP"
+    ".hooks.on_improve_start:CONFIG_HOOKS_ON_IMPROVE_START"
+    ".hooks.on_improve_end:CONFIG_HOOKS_ON_IMPROVE_END"
+    ".hooks.on_iteration_start:CONFIG_HOOKS_ON_ITERATION_START"
+    ".hooks.on_iteration_end:CONFIG_HOOKS_ON_ITERATION_END"
+    ".hooks.on_review_complete:CONFIG_HOOKS_ON_REVIEW_COMPLETE"
 )
 
 # Parse simple key-value configurations using mapping table

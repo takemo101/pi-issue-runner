@@ -143,6 +143,12 @@ execute_improve_issues_in_parallel() {
     echo ""
     echo "[PHASE 3] Starting parallel execution..."
     
+    # Hook: イテレーション開始
+    if declare -f run_hook &>/dev/null; then
+        run_hook "on_iteration_start" "" "" "" "" "" "" "" \
+            "${_IMPROVE_ITERATION:-1}" "${_IMPROVE_MAX_ITERATIONS:-1}" "" "" "" ""
+    fi
+    
     if [[ -z "$issues" ]]; then
         echo "  No issues to execute"
         return 0
@@ -183,6 +189,28 @@ wait_for_improve_completion() {
     
     if ! "${_IMPROVE_EXEC_SCRIPT_DIR}/wait-for-sessions.sh" "${ACTIVE_ISSUE_NUMBERS[@]}" --timeout "$timeout" --cleanup; then
         log_warn "Some sessions failed or timed out"
+    fi
+    
+    # Hook: イテレーション終了（統計収集）
+    local succeeded=0
+    local failed=0
+    local created=${#ACTIVE_ISSUE_NUMBERS[@]}
+    
+    # セッション状態から成功/失敗を集計
+    for issue in "${ACTIVE_ISSUE_NUMBERS[@]}"; do
+        local status
+        status="$(get_status_value "$issue" 2>/dev/null || echo "")"
+        if [[ "$status" == "complete" ]]; then
+            succeeded=$((succeeded + 1))
+        elif [[ "$status" == "error" ]]; then
+            failed=$((failed + 1))
+        fi
+    done
+    
+    if declare -f run_hook &>/dev/null; then
+        run_hook "on_iteration_end" "" "" "" "" "" "" "" \
+            "${_IMPROVE_ITERATION:-1}" "${_IMPROVE_MAX_ITERATIONS:-1}" \
+            "$created" "$succeeded" "$failed" ""
     fi
     
     # Clear active sessions after completion
