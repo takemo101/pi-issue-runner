@@ -208,6 +208,60 @@ MOCK_EOF
     [[ "$result" == *'\$((1+2))'* ]]
 }
 
+@test "sanitize_issue_body handles strings starting with -n" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    input='-n Hello World'
+    result="$(sanitize_issue_body "$input")"
+    
+    # -n で始まる文字列が正しく処理される（echoではなくprintfを使用）
+    [ "$result" = "-n Hello World" ]
+}
+
+@test "sanitize_issue_body handles strings starting with -e" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    input='-e Some text'
+    result="$(sanitize_issue_body "$input")"
+    
+    # -e で始まる文字列が正しく処理される
+    [ "$result" = "-e Some text" ]
+}
+
+@test "sanitize_issue_body handles strings starting with -ne" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    input='-ne Test\nNewline'
+    result="$(sanitize_issue_body "$input")"
+    
+    # -ne で始まる文字列が正しく処理される
+    [ "$result" = '-ne Test\nNewline' ]
+}
+
+@test "sanitize_issue_body does not add extra trailing newlines" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    # Note: Bashのコマンド置換は末尾の改行を削除する仕様
+    # 重要なのは、echoのように余分な改行を追加しないこと
+    input=$'Line 1\nLine 2'
+    result="$(sanitize_issue_body "$input")"
+    
+    # 入力と同じ内容（余分な改行が追加されない）
+    [ "$result" = "$input" ]
+}
+
+@test "sanitize_issue_body handles multiline text with dangerous patterns" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    input=$'First line\n$(dangerous)\nLast line'
+    result="$(sanitize_issue_body "$input")"
+    
+    # 複数行のテキストでもエスケープが機能する
+    [[ "$result" == *'First line'* ]]
+    [[ "$result" == *'\$('* ]]
+    [[ "$result" == *'Last line'* ]]
+}
+
 # ====================
 # 依存関係チェックテスト
 # ====================
