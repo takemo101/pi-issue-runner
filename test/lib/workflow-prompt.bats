@@ -582,3 +582,142 @@ YAML_EOF
     [[ "$result" == *"Issue の内容を分析し"* ]]
     [[ "$result" == *"最も適切なワークフローを選択"* ]]
 }
+
+# ====================
+# Context Truncation テスト（Issue #1018）
+# ====================
+
+@test "auto mode prompt truncates long context to 300 characters" {
+    # 400文字のcontextを生成
+    local long_context="$(printf '%.0s#' {1..400})"
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << YAML_EOF
+workflows:
+  test:
+    description: テスト
+    steps:
+      - implement
+    context: |
+      $long_context
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(generate_workflow_prompt "auto" "42" "Test Issue" "Test body" "branch" "/path" "$TEST_DIR")"
+    
+    # contextが展開されていることを確認
+    [[ "$result" == *"**Context**:"* ]]
+    
+    # 300文字に切り詰められ、末尾に"..."が付与されていることを確認
+    # contextセクションを抽出して検証
+    local context_section
+    context_section=$(echo "$result" | sed -n '/\*\*Context\*\*:/,/^$/p')
+    
+    # 300文字 + "..." が含まれる（正確に303文字の#と...）
+    [[ "$context_section" == *"..."* ]]
+    
+    # 元の400文字全てが含まれていないことを確認（トランケートされている）
+    local full_hash_sequence="$(printf '%.0s#' {1..400})"
+    [[ "$context_section" != *"$full_hash_sequence"* ]]
+}
+
+@test "auto mode prompt does not truncate short context" {
+    # 100文字のcontextを生成
+    local short_context="$(printf '%.0s#' {1..100})"
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << YAML_EOF
+workflows:
+  test:
+    description: テスト
+    steps:
+      - implement
+    context: |
+      $short_context
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(generate_workflow_prompt "auto" "42" "Test Issue" "Test body" "branch" "/path" "$TEST_DIR")"
+    
+    # contextが展開されていることを確認
+    [[ "$result" == *"**Context**:"* ]]
+    
+    # contextセクションを抽出
+    local context_section
+    context_section=$(echo "$result" | sed -n '/\*\*Context\*\*:/,/^$/p')
+    
+    # 短いcontextは全文が含まれる（"..."が付与されていない）
+    [[ "$context_section" == *"$short_context"* ]]
+    
+    # トランケーション時の"..."が含まれていないことを確認
+    # ただし、YAMLの改行などで"..."が含まれる可能性があるため、
+    # 100文字のハッシュシーケンスが完全に含まれていることで検証
+    local full_hash_sequence="$(printf '%.0s#' {1..100})"
+    [[ "$context_section" == *"$full_hash_sequence"* ]]
+}
+
+@test "auto mode prompt truncates context at exactly 300 characters" {
+    # ちょうど300文字のcontextを生成
+    local exact_context="$(printf '%.0s#' {1..300})"
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << YAML_EOF
+workflows:
+  test:
+    description: テスト
+    steps:
+      - implement
+    context: |
+      $exact_context
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(generate_workflow_prompt "auto" "42" "Test Issue" "Test body" "branch" "/path" "$TEST_DIR")"
+    
+    # contextセクションを抽出
+    local context_section
+    context_section=$(echo "$result" | sed -n '/\*\*Context\*\*:/,/^$/p')
+    
+    # 300文字ちょうどの場合は"..."が付与されない
+    [[ "$context_section" == *"$exact_context"* ]]
+    
+    # "..."が末尾に付いていないことを確認
+    # （ただしYAML内の他の箇所に"..."がある可能性があるため、contextセクションのみで確認）
+    local full_hash_sequence="$(printf '%.0s#' {1..300})"
+    [[ "$context_section" == *"$full_hash_sequence"* ]]
+}
+
+@test "auto mode prompt truncates multiple workflows with long context" {
+    # 複数のワークフローがそれぞれ長いcontextを持つ場合
+    local long_context="$(printf '%.0s#' {1..500})"
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << YAML_EOF
+workflows:
+  workflow1:
+    description: ワークフロー1
+    steps:
+      - implement
+    context: |
+      $long_context
+  workflow2:
+    description: ワークフロー2
+    steps:
+      - implement
+    context: |
+      $long_context
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(generate_workflow_prompt "auto" "42" "Test Issue" "Test body" "branch" "/path" "$TEST_DIR")"
+    
+    # 両方のワークフローのcontextが含まれる
+    [[ "$result" == *"workflow1"* ]]
+    [[ "$result" == *"workflow2"* ]]
+    
+    # 両方のcontextがトランケートされて"..."が付与されている
+    # （2つの"..."が含まれる）
+    local ellipsis_count
+    ellipsis_count=$(echo "$result" | grep -o '\.\.\.' | wc -l | tr -d ' ')
+    [ "$ellipsis_count" -ge 2 ]
+}

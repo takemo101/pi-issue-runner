@@ -208,6 +208,12 @@ EOF
             local decoded_context
             decoded_context=$(printf '%s' "$context" | awk '{gsub(/\\n/, "\n"); print}')
             
+            # contextを最大300文字に制限（トークン消費削減のため）
+            local truncated_context="$decoded_context"
+            if [[ -n "$decoded_context" ]] && [[ ${#decoded_context} -gt 300 ]]; then
+                truncated_context="${decoded_context:0:300}..."
+            fi
+            
             cat << EOF
 <details>
 <summary>$name</summary>
@@ -218,10 +224,10 @@ EOF
 
 EOF
             
-            if [[ -n "$decoded_context" ]]; then
+            if [[ -n "$truncated_context" ]]; then
                 cat << EOF
 **Context**:
-$decoded_context
+$truncated_context
 
 EOF
             fi
