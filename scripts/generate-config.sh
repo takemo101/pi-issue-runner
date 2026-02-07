@@ -214,7 +214,8 @@ build_ai_prompt() {
     prompt+="- Generate workflows that match the project's tech stack and development patterns"$'\n'
     prompt+="- Each workflow's description should be specific enough for AI auto-selection (-w auto)"$'\n'
     prompt+="- Each workflow's context should describe the project-specific tech stack and conventions"$'\n'
-    prompt+="- Always include: quick (minimal), thorough (full), docs (documentation) workflows"$'\n'
+    prompt+="- Do NOT generate the 'workflow:' (singular) key. Use only the 'workflows:' (plural) section"$'\n'
+    prompt+="- Always include: default (standard), quick (minimal), thorough (full), docs (documentation) workflows"$'\n'
     prompt+="- Add frontend/backend workflows only if the project has those aspects"$'\n'
     prompt+="- If the project has test frameworks, include test step in default workflow"$'\n'
     prompt+="- Set parallel.max_concurrent to a reasonable value (e.g., 3)"$'\n\n'
@@ -346,15 +347,15 @@ HEADER
     echo "  max_concurrent: 3"
 
     echo ""
-    echo "workflow:"
-    echo "  steps:"
-    echo "    - plan"
-    echo "    - implement"
-    echo "    - review"
-    echo "    - merge"
-
-    echo ""
     echo "workflows:"
+    echo "  default:"
+    echo "    description: 標準ワークフロー（計画・実装・レビュー・マージ）"
+    echo "    steps:"
+    echo "      - plan"
+    echo "      - implement"
+    echo "      - review"
+    echo "      - merge"
+    echo ""
     echo "  quick:"
     echo "    description: 小規模修正（typo、設定変更、1ファイル程度の変更）"
     echo "    steps:"

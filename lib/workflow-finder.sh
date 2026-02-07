@@ -42,19 +42,19 @@ find_workflow_file() {
         return 0
     fi
     
-    # デフォルトワークフローの場合: 従来通り .workflow セクションを検索
+    # 名前付きワークフロー（default含む）: .workflows.{name} を優先検索
+    if [[ -f "$project_root/.pi-runner.yaml" ]]; then
+        if yaml_exists "$project_root/.pi-runner.yaml" ".workflows.${workflow_name}"; then
+            echo "config-workflow:${workflow_name}"
+            return 0
+        fi
+    fi
+    
+    # デフォルトワークフローの場合: 後方互換で .workflow セクションも検索
     if [[ "$workflow_name" == "default" ]]; then
         if [[ -f "$project_root/.pi-runner.yaml" ]]; then
             if yaml_exists "$project_root/.pi-runner.yaml" ".workflow"; then
                 echo "$project_root/.pi-runner.yaml"
-                return 0
-            fi
-        fi
-    else
-        # 名前付きワークフローの場合: .workflows.{name} を優先検索
-        if [[ -f "$project_root/.pi-runner.yaml" ]]; then
-            if yaml_exists "$project_root/.pi-runner.yaml" ".workflows.${workflow_name}"; then
-                echo "config-workflow:${workflow_name}"
                 return 0
             fi
         fi

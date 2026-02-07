@@ -107,10 +107,11 @@ teardown() {
     grep -q 'type:' ".pi-runner.yaml"
 }
 
-@test "generate-config.sh generated YAML contains workflow section" {
+@test "generate-config.sh generated YAML does not contain singular workflow section" {
     run "$PROJECT_ROOT/scripts/generate-config.sh"
     [ "$status" -eq 0 ]
-    grep -q 'workflow:' ".pi-runner.yaml"
+    # workflow: (単数形) は生成されない（workflows: のみ）
+    ! grep -qE '^workflow:' ".pi-runner.yaml"
 }
 
 @test "generate-config.sh generated YAML contains workflows section" {

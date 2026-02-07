@@ -454,7 +454,7 @@ EOF
     [ "$result_custom" = "$TEST_DIR/workflows/custom.yaml" ]
 }
 
-@test "find_workflow_file uses workflow section for default (not workflows.default)" {
+@test "find_workflow_file prioritizes workflows.default over workflow section" {
     # .pi-runner.yaml に workflow セクションと workflows.default を両方定義
     cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
 workflow:
@@ -466,22 +466,22 @@ workflow:
 
 workflows:
   default:
-    description: "This should be ignored for default workflow"
+    description: "This should be used for default workflow"
     steps:
       - implement
       - merge
 EOF
     
-    # default は workflow セクションを使用（.pi-runner.yaml のパスを返す）
+    # workflows.default が優先される
     result="$(find_workflow_file "default" "$TEST_DIR")"
-    [ "$result" = "$TEST_DIR/.pi-runner.yaml" ]
+    [ "$result" = "config-workflow:default" ]
     
     # default 以外のワークフロー名では workflows セクションを検索
     result_quick="$(find_workflow_file "quick" "$TEST_DIR")"
     [[ "$result_quick" != "config-workflow:"* ]]  # quick は未定義なのでファイル検索にフォールバック
 }
 
-@test "find_workflow_file ignores workflows section when querying default" {
+@test "find_workflow_file uses workflows.default when defined" {
     # .pi-runner.yaml に workflows.default のみ定義（workflow セクションなし）
     cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
 workflows:
@@ -500,9 +500,24 @@ steps:
   - merge
 EOF
     
-    # default は workflow セクションがないので workflows/default.yaml にフォールバック
+    # workflows.default が優先される
     result="$(find_workflow_file "default" "$TEST_DIR")"
-    [ "$result" = "$TEST_DIR/workflows/default.yaml" ]
+    [ "$result" = "config-workflow:default" ]
+}
+
+@test "find_workflow_file falls back to workflow section for backward compat" {
+    # .pi-runner.yaml に workflow セクションのみ（workflows.default なし）
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflow:
+  steps:
+    - plan
+    - implement
+    - merge
+EOF
+    
+    # 後方互換: workflow セクション（単数形）を使用
+    result="$(find_workflow_file "default" "$TEST_DIR")"
+    [ "$result" = "$TEST_DIR/.pi-runner.yaml" ]
 }
 
 @test "find_workflow_file handles workflows section with multiple entries" {
