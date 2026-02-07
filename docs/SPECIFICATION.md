@@ -2,7 +2,7 @@
 
 ## 概要
 
-Pi Issue RunnerはGitHub Issueを入力として、Git worktreeとtmuxセッションを活用して複数のpiインスタンスを並列実行するタスクランナーです。
+Pi Issue RunnerはGitHub Issueを入力として、Git worktreeとマルチプレクサセッション（tmux/Zellij）を活用して複数のpiインスタンスを並列実行するタスクランナーです。
 
 ## 目的
 
@@ -26,9 +26,9 @@ Pi Issue RunnerはGitHub Issueを入力として、Git worktreeとtmuxセッシ�
 - 必要なファイル（.env等）を自動コピー
 - タスク完了後のクリーンアップ（オプションでブランチも削除）
 
-### 3. Tmuxセッション統合
+### 3. マルチプレクサセッション統合
 
-- 各タスクを独立したtmuxセッション内で実行
+- 各タスクを独立したマルチプレクサセッション（tmux/Zellij）内で実行
 - セッション名: `{prefix}-issue-{番号}` (例: `pi-issue-42`)
 - アタッチ/デタッチによる柔軟なセッション管理
 - バックグラウンド実行のサポート
@@ -66,7 +66,7 @@ Git Worktreeを作成（git worktree add）
     ↓
 必要なファイルをコピー（.env等）
     ↓
-Tmuxセッションを作成（tmux new-session）
+マルチプレクサセッションを作成（tmux/Zellij）
     ↓
 .pi-prompt.mdを生成（Issue情報を埋め込み）
     ↓
@@ -118,7 +118,10 @@ project-root/
 │   ├── notify.sh            # 通知機能
 │   ├── status.sh            # ステータスファイル管理
 │   ├── template.sh          # テンプレート処理
-│   ├── tmux.sh              # tmux操作
+│   ├── tmux.sh              # tmux操作（後方互換ラッパー）
+│   ├── multiplexer.sh       # マルチプレクサ抽象化レイヤー
+│   ├── multiplexer-tmux.sh  # tmux実装
+│   ├── multiplexer-zellij.sh # Zellij実装
 │   ├── workflow.sh          # ワークフローエンジン
 │   ├── workflow-finder.sh   # ワークフロー検索
 │   ├── workflow-loader.sh   # ワークフロー読み込み
@@ -152,7 +155,8 @@ worktree:
   base_dir: ".worktrees"     # Worktree作成先
   copy_files: ".env"         # コピーするファイル（スペース区切り）
 
-tmux:
+multiplexer:
+  type: "tmux"               # マルチプレクサタイプ（tmux または zellij）
   session_prefix: "pi"       # セッション名プレフィックス
   start_in_session: true     # 作成後に自動アタッチ
 
@@ -168,7 +172,8 @@ parallel:
 
 ```bash
 PI_RUNNER_WORKTREE_BASE_DIR=".worktrees"
-PI_RUNNER_TMUX_SESSION_PREFIX="pi"
+PI_RUNNER_MULTIPLEXER_TYPE="tmux"
+PI_RUNNER_MULTIPLEXER_SESSION_PREFIX="pi"
 PI_RUNNER_PI_COMMAND="pi"
 PI_RUNNER_PARALLEL_MAX_CONCURRENT="5"
 ```
@@ -213,7 +218,7 @@ Options:
 ./scripts/status.sh <session-name|issue-number> [options]
 
 Arguments:
-    session-name    tmuxセッション名（例: pi-issue-42）
+    session-name    セッション名（例: pi-issue-42）
     issue-number    GitHub Issue番号（例: 42）
 
 Options:
@@ -227,7 +232,7 @@ Options:
 ./scripts/attach.sh <session-name|issue-number>
 
 Arguments:
-    session-name    tmuxセッション名（例: pi-issue-42）
+    session-name    セッション名（例: pi-issue-42）
     issue-number    GitHub Issue番号（例: 42）
 
 Options:
@@ -244,7 +249,7 @@ Examples:
 ./scripts/stop.sh <session-name|issue-number>
 
 Arguments:
-    session-name    tmuxセッション名（例: pi-issue-42）
+    session-name    セッション名（例: pi-issue-42）
     issue-number    GitHub Issue番号（例: 42）
 
 Options:
@@ -273,7 +278,7 @@ Options:
 ./scripts/watch-session.sh <session-name> [options]
 
 Arguments:
-    session-name    監視するtmuxセッション名
+    session-name    監視するセッション名
 
 Options:
     --marker <text>   完了マーカー（デフォルト: ###TASK_COMPLETE_<issue>###）
@@ -284,7 +289,7 @@ Options:
 
 #### 動作概要
 
-1. tmuxセッションの出力を定期的にキャプチャ
+1. マルチプレクサセッションの出力を定期的にキャプチャ
 2. 完了マーカー（`###TASK_COMPLETE_<issue_number>###`）を検出
 3. マーカー検出時に `cleanup.sh` を自動実行
 4. セッションが終了した場合は監視を停止
@@ -346,7 +351,7 @@ Options:
 ./scripts/nudge.sh <session-name|issue-number> [options]
 
 Arguments:
-    session-name    tmuxセッション名（例: pi-issue-42）
+    session-name    セッション名（例: pi-issue-42）
     issue-number    GitHub Issue番号（例: 42）
 
 Options:
@@ -440,7 +445,7 @@ Options:
 ./scripts/force-complete.sh <session-name|issue-number> [options]
 
 Arguments:
-    session-name    tmuxセッション名（例: pi-issue-42）
+    session-name    セッション名（例: pi-issue-42）
     issue-number    GitHub Issue番号（例: 42）
 
 Options:
@@ -545,7 +550,7 @@ Options:
 - **Bash** 4.0以上
 - **Git** 2.17以上（worktreeサポート）
 - **GitHub CLI** 2.0以上（認証済み）
-- **tmux** 2.1以上
+- **tmux** 2.1以上 または **Zellij** 0.32以上
 - **jq** 1.6以上（JSON処理）
 - **pi** latest
 
@@ -576,12 +581,12 @@ Options:
 ### 技術的制約
 
 - 同一Issue番号で複数のworktreeは作成不可
-- Tmuxセッション名の一意性が必要
+- マルチプレクサセッション名の一意性が必要
 - Git worktreeの制限に従う（サブモジュール等）
 
 ### 運用制約
 
-- Worktree削除前にtmuxセッションを終了する必要がある
+- Worktree削除前にマルチプレクサセッションを終了する必要がある
 - GitHub CLI認証が必須
 - プロジェクトルートからの実行を推奨
 
@@ -604,11 +609,10 @@ Options:
 
 ### その他
 
-- Zellij対応（tmux代替）
 - Docker/Podman統合
-- GitHub Actions連携
+- GitHub Actions連携強化
 - PR自動作成
-- 依存関係解決（Issue間の依存）
+- 依存関係解決の高度化
 - Webhookサポート
 
 ## 将来の拡張（Phase 3）
@@ -624,3 +628,4 @@ Options:
 - [pi-mono](https://github.com/badlogic/pi-mono)
 - [Git worktree documentation](https://git-scm.com/docs/git-worktree)
 - [tmux documentation](https://github.com/tmux/tmux/wiki)
+- [Zellij documentation](https://zellij.dev/documentation/)
