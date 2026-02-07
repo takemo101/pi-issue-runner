@@ -102,7 +102,7 @@ _wait_for_available_slot() {
     
     while true; do
         local current_count
-        current_count="$(mux_count_active_sessions)"
+        current_count="$(count_active_sessions)"
         if [[ "$current_count" -lt "$max_concurrent" ]]; then
             return 0
         fi
@@ -119,7 +119,7 @@ _wait_for_available_slot() {
                 local prefix
                 prefix="$(get_config session_prefix)"
                 local session_name="${prefix}-issue-${issue_num}"
-                if mux_session_exists "$session_name" 2>/dev/null; then
+                if session_exists "$session_name" 2>/dev/null; then
                     log_info "Cleaning up completed session: $session_name (status: $status)"
                     "${SCRIPT_DIR}/cleanup.sh" "$session_name" --force 2>/dev/null || true
                 fi
