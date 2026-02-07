@@ -231,11 +231,6 @@ count_markers_outside_codeblock() {
 # エラーハンドリング関数
 # Usage: handle_error <session_name> <issue_number> <error_message> <auto_attach> <cleanup_args>
 handle_error() {
-    # set -e を一時的に無効化（関数内のエラーでスクリプトが終了しないように）
-    local old_opts
-    old_opts="$(set +o)"
-    set +e
-    
     local session_name="$1"
     local issue_number="$2"
     local error_message="$3"
@@ -263,20 +258,12 @@ handle_error() {
     if [[ "$auto_attach" == "true" ]] && is_macos; then
         open_terminal_and_attach "$session_name" 2>/dev/null || true
     fi
-    
-    # set -e を復元
-    eval "$old_opts"
 }
 
 # 完了ハンドリング関数
 # Usage: handle_complete <session_name> <issue_number> <auto_attach> <cleanup_args>
 # Returns: 0 on success, 1 on cleanup failure
 handle_complete() {
-    # set -e を一時的に無効化（関数内のエラーでスクリプトが終了しないように）
-    local old_opts
-    old_opts="$(set +o)"
-    set +e
-    
     local session_name="$1"
     local issue_number="$2"
     local auto_attach="$3"
@@ -388,9 +375,6 @@ handle_complete() {
     }
     
     log_info "Cleanup completed successfully"
-    
-    # set -e を復元
-    eval "$old_opts"
     
     return 0
 }
