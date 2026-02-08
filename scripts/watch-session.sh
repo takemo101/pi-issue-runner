@@ -155,8 +155,8 @@ check_pr_merge_status() {
     local session_name="$1"
     local branch_name="$2"
     local issue_number="$3"
-    local max_attempts="${4:-10}"        # Default: 10 attempts
-    local retry_interval="${5:-60}"     # Default: 60 seconds between retries
+    local max_attempts="${4:-$(get_config watcher_pr_merge_max_attempts)}"        # Default from config
+    local retry_interval="${5:-$(get_config watcher_pr_merge_retry_interval)}"     # Default from config
     
     local attempt=1
     
@@ -321,8 +321,10 @@ _run_cleanup_with_retry() {
     
     # セッションが完全に終了し、プロセスが解放されるまで待機
     # Issue #585対策: worktree削除前に確実にセッションを終了させる
-    log_info "Waiting for session termination (5s)..."
-    sleep 5
+    local cleanup_delay
+    cleanup_delay="$(get_config watcher_cleanup_delay)"
+    log_info "Waiting for session termination (${cleanup_delay}s)..."
+    sleep "$cleanup_delay"
     
     # cleanup実行（リトライ付き）
     local cleanup_success=false
@@ -346,8 +348,10 @@ _run_cleanup_with_retry() {
         else
             log_warn "Cleanup attempt $cleanup_attempt failed"
             if [[ $cleanup_attempt -lt $max_cleanup_attempts ]]; then
-                log_info "Retrying in 3 seconds..."
-                sleep 3
+                local cleanup_retry_interval
+                cleanup_retry_interval="$(get_config watcher_cleanup_retry_interval)"
+                log_info "Retrying in ${cleanup_retry_interval} seconds..."
+                sleep "$cleanup_retry_interval"
             fi
         fi
         cleanup_attempt=$((cleanup_attempt + 1))
@@ -463,8 +467,10 @@ main() {
     save_status "$issue_number" "running" "$session_name"
 
     # 初期遅延（プロンプト表示を待つ）
-    log_info "Waiting for initial prompt display..."
-    sleep 10
+    local initial_delay
+    initial_delay="$(get_config watcher_initial_delay)"
+    log_info "Waiting for initial prompt display (${initial_delay}s)..."
+    sleep "$initial_delay"
 
     # 初期出力をキャプチャ（ベースライン）
     local baseline_output
