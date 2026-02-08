@@ -9,6 +9,9 @@ setup() {
         export _CLEANUP_TMPDIR=1
     fi
     
+    # 設定キャッシュをリセット
+    unset _CONFIG_SH_SOURCED
+    
     source "$PROJECT_ROOT/lib/workflow.sh"
     
     # YAMLキャッシュをリセット
@@ -229,6 +232,8 @@ auto:
 EOF
     
     export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    unset _CONFIG_SH_SOURCED
+    source "$PROJECT_ROOT/lib/config.sh"
     _CONFIG_LOADED=""
     CONFIG_AUTO_PROVIDER=""
     load_config "$CONFIG_FILE"
@@ -251,6 +256,8 @@ auto:
 EOF
     
     export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    unset _CONFIG_SH_SOURCED
+    source "$PROJECT_ROOT/lib/config.sh"
     _CONFIG_LOADED=""
     CONFIG_AUTO_MODEL=""
     load_config "$CONFIG_FILE"

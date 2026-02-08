@@ -13,6 +13,7 @@ setup() {
     _YQ_CHECK_RESULT=""
     
     # 設定キャッシュをリセット（agents設定テスト用）
+    unset _CONFIG_SH_SOURCED
     unset _CONFIG_LOADED
     unset CONFIG_AGENTS_PLAN
     unset CONFIG_AGENTS_IMPLEMENT
@@ -288,6 +289,8 @@ EOF
     
     # テストディレクトリに移動して設定を読み込む
     cd "$TEST_DIR"
+    unset _CONFIG_SH_SOURCED
+    source "$PROJECT_ROOT/lib/config.sh"
     reload_config
     
     result="$(find_agent_file "plan" "$TEST_DIR")"
@@ -329,6 +332,8 @@ EOF
     
     # テストディレクトリに移動して設定を読み込む
     cd "$TEST_DIR"
+    unset _CONFIG_SH_SOURCED
+    source "$PROJECT_ROOT/lib/config.sh"
     reload_config
     
     [ "$(find_agent_file "plan" "$TEST_DIR")" = "$TEST_DIR/custom/plan.md" ]
@@ -352,6 +357,8 @@ EOF
     
     # テストディレクトリに移動して設定を読み込む
     cd "$TEST_DIR"
+    unset _CONFIG_SH_SOURCED
+    source "$PROJECT_ROOT/lib/config.sh"
     reload_config
     
     result="$(find_agent_file "plan" "$TEST_DIR")"

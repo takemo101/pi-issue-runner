@@ -11,6 +11,7 @@ setup() {
     fi
     
     # 設定をリセット
+    unset _CONFIG_SH_SOURCED
     unset _CONFIG_LOADED
     unset CONFIG_MULTIPLEXER_SESSION_PREFIX
     unset CONFIG_PARALLEL_MAX_CONCURRENT
@@ -144,6 +145,8 @@ mock_tmux_not_installed() {
 # ====================
 
 @test "mux_generate_session_name generates correct name with default prefix" {
+    unset _CONFIG_SH_SOURCED
+    source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
     
     result="$(mux_generate_session_name 42)"
@@ -151,6 +154,8 @@ mock_tmux_not_installed() {
 }
 
 @test "mux_generate_session_name respects custom prefix" {
+    unset _CONFIG_SH_SOURCED
+    source "$PROJECT_ROOT/lib/config.sh"
     export CONFIG_MULTIPLEXER_SESSION_PREFIX="custom"
     export _CONFIG_LOADED="true"
     source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
@@ -160,6 +165,8 @@ mock_tmux_not_installed() {
 }
 
 @test "mux_generate_session_name handles prefix ending with -issue" {
+    unset _CONFIG_SH_SOURCED
+    source "$PROJECT_ROOT/lib/config.sh"
     export CONFIG_MULTIPLEXER_SESSION_PREFIX="myproject-issue"
     export _CONFIG_LOADED="true"
     source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
@@ -346,6 +353,10 @@ EOF
     chmod +x "$MOCK_DIR/tmux"
     export PATH="$MOCK_DIR:$PATH"
 
+    # Load config before sourcing multiplexer
+    unset _CONFIG_SH_SOURCED
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$TEST_CONFIG_FILE"
     source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
 
     run mux_list_sessions
@@ -511,8 +522,11 @@ EOF
 }
 
 @test "mux_check_concurrent_limit blocks when at limit" {
-    export CONFIG_PARALLEL_MAX_CONCURRENT="2"
     mock_tmux_installed
+    unset _CONFIG_SH_SOURCED
+    source "$PROJECT_ROOT/lib/config.sh"
+    export CONFIG_PARALLEL_MAX_CONCURRENT="2"
+    export _CONFIG_LOADED="true"
     source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
     
     run mux_check_concurrent_limit
