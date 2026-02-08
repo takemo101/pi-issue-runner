@@ -221,130 +221,189 @@ _yq_get_keys() {
 }
 
 # ===================
-# 簡易パーサー実装（フォールバック）
+# 簡易パーサー - ヘルパー関数
 # ===================
 
-# 簡易パーサーで値を取得
-# パス形式: .key, .section.key, .section.subsection.key（最大3階層）
+# パス階層を検証（最大3階層）
+_yaml_validate_depth() {
+    local path="$1"
+    local default="${2:-}"
+    local path_parts="${path#.}"
+    local depth
+    depth=$(echo "$path_parts" | tr "." "\n" | wc -l | tr -d ' ')
+    
+    if [[ "$depth" -gt 3 ]]; then
+        log_warn "Simple YAML parser only supports up to 3 levels of nesting: $path"
+        log_warn "Install yq for full YAML support: brew install yq"
+        echo "$default"
+        return 1
+    fi
+    return 0
+}
+
+# パスをパース
+_yaml_parse_path() {
+    local path="$1"
+    local path_parts="${path#.}"
+    local section="" subsection="" key=""
+    
+    if [[ "$path_parts" =~ ^([^.]+)\.([^.]+)\.([^.]+)$ ]]; then
+        section="${BASH_REMATCH[1]}"
+        subsection="${BASH_REMATCH[2]}"
+        key="${BASH_REMATCH[3]}"
+    elif [[ "$path_parts" =~ ^([^.]+)\.([^.]+)$ ]]; then
+        section="${BASH_REMATCH[1]}"
+        key="${BASH_REMATCH[2]}"
+    else
+        key="$path_parts"
+    fi
+    
+    echo "$section|$subsection|$key"
+}
+
+# クォート除去
+_yaml_strip_quotes() {
+    local value="$1"
+    value="${value#\"}"
+    value="${value%\"}"
+    value="${value#\'}"
+    value="${value%\'}"
+    echo "$value"
+}
+
+# コメント・空行チェック
+_yaml_is_comment_or_blank() {
+    local line="$1"
+    [[ "$line" =~ ^[[:space:]]*# ]] && return 0
+    [[ -z "${line// /}" ]] && return 0
+    return 1
+}
+
+# リテラルブロック処理
+_yaml_process_literal_block() {
+    local -n _content_ref="$1"
+    local line="$2"
+    local literal_indent="$3"
+    
+    # 同レベル以上のキーで終了
+    if [[ "$line" =~ ^[[:space:]]{0,$literal_indent}[a-z0-9_-]+: ]]; then
+        return 1
+    fi
+    
+    # 内容追加
+    if [[ -n "$line" && ! "$line" =~ ^[[:space:]]*$ ]]; then
+        _content_ref+="${line:$((literal_indent + 2))}"$'\n'
+    else
+        _content_ref+=$'\n'
+    fi
+    return 0
+}
+
+# トップレベルキー処理
+_yaml_process_level1() {
+    local line="$1"
+    local target_key="$2"
+    
+    if [[ "$line" =~ ^([a-z0-9_-]+):[[:space:]]*(.*) ]]; then
+        local line_key="${BASH_REMATCH[1]}" line_value="${BASH_REMATCH[2]}"
+        if [[ "$line_key" == "$target_key" && -n "$line_value" ]]; then
+            _yaml_strip_quotes "$line_value"
+            return 0
+        fi
+    fi
+    return 1
+}
+
+# セクション内キー処理（レベル2）
+_yaml_process_level2() {
+    local line="$1"
+    local target_key="$2"
+    
+    if [[ "$line" =~ ^[[:space:]]{2}([a-z0-9_-]+):[[:space:]]+(.*) ]]; then
+        local line_key="${BASH_REMATCH[1]}" line_value="${BASH_REMATCH[2]}"
+        if [[ "$line_key" == "$target_key" && -n "$line_value" ]]; then
+            _yaml_strip_quotes "$line_value"
+            return 0
+        fi
+    fi
+    return 1
+}
+
+# サブセクション内キー処理（レベル3）
+_yaml_process_level3() {
+    local line="$1"
+    local target_key="$2"
+    
+    if [[ "$line" =~ ^[[:space:]]{4}([a-z0-9_-]+):[[:space:]]+(.*) ]]; then
+        local line_key="${BASH_REMATCH[1]}" line_value="${BASH_REMATCH[2]}"
+        if [[ "$line_key" == "$target_key" && -n "$line_value" ]]; then
+            _yaml_strip_quotes "$line_value"
+            return 0
+        fi
+    fi
+    return 1
+}
+
+# ===================
+# 簡易パーサー - メイン関数
+# ===================
+
+# 値取得
 _simple_yaml_get() {
     local file="$1"
     local path="$2"
     local default="${3:-}"
     
-    # パス階層数を検証（簡易パーサーは最大3階層まで対応）
-    local path_parts="${path#.}"  # 先頭のドットを除去
-    local depth
-    depth=$(echo "$path_parts" | tr "." "\n" | wc -l | tr -d ' ')
-    if [[ "$depth" -gt 3 ]]; then
-        log_warn "Simple YAML parser only supports up to 3 levels of nesting: $path"
-        log_warn "Install yq for full YAML support: brew install yq"
-        echo "$default"
-        return 0
-    fi
+    _yaml_validate_depth "$path" "$default" || return 0
     
-    # パスを最大3階層に分解（path_partsは既に定義済み）
-    local section=""
-    local subsection=""
-    local key=""
+    local parsed section subsection key
+    parsed="$(_yaml_parse_path "$path")"
+    IFS='|' read -r section subsection key <<< "$parsed"
     
-    if [[ "$path_parts" =~ ^([^.]+)\.([^.]+)\.([^.]+)$ ]]; then
-        # 3階層: workflows.quick.description
-        section="${BASH_REMATCH[1]}"
-        subsection="${BASH_REMATCH[2]}"
-        key="${BASH_REMATCH[3]}"
-    elif [[ "$path_parts" =~ ^([^.]+)\.([^.]+)$ ]]; then
-        # 2階層: worktree.base_dir
-        section="${BASH_REMATCH[1]}"
-        key="${BASH_REMATCH[2]}"
-    else
-        # 1階層: name
-        key="$path_parts"
-    fi
-    
-    local current_section=""
-    local current_subsection=""
-    local found_value=""
-    local in_literal_block=false
-    local literal_content=""
-    local literal_indent=0
+    local current_section="" current_subsection=""
+    local found_value="" in_literal_block=false
+    local literal_content="" literal_indent=0
     
     _yaml_ensure_cached "$file"
     
     while IFS= read -r line || [[ -n "$line" ]]; do
-        # 複数行リテラルブロックの継続処理
+        # リテラルブロック継続
         if [[ "$in_literal_block" == "true" ]]; then
-            # 同レベル以上のキーが来たら終了
-            if [[ "$line" =~ ^[[:space:]]{0,$literal_indent}[a-z0-9_-]+: ]]; then
+            if ! _yaml_process_literal_block literal_content "$line" "$literal_indent"; then
                 found_value="$literal_content"
                 break
-            fi
-            
-            # 空行やコメントは除外せず追加
-            if [[ -n "$line" && ! "$line" =~ ^[[:space:]]*$ ]]; then
-                # インデント部分を削除して追加
-                literal_content+="${line:$((literal_indent + 2))}"$'\n'
-            else
-                literal_content+=$'\n'
             fi
             continue
         fi
         
-        # コメントと空行をスキップ
-        [[ "$line" =~ ^[[:space:]]*# ]] && continue
-        [[ -z "${line// /}" ]] && continue
+        _yaml_is_comment_or_blank "$line" && continue
         
-        # レベル1: トップレベルセクション (例: worktree:, workflows:)
+        # セクション検出
         if [[ "$line" =~ ^([a-z0-9_-]+):[[:space:]]*$ ]]; then
             current_section="${BASH_REMATCH[1]}"
             current_subsection=""
             continue
         fi
         
-        # レベル1: トップレベルキー（値あり）
-        if [[ -z "$section" && "$line" =~ ^([a-z0-9_-]+):[[:space:]]*(.*) ]]; then
-            local line_key="${BASH_REMATCH[1]}"
-            local line_value="${BASH_REMATCH[2]}"
-            
-            if [[ "$line_key" == "$key" && -n "$line_value" ]]; then
-                # クォートを除去
-                line_value="${line_value#\"}"
-                line_value="${line_value%\"}"
-                line_value="${line_value#\'}"
-                line_value="${line_value%\'}"
-                found_value="$line_value"
-                break
-            fi
-            continue
+        # レベル1処理
+        if [[ -z "$section" ]] && found_value="$(_yaml_process_level1 "$line" "$key")"; then
+            break
         fi
         
-        # レベル2: セクション内のサブセクション (例: workflows: の下の quick:)
+        # レベル2処理
         if [[ -n "$section" && "$current_section" == "$section" ]]; then
-            # サブセクションの検出（常に実行）
             if [[ "$line" =~ ^[[:space:]]{2}([a-z0-9_-]+):[[:space:]]*$ ]]; then
                 current_subsection="${BASH_REMATCH[1]}"
                 continue
             fi
-            
-            # レベル2: セクション内のキー（値あり、サブセクションなし）
-            if [[ -z "$subsection" && "$line" =~ ^[[:space:]]{2}([a-z0-9_-]+):[[:space:]]+(.*) ]]; then
-                local line_key="${BASH_REMATCH[1]}"
-                local line_value="${BASH_REMATCH[2]}"
-                
-                if [[ "$line_key" == "$key" && -n "$line_value" ]]; then
-                    # クォートを除去
-                    line_value="${line_value#\"}"
-                    line_value="${line_value%\"}"
-                    line_value="${line_value#\'}"
-                    line_value="${line_value%\'}"
-                    found_value="$line_value"
-                    break
-                fi
+            if [[ -z "$subsection" ]] && found_value="$(_yaml_process_level2 "$line" "$key")"; then
+                break
             fi
         fi
         
-        # レベル3: サブセクション内のキー (例: workflows.quick.description)
+        # レベル3処理
         if [[ -n "$section" && -n "$subsection" && "$current_section" == "$section" && "$current_subsection" == "$subsection" ]]; then
-            # リテラルブロック（複数行テキスト）の検出
+            # リテラルブロック開始
             if [[ "$line" =~ ^[[:space:]]{4}([a-z0-9_-]+):[[:space:]]*\|[[:space:]]*$ ]]; then
                 local line_key="${BASH_REMATCH[1]}"
                 if [[ "$line_key" == "$key" ]]; then
@@ -354,27 +413,14 @@ _simple_yaml_get() {
                 fi
                 continue
             fi
-            
-            # レベル3: サブセクション内のキー（値あり）
-            if [[ "$line" =~ ^[[:space:]]{4}([a-z0-9_-]+):[[:space:]]+(.*) ]]; then
-                local line_key="${BASH_REMATCH[1]}"
-                local line_value="${BASH_REMATCH[2]}"
-                
-                if [[ "$line_key" == "$key" && -n "$line_value" ]]; then
-                    # クォートを除去
-                    line_value="${line_value#\"}"
-                    line_value="${line_value%\"}"
-                    line_value="${line_value#\'}"
-                    line_value="${line_value%\'}"
-                    found_value="$line_value"
-                    break
-                fi
+            if found_value="$(_yaml_process_level3 "$line" "$key")"; then
+                break
             fi
         fi
     done <<< "$_YAML_CACHE_CONTENT"
     
+    # 結果出力
     if [[ -n "$found_value" ]]; then
-        # 末尾の改行を除去（リテラルブロックの場合）
         if [[ "$in_literal_block" == "true" ]]; then
             echo -n "$found_value"
         else
@@ -385,53 +431,26 @@ _simple_yaml_get() {
     fi
 }
 
-# 簡易パーサーで配列を取得
+# 配列取得
 _simple_yaml_get_array() {
     local file="$1"
     local path="$2"
     
-    # パス階層数を検証（簡易パーサーは最大3階層まで対応）
-    local path_parts="${path#.}"  # 先頭のドットを除去
-    local depth
-    depth=$(echo "$path_parts" | tr "." "\n" | wc -l | tr -d ' ')
-    if [[ "$depth" -gt 3 ]]; then
-        log_warn "Simple YAML parser only supports up to 3 levels of nesting: $path"
-        log_warn "Install yq for full YAML support: brew install yq"
-        return 0
-    fi
+    _yaml_validate_depth "$path" "" || return 0
     
-    # パスを最大3階層に分解（path_partsは既に定義済み）
-    local section=""
-    local subsection=""
-    local key=""
+    local parsed section subsection key
+    parsed="$(_yaml_parse_path "$path")"
+    IFS='|' read -r section subsection key <<< "$parsed"
     
-    if [[ "$path_parts" =~ ^([^.]+)\.([^.]+)\.([^.]+)$ ]]; then
-        # 3階層: workflows.quick.steps
-        section="${BASH_REMATCH[1]}"
-        subsection="${BASH_REMATCH[2]}"
-        key="${BASH_REMATCH[3]}"
-    elif [[ "$path_parts" =~ ^([^.]+)\.([^.]+)$ ]]; then
-        # 2階層: worktree.copy_files
-        section="${BASH_REMATCH[1]}"
-        key="${BASH_REMATCH[2]}"
-    else
-        # 1階層: steps
-        key="$path_parts"
-    fi
-    
-    local current_section=""
-    local current_subsection=""
-    local in_target_array=false
-    local array_indent=0
+    local current_section="" current_subsection=""
+    local in_target_array=false array_indent=0
     
     _yaml_ensure_cached "$file"
     
     while IFS= read -r line || [[ -n "$line" ]]; do
-        # コメントと空行をスキップ
-        [[ "$line" =~ ^[[:space:]]*# ]] && continue
-        [[ -z "${line// /}" ]] && continue
+        _yaml_is_comment_or_blank "$line" && continue
         
-        # レベル1: トップレベルセクション
+        # セクション検出
         if [[ "$line" =~ ^([a-z0-9_-]+):[[:space:]]*$ ]]; then
             current_section="${BASH_REMATCH[1]}"
             current_subsection=""
@@ -439,205 +458,128 @@ _simple_yaml_get_array() {
             continue
         fi
         
-        # レベル2: セクション内のキー（サブセクションまたは配列）
+        # レベル2配列検出
         if [[ -n "$section" && -z "$subsection" && "$current_section" == "$section" ]]; then
             if [[ "$line" =~ ^[[:space:]]{2}([a-z0-9_-]+):[[:space:]]*$ ]]; then
                 local line_key="${BASH_REMATCH[1]}"
-                # まず、ターゲットの配列キーかチェック
                 if [[ "$line_key" == "$key" ]]; then
                     in_target_array=true
                     array_indent=2
                 else
-                    # ターゲットでなければサブセクションとして扱う
                     current_subsection="$line_key"
                     in_target_array=false
                 fi
                 continue
             fi
-            
-            # 別のキー（値付き）が来たら配列終了
             if [[ "$line" =~ ^[[:space:]]{2}[a-z0-9_-]+:[[:space:]]+[^[:space:]] ]]; then
                 in_target_array=false
                 continue
             fi
         fi
         
-        # レベル3: サブセクション内のキー（配列）
+        # レベル3配列検出
         if [[ -n "$section" && -n "$subsection" && "$current_section" == "$section" && "$current_subsection" == "$subsection" ]]; then
             if [[ "$line" =~ ^[[:space:]]{4}([a-z0-9_-]+):[[:space:]]*$ ]]; then
                 local line_key="${BASH_REMATCH[1]}"
-                if [[ "$line_key" == "$key" ]]; then
-                    in_target_array=true
-                    array_indent=4
-                else
-                    in_target_array=false
-                fi
+                [[ "$line_key" == "$key" ]] && in_target_array=true array_indent=4 || in_target_array=false
                 continue
             fi
-            
-            # 別のキー（値付き）が来たら配列終了
             if [[ "$line" =~ ^[[:space:]]{4}[a-z0-9_-]+:[[:space:]]+[^[:space:]] ]]; then
                 in_target_array=false
                 continue
             fi
         fi
         
-        # トップレベルの配列キー検出（サブセクションなし）
-        if [[ -z "$section" ]]; then
-            if [[ "$line" =~ ^([a-z0-9_-]+):[[:space:]]*$ ]]; then
-                local line_key="${BASH_REMATCH[1]}"
-                if [[ "$line_key" == "$key" ]]; then
-                    in_target_array=true
-                    array_indent=0
-                else
-                    in_target_array=false
-                fi
-                continue
-            fi
+        # トップレベル配列検出
+        if [[ -z "$section" && "$line" =~ ^([a-z0-9_-]+):[[:space:]]*$ ]]; then
+            local line_key="${BASH_REMATCH[1]}"
+            [[ "$line_key" == "$key" ]] && in_target_array=true array_indent=0 || in_target_array=false
+            continue
         fi
         
-        # 配列項目の検出（インデントレベルに応じて）
+        # 配列項目出力
         if [[ "$in_target_array" == "true" ]]; then
             local expected_indent=$((array_indent + 2))
             if [[ "$line" =~ ^[[:space:]]{$expected_indent}-[[:space:]]+(.*) ]]; then
-                local item="${BASH_REMATCH[1]}"
-                # クォートを除去
-                item="${item#\"}"
-                item="${item%\"}"
-                item="${item#\'}"
-                item="${item%\'}"
-                echo "$item"
+                _yaml_strip_quotes "${BASH_REMATCH[1]}"
             fi
         fi
     done <<< "$_YAML_CACHE_CONTENT"
 }
 
-# 簡易パーサーでパスの存在確認
+# 存在確認
 _simple_yaml_exists() {
     local file="$1"
     local path="$2"
     
-    # パス階層数を検証（簡易パーサーは最大3階層まで対応）
-    local path_parts="${path#.}"  # 先頭のドットを除去
-    local depth
-    depth=$(echo "$path_parts" | tr "." "\n" | wc -l | tr -d ' ')
-    if [[ "$depth" -gt 3 ]]; then
-        log_warn "Simple YAML parser only supports up to 3 levels of nesting: $path"
-        log_warn "Install yq for full YAML support: brew install yq"
-        return 1
-    fi
+    _yaml_validate_depth "$path" "" || return 1
     
-    # パスを最大3階層に分解（path_partsは既に定義済み）
-    local section=""
-    local subsection=""
-    local key=""
+    local parsed section subsection key
+    parsed="$(_yaml_parse_path "$path")"
+    IFS='|' read -r section subsection key <<< "$parsed"
     
-    if [[ "$path_parts" =~ ^([^.]+)\.([^.]+)\.([^.]+)$ ]]; then
-        # 3階層: workflows.quick.steps
-        section="${BASH_REMATCH[1]}"
-        subsection="${BASH_REMATCH[2]}"
-        key="${BASH_REMATCH[3]}"
-    elif [[ "$path_parts" =~ ^([^.]+)\.([^.]+)$ ]]; then
-        # 2階層: worktree.base_dir
-        section="${BASH_REMATCH[1]}"
-        key="${BASH_REMATCH[2]}"
-    else
-        # 1階層: workflow
-        section="$path_parts"
-        key=""
-    fi
-    
-    local current_section=""
-    local current_subsection=""
+    local current_section="" current_subsection=""
     
     _yaml_ensure_cached "$file"
     
     while IFS= read -r line || [[ -n "$line" ]]; do
-        # コメントと空行をスキップ
-        [[ "$line" =~ ^[[:space:]]*# ]] && continue
-        [[ -z "${line// /}" ]] && continue
+        _yaml_is_comment_or_blank "$line" && continue
         
-        # レベル1: トップレベルセクション
+        # セクション検出
         if [[ "$line" =~ ^([a-z0-9_-]+):[[:space:]]*$ ]]; then
             current_section="${BASH_REMATCH[1]}"
             current_subsection=""
-            # 1階層のみのパス (例: .workflows)
-            if [[ -z "$subsection" && -z "$key" && "$current_section" == "$section" ]]; then
-                return 0
-            fi
+            # 1階層のみ: .workflow → section='' key='workflow'
+            [[ -z "$section" && -z "$subsection" && "$current_section" == "$key" ]] && return 0
+            # または 2階層セクション: .section.subsection → section='section' subsection='subsection' key=''
+            [[ -z "$subsection" && -z "$key" && "$current_section" == "$section" ]] && return 0
             continue
         fi
         
-        # レベル2: セクション内のサブセクションまたはキー
-        if [[ -n "$section" && "$current_section" == "$section" ]]; then
-            if [[ "$line" =~ ^[[:space:]]{2}([a-z0-9_-]+): ]]; then
-                local line_key="${BASH_REMATCH[1]}"
-                
-                # 2階層のパス (例: .workflows.quick)
-                if [[ -z "$subsection" && -n "$key" && "$line_key" == "$key" ]]; then
-                    return 0
-                fi
-                
-                # サブセクションの開始
-                if [[ -n "$subsection" && -z "$key" && "$line_key" == "$subsection" ]]; then
-                    # .workflows.quick の確認（keyなし）
-                    return 0
-                fi
-                
-                if [[ -n "$subsection" && "$line_key" == "$subsection" ]]; then
-                    current_subsection="$subsection"
-                fi
-            fi
+        # レベル2確認
+        if [[ -n "$section" && "$current_section" == "$section" && "$line" =~ ^[[:space:]]{2}([a-z0-9_-]+): ]]; then
+            local line_key="${BASH_REMATCH[1]}"
+            # 2階層
+            [[ -z "$subsection" && -n "$key" && "$line_key" == "$key" ]] && return 0
+            # サブセクション
+            [[ -n "$subsection" && -z "$key" && "$line_key" == "$subsection" ]] && return 0
+            [[ -n "$subsection" && "$line_key" == "$subsection" ]] && current_subsection="$subsection"
         fi
         
-        # レベル3: サブセクション内のキー
-        if [[ -n "$section" && -n "$subsection" && -n "$key" && "$current_section" == "$section" && "$current_subsection" == "$subsection" ]]; then
-            if [[ "$line" =~ ^[[:space:]]{4}([a-z0-9_-]+): ]]; then
-                local line_key="${BASH_REMATCH[1]}"
-                if [[ "$line_key" == "$key" ]]; then
-                    return 0
-                fi
-            fi
+        # レベル3確認
+        if [[ -n "$section" && -n "$subsection" && -n "$key" && "$current_section" == "$section" && "$current_subsection" == "$subsection" && "$line" =~ ^[[:space:]]{4}([a-z0-9_-]+): ]]; then
+            [[ "${BASH_REMATCH[1]}" == "$key" ]] && return 0
         fi
     done <<< "$_YAML_CACHE_CONTENT"
     
     return 1
 }
 
-# 簡易パーサーでキー一覧を取得
+# キー一覧取得
 _simple_yaml_get_keys() {
     local file="$1"
     local path="$2"
     
-    # パスからセクションを抽出（例: .workflows → workflows）
     local section="${path#.}"
-    local current_section=""
-    local in_target_section=false
+    local current_section="" in_target_section=false
     
     _yaml_ensure_cached "$file"
     
     while IFS= read -r line || [[ -n "$line" ]]; do
-        # コメントと空行をスキップ
-        [[ "$line" =~ ^[[:space:]]*# ]] && continue
-        [[ -z "${line// /}" ]] && continue
+        _yaml_is_comment_or_blank "$line" && continue
         
-        # セクション検出（workflows:）
+        # セクション検出
         if [[ "$line" =~ ^([a-z0-9_-]+):[[:space:]]*$ ]]; then
             current_section="${BASH_REMATCH[1]}"
-            if [[ "$current_section" == "$section" ]]; then
-                in_target_section=true
-            else
-                in_target_section=false
-            fi
+            in_target_section=$([[ "$current_section" == "$section" ]] && echo "true" || echo "false")
             continue
         fi
         
-        # セクション内のキー検出（2スペースインデント）
+        # キー出力
         if [[ "$in_target_section" == "true" ]]; then
             if [[ "$line" =~ ^[[:space:]]{2}([a-z0-9_-]+): ]]; then
                 echo "${BASH_REMATCH[1]}"
             elif [[ "$line" =~ ^[a-z0-9_-]+: ]]; then
-                # インデントなし = 別セクション開始
                 break
             fi
         fi
