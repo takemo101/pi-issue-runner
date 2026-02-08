@@ -32,11 +32,15 @@ source "$_WORKFLOW_FINDER_LIB_DIR/config.sh"
 #   5. ビルトイン {name}
 # AI自動選択（workflow_name="auto"）の場合:
 #   auto をそのまま返す（プロンプト生成側で特別な処理を行う）
+#   注意: 通常、run.sh は resolve_auto_workflow_name() で事前にワークフローを選択するため、
+#   この関数に "auto" が渡されることは稀です（フォールバック用）。
 find_workflow_file() {
     local workflow_name="${1:-default}"
     local project_root="${2:-.}"
     
-    # AI自動選択モード
+    # AI自動選択モード（フォールバックパス）
+    # 通常は run.sh で resolve_auto_workflow_name() により事前選択されるため、
+    # このコードパスが実行されるのは稀です（直接呼び出し時のみ）
     if [[ "$workflow_name" == "auto" ]]; then
         echo "auto"
         return 0
