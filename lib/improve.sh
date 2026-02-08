@@ -51,11 +51,13 @@ LOG_DIR=""  # Set in setup_improve_environment after load_config
 # Main function - Orchestrate continuous improvement workflow
 # ============================================================================
 improve_main() {
-    # Set up trap for cleanup on interruption
-    trap cleanup_improve_on_exit EXIT INT TERM
-    
     # Parse arguments (sets _PARSE_* global variables)
     parse_improve_arguments "$@"
+    
+    # Set up trap for cleanup on interruption
+    # Note: _IMPROVE_SESSION_LABEL is global to be accessible from trap
+    _IMPROVE_SESSION_LABEL="$_PARSE_session_label"
+    trap 'cleanup_improve_on_exit "$_IMPROVE_SESSION_LABEL"' EXIT INT TERM
     
     # Copy to local variables for clarity
     # shellcheck disable=SC2154  # _PARSE_* variables set by parse_improve_arguments
@@ -103,10 +105,10 @@ improve_main() {
     created_issues="$(fetch_improve_created_issues "$start_time" "$max_issues" "$session_label")"
     
     # Phase 3: Execute in parallel
-    execute_improve_issues_in_parallel "$created_issues"
+    execute_improve_issues_in_parallel "$created_issues" "$session_label"
     
     # Phase 4: Wait for completion
-    wait_for_improve_completion "$timeout"
+    wait_for_improve_completion "$timeout" "$session_label"
     
     # Phase 4.5: Sweep completed sessions
     log_info "Sweeping completed sessions..."

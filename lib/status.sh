@@ -55,6 +55,7 @@ json_escape() {
 #   $3 - session_name
 #   $4 - timestamp
 #   $5 - error_message (オプション)
+#   $6 - session_label (オプション)
 # 出力: JSON文字列
 build_json_with_jq() {
     local issue_number="$1"
@@ -62,22 +63,33 @@ build_json_with_jq() {
     local session_name="$3"
     local timestamp="$4"
     local error_message="${5:-}"
+    local session_label="${6:-}"
     
-    if [[ -n "$error_message" ]]; then
-        jq -n \
-            --argjson issue "$issue_number" \
-            --arg status "$status" \
-            --arg session "$session_name" \
+    local base_args=(
+        -n
+        --argjson issue "$issue_number"
+        --arg status "$status"
+        --arg session "$session_name"
+        --arg timestamp "$timestamp"
+    )
+    
+    local base_obj='{issue: $issue, status: $status, session: $session, timestamp: $timestamp}'
+    
+    if [[ -n "$error_message" && -n "$session_label" ]]; then
+        jq "${base_args[@]}" \
             --arg error "$error_message" \
-            --arg timestamp "$timestamp" \
-            '{issue: $issue, status: $status, session: $session, error_message: $error, timestamp: $timestamp}'
+            --arg label "$session_label" \
+            "$base_obj | . + {error_message: \$error, session_label: \$label}"
+    elif [[ -n "$error_message" ]]; then
+        jq "${base_args[@]}" \
+            --arg error "$error_message" \
+            "$base_obj | . + {error_message: \$error}"
+    elif [[ -n "$session_label" ]]; then
+        jq "${base_args[@]}" \
+            --arg label "$session_label" \
+            "$base_obj | . + {session_label: \$label}"
     else
-        jq -n \
-            --argjson issue "$issue_number" \
-            --arg status "$status" \
-            --arg session "$session_name" \
-            --arg timestamp "$timestamp" \
-            '{issue: $issue, status: $status, session: $session, timestamp: $timestamp}'
+        jq "${base_args[@]}" "$base_obj"
     fi
 }
 
@@ -88,6 +100,7 @@ build_json_with_jq() {
 #   $3 - session_name
 #   $4 - timestamp
 #   $5 - error_message (オプション)
+#   $6 - session_label (オプション)
 # 出力: JSON文字列
 build_json_fallback() {
     local issue_number="$1"
@@ -95,34 +108,37 @@ build_json_fallback() {
     local session_name="$3"
     local timestamp="$4"
     local error_message="${5:-}"
+    local session_label="${6:-}"
     
     local escaped_status escaped_session escaped_timestamp
     escaped_status="$(json_escape "$status")"
     escaped_session="$(json_escape "$session_name")"
     escaped_timestamp="$(json_escape "$timestamp")"
     
+    local json_base="{
+  \"issue\": $issue_number,
+  \"status\": \"$escaped_status\",
+  \"session\": \"$escaped_session\""
+    
     if [[ -n "$error_message" ]]; then
         local escaped_message
         escaped_message="$(json_escape "$error_message")"
-        cat << EOF
-{
-  "issue": $issue_number,
-  "status": "$escaped_status",
-  "session": "$escaped_session",
-  "error_message": "$escaped_message",
-  "timestamp": "$escaped_timestamp"
-}
-EOF
-    else
-        cat << EOF
-{
-  "issue": $issue_number,
-  "status": "$escaped_status",
-  "session": "$escaped_session",
-  "timestamp": "$escaped_timestamp"
-}
-EOF
+        json_base="$json_base,
+  \"error_message\": \"$escaped_message\""
     fi
+    
+    if [[ -n "$session_label" ]]; then
+        local escaped_label
+        escaped_label="$(json_escape "$session_label")"
+        json_base="$json_base,
+  \"session_label\": \"$escaped_label\""
+    fi
+    
+    json_base="$json_base,
+  \"timestamp\": \"$escaped_timestamp\"
+}"
+    
+    echo "$json_base"
 }
 
 # ステータスディレクトリを取得
@@ -149,11 +165,13 @@ init_status_dir() {
 #   $2 - status: ステータス (running, error, complete)
 #   $3 - session_name: セッション名
 #   $4 - error_message: エラーメッセージ (オプション)
+#   $5 - session_label: セッションラベル (オプション、improve.shで使用)
 save_status() {
     local issue_number="$1"
     local status="$2"
     local session_name="${3:-}"
     local error_message="${4:-}"
+    local session_label="${5:-}"
     
     init_status_dir
     
@@ -166,16 +184,16 @@ save_status() {
     # JSONを構築（jqがあれば使用、なければフォールバック）
     local json
     if command -v jq &>/dev/null; then
-        json="$(build_json_with_jq "$issue_number" "$status" "$session_name" "$timestamp" "$error_message")"
+        json="$(build_json_with_jq "$issue_number" "$status" "$session_name" "$timestamp" "$error_message" "$session_label")"
     else
-        json="$(build_json_fallback "$issue_number" "$status" "$session_name" "$timestamp" "$error_message")"
+        json="$(build_json_fallback "$issue_number" "$status" "$session_name" "$timestamp" "$error_message" "$session_label")"
     fi
     
     # Atomic write: write to temp file and rename
     local tmp_file="${status_file}.tmp.$$"
     echo "$json" > "$tmp_file"
     mv -f "$tmp_file" "$status_file"
-    log_debug "Saved status for issue #$issue_number: $status"
+    log_debug "Saved status for issue #$issue_number: $status (label: ${session_label:-none})"
 }
 
 # ステータスを設定（Issue仕様に合わせたエイリアス）
@@ -307,6 +325,27 @@ list_all_statuses() {
     done
 }
 
+# セッションラベルを取得
+# 引数:
+#   $1 - issue_number: Issue番号
+# 出力: セッションラベル文字列または空
+get_session_label() {
+    local issue_number="$1"
+    
+    local json
+    json="$(load_status "$issue_number")"
+    
+    if [[ -n "$json" ]]; then
+        # jqを使用してsession_labelフィールドを抽出（null時は空文字列を返す）
+        if command -v jq &>/dev/null; then
+            echo "$json" | jq -r '.session_label // ""'
+        else
+            # jqがない場合はフォールバック（grep/sed）
+            echo "$json" | grep -o '"session_label"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/' || true
+        fi
+    fi
+}
+
 # 指定ステータスのIssue一覧を取得
 # 引数:
 #   $1 - status: フィルタするステータス
@@ -316,6 +355,26 @@ list_issues_by_status() {
     
     list_all_statuses | while IFS=$'\t' read -r issue status; do
         if [[ "$status" == "$filter_status" ]]; then
+            echo "$issue"
+        fi
+    done
+}
+
+# 指定ステータスとラベルのIssue一覧を取得
+# 引数:
+#   $1 - status: フィルタするステータス
+#   $2 - label: フィルタするラベル（空の場合はラベルなしのみ）
+# 出力: Issue番号（1行に1つ）
+list_issues_by_status_and_label() {
+    local filter_status="$1"
+    local filter_label="${2:-}"
+    
+    list_issues_by_status "$filter_status" | while IFS= read -r issue; do
+        local label
+        label="$(get_session_label "$issue")"
+        
+        # ラベルが一致する場合のみ出力
+        if [[ "$label" == "$filter_label" ]]; then
             echo "$issue"
         fi
     done
