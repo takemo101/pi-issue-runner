@@ -262,12 +262,13 @@ teardown() {
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/improve/args.sh"
     
-    # Verify output uses quotes for defense-in-depth
-    output=$(parse_improve_arguments --max-iterations 5 --max-issues 10 --timeout 1800)
+    # parse_improve_arguments sets global variables (no echo output)
+    parse_improve_arguments --max-iterations 5 --max-issues 10 --timeout 1800
     
-    [[ "$output" == *"max_iterations='5'"* ]]
-    [[ "$output" == *"max_issues='10'"* ]]
-    [[ "$output" == *"timeout='1800'"* ]]
+    # Verify variables are set correctly (defense-in-depth via direct assignment)
+    [ "$_PARSE_max_iterations" = "5" ]
+    [ "$_PARSE_max_issues" = "10" ]
+    [ "$_PARSE_timeout" = "1800" ]
 }
 
 @test "Issue #922: next.sh already validates count as positive integer" {
@@ -280,11 +281,12 @@ teardown() {
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/improve/args.sh"
     
-    # Test valid inputs
-    run bash -c "source '$PROJECT_ROOT/lib/log.sh' && source '$PROJECT_ROOT/lib/improve/args.sh' && parse_improve_arguments --max-iterations 3 --max-issues 5 --timeout 3600 --iteration 1"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"max_iterations='3'"* ]]
-    [[ "$output" == *"max_issues='5'"* ]]
-    [[ "$output" == *"timeout='3600'"* ]]
-    [[ "$output" == *"iteration='1'"* ]]
+    # Test valid inputs - parse_improve_arguments sets global variables
+    parse_improve_arguments --max-iterations 3 --max-issues 5 --timeout 3600 --iteration 1
+    
+    # Verify all variables are set correctly
+    [ "$_PARSE_max_iterations" = "3" ]
+    [ "$_PARSE_max_issues" = "5" ]
+    [ "$_PARSE_timeout" = "3600" ]
+    [ "$_PARSE_iteration" = "1" ]
 }

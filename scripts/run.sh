@@ -135,15 +135,6 @@ source "$SCRIPT_DIR/../lib/agent.sh"
 source "$SCRIPT_DIR/../lib/daemon.sh"
 source "$SCRIPT_DIR/../lib/status.sh"
 
-# 設定ファイルの存在チェック（必須）
-require_config_file "pi-run" || exit 1
-
-# 依存関係チェック
-check_dependencies || exit 1
-
-# エラー時のクリーンアップを設定
-setup_cleanup_trap cleanup_worktree_on_error
-
 # ============================================================================
 # Subfunction: parse_run_arguments
 # Purpose: Parse command-line arguments
@@ -601,5 +592,14 @@ main() {
 
 # Only run main if script is executed directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    # 設定ファイルの存在チェック（必須）
+    require_config_file "pi-run" || exit 1
+    
+    # 依存関係チェック
+    check_dependencies || exit 1
+    
+    # エラー時のクリーンアップを設定
+    setup_cleanup_trap cleanup_worktree_on_error
+    
     main "$@"
 fi
