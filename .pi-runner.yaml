@@ -105,6 +105,9 @@ workflows:
       - merge
     agent:
       type: opencode
+      args:
+        - -m
+        - anthropic/claude-opus-4-6
     context: |
       ## 技術スタック
       - Bash 4.0+ / ShellCheck 準拠
