@@ -325,7 +325,7 @@ EOF
         agent_file=$(find_agent_file "$step" "$project_root")
         
         local agent_prompt
-        agent_prompt=$(get_agent_prompt "$agent_file" "$issue_number" "$branch_name" "$worktree_path" "$step" "$issue_title" "$pr_number")
+        agent_prompt=$(get_agent_prompt "$agent_file" "$issue_number" "$branch_name" "$worktree_path" "$step" "$issue_title" "$pr_number" "$workflow_name")
         
         # ステップ名の最初を大文字に
         local step_name
