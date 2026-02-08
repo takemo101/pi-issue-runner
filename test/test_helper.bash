@@ -242,3 +242,10 @@ assert_dir_exists() {
         return 1
     fi
 }
+
+# macOS以外の場合はテストをスキップ
+skip_if_not_macos() {
+    if [[ "$(uname)" != "Darwin" ]]; then
+        skip "This test requires macOS"
+    fi
+}

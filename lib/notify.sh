@@ -61,8 +61,18 @@ notify_error() {
     if is_macos; then
         # macOS: osascriptを使用
         # エラーメッセージをAppleScript用にエスケープ
+        # 1. バックスラッシュをエスケープ（最初に実行）
+        # 2. ダブルクォートをエスケープ
+        # 3. 改行を削除（スペースに置換）
+        # 4. 制御文字を削除
         local escaped_message
-        escaped_message="$(echo "$error_message" | sed 's/\\/\\\\/g; s/"/\\"/g' | head -c 200)"
+        escaped_message="${error_message//\\/\\\\}"
+        escaped_message="${escaped_message//\"/\\\"}"
+        escaped_message="${escaped_message//$'\n'/ }"
+        escaped_message="${escaped_message//$'\r'/ }"
+        escaped_message="${escaped_message//$'\t'/ }"
+        # メッセージを200文字に制限
+        escaped_message="${escaped_message:0:200}"
         
         osascript -e "display notification \"$escaped_message\" with title \"Pi Issue Runner\" subtitle \"Issue #$issue_number でエラー\" sound name \"Basso\"" 2>/dev/null || {
             log_warn "Failed to send macOS notification"
@@ -117,6 +127,12 @@ open_terminal_and_attach() {
         return 1
     fi
     
+    # セッション名のバリデーション（英数字、ハイフン、アンダースコアのみ許可）
+    if [[ ! "$session_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        log_error "Invalid session name for Terminal attach: $session_name"
+        return 1
+    fi
+    
     # 現在のスクリプトディレクトリからattach.shのパスを計算
     local attach_script="${_NOTIFY_LIB_DIR}/../scripts/attach.sh"
     
@@ -125,11 +141,18 @@ open_terminal_and_attach() {
         return 1
     fi
     
+    # AppleScript用にエスケープ（バックスラッシュ、ダブルクォート）
+    local safe_script="${attach_script//\\/\\\\}"
+    safe_script="${safe_script//\"/\\\"}"
+    
+    local safe_session="${session_name//\\/\\\\}"
+    safe_session="${safe_session//\"/\\\"}"
+    
     # Terminal.appを開いてattachコマンドを実行
     if ! osascript << EOF 2>/dev/null
 tell application "Terminal"
     activate
-    do script "\"$attach_script\" \"$session_name\""
+    do script "\"$safe_script\" \"$safe_session\""
 end tell
 EOF
     then
