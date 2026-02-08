@@ -18,10 +18,22 @@ if [[ -n "${_EXECUTION_SH_SOURCED:-}" ]]; then
 fi
 _EXECUTION_SH_SOURCED="true"
 
-# Define script directory with fallback (allows standalone sourcing)
-_IMPROVE_EXEC_SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/scripts}"
+# Define script directory explicitly from this file's location
+# Note: Previously used ${SCRIPT_DIR:-...} fallback, but this could use
+# unexpected values if SCRIPT_DIR was set elsewhere. Now always compute
+# from this file's actual location for safety.
+_IMPROVE_EXEC_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/scripts"
 
 # Global: Track active sessions for cleanup on exit
+# Note: This array maintains state across function calls within a single
+# improve.sh execution. Each issue number is added when its session starts
+# (execute_improve_issues_in_parallel) and removed when it completes
+# (_wait_for_available_slot). The array is also used for cleanup on
+# interruption (cleanup_improve_on_exit).
+#
+# TODO: Consider refactoring to file-based tracking using status files
+# (e.g., querying .worktrees/.status/*.json instead of maintaining in-memory
+# state) for better testability and support for concurrent improve processes.
 declare -a ACTIVE_ISSUE_NUMBERS=()
 
 # ============================================================================
