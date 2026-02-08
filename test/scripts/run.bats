@@ -350,3 +350,202 @@ MOCK_EOF
     [ "$status" -eq 0 ]
     [[ "$output" == *"--show-agent-config"* ]]
 }
+
+# ====================
+# ワークフロー固有のagent設定テスト
+# ====================
+
+@test "workflow-specific agent override: get_workflow_agent_property returns correct values" {
+    # テスト用設定ファイルを作成
+    cat > "$BATS_TEST_TMPDIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  test-workflow:
+    description: テストワークフロー
+    steps:
+      - implement
+    agent:
+      type: claude
+      command: custom-claude
+      args:
+        - --model
+        - opus
+EOF
+    
+    # 環境変数を設定
+    export CONFIG_FILE="$BATS_TEST_TMPDIR/.pi-runner.yaml"
+    
+    # workflow-loader.sh をロード
+    source "$PROJECT_ROOT/lib/workflow-loader.sh"
+    
+    # ワークフロー固有の設定を取得
+    local workflow_file="config-workflow:test-workflow"
+    local type command args
+    type=$(get_workflow_agent_property "$workflow_file" "type")
+    command=$(get_workflow_agent_property "$workflow_file" "command")
+    args=$(get_workflow_agent_property "$workflow_file" "args")
+    
+    # 検証
+    [ "$type" = "claude" ]
+    [ "$command" = "custom-claude" ]
+    [ "$args" = "--model opus" ]
+}
+
+@test "workflow-specific agent override: apply_workflow_agent_override sets environment variables" {
+    # テスト用設定ファイルを作成
+    cat > "$BATS_TEST_TMPDIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  test-workflow:
+    steps:
+      - implement
+    agent:
+      type: opencode
+      command: my-opencode
+EOF
+    
+    export CONFIG_FILE="$BATS_TEST_TMPDIR/.pi-runner.yaml"
+    
+    source "$PROJECT_ROOT/lib/workflow-loader.sh"
+    source "$PROJECT_ROOT/lib/agent.sh"
+    
+    # オーバーライド適用
+    local workflow_file="config-workflow:test-workflow"
+    apply_workflow_agent_override "$workflow_file"
+    
+    # 環境変数が設定されているか確認
+    [ -n "${AGENT_TYPE_OVERRIDE:-}" ]
+    [ "${AGENT_TYPE_OVERRIDE}" = "opencode" ]
+    [ -n "${AGENT_COMMAND_OVERRIDE:-}" ]
+    [ "${AGENT_COMMAND_OVERRIDE}" = "my-opencode" ]
+}
+
+@test "workflow-specific agent override: get_agent_type respects override" {
+    # グローバル設定
+    cat > "$BATS_TEST_TMPDIR/.pi-runner.yaml" << 'EOF'
+agent:
+  type: pi
+
+workflows:
+  override-workflow:
+    steps:
+      - implement
+    agent:
+      type: claude
+EOF
+    
+    export CONFIG_FILE="$BATS_TEST_TMPDIR/.pi-runner.yaml"
+    
+    source "$PROJECT_ROOT/lib/workflow-loader.sh"
+    source "$PROJECT_ROOT/lib/agent.sh"
+    
+    # オーバーライド前: グローバル設定が使用される
+    load_config
+    local type_before
+    type_before=$(get_agent_type)
+    [ "$type_before" = "pi" ]
+    
+    # オーバーライド適用
+    local workflow_file="config-workflow:override-workflow"
+    apply_workflow_agent_override "$workflow_file"
+    
+    # オーバーライド後: ワークフロー固有の設定が使用される
+    local type_after
+    type_after=$(get_agent_type)
+    [ "$type_after" = "claude" ]
+}
+
+@test "workflow-specific agent override: no override when agent not specified" {
+    # agent未指定のワークフロー
+    cat > "$BATS_TEST_TMPDIR/.pi-runner.yaml" << 'EOF'
+agent:
+  type: pi
+  command: pi
+
+workflows:
+  default-workflow:
+    steps:
+      - implement
+    # agent 未指定
+EOF
+    
+    export CONFIG_FILE="$BATS_TEST_TMPDIR/.pi-runner.yaml"
+    
+    source "$PROJECT_ROOT/lib/workflow-loader.sh"
+    source "$PROJECT_ROOT/lib/agent.sh"
+    
+    load_config
+    
+    # オーバーライド適用（agent未指定なので何も変わらない）
+    local workflow_file="config-workflow:default-workflow"
+    apply_workflow_agent_override "$workflow_file"
+    
+    # デフォルト設定が使用される
+    local agent_type
+    agent_type=$(get_agent_type)
+    [ "$agent_type" = "pi" ]
+    
+    local agent_command
+    agent_command=$(get_agent_command)
+    [ "$agent_command" = "pi" ]
+    
+    # オーバーライド環境変数が設定されていないことを確認
+    [ -z "${AGENT_TYPE_OVERRIDE:-}" ]
+    [ -z "${AGENT_COMMAND_OVERRIDE:-}" ]
+}
+
+@test "show_config displays workflow-specific agent settings" {
+    # ワークフロー固有のagent設定を含む設定ファイル
+    cat > "$BATS_TEST_TMPDIR/.pi-runner.yaml" << 'EOF'
+agent:
+  type: pi
+
+workflows:
+  quick:
+    steps:
+      - implement
+    agent:
+      type: pi
+      args:
+        - --model
+        - haiku
+  
+  thorough:
+    steps:
+      - plan
+      - implement
+    agent:
+      type: claude
+EOF
+    
+    export CONFIG_FILE="$BATS_TEST_TMPDIR/.pi-runner.yaml"
+    
+    # show_config を実行
+    run "$PROJECT_ROOT/scripts/run.sh" --show-config
+    [ "$status" -eq 0 ]
+    
+    # ワークフロー固有のagent設定が表示されることを確認
+    [[ "$output" == *"=== Workflow-Specific Agent Settings ==="* ]]
+    [[ "$output" == *"Workflow: quick"* ]]
+    [[ "$output" == *"agent.type: pi"* ]]
+    [[ "$output" == *"agent.args: --model haiku"* ]]
+    [[ "$output" == *"Workflow: thorough"* ]]
+    [[ "$output" == *"agent.type: claude"* ]]
+}
+
+@test "show_config displays no workflow agent settings when none configured" {
+    # agent未指定のワークフロー
+    cat > "$BATS_TEST_TMPDIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  simple:
+    steps:
+      - implement
+EOF
+    
+    export CONFIG_FILE="$BATS_TEST_TMPDIR/.pi-runner.yaml"
+    
+    run "$PROJECT_ROOT/scripts/run.sh" --show-config
+    [ "$status" -eq 0 ]
+    
+    # agent設定がない旨のメッセージが表示される
+    [[ "$output" == *"=== Workflow-Specific Agent Settings ==="* ]]
+    [[ "$output" == *"(No workflow-specific agent settings configured)"* ]]
+}

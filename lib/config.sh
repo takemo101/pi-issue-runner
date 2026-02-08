@@ -418,7 +418,11 @@ show_config() {
     
     # Display workflow-specific agent settings if they exist
     local config_file
-    config_file="$(config_file_found 2>/dev/null)" || config_file=".pi-runner.yaml"
+    if [[ -n "${CONFIG_FILE:-}" ]]; then
+        config_file="$CONFIG_FILE"
+    else
+        config_file="$(config_file_found 2>/dev/null)" || config_file=".pi-runner.yaml"
+    fi
     
     if [[ -f "$config_file" ]] && yaml_exists "$config_file" ".workflows"; then
         echo ""
