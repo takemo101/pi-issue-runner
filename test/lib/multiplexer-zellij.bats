@@ -11,6 +11,7 @@ setup() {
     fi
     
     # 設定をリセット
+    unset _CONFIG_SH_SOURCED
     unset _CONFIG_LOADED
     unset CONFIG_MULTIPLEXER_SESSION_PREFIX
     unset CONFIG_PARALLEL_MAX_CONCURRENT
@@ -172,6 +173,8 @@ mock_zellij_not_installed() {
 # ====================
 
 @test "mux_generate_session_name generates correct name with default prefix" {
+    unset _CONFIG_SH_SOURCED
+    source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/multiplexer-zellij.sh"
     
     result="$(mux_generate_session_name 42)"
@@ -179,18 +182,22 @@ mock_zellij_not_installed() {
 }
 
 @test "mux_generate_session_name respects custom prefix" {
+    unset _CONFIG_SH_SOURCED
+    source "$PROJECT_ROOT/lib/config.sh"
+    export CONFIG_MULTIPLEXER_SESSION_PREFIX="custom"
+    export _CONFIG_LOADED="true"
     source "$PROJECT_ROOT/lib/multiplexer-zellij.sh"
-    CONFIG_MULTIPLEXER_SESSION_PREFIX="custom"
-    _CONFIG_LOADED="true"
     
     result="$(mux_generate_session_name 99)"
     [ "$result" = "custom-issue-99" ]
 }
 
 @test "mux_generate_session_name handles prefix ending with -issue" {
+    unset _CONFIG_SH_SOURCED
+    source "$PROJECT_ROOT/lib/config.sh"
+    export CONFIG_MULTIPLEXER_SESSION_PREFIX="myproject-issue"
+    export _CONFIG_LOADED="true"
     source "$PROJECT_ROOT/lib/multiplexer-zellij.sh"
-    CONFIG_MULTIPLEXER_SESSION_PREFIX="myproject-issue"
-    _CONFIG_LOADED="true"
     
     result="$(mux_generate_session_name 123)"
     [ "$result" = "myproject-issue-123" ]
@@ -471,6 +478,8 @@ EOF
 
 @test "mux_count_active_sessions counts correctly" {
     mock_zellij_installed
+    unset _CONFIG_SH_SOURCED
+    source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/multiplexer-zellij.sh"
     
     result="$(mux_count_active_sessions)"
@@ -513,8 +522,11 @@ EOF
 }
 
 @test "mux_check_concurrent_limit blocks when at limit" {
-    export CONFIG_PARALLEL_MAX_CONCURRENT="2"
     mock_zellij_installed
+    unset _CONFIG_SH_SOURCED
+    source "$PROJECT_ROOT/lib/config.sh"
+    export CONFIG_PARALLEL_MAX_CONCURRENT="2"
+    export _CONFIG_LOADED="true"
     source "$PROJECT_ROOT/lib/multiplexer-zellij.sh"
     
     run mux_check_concurrent_limit
