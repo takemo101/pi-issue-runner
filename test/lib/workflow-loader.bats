@@ -880,3 +880,142 @@ YAML_EOF
     [ -n "$result" ]
     [[ "$result" == *"quick"* ]]
 }
+
+# ========================================
+# get_workflow_agent_config テスト
+# ========================================
+
+@test "get_workflow_agent_config returns workflow-specific agent type" {
+    reset_yaml_cache
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  feature:
+    description: Feature workflow
+    steps:
+      - plan
+      - implement
+    agent:
+      type: claude
+      args:
+        - --model
+        - claude-sonnet-4-5
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_workflow_agent_config "feature" "type")"
+    [ "$result" = "claude" ]
+}
+
+@test "get_workflow_agent_config returns workflow-specific agent args as space-separated string" {
+    reset_yaml_cache
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  feature:
+    description: Feature workflow
+    steps:
+      - plan
+      - implement
+    agent:
+      type: pi
+      args:
+        - --model
+        - claude-sonnet-4-5
+        - --provider
+        - anthropic
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_workflow_agent_config "feature" "args")"
+    [ "$result" = "--model claude-sonnet-4-5 --provider anthropic" ]
+}
+
+@test "get_workflow_agent_config returns workflow-specific agent command" {
+    reset_yaml_cache
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  feature:
+    description: Feature workflow
+    steps:
+      - plan
+      - implement
+    agent:
+      type: custom
+      command: my-agent
+      template: "{{command}} {{args}} < {{prompt_file}}"
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_workflow_agent_config "feature" "command")"
+    [ "$result" = "my-agent" ]
+}
+
+@test "get_workflow_agent_config returns workflow-specific agent template" {
+    reset_yaml_cache
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  feature:
+    description: Feature workflow
+    steps:
+      - plan
+      - implement
+    agent:
+      type: custom
+      command: my-agent
+      template: "{{command}} {{args}} < {{prompt_file}}"
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_workflow_agent_config "feature" "template")"
+    [ "$result" = "{{command}} {{args}} < {{prompt_file}}" ]
+}
+
+@test "get_workflow_agent_config returns empty string when workflow agent is not configured" {
+    reset_yaml_cache
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  feature:
+    description: Feature workflow
+    steps:
+      - plan
+      - implement
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_workflow_agent_config "feature" "type")"
+    [ "$result" = "" ]
+}
+
+@test "get_workflow_agent_config returns empty string when workflow does not exist" {
+    reset_yaml_cache
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+workflows:
+  feature:
+    description: Feature workflow
+    steps:
+      - plan
+      - implement
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    result="$(get_workflow_agent_config "nonexistent" "type")"
+    [ "$result" = "" ]
+}
+
+@test "get_workflow_agent_config returns empty string when config file does not exist" {
+    export CONFIG_FILE="$TEST_DIR/nonexistent.yaml"
+    
+    result="$(get_workflow_agent_config "feature" "type")"
+    [ "$result" = "" ]
+}
