@@ -81,10 +81,10 @@ teardown() {
     grep -q 'DEFAULT_TIMEOUT=' "$PROJECT_ROOT/lib/improve.sh"
 }
 
-@test "improve.sh library or execution.sh defines ACTIVE_ISSUE_NUMBERS array" {
-    # Check in either main file or execution module
-    grep -q 'ACTIVE_ISSUE_NUMBERS' "$PROJECT_ROOT/lib/improve.sh" || \
-    grep -q 'ACTIVE_ISSUE_NUMBERS' "$PROJECT_ROOT/lib/improve/execution.sh"
+@test "improve.sh uses file-based tracking (no ACTIVE_ISSUE_NUMBERS array)" {
+    # Verify that ACTIVE_ISSUE_NUMBERS array has been removed (refactored to file-based tracking)
+    ! grep -q 'declare -a ACTIVE_ISSUE_NUMBERS' "$PROJECT_ROOT/lib/improve.sh" && \
+    ! grep -q 'declare -a ACTIVE_ISSUE_NUMBERS' "$PROJECT_ROOT/lib/improve/execution.sh"
 }
 
 # ====================
@@ -335,7 +335,8 @@ teardown() {
 
 @test "cleanup_on_exit function handles active sessions" {
     source_content=$(cat "$PROJECT_ROOT/lib/improve/execution.sh")
-    [[ "$source_content" == *'ACTIVE_ISSUE_NUMBERS'* ]]
+    # Check that it uses file-based tracking (list_issues_by_status) instead of ACTIVE_ISSUE_NUMBERS
+    [[ "$source_content" == *'list_issues_by_status'* ]]
     [[ "$source_content" == *'cleanup.sh'* ]]
 }
 

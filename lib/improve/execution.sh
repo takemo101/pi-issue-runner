@@ -18,10 +18,7 @@ if [[ -n "${_EXECUTION_SH_SOURCED:-}" ]]; then
 fi
 _EXECUTION_SH_SOURCED="true"
 
-# Define script directory explicitly from this file's location
-# Note: Previously used ${SCRIPT_DIR:-...} fallback, but this could use
-# unexpected values if SCRIPT_DIR was set elsewhere. Now always compute
-# from this file's actual location for safety.
+# Script directory (compute from this file's actual location for safety)
 _IMPROVE_EXEC_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/scripts"
 
 # ============================================================================
@@ -29,28 +26,21 @@ _IMPROVE_EXEC_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/sc
 # ============================================================================
 cleanup_improve_on_exit() {
     local exit_code=$?
-    
-    # Only cleanup if exit is not normal
     if [[ $exit_code -ne 0 ]]; then
-        # Query active sessions from status files
         local active_issues
         active_issues="$(list_issues_by_status "running" 2>/dev/null || true)"
-        
         if [[ -n "$active_issues" ]]; then
             local issue_count
             issue_count=$(echo "$active_issues" | wc -l | tr -d ' ')
             log_warn "Interrupted! Cleaning up ${issue_count} active session(s)..."
-            
             while IFS= read -r issue; do
                 [[ -z "$issue" ]] && continue
                 log_info "  Cleaning up Issue #$issue..."
                 "${_IMPROVE_EXEC_SCRIPT_DIR}/cleanup.sh" "pi-issue-$issue" --force 2>/dev/null || true
             done <<< "$active_issues"
-            
             log_info "Cleanup completed."
         fi
     fi
-    
     exit $exit_code
 }
 
