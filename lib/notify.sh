@@ -61,18 +61,11 @@ notify_error() {
     if is_macos; then
         # macOS: osascriptを使用
         # エラーメッセージをAppleScript用にエスケープ
-        # 1. バックスラッシュをエスケープ（最初に実行）
-        # 2. ダブルクォートをエスケープ
-        # 3. 改行を削除（スペースに置換）
-        # 4. 制御文字を削除
+        # sed を使用して確実にエスケープ（順序重要: \ → " の順）
+        # AppleScriptでは \ を \\\\ に、" を \" にエスケープする必要がある
+        # 改行/タブ/CR は削除（スペースに置換）してから200文字に制限
         local escaped_message
-        escaped_message="${error_message//\\/\\\\}"
-        escaped_message="${escaped_message//\"/\\\"}"
-        escaped_message="${escaped_message//$'\n'/ }"
-        escaped_message="${escaped_message//$'\r'/ }"
-        escaped_message="${escaped_message//$'\t'/ }"
-        # メッセージを200文字に制限
-        escaped_message="${escaped_message:0:200}"
+        escaped_message="$(printf '%s' "$error_message" | sed 's/\\/\\\\\\\\/g; s/"/\\"/g; s/'"$'\t'"'/ /g' | tr '\n\r' '  ' | head -c 200)"
         
         osascript -e "display notification \"$escaped_message\" with title \"Pi Issue Runner\" subtitle \"Issue #$issue_number でエラー\" sound name \"Basso\"" 2>/dev/null || {
             log_warn "Failed to send macOS notification"

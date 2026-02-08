@@ -65,7 +65,7 @@ teardown() {
     cat > "$BATS_TEST_TMPDIR/bin/osascript" << 'SCRIPT'
 #!/bin/bash
 # 引数をファイルに記録
-echo "$@" > "$BATS_TEST_TMPDIR/osascript_call.log"
+printf "%s" "$*" > "$BATS_TEST_TMPDIR/osascript_call.log"
 exit 0
 SCRIPT
     chmod +x "$BATS_TEST_TMPDIR/bin/osascript"
@@ -89,7 +89,7 @@ SCRIPT
     mkdir -p "$BATS_TEST_TMPDIR/bin"
     cat > "$BATS_TEST_TMPDIR/bin/osascript" << 'SCRIPT'
 #!/bin/bash
-echo "$@" > "$BATS_TEST_TMPDIR/osascript_call.log"
+printf "%s" "$*" > "$BATS_TEST_TMPDIR/osascript_call.log"
 exit 0
 SCRIPT
     chmod +x "$BATS_TEST_TMPDIR/bin/osascript"
@@ -103,17 +103,17 @@ SCRIPT
     result=$(cat "$BATS_TEST_TMPDIR/osascript_call.log")
     
     # エスケープされたダブルクォートが含まれている
-    [[ "$result" == *'\\"'* ]]
+    [[ "$result" == *'\"'* ]]
 }
 
 @test "Regression #1078: notify_error removes newlines from message" {
     skip_if_not_macos
     
-    # モックosascriptを作成
+    # モックosascriptを作成（printfを使用してtrailing newlineを避ける）
     mkdir -p "$BATS_TEST_TMPDIR/bin"
     cat > "$BATS_TEST_TMPDIR/bin/osascript" << 'SCRIPT'
 #!/bin/bash
-echo "$@" > "$BATS_TEST_TMPDIR/osascript_call.log"
+printf "%s" "$*" > "$BATS_TEST_TMPDIR/osascript_call.log"
 exit 0
 SCRIPT
     chmod +x "$BATS_TEST_TMPDIR/bin/osascript"
@@ -122,12 +122,10 @@ SCRIPT
     # 改行を含むエラーメッセージ
     notify_error "test-session" "1078" $'Error:\nLine 1\nLine 2'
     
-    # 改行が削除されていることを確認（スペースに置換）
-    local result
-    result=$(cat "$BATS_TEST_TMPDIR/osascript_call.log")
-    
-    # 改行文字が含まれていない
-    ! [[ "$result" == *$'\n'* ]]
+    # 改行が削除されていることを確認（wc -l が 0 を返す）
+    local line_count
+    line_count=$(wc -l < "$BATS_TEST_TMPDIR/osascript_call.log")
+    [ "$line_count" -eq 0 ]
 }
 
 @test "Regression #1078: open_terminal_and_attach escapes script path with spaces" {
@@ -143,16 +141,19 @@ SCRIPT
     chmod +x "$BATS_TEST_TMPDIR/bin/osascript"
     
     # スペースを含むパスのテスト用にモックattach.shを作成
-    mkdir -p "$BATS_TEST_TMPDIR/path with spaces"
-    cat > "$BATS_TEST_TMPDIR/path with spaces/attach.sh" << 'SCRIPT'
+    # _NOTIFY_LIB_DIRが"path with spaces/lib"の場合、
+    # attach_scriptは"path with spaces/lib/../scripts/attach.sh"になる
+    mkdir -p "$BATS_TEST_TMPDIR/path with spaces/lib"
+    mkdir -p "$BATS_TEST_TMPDIR/path with spaces/scripts"
+    cat > "$BATS_TEST_TMPDIR/path with spaces/scripts/attach.sh" << 'SCRIPT'
 #!/bin/bash
 exit 0
 SCRIPT
-    chmod +x "$BATS_TEST_TMPDIR/path with spaces/attach.sh"
+    chmod +x "$BATS_TEST_TMPDIR/path with spaces/scripts/attach.sh"
     
     # _NOTIFY_LIB_DIRを一時的にオーバーライド
     local original_lib_dir="$_NOTIFY_LIB_DIR"
-    _NOTIFY_LIB_DIR="$BATS_TEST_TMPDIR/path with spaces"
+    _NOTIFY_LIB_DIR="$BATS_TEST_TMPDIR/path with spaces/lib"
     
     export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
     

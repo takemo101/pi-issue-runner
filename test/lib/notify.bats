@@ -289,11 +289,11 @@ SCRIPT
 @test "notify_error removes newlines from error messages" {
     skip_if_not_macos
     
-    # モックosascriptを作成
+    # モックosascriptを作成（printfを使用してtrailing newlineを避ける）
     mkdir -p "$BATS_TEST_TMPDIR/bin"
     cat > "$BATS_TEST_TMPDIR/bin/osascript" << 'SCRIPT'
 #!/bin/bash
-echo "$@" > "$BATS_TEST_TMPDIR/osascript.log"
+printf "%s" "$*" > "$BATS_TEST_TMPDIR/osascript.log"
 exit 0
 SCRIPT
     chmod +x "$BATS_TEST_TMPDIR/bin/osascript"
@@ -302,11 +302,10 @@ SCRIPT
     # 改行を含むエラーメッセージ
     notify_error "test-session" "42" $'Error with\nnewline'
     
-    # 改行が含まれていないことを確認（スペースに置換される）
-    ! grep -q $'\n' "$BATS_TEST_TMPDIR/osascript.log" || {
-        cat "$BATS_TEST_TMPDIR/osascript.log"
-        false
-    }
+    # 改行が含まれていないことを確認（wc -l が 0 を返す = 改行なし）
+    local line_count
+    line_count=$(wc -l < "$BATS_TEST_TMPDIR/osascript.log")
+    [ "$line_count" -eq 0 ]
 }
 
 # ====================
