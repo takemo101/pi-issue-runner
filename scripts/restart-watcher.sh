@@ -115,7 +115,7 @@ main() {
     fi
 
     # 新しいwatcherを起動
-    local watcher_log="/tmp/pi-watcher-${session_name}.log"
+    local watcher_log="${TMPDIR:-/tmp}/pi-watcher-${session_name}.log"
     local watcher_script="$SCRIPT_DIR/watch-session.sh"
     
     if [[ ! -f "$watcher_script" ]]; then

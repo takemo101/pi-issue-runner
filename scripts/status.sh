@@ -120,7 +120,7 @@ main() {
     if [[ -n "$watcher_pid" ]]; then
         if is_watcher_running "$issue_number"; then
             echo "Status: Running (PID: $watcher_pid)"
-            local watcher_log="/tmp/pi-watcher-${session_name}.log"
+            local watcher_log="${TMPDIR:-/tmp}/pi-watcher-${session_name}.log"
             echo "Log: $watcher_log"
         else
             echo "Status: Not running ⚠️"
