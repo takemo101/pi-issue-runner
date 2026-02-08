@@ -810,6 +810,7 @@ pi-issue-runner/
 │   ├── status.sh           # 状態確認
 │   ├── attach.sh           # セッションアタッチ
 │   ├── stop.sh             # セッション停止
+│   ├── sweep.sh            # 全セッションのマーカーチェック・cleanup
 │   ├── mux-all.sh          # 全セッション表示（マルチプレクサ対応）
 │   ├── cleanup.sh          # クリーンアップ
 │   ├── ci-fix-helper.sh    # CI修正ヘルパー（lib/ci-fix.shのラッパー）
@@ -850,6 +851,7 @@ pi-issue-runner/
 │   │   ├── execution.sh    # 実行・監視フェーズ
 │   │   └── review.sh       # レビューフェーズ
 │   ├── log.sh              # ログ出力
+│   ├── marker.sh           # マーカー検出ユーティリティ
 │   ├── notify.sh           # 通知機能
 │   ├── priority.sh         # 優先度計算
 │   ├── session-resolver.sh # セッション名解決ユーティリティ
@@ -911,9 +913,17 @@ pi-issue-runner/
 │   │   └── yaml.bats        # yaml.sh のテスト
 │   ├── scripts/             # スクリプトの統合テスト
 │   ├── regression/          # 回帰テスト
+│   │   ├── applescript-injection.bats
+│   │   ├── cleanup-race-condition.bats
+│   │   ├── config-master-table-dry.bats
 │   │   ├── critical-fixes.bats
 │   │   ├── eval-injection.bats
-│   │   └── pr-merge-timeout.bats
+│   │   ├── hooks-env-sanitization.bats
+│   │   ├── issue-1066-spaces-in-filenames.bats
+│   │   ├── issue-1129-session-label-arg.bats
+│   │   ├── multiline-json-grep.bats
+│   │   ├── pr-merge-timeout.bats
+│   │   └── workflow-name-template.bats
 │   ├── fixtures/            # テスト用フィクスチャ
 │   └── test_helper.bash     # Bats共通ヘルパー
 └── .worktrees/              # worktree作成先（実行時に生成）
@@ -979,8 +989,10 @@ test/
 │   ├── github.bats              # github.sh のテスト
 │   ├── hooks.bats               # hooks.sh のテスト
 │   ├── log.bats                 # log.sh のテスト
+│   ├── marker.bats              # marker.sh のテスト
 │   ├── notify.bats              # notify.sh のテスト
 │   ├── priority.bats            # priority.sh のテスト
+│   ├── session-resolver.bats    # session-resolver.sh のテスト
 │   ├── status.bats              # status.sh のテスト
 │   ├── template.bats            # template.sh のテスト
 │   ├── tmux.bats                # tmux.sh のテスト
@@ -990,6 +1002,7 @@ test/
 │   ├── workflow-finder.bats     # workflow-finder.sh のテスト
 │   ├── workflow-loader.bats     # workflow-loader.sh のテスト
 │   ├── workflow-prompt.bats     # workflow-prompt.sh のテスト
+│   ├── workflow-selector.bats   # workflow-selector.sh のテスト
 │   ├── workflow.bats            # workflow.sh のテスト
 │   ├── worktree.bats            # worktree.sh のテスト
 │   └── yaml.bats                # yaml.sh のテスト
@@ -1000,6 +1013,7 @@ test/
 │   ├── context.bats             # context.sh のテスト
 │   ├── dashboard.bats           # dashboard.sh のテスト
 │   ├── force-complete.bats      # force-complete.sh のテスト
+│   ├── generate-config.bats     # generate-config.sh のテスト
 │   ├── improve.bats             # improve.sh のテスト
 │   ├── init.bats                # init.sh のテスト
 │   ├── list.bats                # list.sh のテスト
@@ -1011,14 +1025,23 @@ test/
 │   ├── run-batch.bats           # run-batch.sh のテスト
 │   ├── status.bats              # status.sh のテスト
 │   ├── stop.bats                # stop.sh のテスト
+│   ├── sweep.bats               # sweep.sh のテスト
 │   ├── test.bats                # test.sh のテスト
 │   ├── verify-config-docs.bats  # verify-config-docs.sh のテスト
 │   ├── wait-for-sessions.bats   # wait-for-sessions.sh のテスト
 │   └── watch-session.bats       # watch-session.sh のテスト
 ├── regression/                  # 回帰テスト
+│   ├── applescript-injection.bats
+│   ├── cleanup-race-condition.bats
+│   ├── config-master-table-dry.bats
 │   ├── critical-fixes.bats
 │   ├── eval-injection.bats
-│   └── pr-merge-timeout.bats
+│   ├── hooks-env-sanitization.bats
+│   ├── issue-1066-spaces-in-filenames.bats
+│   ├── issue-1129-session-label-arg.bats
+│   ├── multiline-json-grep.bats
+│   ├── pr-merge-timeout.bats
+│   └── workflow-name-template.bats
 ├── fixtures/                    # テスト用フィクスチャ
 │   └── sample-config.yaml
 └── test_helper.bash             # Bats共通ヘルパー（モック関数含む）
