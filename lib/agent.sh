@@ -92,14 +92,67 @@ preset_exists() {
 }
 
 # ======================
+# ワークフロー固有のエージェント設定
+# ======================
+
+# ワークフロー固有のagent設定をグローバル設定として適用
+# 引数:
+#   $1 - workflow_file: ワークフローファイル識別子
+# 副作用: 環境変数 AGENT_TYPE_OVERRIDE, AGENT_COMMAND_OVERRIDE, AGENT_ARGS_OVERRIDE, AGENT_TEMPLATE_OVERRIDE を設定
+apply_workflow_agent_override() {
+    local workflow_file="$1"
+    
+    # オーバーライド環境変数をクリア
+    unset AGENT_TYPE_OVERRIDE
+    unset AGENT_COMMAND_OVERRIDE
+    unset AGENT_ARGS_OVERRIDE
+    unset AGENT_TEMPLATE_OVERRIDE
+    
+    # ワークフロー固有の設定を取得
+    local type command args template
+    type=$(get_workflow_agent_property "$workflow_file" "type")
+    command=$(get_workflow_agent_property "$workflow_file" "command")
+    args=$(get_workflow_agent_property "$workflow_file" "args")
+    template=$(get_workflow_agent_property "$workflow_file" "template")
+    
+    # 設定が存在する場合のみオーバーライド
+    if [[ -n "$type" ]]; then
+        export AGENT_TYPE_OVERRIDE="$type"
+        log_debug "Workflow agent type override: $type"
+    fi
+    
+    if [[ -n "$command" ]]; then
+        export AGENT_COMMAND_OVERRIDE="$command"
+        log_debug "Workflow agent command override: $command"
+    fi
+    
+    if [[ -n "$args" ]]; then
+        export AGENT_ARGS_OVERRIDE="$args"
+        log_debug "Workflow agent args override: $args"
+    fi
+    
+    if [[ -n "$template" ]]; then
+        export AGENT_TEMPLATE_OVERRIDE="$template"
+        log_debug "Workflow agent template override: $template"
+    fi
+}
+
+# ======================
 # エージェント設定取得
 # ======================
 
 # エージェントタイプを取得
 # 設定の優先順位:
-#   1. agent.type が設定されている場合、それを使用
-#   2. agent セクションがない場合、"pi" にフォールバック
+#   1. ワークフロー固有のオーバーライド (AGENT_TYPE_OVERRIDE)
+#   2. agent.type が設定されている場合、それを使用
+#   3. agent セクションがない場合、"pi" にフォールバック
 get_agent_type() {
+    # オーバーライドが存在する場合は優先
+    if [[ -n "${AGENT_TYPE_OVERRIDE:-}" ]]; then
+        echo "$AGENT_TYPE_OVERRIDE"
+        return 0
+    fi
+    
     local agent_type
     agent_type="$(get_config agent_type)"
     
@@ -113,10 +166,17 @@ get_agent_type() {
 
 # エージェントコマンドを取得
 # 設定の優先順位:
-#   1. agent.command が設定されている場合、それを使用
-#   2. agent.type が明示的に設定されている場合、プリセットを使用
-#   3. pi.command にフォールバック
+#   1. ワークフロー固有のオーバーライド (AGENT_COMMAND_OVERRIDE)
+#   2. agent.command が設定されている場合、それを使用
+#   3. agent.type が明示的に設定されている場合、プリセットを使用
+#   4. pi.command にフォールバック
 get_agent_command() {
+    # オーバーライドが存在する場合は優先
+    if [[ -n "${AGENT_COMMAND_OVERRIDE:-}" ]]; then
+        echo "$AGENT_COMMAND_OVERRIDE"
+        return 0
+    fi
+    
     local agent_command
     agent_command="$(get_config agent_command)"
     
@@ -124,10 +184,11 @@ get_agent_command() {
         echo "$agent_command"
     else
         # agent.type が明示的に設定されているかチェック
+        # オーバーライドを考慮してget_agent_type()を使用
         local agent_type_config
-        agent_type_config="$(get_config agent_type)"
+        agent_type_config="$(get_agent_type)"
         
-        if [[ -n "$agent_type_config" ]]; then
+        if [[ -n "$agent_type_config" ]] && [[ "$agent_type_config" != "pi" ]]; then
             # agent.type が明示的に設定されている場合、プリセットを使用
             if [[ "$agent_type_config" != "custom" ]] && preset_exists "$agent_type_config"; then
                 get_agent_preset "$agent_type_config" "command"
@@ -144,9 +205,16 @@ get_agent_command() {
 
 # エージェントの追加引数を取得
 # 設定の優先順位:
-#   1. agent.args が設定されている場合、それを使用
-#   2. pi.args にフォールバック
+#   1. ワークフロー固有のオーバーライド (AGENT_ARGS_OVERRIDE)
+#   2. agent.args が設定されている場合、それを使用
+#   3. pi.args にフォールバック
 get_agent_args() {
+    # オーバーライドが存在する場合は優先
+    if [[ -n "${AGENT_ARGS_OVERRIDE:-}" ]]; then
+        echo "$AGENT_ARGS_OVERRIDE"
+        return 0
+    fi
+    
     local agent_args
     agent_args="$(get_config agent_args)"
     
@@ -160,10 +228,17 @@ get_agent_args() {
 
 # エージェントのテンプレートを取得
 # 設定の優先順位:
-#   1. agent.template が設定されている場合、それを使用
-#   2. agent.type が明示的に設定されている場合、プリセットを使用
-#   3. pi プリセットにフォールバック（後方互換性）
+#   1. ワークフロー固有のオーバーライド (AGENT_TEMPLATE_OVERRIDE)
+#   2. agent.template が設定されている場合、それを使用
+#   3. agent.type が明示的に設定されている場合、プリセットを使用
+#   4. pi プリセットにフォールバック（後方互換性）
 get_agent_template() {
+    # オーバーライドが存在する場合は優先
+    if [[ -n "${AGENT_TEMPLATE_OVERRIDE:-}" ]]; then
+        echo "$AGENT_TEMPLATE_OVERRIDE"
+        return 0
+    fi
+    
     local agent_template
     agent_template="$(get_config agent_template)"
     
@@ -171,8 +246,9 @@ get_agent_template() {
         echo "$agent_template"
     else
         # agent.type が明示的に設定されているかチェック
+        # オーバーライドを考慮してget_agent_type()を使用
         local agent_type_config
-        agent_type_config="$(get_config agent_type)"
+        agent_type_config="$(get_agent_type)"
         
         if [[ -n "$agent_type_config" ]] && preset_exists "$agent_type_config"; then
             get_agent_preset "$agent_type_config" "template"

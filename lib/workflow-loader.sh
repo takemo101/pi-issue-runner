@@ -275,6 +275,67 @@ get_all_workflows_info() {
     fi
 }
 
+# ワークフローのagent設定を取得（存在する場合）
+# 引数:
+#   $1 - workflow_file: ワークフローファイル識別子
+#   $2 - property: 取得するプロパティ (type|command|args|template)
+# 出力: 設定値（存在しない場合は空文字）
+get_workflow_agent_property() {
+    local workflow_file="$1"
+    local property="$2"
+    
+    # ビルトインの場合は設定なし
+    if [[ "$workflow_file" == builtin:* ]]; then
+        echo ""
+        return 0
+    fi
+    
+    # config-workflow:NAME 形式の処理
+    if [[ "$workflow_file" == config-workflow:* ]]; then
+        local workflow_name="${workflow_file#config-workflow:}"
+        # 設定ファイルのパスを決定
+        local config_file
+        if [[ -n "${CONFIG_FILE:-}" ]]; then
+            config_file="$CONFIG_FILE"
+        else
+            load_config
+            config_file="$(config_file_found 2>/dev/null)" || config_file=".pi-runner.yaml"
+        fi
+        
+        if [[ ! -f "$config_file" ]]; then
+            echo ""
+            return 0
+        fi
+        
+        local yaml_path=".workflows.${workflow_name}.agent.${property}"
+        local value
+        
+        if [[ "$property" == "args" ]]; then
+            # args は配列なのでスペース区切りに変換
+            local args=""
+            while IFS= read -r arg; do
+                if [[ -n "$arg" ]]; then
+                    if [[ -z "$args" ]]; then
+                        args="$arg"
+                    else
+                        args="$args $arg"
+                    fi
+                fi
+            done < <(yaml_get_array "$config_file" "$yaml_path" 2>/dev/null)
+            value="$args"
+        else
+            value=$(yaml_get "$config_file" "$yaml_path" 2>/dev/null || echo "")
+        fi
+        
+        echo "$value"
+        return 0
+    fi
+    
+    # ファイル形式のワークフローは未サポート（将来拡張可能）
+    echo ""
+    return 0
+}
+
 # エージェントプロンプトを取得
 get_agent_prompt() {
     local agent_file="$1"

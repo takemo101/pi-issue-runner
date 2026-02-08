@@ -525,7 +525,15 @@ display_summary_and_attach() {
 
     log_info "=== Summary ==="
     log_info "Issue:     #$issue_number - $issue_title"
-    log_info "Agent:     $(get_agent_type) ($(get_agent_command))"
+    
+    # Display agent info with workflow override indication
+    local agent_info
+    agent_info="$(get_agent_type) ($(get_agent_command))"
+    if [[ -n "${AGENT_TYPE_OVERRIDE:-}" ]] || [[ -n "${AGENT_COMMAND_OVERRIDE:-}" ]]; then
+        agent_info="$agent_info [workflow override]"
+    fi
+    log_info "Agent:     $agent_info"
+    
     log_info "Worktree:  $worktree_path"
     log_info "Branch:    feature/$branch_name"
     log_info "Session:   $session_name"
