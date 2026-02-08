@@ -142,11 +142,17 @@ check_session_markers() {
 
 # Execute cleanup for a session
 # Usage: execute_cleanup <session_name> <issue_number> <force>
-# Returns: 0 on success, 1 on failure
+# Returns: 0 on success, 1 on failure, 2 on lock conflict (skip)
 execute_cleanup() {
     local session_name="$1"
     local issue_number="$2"
     local force="$3"
+    
+    # クリーンアップロックをチェック（Issue #1077対策）
+    if is_cleanup_locked "$issue_number"; then
+        log_info "⏭️  Skipping cleanup for Issue #$issue_number (lock held by another process)"
+        return 2  # スキップ（ロック競合）
+    fi
     
     log_info "Executing cleanup for session: $session_name (Issue #$issue_number)"
     
@@ -196,6 +202,7 @@ main() {
     local error_sessions=0
     local cleanup_success=0
     local cleanup_failed=0
+    local cleanup_skipped=0
     
     # 各セッションをチェック
     while IFS= read -r session; do
@@ -227,8 +234,13 @@ main() {
                 log_info "  [DRY RUN] Would run: cleanup.sh $session $(if [[ "$force" == "true" ]]; then echo "--force"; fi)"
             else
                 # クリーンアップ実行
-                if execute_cleanup "$session" "$issue_num" "$force"; then
+                execute_cleanup "$session" "$issue_num" "$force"
+                local cleanup_result=$?
+                
+                if [[ $cleanup_result -eq 0 ]]; then
                     cleanup_success=$((cleanup_success + 1))
+                elif [[ $cleanup_result -eq 2 ]]; then
+                    cleanup_skipped=$((cleanup_skipped + 1))
                 else
                     cleanup_failed=$((cleanup_failed + 1))
                 fi
@@ -251,6 +263,9 @@ main() {
     
     if [[ "$dry_run" == "false" ]]; then
         log_info "Cleanup succeeded: $cleanup_success"
+        if [[ "$cleanup_skipped" -gt 0 ]]; then
+            log_info "Cleanup skipped (locked by another process): $cleanup_skipped"
+        fi
         if [[ "$cleanup_failed" -gt 0 ]]; then
             log_error "Cleanup failed: $cleanup_failed"
         fi

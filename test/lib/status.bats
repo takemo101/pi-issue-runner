@@ -609,3 +609,184 @@ teardown() {
     tmp_files=$(find "$TEST_WORKTREE_DIR/.status" -name "*.tmp.*" 2>/dev/null || true)
     [ -z "$tmp_files" ]
 }
+
+# ====================
+# Cleanup Lock Tests (Issue #1077)
+# ====================
+
+@test "acquire_cleanup_lock creates lock directory" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    acquire_cleanup_lock "1077"
+    
+    [ -d "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock" ]
+    [ -f "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock/pid" ]
+}
+
+@test "acquire_cleanup_lock writes current PID" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    acquire_cleanup_lock "1077"
+    
+    local pid
+    pid=$(cat "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock/pid")
+    [ "$pid" = "$$" ]
+}
+
+@test "acquire_cleanup_lock fails if lock exists" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # First acquisition succeeds
+    acquire_cleanup_lock "1077"
+    
+    # Create a subprocess to try to acquire the same lock
+    run bash -c "
+        source '$PROJECT_ROOT/lib/status.sh'
+        get_config() {
+            case \"\$1\" in
+                worktree_base_dir) echo \"$TEST_WORKTREE_DIR\" ;;
+                *) echo \"\" ;;
+            esac
+        }
+        acquire_cleanup_lock 1077
+    "
+    [ "$status" -eq 1 ]
+}
+
+@test "acquire_cleanup_lock succeeds after stale lock cleanup" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # Create a stale lock with non-existent PID
+    mkdir -p "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock"
+    echo "999999" > "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock/pid"
+    
+    # Should succeed by removing stale lock
+    acquire_cleanup_lock "1077"
+    
+    # Verify new lock has current PID
+    local pid
+    pid=$(cat "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock/pid")
+    [ "$pid" = "$$" ]
+}
+
+@test "release_cleanup_lock removes lock directory" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    acquire_cleanup_lock "1077"
+    [ -d "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock" ]
+    
+    release_cleanup_lock "1077"
+    [ ! -d "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock" ]
+}
+
+@test "release_cleanup_lock does not remove other process lock" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # Create a lock owned by another process (use parent PID which should be running)
+    local other_pid
+    other_pid=$PPID
+    mkdir -p "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock"
+    echo "$other_pid" > "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock/pid"
+    
+    # Verify the other PID is actually running
+    kill -0 "$other_pid" 2>/dev/null || skip "Parent process not accessible for testing"
+    
+    # Try to release - should not remove
+    release_cleanup_lock "1077"
+    
+    # Lock should still exist
+    [ -d "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock" ]
+}
+
+@test "release_cleanup_lock removes stale lock" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # Create a stale lock with non-existent PID
+    mkdir -p "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock"
+    echo "999999" > "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock/pid"
+    
+    # Should remove stale lock
+    release_cleanup_lock "1077"
+    
+    [ ! -d "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock" ]
+}
+
+@test "is_cleanup_locked returns true when locked" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    acquire_cleanup_lock "1077"
+    
+    run is_cleanup_locked "1077"
+    [ "$status" -eq 0 ]
+}
+
+@test "is_cleanup_locked returns false when not locked" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    run is_cleanup_locked "1077"
+    [ "$status" -eq 1 ]
+}
+
+@test "is_cleanup_locked returns false for stale lock" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # Create a stale lock with non-existent PID
+    mkdir -p "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock"
+    echo "999999" > "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock/pid"
+    
+    run is_cleanup_locked "1077"
+    [ "$status" -eq 1 ]
+}
+
+@test "cleanup lock prevents concurrent cleanup" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # Process 1 acquires lock
+    acquire_cleanup_lock "1077"
+    
+    # Process 2 tries to acquire - should fail
+    # Note: Pass TEST_WORKTREE_DIR as an environment variable to the subprocess
+    run bash -c "
+        TEST_WORKTREE_DIR='$TEST_WORKTREE_DIR'
+        source '$PROJECT_ROOT/lib/status.sh'
+        get_config() {
+            case \"\$1\" in
+                worktree_base_dir) echo \"\$TEST_WORKTREE_DIR\" ;;
+                *) echo \"\" ;;
+            esac
+        }
+        acquire_cleanup_lock 1077
+    "
+    [ "$status" -eq 1 ]
+    
+    # Process 2 checks if locked
+    run bash -c "
+        TEST_WORKTREE_DIR='$TEST_WORKTREE_DIR'
+        source '$PROJECT_ROOT/lib/status.sh'
+        get_config() {
+            case \"\$1\" in
+                worktree_base_dir) echo \"\$TEST_WORKTREE_DIR\" ;;
+                *) echo \"\" ;;
+            esac
+        }
+        is_cleanup_locked 1077
+    "
+    [ "$status" -eq 0 ]
+    
+    # Process 1 releases
+    release_cleanup_lock "1077"
+    
+    # Process 2 can now acquire
+    run bash -c "
+        TEST_WORKTREE_DIR='$TEST_WORKTREE_DIR'
+        source '$PROJECT_ROOT/lib/status.sh'
+        get_config() {
+            case \"\$1\" in
+                worktree_base_dir) echo \"\$TEST_WORKTREE_DIR\" ;;
+                *) echo \"\" ;;
+            esac
+        }
+        acquire_cleanup_lock 1077
+    "
+    [ "$status" -eq 0 ]
+}
