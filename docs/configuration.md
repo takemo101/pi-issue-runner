@@ -444,6 +444,71 @@ docs/plans/
 | `keep_days` | integer | `7` | 何日以内のログを保持するか（0 = 日数制限なし） |
 | `dir` | string | `.improve-logs` | ログファイルの保存ディレクトリ |
 
+### watcher
+
+セッション監視（`watch-session.sh`）の動作設定
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `initial_delay` | integer | `10` | セッション監視開始前の初期遅延（秒） |
+| `cleanup_delay` | integer | `5` | cleanup実行前の待機時間（秒） |
+| `cleanup_retry_interval` | integer | `3` | cleanupリトライ間隔（秒） |
+| `pr_merge_max_attempts` | integer | `10` | PRマージチェックの最大試行回数 |
+| `pr_merge_retry_interval` | integer | `60` | PRマージチェックのリトライ間隔（秒） |
+
+#### タイミング調整の指針
+
+これらの設定値は環境やユースケースに応じて調整できます：
+
+**高速環境（ローカル開発）**:
+```yaml
+watcher:
+  initial_delay: 5           # 高速起動時は短縮可能
+  cleanup_delay: 3           # プロセス終了が早い
+  pr_merge_max_attempts: 5   # 高速ネットワークでは少なめでOK
+```
+
+**低速環境（CI、高負荷サーバー）**:
+```yaml
+watcher:
+  initial_delay: 15          # プロンプト表示に時間がかかる場合
+  cleanup_delay: 10          # プロセス終了に余裕を持たせる
+  pr_merge_max_attempts: 20  # ネットワーク遅延を考慮
+  pr_merge_retry_interval: 120  # チェック間隔を長めに
+```
+
+**タイムアウトの計算**:
+PR merge チェックのタイムアウト時間は以下の式で計算されます：
+```
+タイムアウト = pr_merge_max_attempts × pr_merge_retry_interval
+```
+
+デフォルト: `10 × 60 = 600秒（10分）`
+
+#### 使用例
+
+```yaml
+# .pi-runner.yaml
+watcher:
+  # 高速環境向けの設定
+  initial_delay: 5
+  cleanup_delay: 3
+  cleanup_retry_interval: 2
+  pr_merge_max_attempts: 10
+  pr_merge_retry_interval: 60
+```
+
+環境変数でも設定可能：
+```bash
+# 初期遅延を15秒に変更
+PI_RUNNER_WATCHER_INITIAL_DELAY=15 ./scripts/run.sh 42
+
+# PRマージチェックを20分に延長
+PI_RUNNER_WATCHER_PR_MERGE_MAX_ATTEMPTS=20 \
+PI_RUNNER_WATCHER_PR_MERGE_RETRY_INTERVAL=60 \
+./scripts/run.sh 42
+```
+
 #### ログファイルのクリーンアップ
 
 `improve.sh` が生成するログファイルは、設定に基づいて自動的にクリーンアップできます。
@@ -1023,6 +1088,11 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_HOOKS_ON_REVIEW_COMPLETE` | `hooks.on_review_complete` |
 | `PI_RUNNER_AUTO_PROVIDER` | `auto.provider` |
 | `PI_RUNNER_AUTO_MODEL` | `auto.model` |
+| `PI_RUNNER_WATCHER_INITIAL_DELAY` | `watcher.initial_delay` |
+| `PI_RUNNER_WATCHER_CLEANUP_DELAY` | `watcher.cleanup_delay` |
+| `PI_RUNNER_WATCHER_CLEANUP_RETRY_INTERVAL` | `watcher.cleanup_retry_interval` |
+| `PI_RUNNER_WATCHER_PR_MERGE_MAX_ATTEMPTS` | `watcher.pr_merge_max_attempts` |
+| `PI_RUNNER_WATCHER_PR_MERGE_RETRY_INTERVAL` | `watcher.pr_merge_retry_interval` |
 
 ### 例: CI環境での使用
 

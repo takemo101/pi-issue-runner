@@ -255,6 +255,43 @@
           "description": "Model for auto-selection (default: claude-haiku-4-5)"
         }
       }
+    },
+    "watcher": {
+      "type": "object",
+      "description": "Session watcher settings",
+      "additionalProperties": false,
+      "properties": {
+        "initial_delay": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 10,
+          "description": "Initial delay in seconds before starting to monitor the session"
+        },
+        "cleanup_delay": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 5,
+          "description": "Delay in seconds before cleanup to ensure session is fully terminated"
+        },
+        "cleanup_retry_interval": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 3,
+          "description": "Interval in seconds between cleanup retry attempts"
+        },
+        "pr_merge_max_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 10,
+          "description": "Maximum number of attempts to check PR merge status"
+        },
+        "pr_merge_retry_interval": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 60,
+          "description": "Interval in seconds between PR merge check retries"
+        }
+      }
     }
   },
   "definitions": {
