@@ -440,7 +440,7 @@ show_config() {
                     echo ""
                     echo "Workflow: $name"
                     
-                    local type command args template
+                    local type command template
                     type=$(yaml_get "$config_file" ".workflows.${name}.agent.type" 2>/dev/null || echo "")
                     command=$(yaml_get "$config_file" ".workflows.${name}.agent.command" 2>/dev/null || echo "")
                     template=$(yaml_get "$config_file" ".workflows.${name}.agent.template" 2>/dev/null || echo "")
