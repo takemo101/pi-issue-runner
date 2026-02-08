@@ -94,7 +94,7 @@ workflows:
       - review
       - merge
 
-  # 機能追加: 計画→実装→テスト→レビュー→マージ
+  # 機能追加: 計画→実装→テスト→レビュー→マージ（opencode で高度な処理）
   feature:
     description: 新機能・大規模変更（lib/scripts への新関数追加、新スクリプト作成）
     steps:
@@ -103,6 +103,8 @@ workflows:
       - test
       - review
       - merge
+    agent:
+      type: opencode
     context: |
       ## 技術スタック
       - Bash 4.0+ / ShellCheck 準拠
@@ -143,7 +145,7 @@ workflows:
         - --provider
         - anthropic
         - --model
-        - claude-sonnet-4-20250514
+        - claude-sonnet-4-5
     context: |
       ## 方針
       - docs/ 以下の既存ドキュメントとの整合性を確認
@@ -176,7 +178,7 @@ workflows:
         - --provider
         - anthropic
         - --model
-        - claude-sonnet-4-20250514
+        - claude-sonnet-4-5
 
 # =====================================
 # 計画書設定
