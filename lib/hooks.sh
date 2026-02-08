@@ -54,6 +54,22 @@ get_hook() {
 }
 
 # ===================
+# サニタイズ
+# ===================
+
+# hook環境変数の値をサニタイズ
+# Usage: _sanitize_hook_env_value <value>
+# 改行、タブ、ヌル文字などの制御文字を除去し、安全な文字列を返す
+_sanitize_hook_env_value() {
+    local value="$1"
+    
+    # 制御文字を除去（改行、タブ、ヌル文字等）
+    # tr -d でASCII制御文字（0x00-0x1F, 0x7F）を削除
+    # ただし、スペース（0x20）は保持
+    printf '%s' "$value" | tr -d '\000-\037\177'
+}
+
+# ===================
 # Hook 実行
 # ===================
 
@@ -87,11 +103,14 @@ run_hook() {
     log_info "Running hook for event: $event"
     
     # 環境変数を設定（セッション関連）
+    # ユーザー由来の値はサニタイズしてから export
     if [[ -n "$issue_number" ]]; then
         export PI_ISSUE_NUMBER="$issue_number"
     fi
     if [[ -n "$issue_title" ]]; then
-        export PI_ISSUE_TITLE="$issue_title"
+        local sanitized_title
+        sanitized_title="$(_sanitize_hook_env_value "$issue_title")"
+        export PI_ISSUE_TITLE="$sanitized_title"
     fi
     if [[ -n "$session_name" ]]; then
         export PI_SESSION_NAME="$session_name"
@@ -103,7 +122,9 @@ run_hook() {
         export PI_WORKTREE_PATH="$worktree_path"
     fi
     if [[ -n "$error_message" ]]; then
-        export PI_ERROR_MESSAGE="$error_message"
+        local sanitized_error
+        sanitized_error="$(_sanitize_hook_env_value "$error_message")"
+        export PI_ERROR_MESSAGE="$sanitized_error"
     fi
     export PI_EXIT_CODE="$exit_code"
     

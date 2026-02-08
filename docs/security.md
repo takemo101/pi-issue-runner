@@ -164,6 +164,18 @@ hooks:
 # on_success: echo "Issue #{{issue_number}} completed"
 ```
 
+**環境変数のサニタイズ**:
+
+バージョン 0.5.0 以降、ユーザー由来の環境変数（`PI_ISSUE_TITLE`, `PI_ERROR_MESSAGE`）に含まれる制御文字は自動的に除去されます。これにより、Issueタイトルやエラーメッセージに含まれる改行文字、タブ、ヌル文字等が `bash -c` 内で意図しない動作を引き起こすことを防ぎます。
+
+| 環境変数 | サニタイズ | 理由 |
+|----------|-----------|------|
+| `PI_ISSUE_TITLE` | ✅ あり | ユーザー由来の入力（Issue本文から） |
+| `PI_ERROR_MESSAGE` | ✅ あり | ユーザー由来の入力（エラーメッセージに含まれる可能性） |
+| `PI_ISSUE_NUMBER` | ❌ なし | 数値のみ |
+| `PI_SESSION_NAME` | ❌ なし | 内部生成（安全な文字のみ） |
+| `PI_BRANCH_NAME` | ❌ なし | Git制約により安全な文字のみ |
+
 詳細は[Hook機能ドキュメント](./hooks.md#マイグレーションガイド)を参照してください。
 
 ### scripts/watch-session.sh でのeval（リスク：🟢 低）
