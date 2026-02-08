@@ -34,6 +34,15 @@ create_worktree() {
     # ベースディレクトリ作成
     mkdir -p "$(get_config worktree_base_dir)"
     
+    # リモートブランチの場合はfetchで最新化
+    if [[ "$base_branch" == origin/* ]]; then
+        local remote="${base_branch%%/*}"
+        log_info "Fetching latest from $remote..."
+        if ! git fetch "$remote" 2>/dev/null; then
+            log_warn "git fetch $remote failed, using cached $base_branch"
+        fi
+    fi
+    
     # worktree作成
     log_info "Creating worktree: $worktree_dir (branch: feature/$branch_name)"
     
