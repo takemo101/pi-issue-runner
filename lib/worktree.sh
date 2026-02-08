@@ -55,17 +55,29 @@ create_worktree() {
 # 環境ファイルをworktreeにコピー
 copy_files_to_worktree() {
     local worktree_dir="$1"
-    local files
+    local config_file
     
     load_config
-    files="$(get_config worktree_copy_files)"
     
-    for file in $files; do
-        if [[ -f "$file" ]]; then
-            log_debug "Copying $file to worktree"
-            cp "$file" "$worktree_dir/"
-        fi
-    done
+    # 設定ファイルが見つかった場合はYAML配列から直接読み取る
+    if config_file="$(config_file_found 2>/dev/null)"; then
+        while IFS= read -r file; do
+            if [[ -n "$file" ]] && [[ -f "$file" ]]; then
+                log_debug "Copying $file to worktree"
+                cp "$file" "$worktree_dir/"
+            fi
+        done < <(yaml_get_array "$config_file" ".worktree.copy_files")
+    else
+        # デフォルトファイルリスト（設定ファイルがない場合）
+        local default_files
+        default_files="$(get_config worktree_copy_files)"
+        for file in $default_files; do
+            if [[ -f "$file" ]]; then
+                log_debug "Copying $file to worktree"
+                cp "$file" "$worktree_dir/"
+            fi
+        done
+    fi
 }
 
 # worktreeを削除（リトライ付き）
