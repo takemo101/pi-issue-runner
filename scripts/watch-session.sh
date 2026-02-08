@@ -33,6 +33,7 @@ set -euo pipefail
 WATCHER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$WATCHER_SCRIPT_DIR/../lib/config.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/log.sh"
+source "$WATCHER_SCRIPT_DIR/../lib/status.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/tmux.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/notify.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/worktree.sh"
