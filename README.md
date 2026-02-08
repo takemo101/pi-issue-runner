@@ -387,6 +387,32 @@ workflows:
       - implement
       - merge
 
+  # ワークフロー固有のエージェント設定（グローバルのagent設定を上書き）
+  quick-haiku:
+    description: 小規模修正（高速・低コスト）
+    steps:
+      - implement
+      - merge
+    agent:
+      type: pi
+      args:
+        - --model
+        - claude-haiku-4-5  # 軽量モデルでコスト削減
+
+  thorough-opus:
+    description: 徹底レビュー（高精度）
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+    agent:
+      type: claude
+      args:
+        - --model
+        - claude-opus-4  # 最高精度モデル
+
 # 計画書設定
 plans:
   keep_recent: 10
@@ -445,6 +471,51 @@ agent:
 # Claude Codeを一時的に使用
 PI_RUNNER_AGENT_TYPE=claude scripts/run.sh 42
 ```
+
+### ワークフローごとのエージェント設定
+
+ワークフローごとに異なるエージェントやモデルを指定できます。タスクの性質に応じて最適なエージェントを使い分けることが可能です。
+
+ワークフローに `agent` を指定しない場合は、グローバルの `agent` 設定がデフォルトとして使用されます。
+
+**優先順位**: ワークフロー固有の `agent` > グローバルの `agent` > 従来の `pi` 設定
+
+```yaml
+# グローバル設定（デフォルト）
+agent:
+  type: pi
+  args:
+    - --model
+    - claude-sonnet-4-20250514
+
+workflows:
+  # 小規模修正: 軽量モデルで高速・低コスト
+  quick:
+    description: 小規模修正
+    steps: [implement, merge]
+    agent:
+      type: pi
+      args:
+        - --model
+        - claude-haiku-4-5
+
+  # 徹底レビュー: 最高精度モデル
+  thorough:
+    description: 大規模機能開発
+    steps: [plan, implement, test, review, merge]
+    agent:
+      type: claude
+      args:
+        - --model
+        - claude-opus-4
+
+  # agent未指定 → グローバルのagent設定を使用
+  simple:
+    description: 簡単な修正
+    steps: [implement, merge]
+```
+
+詳細は [docs/workflows.md](docs/workflows.md#agent-フィールド-ワークフロー固有のエージェント設定) を参照してください。
 
 ## ワークフロー例
 
