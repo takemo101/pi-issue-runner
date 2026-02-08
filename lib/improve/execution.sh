@@ -67,8 +67,10 @@ cleanup_improve_on_exit() {
     local session_label="${1:-}"
     
     # Get active issues for this improve session
-    local active_issues
-    active_issues=($(get_improve_active_issues "$session_label"))
+    local active_issues=()
+    while IFS= read -r issue; do
+        [[ -n "$issue" ]] && active_issues+=("$issue")
+    done < <(get_improve_active_issues "$session_label")
     
     # Only cleanup if there are active sessions and exit is not normal
     if [[ ${#active_issues[@]} -gt 0 && $exit_code -ne 0 ]]; then
@@ -226,8 +228,10 @@ wait_for_improve_completion() {
     echo "[PHASE 4] Waiting for sessions to complete..."
     
     # Get active issues from status files
-    local active_issues
-    active_issues=($(get_improve_active_issues "$session_label"))
+    local active_issues=()
+    while IFS= read -r issue; do
+        [[ -n "$issue" ]] && active_issues+=("$issue")
+    done < <(get_improve_active_issues "$session_label")
     
     if [[ ${#active_issues[@]} -eq 0 ]]; then
         echo "  No active sessions to wait for"
