@@ -80,19 +80,19 @@ teardown() {
 }
 
 @test "Issue #1015: default retry count is reasonable" {
-    # Verify default retry parameters are set
-    # Default should be 10 attempts with 60 second intervals
+    # Verify default retry parameters use config
+    # Config defaults: 10 attempts with 60 second intervals
     # (total: 10 minutes of retry time)
     
     local script_content
     script_content=$(<"$PROJECT_ROOT/scripts/watch-session.sh")
     
-    # Check for default values in function signature
-    [[ "$script_content" == *'max_attempts="${4:-10}"'* ]] || \
-    [[ "$script_content" == *'max_attempts=${4:-10}'* ]]
+    # Check for config-based default values in function signature
+    [[ "$script_content" == *'max_attempts="${4:-$(get_config watcher_pr_merge_max_attempts)}"'* ]] || \
+    [[ "$script_content" == *'max_attempts=${4:-$(get_config watcher_pr_merge_max_attempts)}'* ]]
     
-    [[ "$script_content" == *'retry_interval="${5:-60}"'* ]] || \
-    [[ "$script_content" == *'retry_interval=${5:-60}'* ]]
+    [[ "$script_content" == *'retry_interval="${5:-$(get_config watcher_pr_merge_retry_interval)}"'* ]] || \
+    [[ "$script_content" == *'retry_interval=${5:-$(get_config watcher_pr_merge_retry_interval)}'* ]]
 }
 
 @test "Issue #1015: PR CLOSED state is treated as completion" {
