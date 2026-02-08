@@ -257,6 +257,8 @@ build_ai_prompt() {
     prompt+="- Generate workflows that match the project's tech stack and development patterns"$'\n'
     prompt+="- Each workflow's description should be specific enough for AI auto-selection (-w auto)"$'\n'
     prompt+="- Each workflow's context should describe the project-specific tech stack and conventions"$'\n'
+    prompt+="- Workflows can have an optional 'agent' field to override the global agent settings (type, args, command, template)"$'\n'
+    prompt+="- Use lightweight models (e.g., claude-sonnet-4) for simple workflows (quick, docs) and powerful models for complex workflows (thorough)"$'\n'
     prompt+="- Do NOT generate the 'workflow:' (singular) key. Use only the 'workflows:' (plural) section"$'\n'
     prompt+="- Always include: default (standard), quick (minimal), thorough (full), docs (documentation) workflows"$'\n'
     prompt+="- Add frontend/backend workflows only if the project has those aspects"$'\n'
@@ -414,6 +416,11 @@ _generate_static_workflows() {
     echo "    steps:"
     echo "      - implement"
     echo "      - merge"
+    echo "    agent:"
+    echo "      type: pi"
+    echo "      args:"
+    echo "        - --model"
+    echo "        - claude-sonnet-4-20250514"
     echo ""
     echo "  thorough:"
     echo "    description: 大規模機能開発（複数ファイル、新機能、アーキテクチャ変更）"
@@ -430,6 +437,11 @@ _generate_static_workflows() {
     echo "      - implement"
     echo "      - review"
     echo "      - merge"
+    echo "    agent:"
+    echo "      type: pi"
+    echo "      args:"
+    echo "        - --model"
+    echo "        - claude-sonnet-4-20250514"
 }
 
 # Generate github and plans sections
