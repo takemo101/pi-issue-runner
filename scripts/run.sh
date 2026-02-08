@@ -470,7 +470,7 @@ setup_completion_watcher() {
 
     if [[ "$cleanup_mode" != "none" ]]; then
         log_info "Starting completion watcher..."
-        local watcher_log="/tmp/pi-watcher-${session_name}.log"
+        local watcher_log="${TMPDIR:-/tmp}/pi-watcher-${session_name}.log"
         local watcher_script
         watcher_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/watch-session.sh"
         

@@ -292,7 +292,7 @@ execute_single_cleanup() {
         }
         
         # Watcher ログファイルも削除 (Issue #1068)
-        local watcher_log="/tmp/pi-watcher-${session_name}.log"
+        local watcher_log="${TMPDIR:-/tmp}/pi-watcher-${session_name}.log"
         if [[ -f "$watcher_log" ]]; then
             log_debug "Removing watcher log file: $watcher_log"
             rm -f "$watcher_log" 2>/dev/null || {
