@@ -400,3 +400,61 @@ YAML
     local remaining=$(find "$test_dir/custom-logs" -name "*.log" 2>/dev/null | wc -l | tr -d ' ')
     [ "$remaining" -eq 5 ]
 }
+
+# ====================
+# Issue #1068: Watcher log cleanup
+# ====================
+
+@test "Issue #1068: cleanup.sh removes watcher log files" {
+    # 高速モード時はスキップ
+    if [[ "${BATS_FAST_MODE:-}" == "1" ]]; then
+        skip "Skipping slow test in fast mode"
+    fi
+    
+    # モック環境セットアップ
+    mock_gh
+    mock_git
+    mock_tmux
+    enable_mocks
+    
+    local test_dir="${BATS_TEST_TMPDIR}/test-project"
+    mkdir -p "$test_dir"
+    
+    # Create minimal git repo
+    cd "$test_dir"
+    git init &>/dev/null
+    git config user.name "Test User"
+    git config user.email "test@example.com"
+    echo "test" > README.md
+    git add README.md
+    git commit -m "Initial commit" &>/dev/null
+    
+    # Create watcher log file
+    local watcher_log="/tmp/pi-watcher-pi-issue-999.log"
+    echo "test log content" > "$watcher_log"
+    
+    # Verify log file exists
+    [ -f "$watcher_log" ]
+    
+    # Mock status file
+    local status_dir="${test_dir}/.pi-status"
+    mkdir -p "$status_dir"
+    cat > "$status_dir/999.json" << 'JSON'
+{
+  "issue_number": "999",
+  "session_name": "pi-issue-999",
+  "worktree_path": ".worktrees/issue-999-test",
+  "branch_name": "issue-999-test",
+  "status": "running"
+}
+JSON
+    
+    # Run cleanup
+    run "$PROJECT_ROOT/scripts/cleanup.sh" 999 --keep-session
+    
+    # Verify watcher log file was removed
+    [ ! -f "$watcher_log" ]
+    
+    # Cleanup
+    rm -f "$watcher_log" 2>/dev/null || true
+}

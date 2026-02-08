@@ -37,6 +37,8 @@ daemonize() {
     # これにより、親プロセスが終了しても子プロセスは生き続ける
     local pid_file
     pid_file="$(mktemp /tmp/daemon_pid.XXXXXX)"
+    # RETURN trapでPIDファイルを確実にクリーンアップ（異常終了時も実行される）
+    trap 'rm -f "$pid_file" 2>/dev/null' RETURN
     
     # サブシェル内で実行し、即座にバックグラウンド化
     # nohupでSIGHUPを無視し、標準入出力を適切にリダイレクト

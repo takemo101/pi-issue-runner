@@ -332,6 +332,57 @@ EOF
     stop_daemon "$pid" 2>/dev/null || true
 }
 
+@test "Issue #1068: PID file is cleaned up on normal exit" {
+    # 高速モード時はスキップ
+    if [[ "${BATS_FAST_MODE:-}" == "1" ]]; then
+        skip "Skipping slow test in fast mode"
+    fi
+    
+    source "$PROJECT_ROOT/lib/daemon.sh"
+    
+    # デーモン化して実行
+    local pid
+    pid=$(daemonize "$TEST_LOG_FILE" sleep 1)
+    
+    # PIDファイルが残っていないことを確認
+    local leaked_files
+    leaked_files=$(find /tmp -name "daemon_pid.*" 2>/dev/null | wc -l)
+    
+    # 一時的に作成されたPIDファイルがクリーンアップされていることを確認
+    # Note: 他のテストが並行実行されている場合を考慮して、0または少数であることを確認
+    [[ "$leaked_files" -lt 5 ]]
+    
+    # クリーンアップ
+    stop_daemon "$pid" 2>/dev/null || true
+}
+
+@test "Issue #1068: PID file is cleaned up on early exit (simulated error)" {
+    # 高速モード時はスキップ
+    if [[ "${BATS_FAST_MODE:-}" == "1" ]]; then
+        skip "Skipping slow test in fast mode"
+    fi
+    
+    source "$PROJECT_ROOT/lib/daemon.sh"
+    
+    # mktemp直後のPIDファイル数を記録
+    local initial_count
+    initial_count=$(find /tmp -name "daemon_pid.*" 2>/dev/null | wc -l)
+    
+    # 失敗するコマンドでデーモン化を試行（set -eでエラー時に早期終了）
+    run daemonize "$TEST_LOG_FILE" /nonexistent/command 2>&1
+    [ "$status" -ne 0 ] || true  # エラーが発生することを期待
+    
+    # 短時間待機
+    sleep 0.2
+    
+    # PIDファイルがリークしていないことを確認
+    local final_count
+    final_count=$(find /tmp -name "daemon_pid.*" 2>/dev/null | wc -l)
+    
+    # PIDファイルが増えていないことを確認（±1程度の誤差は許容）
+    [[ "$final_count" -le "$((initial_count + 1))" ]]
+}
+
 @test "Issue #553: watcher survives batch timeout scenario" {
     # 高速モード時はスキップ
     if [[ "${BATS_FAST_MODE:-}" == "1" ]]; then

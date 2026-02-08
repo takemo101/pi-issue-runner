@@ -258,18 +258,6 @@ execute_single_cleanup() {
                 log_info "Worktree removed successfully"
             fi
             
-            # ステータスファイルも削除
-            log_debug "Removing status file for Issue #$issue_number"
-            remove_status "$issue_number" || {
-                log_warn "Failed to remove status file for Issue #$issue_number"
-            }
-            
-            # Watcher PIDファイルも削除 (Issue #693)
-            log_debug "Removing watcher PID file for Issue #$issue_number"
-            remove_watcher_pid "$issue_number" || {
-                log_warn "Failed to remove watcher PID file for Issue #$issue_number"
-            }
-            
             # ブランチ削除
             if [[ "$delete_branch" == "true" && -n "$branch_name" ]]; then
                 log_info "Deleting branch: $branch_name"
@@ -289,6 +277,27 @@ execute_single_cleanup() {
             fi
         else
             log_debug "Worktree not found for Issue #$issue_number (skipping)"
+        fi
+        
+        # ステータスファイルも削除（worktreeの有無に関わらず）
+        log_debug "Removing status file for Issue #$issue_number"
+        remove_status "$issue_number" || {
+            log_warn "Failed to remove status file for Issue #$issue_number"
+        }
+        
+        # Watcher PIDファイルも削除 (Issue #693)
+        log_debug "Removing watcher PID file for Issue #$issue_number"
+        remove_watcher_pid "$issue_number" || {
+            log_warn "Failed to remove watcher PID file for Issue #$issue_number"
+        }
+        
+        # Watcher ログファイルも削除 (Issue #1068)
+        local watcher_log="/tmp/pi-watcher-${session_name}.log"
+        if [[ -f "$watcher_log" ]]; then
+            log_debug "Removing watcher log file: $watcher_log"
+            rm -f "$watcher_log" 2>/dev/null || {
+                log_warn "Failed to remove watcher log file: $watcher_log"
+            }
         fi
     fi
 
