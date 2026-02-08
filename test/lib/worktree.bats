@@ -101,9 +101,15 @@ teardown() {
     cd "$PROJECT_ROOT"
     echo "test=value1" > ".env.test"
     
+    # YAML設定ファイルを作成
+    cat > "$BATS_TEST_TMPDIR/.pi-runner-copy.yaml" << 'EOF'
+worktree:
+  copy_files:
+    - ".env.test"
+EOF
+    
     _CONFIG_LOADED=""
-    export PI_RUNNER_WORKTREE_COPY_FILES=".env.test"
-    load_config "$TEST_CONFIG_FILE"
+    load_config "$BATS_TEST_TMPDIR/.pi-runner-copy.yaml"
     
     TEST_COPY_DIR="$BATS_TEST_TMPDIR/copy_test"
     mkdir -p "$TEST_COPY_DIR"
@@ -114,6 +120,44 @@ teardown() {
     
     # クリーンアップ
     rm -f ".env.test"
+}
+
+@test "copy_files_to_worktree handles files with spaces in name" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    
+    # テスト用設定ファイルを作成（YAML配列を使用）
+    cd "$PROJECT_ROOT"
+    cat > "$BATS_TEST_TMPDIR/.pi-runner-test.yaml" << 'EOF'
+worktree:
+  copy_files:
+    - ".env test.yml"
+    - ".env.local"
+EOF
+    
+    # スペースを含むファイル名のテストファイルを作成
+    echo "test=space file" > ".env test.yml"
+    echo "test=normal" > ".env.local"
+    
+    _CONFIG_LOADED=""
+    load_config "$BATS_TEST_TMPDIR/.pi-runner-test.yaml"
+    
+    TEST_COPY_DIR="$BATS_TEST_TMPDIR/copy_test_spaces"
+    mkdir -p "$TEST_COPY_DIR"
+    
+    copy_files_to_worktree "$TEST_COPY_DIR" 2>/dev/null
+    
+    # スペースを含むファイル名が正しくコピーされることを確認
+    [ -f "$TEST_COPY_DIR/.env test.yml" ]
+    [ -f "$TEST_COPY_DIR/.env.local" ]
+    
+    # 内容も確認
+    grep -q "test=space file" "$TEST_COPY_DIR/.env test.yml"
+    grep -q "test=normal" "$TEST_COPY_DIR/.env.local"
+    
+    # クリーンアップ
+    rm -f ".env test.yml" ".env.local"
 }
 
 # ====================
