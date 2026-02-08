@@ -51,8 +51,9 @@ teardown() {
     grep -q 'set -euo pipefail' "$PROJECT_ROOT/lib/improve/execution.sh"
 }
 
-@test "execution.sh declares ACTIVE_ISSUE_NUMBERS array" {
-    grep -q 'declare -a ACTIVE_ISSUE_NUMBERS' "$PROJECT_ROOT/lib/improve/execution.sh"
+@test "execution.sh uses file-based tracking (no ACTIVE_ISSUE_NUMBERS array)" {
+    # Verify the array declaration has been removed (refactored to file-based tracking)
+    ! grep -q 'declare -a ACTIVE_ISSUE_NUMBERS' "$PROJECT_ROOT/lib/improve/execution.sh"
 }
 
 # ====================
@@ -70,8 +71,13 @@ EOF
     
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
+        # Mock list_issues_by_status to return some issues
+        list_issues_by_status() {
+            echo '42'
+            echo '43'
+        }
+        export -f list_issues_by_status
         source '$PROJECT_ROOT/lib/improve/execution.sh'
-        ACTIVE_ISSUE_NUMBERS=(42 43)
         export SCRIPT_DIR='$SCRIPT_DIR'
         cleanup_improve_on_exit
     "
@@ -85,14 +91,18 @@ EOF
     [[ "$source_content" == *'exit_code=$?'* ]]
     [[ "$source_content" == *'exit_code -ne 0'* ]]
     [[ "$source_content" == *'cleanup.sh'* ]]
-    [[ "$source_content" == *'ACTIVE_ISSUE_NUMBERS'* ]]
+    [[ "$source_content" == *'list_issues_by_status'* ]]
 }
 
 @test "cleanup_improve_on_exit handles no active sessions gracefully" {
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
+        # Mock list_issues_by_status to return no issues
+        list_issues_by_status() {
+            return 0
+        }
+        export -f list_issues_by_status
         source '$PROJECT_ROOT/lib/improve/execution.sh'
-        ACTIVE_ISSUE_NUMBERS=()
         export SCRIPT_DIR='$SCRIPT_DIR'
         
         # Simulate error exit
@@ -277,7 +287,7 @@ EOF
     [[ "$output" == *"No issues to execute"* ]]
 }
 
-@test "execute_improve_issues_in_parallel tracks active sessions" {
+@test "execute_improve_issues_in_parallel starts sessions (tracked via status files)" {
     # Create mock run.sh at the actual computed location
     local mock_scripts_dir="$PROJECT_ROOT/scripts"
     mkdir -p "$mock_scripts_dir"
@@ -289,6 +299,8 @@ EOF
     
     cat > "$mock_scripts_dir/run.sh" << 'EOF'
 #!/usr/bin/env bash
+# Simulates run.sh saving status
+echo "Session started for issue $1"
 exit 0
 EOF
     chmod +x "$mock_scripts_dir/run.sh"
@@ -296,15 +308,12 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '0'; }
-        count_active_sessions() { echo '0'; }
+        list_issues_by_status() { echo ''; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         
         issues=\$'42\n43'
-        execute_improve_issues_in_parallel \"\$issues\" 2>&1 >/dev/null
-        
-        # Print the array contents
-        echo \"ACTIVE_ISSUE_NUMBERS: \${ACTIVE_ISSUE_NUMBERS[*]}\"
+        execute_improve_issues_in_parallel \"\$issues\" 2>&1
     "
     local test_status=$status
     
@@ -316,7 +325,8 @@ EOF
     fi
     
     [ "$test_status" -eq 0 ]
-    [[ "$output" == *"ACTIVE_ISSUE_NUMBERS: 42 43"* ]]
+    [[ "$output" == *"Session started for issue 42"* ]]
+    [[ "$output" == *"Session started for issue 43"* ]]
 }
 
 @test "execute_improve_issues_in_parallel warns on session start failure" {
@@ -358,7 +368,7 @@ EOF
     [[ "$output" == *"Failed to start session for Issue #42"* ]]
 }
 
-@test "execute_improve_issues_in_parallel does not track failed sessions" {
+@test "execute_improve_issues_in_parallel warns on failed session start" {
     # Create mock run.sh at the actual computed location
     local mock_scripts_dir="$PROJECT_ROOT/scripts"
     mkdir -p "$mock_scripts_dir"
@@ -377,15 +387,12 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '0'; }
-        count_active_sessions() { echo '0'; }
+        list_issues_by_status() { echo ''; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         
         issues='42'
-        execute_improve_issues_in_parallel \"\$issues\" 2>&1 >/dev/null
-        
-        # Print the array contents
-        echo \"ACTIVE_ISSUE_NUMBERS count: \${#ACTIVE_ISSUE_NUMBERS[@]}\"
+        execute_improve_issues_in_parallel \"\$issues\" 2>&1
     "
     local test_status=$status
     
@@ -397,7 +404,7 @@ EOF
     fi
     
     [ "$test_status" -eq 0 ]
-    [[ "$output" == *"ACTIVE_ISSUE_NUMBERS count: 0"* ]]
+    [[ "$output" == *"Failed to start session for Issue #42"* ]]
 }
 
 # ====================
@@ -408,7 +415,14 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '0'; }
-        count_active_sessions() { echo '5'; }
+        list_issues_by_status() {
+            echo '100'
+            echo '101'
+            echo '102'
+            echo '103'
+            echo '104'
+        }
+        export -f list_issues_by_status
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         _wait_for_available_slot 1
@@ -422,7 +436,10 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '2'; }
-        count_active_sessions() { echo '1'; }
+        list_issues_by_status() {
+            echo '100'
+        }
+        export -f list_issues_by_status
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         _wait_for_available_slot 1
@@ -442,16 +459,18 @@ EOF
         generate_session_name() { echo \"pi-issue-\$1\"; }
         mux_session_exists() { return 0; }
         COUNTER_FILE='$counter_file'
-        count_active_sessions() {
+        list_issues_by_status() {
             local count=\$(cat \"\$COUNTER_FILE\")
             count=\$((count + 1))
             echo \"\$count\" > \"\$COUNTER_FILE\"
             if [[ \$count -le 1 ]]; then
-                echo '2'
+                echo '100'
+                echo '101'
             else
-                echo '1'
+                echo '100'
             fi
         }
+        export -f list_issues_by_status
         get_status_value() { echo 'complete'; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         _wait_for_available_slot 1
@@ -489,18 +508,20 @@ EOF
         mux_session_exists() { return 0; }
         COUNTER_FILE='$counter_file'
         # Simulate: first 2 calls under limit, 3rd at limit, then drops
-        count_active_sessions() {
+        list_issues_by_status() {
             local count=\$(cat \"\$COUNTER_FILE\")
             count=\$((count + 1))
             echo \"\$count\" > \"\$COUNTER_FILE\"
             if [[ \$count -le 2 ]]; then
-                echo '0'
+                echo ''
             elif [[ \$count -le 3 ]]; then
-                echo '2'
+                echo '100'
+                echo '101'
             else
-                echo '1'
+                echo '100'
             fi
         }
+        export -f list_issues_by_status
         get_status_value() { echo 'complete'; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         
@@ -542,8 +563,12 @@ EOF
 @test "wait_for_improve_completion handles no active sessions" {
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
+        # Mock list_issues_by_status to return no issues
+        list_issues_by_status() {
+            return 0
+        }
+        export -f list_issues_by_status
         source '$PROJECT_ROOT/lib/improve/execution.sh'
-        ACTIVE_ISSUE_NUMBERS=()
         wait_for_improve_completion 3600 2>&1
     "
     [ "$status" -eq 0 ]
@@ -569,8 +594,14 @@ EOF
     
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
+        # Mock list_issues_by_status to return running issues
+        list_issues_by_status() {
+            echo '42'
+            echo '43'
+            echo '44'
+        }
+        export -f list_issues_by_status
         source '$PROJECT_ROOT/lib/improve/execution.sh'
-        ACTIVE_ISSUE_NUMBERS=(42 43 44)
         wait_for_improve_completion 3600 2>&1
     "
     local test_status=$status
@@ -586,7 +617,7 @@ EOF
     [[ "$output" == *"waiting for: 42 43 44"* ]]
 }
 
-@test "wait_for_improve_completion clears active sessions after completion" {
+@test "wait_for_improve_completion uses file-based tracking" {
     # Create mock wait-for-sessions.sh at the actual computed location
     local mock_scripts_dir="$PROJECT_ROOT/scripts"
     mkdir -p "$mock_scripts_dir"
@@ -604,10 +635,14 @@ EOF
     
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
+        # Mock list_issues_by_status to return running issues
+        list_issues_by_status() {
+            echo '42'
+            echo '43'
+        }
+        export -f list_issues_by_status
         source '$PROJECT_ROOT/lib/improve/execution.sh'
-        ACTIVE_ISSUE_NUMBERS=(42 43)
-        wait_for_improve_completion 3600 2>&1 >/dev/null
-        echo \"ACTIVE_ISSUE_NUMBERS count: \${#ACTIVE_ISSUE_NUMBERS[@]}\"
+        wait_for_improve_completion 3600 2>&1
     "
     local test_status=$status
     
@@ -619,7 +654,7 @@ EOF
     fi
     
     [ "$test_status" -eq 0 ]
-    [[ "$output" == *"ACTIVE_ISSUE_NUMBERS count: 0"* ]]
+    [[ "$output" == *"Waiting for: 42 43"* ]]
 }
 
 @test "wait_for_improve_completion warns on failure" {
@@ -640,8 +675,12 @@ EOF
     
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
+        # Mock list_issues_by_status to return running issue
+        list_issues_by_status() {
+            echo '42'
+        }
+        export -f list_issues_by_status
         source '$PROJECT_ROOT/lib/improve/execution.sh'
-        ACTIVE_ISSUE_NUMBERS=(42)
         wait_for_improve_completion 3600 2>&1
     "
     local test_status=$status
