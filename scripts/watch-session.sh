@@ -487,7 +487,7 @@ main() {
         
         # エラーメッセージを抽出（マーカー行の次の行）
         local error_message
-        error_message=$(echo "$baseline_output" | grep -A 1 -E "^[[:space:]]*${error_marker}$" | tail -n 1 | head -c 200) || error_message="Unknown error"
+        error_message=$(echo "$baseline_output" | grep -A 1 -F "$error_marker" | tail -n 1 | head -c 200) || error_message="Unknown error"
         
         handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
         log_warn "Error notification sent. Session is still running for manual intervention."
@@ -546,7 +546,7 @@ main() {
             
             # エラーメッセージを抽出（マーカー行の次の行）
             local error_message
-            error_message=$(echo "$output" | grep -A 1 -E "^[[:space:]]*${error_marker}$" | tail -n 1 | head -c 200) || error_message="Unknown error"
+            error_message=$(echo "$output" | grep -A 1 -F "$error_marker" | tail -n 1 | head -c 200) || error_message="Unknown error"
             
             handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
             
