@@ -24,28 +24,56 @@ _EXECUTION_SH_SOURCED="true"
 # from this file's actual location for safety.
 _IMPROVE_EXEC_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/scripts"
 
-# Global: Track active sessions for cleanup on exit
-# Note: This array maintains state across function calls within a single
-# improve.sh execution. Each issue number is added when its session starts
-# (execute_improve_issues_in_parallel) and removed when it completes
-# (_wait_for_available_slot). The array is also used for cleanup on
-# interruption (cleanup_improve_on_exit).
-#
-# TODO: Consider refactoring to file-based tracking using status files
-# (e.g., querying .worktrees/.status/*.json instead of maintaining in-memory
-# state) for better testability and support for concurrent improve processes.
-declare -a ACTIVE_ISSUE_NUMBERS=()
+# ============================================================================
+# File-based session tracking helpers (Issue #1106)
+# ============================================================================
+
+# Get active issues for the current improve session
+# Uses session_label to filter only issues started by this improve iteration
+# Arguments: $1=session_label
+# Output: Issue numbers (one per line)
+get_improve_active_issues() {
+    local session_label="${1:-}"
+    
+    if [[ -z "$session_label" ]]; then
+        # No label - return all running issues
+        list_issues_by_status "running" 2>/dev/null || true
+    else
+        # Filter by label
+        list_issues_by_status_and_label "running" "$session_label" 2>/dev/null || true
+    fi
+}
+
+# Count active sessions for the current improve iteration
+# Arguments: $1=session_label
+# Output: Number of active sessions
+count_improve_active_sessions() {
+    local session_label="${1:-}"
+    local count=0
+    
+    while IFS= read -r _; do
+        count=$((count + 1))
+    done < <(get_improve_active_issues "$session_label")
+    
+    echo "$count"
+}
 
 # ============================================================================
 # Cleanup function for EXIT trap
+# Arguments: $1=session_label (from improve.sh)
 # ============================================================================
 cleanup_improve_on_exit() {
     local exit_code=$?
+    local session_label="${1:-}"
+    
+    # Get active issues for this improve session
+    local active_issues
+    active_issues=($(get_improve_active_issues "$session_label"))
     
     # Only cleanup if there are active sessions and exit is not normal
-    if [[ ${#ACTIVE_ISSUE_NUMBERS[@]} -gt 0 && $exit_code -ne 0 ]]; then
-        log_warn "Interrupted! Cleaning up ${#ACTIVE_ISSUE_NUMBERS[@]} active session(s)..."
-        for issue in "${ACTIVE_ISSUE_NUMBERS[@]}"; do
+    if [[ ${#active_issues[@]} -gt 0 && $exit_code -ne 0 ]]; then
+        log_warn "Interrupted! Cleaning up ${#active_issues[@]} active session(s)..."
+        for issue in "${active_issues[@]}"; do
             log_info "  Cleaning up Issue #$issue..."
             "${_IMPROVE_EXEC_SCRIPT_DIR}/cleanup.sh" "pi-issue-$issue" --force 2>/dev/null || true
         done
@@ -103,10 +131,11 @@ fetch_improve_created_issues() {
 # ============================================================================
 # Wait for a session slot to become available
 # Polls active sessions until at least one completes or concurrent limit allows
-# Arguments: $1=check_interval (default: 10)
+# Arguments: $1=check_interval (default: 10), $2=session_label
 # ============================================================================
 _wait_for_available_slot() {
     local interval="${1:-10}"
+    local session_label="${2:-}"
     local max_concurrent
     max_concurrent="$(get_config parallel_max_concurrent)"
     
@@ -117,40 +146,37 @@ _wait_for_available_slot() {
     
     while true; do
         local current_count
-        current_count="$(count_active_sessions)"
+        current_count="$(count_improve_active_sessions "$session_label")"
         if [[ "$current_count" -lt "$max_concurrent" ]]; then
             return 0
         fi
         echo "  Concurrent limit ($max_concurrent) reached ($current_count active). Waiting ${interval}s for a slot..."
         sleep "$interval"
         
-        # Update ACTIVE_ISSUE_NUMBERS: remove completed sessions and cleanup stale ones
-        local still_active=()
-        for issue_num in "${ACTIVE_ISSUE_NUMBERS[@]}"; do
+        # Cleanup completed sessions that are still lingering
+        while IFS= read -r issue_num; do
             local status
             status="$(get_status_value "$issue_num" 2>/dev/null || echo "")"
             if [[ "$status" == "complete" || "$status" == "error" ]]; then
-                # Cleanup the tmux session if it's still lingering
+                # Cleanup the session if it's still lingering
                 local session_name
                 session_name="$(generate_session_name "$issue_num")"
                 if mux_session_exists "$session_name" 2>/dev/null; then
                     log_info "Cleaning up completed session: $session_name (status: $status)"
                     "${_IMPROVE_EXEC_SCRIPT_DIR}/cleanup.sh" "$session_name" --force 2>/dev/null || true
                 fi
-                continue
             fi
-            still_active+=("$issue_num")
-        done
-        ACTIVE_ISSUE_NUMBERS=("${still_active[@]+"${still_active[@]}"}")
+        done < <(get_improve_active_issues "$session_label")
     done
 }
 
 # ============================================================================
 # Start parallel execution of issues
-# Arguments: $1=newline-separated issue numbers
+# Arguments: $1=newline-separated issue numbers, $2=session_label
 # ============================================================================
 execute_improve_issues_in_parallel() {
     local issues="$1"
+    local session_label="${2:-}"
     
     echo ""
     echo "[PHASE 3] Starting parallel execution..."
@@ -170,12 +196,18 @@ execute_improve_issues_in_parallel() {
         [[ -z "$issue" ]] && continue
         
         # Wait for an available slot before starting
-        _wait_for_available_slot 10
+        _wait_for_available_slot 10 "$session_label"
         
         echo "  Starting Issue #$issue..."
-        if "${_IMPROVE_EXEC_SCRIPT_DIR}/run.sh" "$issue" --no-attach; then
-            # Track active session for cleanup on interruption
-            ACTIVE_ISSUE_NUMBERS+=("$issue")
+        # Build run.sh arguments with label
+        local run_args=("$issue" "--no-attach")
+        if [[ -n "$session_label" ]]; then
+            run_args+=("--label" "$session_label")
+        fi
+        
+        if "${_IMPROVE_EXEC_SCRIPT_DIR}/run.sh" "${run_args[@]}"; then
+            # Session started successfully (status saved by run.sh)
+            :
         else
             log_warn "Failed to start session for Issue #$issue"
         fi
@@ -184,32 +216,37 @@ execute_improve_issues_in_parallel() {
 
 # ============================================================================
 # Wait for all sessions to complete
-# Arguments: $1=timeout
+# Arguments: $1=timeout, $2=session_label
 # ============================================================================
 wait_for_improve_completion() {
     local timeout="$1"
+    local session_label="${2:-}"
 
     echo ""
     echo "[PHASE 4] Waiting for sessions to complete..."
     
-    if [[ ${#ACTIVE_ISSUE_NUMBERS[@]} -eq 0 ]]; then
+    # Get active issues from status files
+    local active_issues
+    active_issues=($(get_improve_active_issues "$session_label"))
+    
+    if [[ ${#active_issues[@]} -eq 0 ]]; then
         echo "  No active sessions to wait for"
         return 0
     fi
     
-    echo "  Waiting for: ${ACTIVE_ISSUE_NUMBERS[*]}"
+    echo "  Waiting for: ${active_issues[*]}"
     
-    if ! "${_IMPROVE_EXEC_SCRIPT_DIR}/wait-for-sessions.sh" "${ACTIVE_ISSUE_NUMBERS[@]}" --timeout "$timeout" --cleanup; then
+    if ! "${_IMPROVE_EXEC_SCRIPT_DIR}/wait-for-sessions.sh" "${active_issues[@]}" --timeout "$timeout" --cleanup; then
         log_warn "Some sessions failed or timed out"
     fi
     
     # Hook: イテレーション終了（統計収集）
     local succeeded=0
     local failed=0
-    local created=${#ACTIVE_ISSUE_NUMBERS[@]}
+    local created=${#active_issues[@]}
     
     # セッション状態から成功/失敗を集計
-    for issue in "${ACTIVE_ISSUE_NUMBERS[@]}"; do
+    for issue in "${active_issues[@]}"; do
         local status
         status="$(get_status_value "$issue" 2>/dev/null || echo "")"
         if [[ "$status" == "complete" ]]; then
@@ -224,9 +261,6 @@ wait_for_improve_completion() {
             "${_IMPROVE_ITERATION:-1}" "${_IMPROVE_MAX_ITERATIONS:-1}" \
             "$created" "$succeeded" "$failed" ""
     fi
-    
-    # Clear active sessions after completion
-    ACTIVE_ISSUE_NUMBERS=()
 }
 
 # ============================================================================

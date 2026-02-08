@@ -157,6 +157,7 @@ parse_run_arguments() {
     local cleanup_mode="auto"
     local list_workflows=false
     local ignore_blockers=false
+    local session_label=""
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -175,6 +176,10 @@ parse_run_arguments() {
             --workflow|-w)
                 workflow_name="$2"
                 workflow_specified=true
+                shift 2
+                ;;
+            --label|-l)
+                session_label="$2"
                 shift 2
                 ;;
             --list-workflows)
@@ -251,6 +256,7 @@ parse_run_arguments() {
     _PARSE_cleanup_mode="$cleanup_mode"
     _PARSE_list_workflows="$list_workflows"
     _PARSE_ignore_blockers="$ignore_blockers"
+    _PARSE_session_label="$session_label"
 }
 
 # ============================================================================
@@ -464,7 +470,8 @@ start_agent_session() {
     unregister_worktree_for_cleanup
     
     # Issue #974: セッション作成直後にステータスを保存（レースコンディション回避）
-    save_status "$issue_number" "running" "$session_name"
+    # Issue #1106: セッションラベルを保存（improve.shで使用）
+    save_status "$issue_number" "running" "$session_name" "" "$session_label"
     
     # on_start hookを実行
     run_hook "on_start" "$issue_number" "$session_name" "feature/$branch_name" "$full_worktree_path" "" "0" "$issue_title"
@@ -557,6 +564,7 @@ main() {
     local cleanup_mode="$_PARSE_cleanup_mode"
     local list_workflows="$_PARSE_list_workflows"
     local ignore_blockers="$_PARSE_ignore_blockers"
+    local session_label="$_PARSE_session_label"
     
     # Validate inputs
     validate_run_inputs "$issue_number" "$list_workflows"
