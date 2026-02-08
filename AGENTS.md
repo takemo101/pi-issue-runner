@@ -534,6 +534,7 @@ PRをマージする前に警告が解消されている必要があります。
 
 <!-- エージェントが重要な知見を発見した際、ここに1行サマリーとリンクを追加する -->
 <!-- 例: - playwright-cli 0.0.63+: デフォルトセッション使用必須 → [詳細](docs/decisions/001-playwright-session.md) -->
+- Bats並列テスト: 16ジョブでハング、デフォルト2ジョブ推奨 → [詳細](docs/decisions/001-test-parallel-jobs-limit.md)
 
 ## 注意事項
 
