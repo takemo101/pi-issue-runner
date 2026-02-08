@@ -196,6 +196,7 @@ pi-issue-runner/
 │   │   ├── cleanup-race-condition.bats
 │   │   ├── critical-fixes.bats
 │   │   ├── eval-injection.bats
+│   │   ├── hooks-env-sanitization.bats
 │   │   ├── issue-1066-spaces-in-filenames.bats
 │   │   ├── multiline-json-grep.bats
 │   │   ├── pr-merge-timeout.bats
