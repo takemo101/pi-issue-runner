@@ -68,6 +68,7 @@ cleanup_improve_on_exit() {
     
     # Get active issues for this improve session
     local active_issues
+    # shellcheck disable=SC2207  # Word splitting is intentional for issue numbers
     active_issues=($(get_improve_active_issues "$session_label"))
     
     # Only cleanup if there are active sessions and exit is not normal
@@ -227,6 +228,7 @@ wait_for_improve_completion() {
     
     # Get active issues from status files
     local active_issues
+    # shellcheck disable=SC2207  # Word splitting is intentional for issue numbers
     active_issues=($(get_improve_active_issues "$session_label"))
     
     if [[ ${#active_issues[@]} -eq 0 ]]; then

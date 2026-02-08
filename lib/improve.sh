@@ -56,6 +56,7 @@ improve_main() {
     
     # Set up trap for cleanup on interruption
     # Note: _IMPROVE_SESSION_LABEL is global to be accessible from trap
+    # shellcheck disable=SC2154  # _PARSE_session_label set by parse_improve_arguments
     _IMPROVE_SESSION_LABEL="$_PARSE_session_label"
     trap 'cleanup_improve_on_exit "$_IMPROVE_SESSION_LABEL"' EXIT INT TERM
     

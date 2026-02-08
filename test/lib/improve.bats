@@ -403,6 +403,7 @@ teardown() {
         date() { mock_date; }
         create_label_if_not_exists() { return 0; }
         check_improve_dependencies() { return 0; }
+        require_config_file() { return 0; }
         load_config() { return 0; }
         
         # Call with single quote in label
@@ -429,6 +430,7 @@ teardown() {
         date() { mock_date; }
         create_label_if_not_exists() { return 0; }
         check_improve_dependencies() { return 0; }
+        require_config_file() { return 0; }
         load_config() { return 0; }
         
         # Call with single quote in log_dir
