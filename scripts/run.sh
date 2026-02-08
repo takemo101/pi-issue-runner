@@ -438,7 +438,9 @@ setup_worktree() {
 # ============================================================================
 # Subfunction: start_agent_session
 # Purpose: Generate prompt and create agent session
-# Arguments: Multiple (see function body)
+# Arguments: $1=session_name, $2=issue_number, $3=issue_title, $4=issue_body,
+#            $5=branch_name, $6=full_worktree_path, $7=workflow_name,
+#            $8=issue_comments, $9=extra_agent_args, $10=session_label
 # Output: Shell variable assignments (eval-able)
 # ============================================================================
 start_agent_session() {
@@ -451,6 +453,7 @@ start_agent_session() {
     local workflow_name="$7"
     local issue_comments="$8"
     local extra_agent_args="$9"
+    local session_label="${10:-}"
 
     # ワークフローからプロンプトファイルを生成
     local prompt_file="$full_worktree_path/.pi-prompt.md"
@@ -614,7 +617,7 @@ main() {
     local full_worktree_path="$_WORKTREE_full_path"
     
     # Start agent session
-    start_agent_session "$session_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path" "$workflow_name" "$issue_comments" "$extra_agent_args"
+    start_agent_session "$session_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path" "$workflow_name" "$issue_comments" "$extra_agent_args" "$session_label"
     
     # Setup completion watcher
     setup_completion_watcher "$cleanup_mode" "$session_name" "$issue_number"
