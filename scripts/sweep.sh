@@ -30,7 +30,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
-source "$SCRIPT_DIR/../lib/multiplexer.sh"
+source "$SCRIPT_DIR/../lib/tmux.sh"
 source "$SCRIPT_DIR/../lib/marker.sh"
 source "$SCRIPT_DIR/../lib/status.sh"
 
@@ -109,7 +109,7 @@ check_session_markers() {
     
     # セッション出力を取得（最後の100行）
     local output
-    if ! output=$(mux_get_session_output "$session_name" 100 2>/dev/null); then
+    if ! output=$(get_session_output "$session_name" 100 2>/dev/null); then
         log_warn "Failed to get output for session: $session_name"
         echo ""
         return
@@ -180,6 +180,7 @@ main() {
     # Parse command line arguments
     parse_sweep_arguments dry_run force check_errors "$@"
     
+    require_config_file "pi-sweep" || exit 1
     load_config
     
     log_info "=== Session Sweep ==="
@@ -189,7 +190,7 @@ main() {
     
     # セッション一覧を取得
     local sessions
-    sessions="$(mux_list_sessions)"
+    sessions="$(list_sessions)"
     
     if [[ -z "$sessions" ]]; then
         log_info "No active sessions found."
@@ -211,7 +212,7 @@ main() {
         
         # Issue番号を抽出
         local issue_num
-        issue_num=$(mux_extract_issue_number "$session" 2>/dev/null) || {
+        issue_num=$(extract_issue_number "$session" 2>/dev/null) || {
             log_debug "Could not extract issue number from: $session (skipping)"
             continue
         }

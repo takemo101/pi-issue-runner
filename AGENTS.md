@@ -192,10 +192,14 @@ pi-issue-runner/
 │   │   ├── wait-for-sessions.bats
 │   │   └── watch-session.bats
 │   ├── regression/    # 回帰テスト
+│   │   ├── applescript-injection.bats
+│   │   ├── cleanup-race-condition.bats
 │   │   ├── critical-fixes.bats
 │   │   ├── eval-injection.bats
 │   │   ├── issue-1066-spaces-in-filenames.bats
-│   │   └── pr-merge-timeout.bats
+│   │   ├── multiline-json-grep.bats
+│   │   ├── pr-merge-timeout.bats
+│   │   └── workflow-name-template.bats
 │   ├── fixtures/      # テスト用フィクスチャ
 │   │   └── sample-config.yaml
 │   └── test_helper.bash  # Bats共通ヘルパー
@@ -530,6 +534,7 @@ PRをマージする前に警告が解消されている必要があります。
 
 <!-- エージェントが重要な知見を発見した際、ここに1行サマリーとリンクを追加する -->
 <!-- 例: - playwright-cli 0.0.63+: デフォルトセッション使用必須 → [詳細](docs/decisions/001-playwright-session.md) -->
+- Bats並列テスト: 16ジョブでハング、デフォルト2ジョブ推奨 → [詳細](docs/decisions/001-test-parallel-jobs-limit.md)
 
 ## 注意事項
 

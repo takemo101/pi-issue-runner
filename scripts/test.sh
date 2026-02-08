@@ -12,7 +12,7 @@
 #   -f, --fail-fast   Stop on first failure
 #   -s, --shellcheck  Run ShellCheck only
 #   -a, --all         Run all checks (bats + shellcheck)
-#   -j, --jobs N      Number of parallel jobs (default: 16)
+#   -j, --jobs N      Number of parallel jobs (default: 2)
 #   --fast            Fast mode (skip heavy tests)
 #   -h, --help        Show help message
 #
@@ -50,7 +50,7 @@ Options:
     -f, --fail-fast   最初の失敗で終了
     -s, --shellcheck  ShellCheckを実行
     -a, --all         全てのチェック（bats + shellcheck）を実行
-    -j, --jobs N      並列実行のジョブ数（デフォルト: 16）
+    -j, --jobs N      並列実行のジョブ数（デフォルト: 2）
     --fast            高速モード（重いテストをスキップ）
     -h, --help        このヘルプを表示
 
@@ -62,7 +62,7 @@ Target:
     (default)         全Batsテストを実行
 
 Environment:
-    BATS_JOBS         並列実行のジョブ数（デフォルト: 16）
+    BATS_JOBS         並列実行のジョブ数（デフォルト: 2）
     BATS_FAST_MODE    1=高速モード有効
 
 Examples:
@@ -229,7 +229,7 @@ main() {
     local shellcheck_only=false
     local run_all=false
     local fast_mode=false
-    local jobs="${BATS_JOBS:-16}"
+    local jobs="${BATS_JOBS:-2}"
     local target=""
     
     # 引数パース

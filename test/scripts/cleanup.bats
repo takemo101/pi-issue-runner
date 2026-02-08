@@ -109,6 +109,7 @@ teardown() {
     cd "$BATS_TEST_TMPDIR"
     git init --bare test-repo.git &>/dev/null
     cd test-repo.git
+    create_minimal_config "."
     
     run "$PROJECT_ROOT/scripts/cleanup.sh" --orphans
     [ "$status" -eq 0 ]
@@ -126,6 +127,7 @@ teardown() {
     cd "$BATS_TEST_TMPDIR"
     git init --bare test-repo.git &>/dev/null
     cd test-repo.git
+    create_minimal_config "."
     
     run "$PROJECT_ROOT/scripts/cleanup.sh" --orphans --dry-run
     [ "$status" -eq 0 ]
@@ -147,6 +149,7 @@ teardown() {
     cd "$BATS_TEST_TMPDIR"
     git init --bare test-repo.git &>/dev/null
     cd test-repo.git
+    create_minimal_config "."
     
     run "$PROJECT_ROOT/scripts/cleanup.sh" --orphans
     [ "$status" -eq 0 ]
@@ -164,6 +167,7 @@ teardown() {
     cd "$BATS_TEST_TMPDIR"
     mkdir -p test-repo && cd test-repo
     git init &>/dev/null
+    create_minimal_config "."
     
     run "$PROJECT_ROOT/scripts/cleanup.sh" --delete-plans
     [ "$status" -eq 0 ]
@@ -174,6 +178,7 @@ teardown() {
     cd "$BATS_TEST_TMPDIR"
     mkdir -p test-repo/docs/plans && cd test-repo
     git init &>/dev/null
+    create_minimal_config "."
     
     run "$PROJECT_ROOT/scripts/cleanup.sh" --delete-plans
     [ "$status" -eq 0 ]
@@ -195,6 +200,7 @@ teardown() {
     
     cd "$BATS_TEST_TMPDIR"
     git init &>/dev/null
+    create_minimal_config "."
     
     run "$PROJECT_ROOT/scripts/cleanup.sh" --all --dry-run
     [ "$status" -eq 0 ]
@@ -211,6 +217,7 @@ teardown() {
     
     cd "$BATS_TEST_TMPDIR"
     git init &>/dev/null
+    create_minimal_config "."
     
     run "$PROJECT_ROOT/scripts/cleanup.sh" --all --dry-run
     [ "$status" -eq 0 ]
@@ -238,6 +245,7 @@ teardown() {
     
     cd "$BATS_TEST_TMPDIR"
     git init &>/dev/null
+    create_minimal_config "."
     
     # --age 0 は "0日より古い" = 今日作成されたファイルは対象外
     run "$PROJECT_ROOT/scripts/cleanup.sh" --orphans --age 0 --dry-run
@@ -428,6 +436,7 @@ YAML
     echo "test" > README.md
     git add README.md
     git commit -m "Initial commit" &>/dev/null
+    create_minimal_config "."
     
     # Create watcher log file
     local watcher_log="/tmp/pi-watcher-pi-issue-999.log"

@@ -61,6 +61,7 @@ main() {
         esac
     done
 
+    require_config_file "pi-list" || exit 1
     load_config
 
     echo "=== Active Pi Issue Sessions ==="

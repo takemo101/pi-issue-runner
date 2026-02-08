@@ -143,7 +143,23 @@ EOF
 # プロンプト生成
 # ===================
 
-# auto モードのプロンプトを生成する
+# auto モードのプロンプトを生成する（フォールバック用）
+#
+# **重要**: この関数は通常は呼ばれません。以下のフォールバックとして機能します：
+#
+# 通常のフロー（run.sh）:
+#   1. run.sh で resolve_auto_workflow_name() を呼び出し、事前にワークフローを選択
+#   2. 選択されたワークフロー名で generate_workflow_prompt() を呼び出す
+#   3. この時点で workflow_file は具体的なワークフロー名（"quick", "thorough" など）になる
+#
+# フォールバック（この関数が呼ばれるケース）:
+#   1. resolve_auto_workflow_name() が失敗して "auto" を返した場合
+#   2. generate_workflow_prompt() に直接 "auto" が渡された場合
+#   3. ワークフロー検索で "auto" という名前のファイルが見つかった場合
+#
+# この関数は全ワークフローの概要テーブルを出力し、AIに選択させます。
+# 通常は resolve_auto_workflow_name() による事前選択が推奨されます。
+#
 _generate_auto_mode_prompt() {
     local issue_number="$1"
     local issue_title="$2"
@@ -272,7 +288,11 @@ generate_workflow_prompt() {
     local workflow_file
     workflow_file=$(find_workflow_file "$workflow_name" "$project_root")
     
-    # auto モードの場合は特別処理
+    # auto モードの場合は特別処理（フォールバックパス）
+    # 注意: 通常、run.sh は resolve_auto_workflow_name() で事前にワークフローを選択するため、
+    # このコードパスは到達しません。以下の場合のみ実行されます：
+    #   - resolve_auto_workflow_name() が失敗して "auto" を返した
+    #   - この関数に直接 "auto" が渡された（非推奨）
     if [[ "$workflow_file" == "auto" ]]; then
         _generate_auto_mode_prompt "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$worktree_path" "$project_root" "$issue_comments" "$pr_number"
         return 0

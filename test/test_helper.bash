@@ -52,6 +52,26 @@ reset_config_state() {
     done
 }
 
+# テスト用の最小限の.pi-runner.yamlを作成
+create_minimal_config() {
+    local config_dir="${1:-.}"
+    cat > "$config_dir/.pi-runner.yaml" << 'EOF'
+worktree:
+  base_dir: .worktrees
+  base_branch: main
+
+multiplexer:
+  type: tmux
+  session_prefix: pi-issue
+
+pi:
+  command: pi
+
+parallel:
+  max_concurrent: 3
+EOF
+}
+
 # モックをPATHに追加
 enable_mocks() {
     export PATH="$MOCK_DIR:$PATH"
