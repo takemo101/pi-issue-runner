@@ -131,12 +131,19 @@ workflows:
       - ShellCheck 警告を解消すること
       - 既存テストが壊れないことを確認
 
-  # ドキュメント: 実装→マージ
+  # ドキュメント: 実装→マージ（軽量モデルで十分）
   docs:
     description: ドキュメント更新（README, AGENTS.md, docs/ 以下）
     steps:
       - implement
       - merge
+    agent:
+      type: pi
+      args:
+        - --provider
+        - anthropic
+        - --model
+        - claude-sonnet-4-20250514
     context: |
       ## 方針
       - docs/ 以下の既存ドキュメントとの整合性を確認
@@ -157,12 +164,19 @@ workflows:
       - 並列実行 (BATS_JOBS=4) でも安定するよう、グローバル状態を汚染しない
       - reset_yaml_cache, _YQ_CHECK_RESULT="" を setup で呼ぶ
 
-  # 簡易修正: 実装→マージのみ
+  # 簡易修正: 実装→マージのみ（軽量モデルで高速・低コスト）
   quickfix:
     description: typo修正・設定値変更・コメント修正など軽微な変更
     steps:
       - implement
       - merge
+    agent:
+      type: pi
+      args:
+        - --provider
+        - anthropic
+        - --model
+        - claude-sonnet-4-20250514
 
 # =====================================
 # 計画書設定
