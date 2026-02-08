@@ -415,4 +415,54 @@ show_config() {
         var_name="${_CONFIG_KEY_MAP["$key"]}"
         echo "$key: ${!var_name}"
     done
+    
+    # Display workflow-specific agent settings if they exist
+    local config_file
+    config_file="$(config_file_found 2>/dev/null)" || config_file=".pi-runner.yaml"
+    
+    if [[ -f "$config_file" ]] && yaml_exists "$config_file" ".workflows"; then
+        echo ""
+        echo "=== Workflow-Specific Agent Settings ==="
+        
+        local workflow_names
+        workflow_names=$(yaml_get_keys "$config_file" ".workflows")
+        
+        local has_workflow_agent=false
+        while IFS= read -r name; do
+            if [[ -n "$name" ]]; then
+                # Check if this workflow has agent settings
+                if yaml_exists "$config_file" ".workflows.${name}.agent"; then
+                    has_workflow_agent=true
+                    echo ""
+                    echo "Workflow: $name"
+                    
+                    local type command args template
+                    type=$(yaml_get "$config_file" ".workflows.${name}.agent.type" 2>/dev/null || echo "")
+                    command=$(yaml_get "$config_file" ".workflows.${name}.agent.command" 2>/dev/null || echo "")
+                    template=$(yaml_get "$config_file" ".workflows.${name}.agent.template" 2>/dev/null || echo "")
+                    
+                    # args は配列なのでスペース区切りに変換
+                    local args_str=""
+                    while IFS= read -r arg; do
+                        if [[ -n "$arg" ]]; then
+                            if [[ -z "$args_str" ]]; then
+                                args_str="$arg"
+                            else
+                                args_str="$args_str $arg"
+                            fi
+                        fi
+                    done < <(yaml_get_array "$config_file" ".workflows.${name}.agent.args" 2>/dev/null)
+                    
+                    [[ -n "$type" ]] && echo "  agent.type: $type"
+                    [[ -n "$command" ]] && echo "  agent.command: $command"
+                    [[ -n "$args_str" ]] && echo "  agent.args: $args_str"
+                    [[ -n "$template" ]] && echo "  agent.template: $template"
+                fi
+            fi
+        done <<< "$workflow_names"
+        
+        if [[ "$has_workflow_agent" == "false" ]]; then
+            echo "(No workflow-specific agent settings configured)"
+        fi
+    fi
 }

@@ -196,6 +196,32 @@ workflows:
       - 図やテーブルを使った可視化
       - 将来の拡張性への言及
       - 既存コード・ドキュメントとの整合性
+  
+  # ワークフロー固有のエージェント設定（agent オーバーライド）
+  quick-haiku:
+    description: 小規模修正（高速・低コスト）
+    steps:
+      - implement
+      - merge
+    agent:
+      type: pi
+      args:
+        - --model
+        - claude-haiku-4-5  # 軽量モデル
+  
+  thorough-opus:
+    description: 徹底レビュー（高精度）
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+    agent:
+      type: claude
+      args:
+        - --model
+        - claude-opus-4  # 最高精度モデル
 
 # =====================================
 # auto ワークフロー選択設定
@@ -411,6 +437,80 @@ pi:
     - --model
     - claude-sonnet-4-20250514
 ```
+
+#### ワークフローごとのagent設定
+
+> **新機能**: ワークフローごとに異なるエージェントを使用できます。
+
+ワークフロー定義内で `agent` プロパティを指定すると、そのワークフローを実行する際にグローバルなagent設定をオーバーライドできます。
+
+| キー | 型 | 説明 |
+|------|------|------|
+| `workflows.<name>.agent.type` | string | エージェントプリセット（pi, claude, opencode, custom） |
+| `workflows.<name>.agent.command` | string | カスタムエージェントコマンド |
+| `workflows.<name>.agent.args` | string[] | 追加引数 |
+| `workflows.<name>.agent.template` | string | コマンドテンプレート |
+
+**使用例**:
+
+```yaml
+# グローバルなエージェント設定
+agent:
+  type: pi
+  args:
+    - --model
+    - claude-sonnet-4
+
+# ワークフローごとのagent設定
+workflows:
+  # 小規模修正: 高速・低コストモデル
+  quick:
+    description: 小規模修正（typo、設定変更等）
+    steps: [implement, merge]
+    agent:
+      type: pi
+      args:
+        - --model
+        - claude-haiku-4-5  # 軽量モデルでコスト削減
+  
+  # 徹底レビュー: 最高精度モデル
+  thorough:
+    description: 大規模機能開発
+    steps: [plan, implement, test, review, merge]
+    agent:
+      type: claude
+      args:
+        - --model
+        - claude-opus-4  # 最高精度でバグを削減
+  
+  # カスタムエージェント
+  experimental:
+    description: 実験的機能開発
+    steps: [implement, review, merge]
+    agent:
+      type: custom
+      command: my-experimental-agent
+      template: '{{command}} {{args}} --input "{{prompt_file}}"'
+```
+
+**使い方**:
+
+```bash
+# quick ワークフローを実行（claude-haiku-4-5を使用）
+./scripts/run.sh 42 -w quick
+
+# thorough ワークフローを実行（claude-opus-4を使用）
+./scripts/run.sh 42 -w thorough
+
+# agent未指定のワークフローはグローバル設定を使用
+./scripts/run.sh 42 -w simple  # グローバルのagent設定を使用
+```
+
+**設定の優先順位**:
+
+1. ワークフロー固有の `workflows.<name>.agent` 設定
+2. グローバルな `agent` 設定
+3. 従来の `pi` 設定（後方互換性）
 
 ### parallel
 

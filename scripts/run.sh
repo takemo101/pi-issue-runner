@@ -457,6 +457,11 @@ start_agent_session() {
     log_info "Workflow: $workflow_name"
     write_workflow_prompt "$prompt_file" "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path" "." "$issue_comments"
     
+    # ワークフロー固有のagent設定を適用（存在する場合）
+    local workflow_file
+    workflow_file=$(find_workflow_file "$workflow_name" "$PROJECT_ROOT")
+    apply_workflow_agent_override "$workflow_file"
+    
     # エージェントコマンド構築
     local full_command
     full_command="$(build_agent_command "$prompt_file" "$extra_agent_args")"
@@ -520,7 +525,14 @@ display_summary_and_attach() {
 
     log_info "=== Summary ==="
     log_info "Issue:     #$issue_number - $issue_title"
-    log_info "Agent:     $(get_agent_type) ($(get_agent_command))"
+    
+    # Display agent info with workflow override indication
+    local agent_info="$(get_agent_type) ($(get_agent_command))"
+    if [[ -n "${AGENT_TYPE_OVERRIDE:-}" ]] || [[ -n "${AGENT_COMMAND_OVERRIDE:-}" ]]; then
+        agent_info="$agent_info [workflow override]"
+    fi
+    log_info "Agent:     $agent_info"
+    
     log_info "Worktree:  $worktree_path"
     log_info "Branch:    feature/$branch_name"
     log_info "Session:   $session_name"

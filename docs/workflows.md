@@ -234,6 +234,161 @@ frontend:
   context: |
     ## 技術スタック
     - React / Next.js / TypeScript
+    - TailwindCSS
+```
+
+## agent フィールド: ワークフロー固有のエージェント設定
+
+> **新機能**: ワークフローごとに異なるエージェント（pi, claude, opencode等）を使用できます。
+
+`agent` フィールドを使用すると、ワークフローごとにエージェント設定（agent.type, agent.command, agent.args, agent.template）をオーバーライドできます。これにより、タスクの性質に応じて最適なエージェントやモデルを使い分けることが可能です。
+
+> **対応場所**: `agent` フィールドは `.pi-runner.yaml` の `workflows.{NAME}.agent` でサポートされています。
+> 
+> **優先順位**: ワークフロー固有の設定 > グローバルな `agent` 設定 > 従来の `pi` 設定
+
+### 基本的な使い方
+
+```yaml
+# .pi-runner.yaml
+
+# グローバルなエージェント設定（デフォルト）
+agent:
+  type: pi
+  args:
+    - --model
+    - claude-sonnet-4
+
+# ワークフローごとのagent設定
+workflows:
+  # 小規模修正: 高速・低コストモデル
+  quick:
+    description: 小規模修正（typo、設定変更、1ファイル程度の変更）
+    steps:
+      - implement
+      - merge
+    agent:
+      type: pi
+      args:
+        - --model
+        - claude-haiku-4-5  # 軽量モデルでコスト削減
+  
+  # 徹底レビュー: 最高精度モデル
+  thorough:
+    description: 大規模機能開発（複数ファイル、新機能、アーキテクチャ変更）
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+    agent:
+      type: claude
+      args:
+        - --model
+        - claude-opus-4  # 最高精度でバグを削減
+```
+
+### 使用例
+
+```bash
+# quick ワークフローを実行（claude-haiku-4-5を使用）
+./scripts/run.sh 42 -w quick
+
+# thorough ワークフローを実行（claude-opus-4を使用）
+./scripts/run.sh 42 -w thorough
+
+# agent未指定のワークフローはグローバル設定を使用
+./scripts/run.sh 42 -w simple  # グローバルのagent設定を使用
+```
+
+### エージェント設定のプロパティ
+
+| プロパティ | 型 | 説明 |
+|-----------|-----|------|
+| `agent.type` | string | エージェントプリセット（pi, claude, opencode, custom） |
+| `agent.command` | string | カスタムエージェントコマンド（customタイプ用） |
+| `agent.args` | string[] | 追加引数（モデル指定等） |
+| `agent.template` | string | コマンドテンプレート（customタイプ用） |
+
+### 用途別のエージェント設定例
+
+#### 高速・低コストモデルの使用
+
+```yaml
+workflows:
+  quick-fix:
+    description: 緊急バグ修正
+    steps: [implement, merge]
+    agent:
+      type: pi
+      args:
+        - --model
+        - claude-haiku-4-5
+```
+
+#### 高精度モデルの使用
+
+```yaml
+workflows:
+  critical-feature:
+    description: 重要機能の実装
+    steps: [plan, implement, test, review, merge]
+    agent:
+      type: pi
+      args:
+        - --model
+        - claude-opus-4
+```
+
+#### 別エージェントの使用
+
+```yaml
+workflows:
+  experimental:
+    description: 実験的機能
+    steps: [plan, implement, merge]
+    agent:
+      type: claude  # Claude Codeを使用
+      args:
+        - --model
+        - claude-sonnet-4
+```
+
+#### カスタムエージェントの使用
+
+```yaml
+workflows:
+  custom-workflow:
+    description: カスタムエージェント使用
+    steps: [implement, merge]
+    agent:
+      type: custom
+      command: my-custom-agent
+      template: '{{command}} {{args}} --input "{{prompt_file}}"'
+```
+
+### agent と context の併用
+
+`agent` と `context` は併用できます：
+
+```yaml
+workflows:
+  frontend:
+    description: フロントエンド実装（React/Next.js、UIコンポーネント、スタイリング、画面レイアウト）
+    steps:
+      - plan
+      - implement
+      - review
+      - merge
+    agent:
+      type: pi
+      args:
+        - --model
+        - claude-sonnet-4  # フロントエンド用に最適化
+  context: |
+    ## 技術スタック
+    - React / Next.js / TypeScript
     - TailwindCSS / CSS Modules
     
     ## 重視すべき点
