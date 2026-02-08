@@ -284,6 +284,7 @@ get_agent_prompt() {
     local step_name="${5:-}"
     local issue_title="${6:-}"
     local pr_number="${7:-}"
+    local workflow_name="${8:-default}"
     
     local prompt
     
@@ -329,5 +330,5 @@ get_agent_prompt() {
     plans_dir=$(get_config plans_dir)
     
     # テンプレート変数展開
-    render_template "$prompt" "$issue_number" "$branch_name" "$worktree_path" "$step_name" "default" "$issue_title" "$pr_number" "$plans_dir"
+    render_template "$prompt" "$issue_number" "$branch_name" "$worktree_path" "$step_name" "$workflow_name" "$issue_title" "$pr_number" "$plans_dir"
 }
