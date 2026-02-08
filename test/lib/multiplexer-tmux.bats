@@ -152,8 +152,8 @@ mock_tmux_not_installed() {
 
 @test "mux_generate_session_name respects custom prefix" {
     source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
-    export CONFIG_MULTIPLEXER_SESSION_PREFIX="custom"
-    export _CONFIG_LOADED="true"
+    CONFIG_MULTIPLEXER_SESSION_PREFIX="custom"
+    _CONFIG_LOADED="true"
     
     result="$(mux_generate_session_name 99)"
     [ "$result" = "custom-issue-99" ]
@@ -161,8 +161,8 @@ mock_tmux_not_installed() {
 
 @test "mux_generate_session_name handles prefix ending with -issue" {
     source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
-    export CONFIG_MULTIPLEXER_SESSION_PREFIX="myproject-issue"
-    export _CONFIG_LOADED="true"
+    CONFIG_MULTIPLEXER_SESSION_PREFIX="myproject-issue"
+    _CONFIG_LOADED="true"
     
     result="$(mux_generate_session_name 123)"
     [ "$result" = "myproject-issue-123" ]
