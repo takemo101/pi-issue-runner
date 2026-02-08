@@ -324,6 +324,65 @@ build_agent_command() {
 }
 
 # ======================
+# ワークフロー固有エージェント設定
+# ======================
+
+# ワークフロー固有のエージェント設定を適用
+# 引数:
+#   $1 - workflow_identifier: ワークフロー識別子（config-workflow:NAME 形式を想定）
+# 副作用:
+#   CONFIG_AGENT_TYPE, CONFIG_AGENT_COMMAND, CONFIG_AGENT_ARGS, CONFIG_AGENT_TEMPLATE を上書き
+apply_workflow_agent_override() {
+    local workflow_identifier="$1"
+    
+    # config-workflow:NAME 形式から NAME を抽出
+    if [[ "$workflow_identifier" != config-workflow:* ]]; then
+        # ワークフロー識別子が config-workflow 形式でない場合はスキップ
+        log_debug "Workflow identifier '$workflow_identifier' is not config-workflow format, skipping agent override"
+        return 0
+    fi
+    
+    local workflow_name="${workflow_identifier#config-workflow:}"
+    
+    # workflow-loader.sh の関数を使用してワークフロー固有の設定を取得
+    local workflow_agent_type
+    workflow_agent_type="$(get_workflow_agent_config "$workflow_name" "type")"
+    
+    if [[ -z "$workflow_agent_type" ]]; then
+        # ワークフロー固有のagent設定がない場合は何もしない
+        log_debug "No workflow-specific agent config for workflow '$workflow_name'"
+        return 0
+    fi
+    
+    # 環境変数を上書き（config.sh の load_config で設定される変数）
+    export CONFIG_AGENT_TYPE="$workflow_agent_type"
+    log_debug "Applied workflow-specific agent type: $CONFIG_AGENT_TYPE"
+    
+    local workflow_agent_command
+    workflow_agent_command="$(get_workflow_agent_config "$workflow_name" "command")"
+    if [[ -n "$workflow_agent_command" ]]; then
+        export CONFIG_AGENT_COMMAND="$workflow_agent_command"
+        log_debug "Applied workflow-specific agent command: $CONFIG_AGENT_COMMAND"
+    fi
+    
+    local workflow_agent_args
+    workflow_agent_args="$(get_workflow_agent_config "$workflow_name" "args")"
+    if [[ -n "$workflow_agent_args" ]]; then
+        export CONFIG_AGENT_ARGS="$workflow_agent_args"
+        log_debug "Applied workflow-specific agent args: $CONFIG_AGENT_ARGS"
+    fi
+    
+    local workflow_agent_template
+    workflow_agent_template="$(get_workflow_agent_config "$workflow_name" "template")"
+    if [[ -n "$workflow_agent_template" ]]; then
+        export CONFIG_AGENT_TEMPLATE="$workflow_agent_template"
+        log_debug "Applied workflow-specific agent template: $CONFIG_AGENT_TEMPLATE"
+    fi
+    
+    log_info "Applied workflow-specific agent override for workflow: $workflow_name"
+}
+
+# ======================
 # ユーティリティ関数
 # ======================
 

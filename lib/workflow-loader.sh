@@ -393,3 +393,50 @@ get_agent_prompt() {
     # テンプレート変数展開
     render_template "$prompt" "$issue_number" "$branch_name" "$worktree_path" "$step_name" "$workflow_name" "$issue_title" "$pr_number" "$plans_dir"
 }
+
+# ワークフロー固有のエージェント設定を取得
+# 引数:
+#   $1 - workflow_name: ワークフロー名
+#   $2 - property: 取得するプロパティ (type|command|args|template)
+# 出力: 設定値（未設定の場合は空文字列）
+get_workflow_agent_config() {
+    local workflow_name="$1"
+    local property="$2"
+    
+    # 設定ファイルのパスを決定
+    local config_file
+    if [[ -n "${CONFIG_FILE:-}" ]]; then
+        # CONFIG_FILE 環境変数が設定されている場合（テスト用）
+        load_config "$CONFIG_FILE"
+        config_file="$CONFIG_FILE"
+    else
+        # 通常の動作：設定ファイルを検索
+        load_config
+        config_file="$(config_file_found 2>/dev/null)" || config_file=".pi-runner.yaml"
+    fi
+    
+    if [[ ! -f "$config_file" ]]; then
+        echo ""
+        return 0
+    fi
+    
+    local yaml_path=".workflows.${workflow_name}.agent.${property}"
+    
+    # args の場合は配列として取得
+    if [[ "$property" == "args" ]]; then
+        local args=""
+        while IFS= read -r arg; do
+            if [[ -n "$arg" ]]; then
+                if [[ -z "$args" ]]; then
+                    args="$arg"
+                else
+                    args="$args $arg"
+                fi
+            fi
+        done < <(yaml_get_array "$config_file" "$yaml_path" 2>/dev/null)
+        echo "$args"
+    else
+        # type, command, template はスカラー値
+        yaml_get "$config_file" "$yaml_path" 2>/dev/null || echo ""
+    fi
+}

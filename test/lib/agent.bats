@@ -10,6 +10,13 @@ setup() {
         export _CLEANUP_TMPDIR=1
     fi
     
+    # yqキャッシュをリセット
+    _YQ_CHECK_RESULT=""
+    
+    # YAMLキャッシュをリセット（並列テストでのキャッシュ汚染防止）
+    source "$PROJECT_ROOT/lib/yaml.sh"
+    reset_yaml_cache
+    
     # 設定をリセット
     unset _CONFIG_LOADED
     unset CONFIG_AGENT_TYPE
@@ -22,6 +29,10 @@ setup() {
     unset PI_RUNNER_AGENT_COMMAND
     unset PI_RUNNER_AGENT_ARGS
     unset PI_RUNNER_AGENT_TEMPLATE
+    
+    # テスト用ディレクトリ構造を作成
+    export TEST_DIR="$BATS_TEST_TMPDIR/agent_test"
+    mkdir -p "$TEST_DIR"
     
     # テスト用の空の設定ファイルパスを作成
     export TEST_CONFIG_FILE="${BATS_TEST_TMPDIR}/empty-config.yaml"
@@ -332,4 +343,260 @@ EOF
     source "$PROJECT_ROOT/lib/agent.sh"
     result="$(get_agent_command)"
     [ "$result" = "/custom/agent" ]
+}
+
+# ========================================
+# apply_workflow_agent_override テスト
+# ========================================
+
+@test "apply_workflow_agent_override sets CONFIG_AGENT_TYPE from workflow config" {
+    reset_yaml_cache
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+agent:
+  type: pi
+  
+workflows:
+  feature:
+    description: Feature workflow
+    steps:
+      - plan
+      - implement
+    agent:
+      type: claude
+      args:
+        - --model
+        - claude-sonnet-4-5
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$CONFIG_FILE"
+    source "$PROJECT_ROOT/lib/agent.sh"
+    
+    # Before override
+    result="$(get_agent_type)"
+    [ "$result" = "pi" ]
+    
+    # Apply override
+    apply_workflow_agent_override "config-workflow:feature"
+    
+    # After override
+    result="$(get_agent_type)"
+    [ "$result" = "claude" ]
+}
+
+@test "apply_workflow_agent_override sets CONFIG_AGENT_COMMAND from workflow config" {
+    reset_yaml_cache
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+agent:
+  type: pi
+  
+workflows:
+  feature:
+    description: Feature workflow
+    steps:
+      - plan
+      - implement
+    agent:
+      type: custom
+      command: my-custom-agent
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$CONFIG_FILE"
+    source "$PROJECT_ROOT/lib/agent.sh"
+    
+    # Apply override
+    apply_workflow_agent_override "config-workflow:feature"
+    
+    # After override
+    result="$(get_agent_command)"
+    [ "$result" = "my-custom-agent" ]
+}
+
+@test "apply_workflow_agent_override sets CONFIG_AGENT_ARGS from workflow config" {
+    reset_yaml_cache
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+agent:
+  type: pi
+  args:
+    - --model
+    - claude-haiku-4-5
+  
+workflows:
+  feature:
+    description: Feature workflow
+    steps:
+      - plan
+      - implement
+    agent:
+      type: pi
+      args:
+        - --model
+        - claude-sonnet-4-5
+        - --provider
+        - anthropic
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$CONFIG_FILE"
+    source "$PROJECT_ROOT/lib/agent.sh"
+    
+    # Apply override
+    apply_workflow_agent_override "config-workflow:feature"
+    
+    # After override
+    result="$(get_agent_args)"
+    [ "$result" = "--model claude-sonnet-4-5 --provider anthropic" ]
+}
+
+@test "apply_workflow_agent_override sets CONFIG_AGENT_TEMPLATE from workflow config" {
+    reset_yaml_cache
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+agent:
+  type: pi
+  
+workflows:
+  feature:
+    description: Feature workflow
+    steps:
+      - plan
+      - implement
+    agent:
+      type: custom
+      command: my-agent
+      template: "cat {{prompt_file}} | {{command}} {{args}}"
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$CONFIG_FILE"
+    source "$PROJECT_ROOT/lib/agent.sh"
+    
+    # Apply override
+    apply_workflow_agent_override "config-workflow:feature"
+    
+    # After override
+    result="$(get_agent_template)"
+    [ "$result" = "cat {{prompt_file}} | {{command}} {{args}}" ]
+}
+
+@test "apply_workflow_agent_override preserves default when workflow has no agent config" {
+    reset_yaml_cache
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+agent:
+  type: pi
+  args:
+    - --model
+    - claude-haiku-4-5
+  
+workflows:
+  feature:
+    description: Feature workflow
+    steps:
+      - plan
+      - implement
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$CONFIG_FILE"
+    source "$PROJECT_ROOT/lib/agent.sh"
+    
+    # Before override
+    original_type="$(get_agent_type)"
+    original_args="$(get_agent_args)"
+    
+    # Apply override (should do nothing)
+    apply_workflow_agent_override "config-workflow:feature"
+    
+    # After override (should be unchanged)
+    result_type="$(get_agent_type)"
+    result_args="$(get_agent_args)"
+    
+    [ "$result_type" = "$original_type" ]
+    [ "$result_args" = "$original_args" ]
+}
+
+@test "apply_workflow_agent_override skips non-config-workflow identifiers" {
+    reset_yaml_cache
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+agent:
+  type: pi
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$CONFIG_FILE"
+    source "$PROJECT_ROOT/lib/agent.sh"
+    
+    # Before override
+    original_type="$(get_agent_type)"
+    
+    # Apply override with non-config-workflow identifier (should do nothing)
+    apply_workflow_agent_override "builtin:default"
+    
+    # After override (should be unchanged)
+    result_type="$(get_agent_type)"
+    [ "$result_type" = "$original_type" ]
+}
+
+@test "workflow agent override has higher priority than top-level" {
+    reset_yaml_cache
+    
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'YAML_EOF'
+agent:
+  type: pi
+  command: pi
+  args:
+    - --model
+    - claude-haiku-4-5
+  
+workflows:
+  feature:
+    description: Feature workflow
+    steps:
+      - plan
+      - implement
+    agent:
+      type: claude
+      args:
+        - --model
+        - claude-sonnet-4-5
+YAML_EOF
+    
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    load_config "$CONFIG_FILE"
+    source "$PROJECT_ROOT/lib/agent.sh"
+    
+    # Before override - should use top-level config
+    type_before="$(get_agent_type)"
+    args_before="$(get_agent_args)"
+    [ "$type_before" = "pi" ]
+    [ "$args_before" = "--model claude-haiku-4-5" ]
+    
+    # Apply workflow override
+    apply_workflow_agent_override "config-workflow:feature"
+    
+    # After override - should use workflow-specific config
+    type_after="$(get_agent_type)"
+    args_after="$(get_agent_args)"
+    [ "$type_after" = "claude" ]
+    [ "$args_after" = "--model claude-sonnet-4-5" ]
 }

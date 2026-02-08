@@ -336,7 +336,7 @@
         },
         "agent": {
           "type": "object",
-          "description": "Workflow-specific agent settings (overrides global agent config)",
+          "description": "Workflow-specific agent settings (overrides top-level agent)",
           "additionalProperties": false,
           "properties": {
             "type": {
