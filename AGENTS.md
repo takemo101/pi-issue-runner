@@ -194,6 +194,7 @@ pi-issue-runner/
 │   ├── regression/    # 回帰テスト
 │   │   ├── critical-fixes.bats
 │   │   ├── eval-injection.bats
+│   │   ├── issue-1066-spaces-in-filenames.bats
 │   │   └── pr-merge-timeout.bats
 │   ├── fixtures/      # テスト用フィクスチャ
 │   │   └── sample-config.yaml
