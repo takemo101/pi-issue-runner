@@ -76,7 +76,6 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | `pi-restart-watcher` | Watcher再起動 |
 | `pi-mux-all` | 全セッション表示（タイル表示） |
 | `pi-generate-config` | プロジェクト解析・設定生成 |
-| `pi-sweep` | 全セッションのマーカーチェック・cleanup |
 | `pi-test` | テスト一括実行 |
 | `pi-verify-config-docs` | 設定ドキュメントの整合性検証 |
 
