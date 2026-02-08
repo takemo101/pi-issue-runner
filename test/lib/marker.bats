@@ -162,3 +162,61 @@ console.log(x);
     result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
     [ "$result" -eq 0 ]
 }
+
+# 回帰テスト: 正規表現メタ文字を含むマーカーの安全な処理
+@test "count_markers_outside_codeblock handles marker with regex metacharacters (dots)" {
+    local output="...MARKER..."
+    local result
+    result=$(count_markers_outside_codeblock "$output" "...MARKER...")
+    [ "$result" -eq 1 ]
+}
+
+@test "count_markers_outside_codeblock handles marker with regex metacharacters (asterisks)" {
+    local output="***MARKER***"
+    local result
+    result=$(count_markers_outside_codeblock "$output" "***MARKER***")
+    [ "$result" -eq 1 ]
+}
+
+@test "count_markers_outside_codeblock handles marker with regex metacharacters (plus)" {
+    local output="+++MARKER+++"
+    local result
+    result=$(count_markers_outside_codeblock "$output" "+++MARKER+++")
+    [ "$result" -eq 1 ]
+}
+
+@test "count_markers_outside_codeblock handles marker with regex metacharacters (parentheses)" {
+    local output="(MARKER)"
+    local result
+    result=$(count_markers_outside_codeblock "$output" "(MARKER)")
+    [ "$result" -eq 1 ]
+}
+
+@test "count_markers_outside_codeblock handles marker with regex metacharacters (brackets)" {
+    local output="[MARKER]"
+    local result
+    result=$(count_markers_outside_codeblock "$output" "[MARKER]")
+    [ "$result" -eq 1 ]
+}
+
+@test "count_markers_outside_codeblock handles marker with regex metacharacters (question mark)" {
+    local output="MARKER?"
+    local result
+    result=$(count_markers_outside_codeblock "$output" "MARKER?")
+    [ "$result" -eq 1 ]
+}
+
+@test "count_markers_outside_codeblock does not match similar marker with dots" {
+    local output="...MARKER..."
+    local result
+    # Should NOT match "XXXMARKERXXX" (different number of characters)
+    result=$(count_markers_outside_codeblock "$output" "XXXMARKERXXX")
+    [ "$result" -eq 0 ]
+}
+
+@test "count_markers_outside_codeblock handles marker with mixed metacharacters" {
+    local output="  [**MARKER**(42)]  "
+    local result
+    result=$(count_markers_outside_codeblock "$output" "[**MARKER**(42)]")
+    [ "$result" -eq 1 ]
+}

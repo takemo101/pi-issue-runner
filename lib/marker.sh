@@ -34,8 +34,12 @@ count_markers_outside_codeblock() {
             continue
         fi
         
-        # マーカー行の検出（前後の空白を含む）
-        if [[ "$line" =~ ^[[:space:]]*${marker}[[:space:]]*$ ]]; then
+        # マーカー行の検出（前後の空白を除去してから完全一致を確認）
+        # 正規表現ではなくglobパターンマッチを使用（正規表現メタ文字のエスケープ不要）
+        local trimmed_line
+        trimmed_line="${line#"${line%%[![:space:]]*}"}"  # 先頭の空白を除去
+        trimmed_line="${trimmed_line%"${trimmed_line##*[![:space:]]}"}"  # 末尾の空白を除去
+        if [[ "$trimmed_line" == "$marker" ]]; then
             # コードブロック外の場合のみカウント
             if [[ "$in_codeblock" == "false" ]]; then
                 count=$((count + 1))
