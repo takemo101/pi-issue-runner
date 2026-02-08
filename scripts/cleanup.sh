@@ -232,99 +232,103 @@ execute_single_cleanup() {
         return 0  # 他のプロセスがクリーンアップ中なので成功として扱う
     fi
     
-    # trapでロック解放を保証（エラー時も確実に解放）
-    # shellcheck disable=SC2064  # We want to expand $issue_number now
-    trap "release_cleanup_lock '$issue_number'" EXIT INT TERM
+    # サブシェルで実行してtrapを分離（親のtrapを上書きしない - Issue #1108）
+    (
+        # trapでロック解放を保証（エラー時も確実に解放）
+        # shellcheck disable=SC2064  # We want to expand $issue_number now
+        trap "release_cleanup_lock '$issue_number'" EXIT INT TERM
 
-    # セッション停止
-    if [[ "$keep_session" == "false" ]]; then
-        if session_exists "$session_name"; then
-            log_info "Stopping session: $session_name"
-            kill_session "$session_name"
-        else
-            log_debug "Session not found: $session_name (skipping)"
-        fi
-    fi
-
-    # Worktree削除
-    local cleanup_failed=false
-    local worktree=""
-    local branch_name=""
-    
-    if [[ "$keep_worktree" == "false" ]]; then
-        if worktree="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
-            # ブランチ名を取得（削除前に取得する必要がある）
-            if [[ "$delete_branch" == "true" ]]; then
-                branch_name="$(get_worktree_branch "$worktree" 2>/dev/null)" || {
-                    log_warn "Could not determine branch name for worktree: $worktree"
-                    branch_name=""
-                }
-            fi
-            
-            log_info "Removing worktree: $worktree"
-            if ! safe_remove_worktree "$worktree" "$force"; then
-                log_error "Failed to remove worktree: $worktree"
-                cleanup_failed=true
+        # セッション停止
+        if [[ "$keep_session" == "false" ]]; then
+            if session_exists "$session_name"; then
+                log_info "Stopping session: $session_name"
+                kill_session "$session_name"
             else
-                log_info "Worktree removed successfully"
+                log_debug "Session not found: $session_name (skipping)"
             fi
-            
-            # ブランチ削除
-            if [[ "$delete_branch" == "true" && -n "$branch_name" ]]; then
-                log_info "Deleting branch: $branch_name"
-                if ! git branch -d "$branch_name" 2>/dev/null; then
-                    if [[ "$force" == "true" ]]; then
-                        log_info "Force deleting branch: $branch_name"
-                        if ! git branch -D "$branch_name" 2>/dev/null; then
-                            log_warn "Failed to delete branch: $branch_name"
-                            cleanup_failed=true
+        fi
+
+        # Worktree削除
+        cleanup_failed=false
+        worktree=""
+        branch_name=""
+        
+        if [[ "$keep_worktree" == "false" ]]; then
+            if worktree="$(find_worktree_by_issue "$issue_number" 2>/dev/null)"; then
+                # ブランチ名を取得（削除前に取得する必要がある）
+                if [[ "$delete_branch" == "true" ]]; then
+                    branch_name="$(get_worktree_branch "$worktree" 2>/dev/null)" || {
+                        log_warn "Could not determine branch name for worktree: $worktree"
+                        branch_name=""
+                    }
+                fi
+                
+                log_info "Removing worktree: $worktree"
+                if ! safe_remove_worktree "$worktree" "$force"; then
+                    log_error "Failed to remove worktree: $worktree"
+                    cleanup_failed=true
+                else
+                    log_info "Worktree removed successfully"
+                fi
+                
+                # ブランチ削除
+                if [[ "$delete_branch" == "true" && -n "$branch_name" ]]; then
+                    log_info "Deleting branch: $branch_name"
+                    if ! git branch -d "$branch_name" 2>/dev/null; then
+                        if [[ "$force" == "true" ]]; then
+                            log_info "Force deleting branch: $branch_name"
+                            if ! git branch -D "$branch_name" 2>/dev/null; then
+                                log_warn "Failed to delete branch: $branch_name"
+                                cleanup_failed=true
+                            fi
+                        else
+                            log_warn "Branch has unmerged changes. Use --force to delete anyway."
                         fi
                     else
-                        log_warn "Branch has unmerged changes. Use --force to delete anyway."
+                        log_info "Branch deleted successfully: $branch_name"
                     fi
-                else
-                    log_info "Branch deleted successfully: $branch_name"
                 fi
+            else
+                log_debug "Worktree not found for Issue #$issue_number (skipping)"
             fi
-        else
-            log_debug "Worktree not found for Issue #$issue_number (skipping)"
-        fi
-        
-        # ステータスファイルも削除（worktreeの有無に関わらず）
-        log_debug "Removing status file for Issue #$issue_number"
-        remove_status "$issue_number" || {
-            log_warn "Failed to remove status file for Issue #$issue_number"
-        }
-        
-        # Watcher PIDファイルも削除 (Issue #693)
-        log_debug "Removing watcher PID file for Issue #$issue_number"
-        remove_watcher_pid "$issue_number" || {
-            log_warn "Failed to remove watcher PID file for Issue #$issue_number"
-        }
-        
-        # Watcher ログファイルも削除 (Issue #1068)
-        local watcher_log="${TMPDIR:-/tmp}/pi-watcher-${session_name}.log"
-        if [[ -f "$watcher_log" ]]; then
-            log_debug "Removing watcher log file: $watcher_log"
-            rm -f "$watcher_log" 2>/dev/null || {
-                log_warn "Failed to remove watcher log file: $watcher_log"
+            
+            # ステータスファイルも削除（worktreeの有無に関わらず）
+            log_debug "Removing status file for Issue #$issue_number"
+            remove_status "$issue_number" || {
+                log_warn "Failed to remove status file for Issue #$issue_number"
             }
+            
+            # Watcher PIDファイルも削除 (Issue #693)
+            log_debug "Removing watcher PID file for Issue #$issue_number"
+            remove_watcher_pid "$issue_number" || {
+                log_warn "Failed to remove watcher PID file for Issue #$issue_number"
+            }
+            
+            # Watcher ログファイルも削除 (Issue #1068)
+            watcher_log="${TMPDIR:-/tmp}/pi-watcher-${session_name}.log"
+            if [[ -f "$watcher_log" ]]; then
+                log_debug "Removing watcher log file: $watcher_log"
+                rm -f "$watcher_log" 2>/dev/null || {
+                    log_warn "Failed to remove watcher log file: $watcher_log"
+                }
+            fi
         fi
-    fi
 
-    # on_cleanup hookを実行（失敗しても後続処理を継続）
-    log_debug "Running on_cleanup hook..."
-    run_hook "on_cleanup" "$issue_number" "$session_name" "$branch_name" "$worktree" "" "0" "" || {
-        log_warn "on_cleanup hook failed, but continuing cleanup process"
-    }
-    
-    if [[ "$cleanup_failed" == "true" ]]; then
-        log_error "Cleanup completed with errors for Issue #$issue_number"
-        log_error "Some resources may still remain. Check logs above for details."
-        return 1
-    fi
-    
-    log_info "Cleanup completed successfully for Issue #$issue_number"
+        # on_cleanup hookを実行（失敗しても後続処理を継続）
+        log_debug "Running on_cleanup hook..."
+        run_hook "on_cleanup" "$issue_number" "$session_name" "$branch_name" "$worktree" "" "0" "" || {
+            log_warn "on_cleanup hook failed, but continuing cleanup process"
+        }
+        
+        if [[ "$cleanup_failed" == "true" ]]; then
+            log_error "Cleanup completed with errors for Issue #$issue_number"
+            log_error "Some resources may still remain. Check logs above for details."
+            exit 1
+        fi
+        
+        log_info "Cleanup completed successfully for Issue #$issue_number"
+    )
+    return $?
 }
 
 main() {
