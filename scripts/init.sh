@@ -235,11 +235,15 @@ update_gitignore() {
     fi
 }
 
-main() {
+# ============================================================================
+# Subfunction: parse_init_arguments
+# Purpose: Parse command-line arguments
+# Output: Sets global variables with _PARSE_ prefix
+# ============================================================================
+parse_init_arguments() {
     local mode="standard"
     local force=false
 
-    # 引数のパース
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --full)
@@ -271,17 +275,102 @@ main() {
         esac
     done
 
+    # Set global variables
+    _PARSE_mode="$mode"
+    _PARSE_force="$force"
+}
+
+# ============================================================================
+# Subfunction: validate_init_inputs
+# Purpose: Validate Git repository and inputs
+# ============================================================================
+validate_init_inputs() {
     # Git リポジトリかチェック
     if ! git rev-parse --git-dir > /dev/null 2>&1; then
         log_error "Git リポジトリではありません。git init を先に実行してください。"
         exit 1
     fi
+}
+
+# ============================================================================
+# Subfunction: setup_config_file
+# Purpose: Create .pi-runner.yaml configuration file
+# Arguments: $1=force
+# ============================================================================
+setup_config_file() {
+    local force="$1"
+    
+    create_file ".pi-runner.yaml" "$(generate_config_content)" "$force" || true
+}
+
+# ============================================================================
+# Subfunction: setup_directories
+# Purpose: Create all necessary directories
+# Arguments: $1=force
+# ============================================================================
+setup_directories() {
+    local force="$1"
+    
+    # .worktrees/ ディレクトリ
+    if create_directory ".worktrees"; then
+        # .gitkeep を作成
+        create_file ".worktrees/.gitkeep" "$(generate_gitkeep_content)" "$force" || true
+    fi
+
+    # docs/plans/ ディレクトリ（計画書保存先）
+    create_directory "docs/plans" || true
+
+    # docs/decisions/ ディレクトリ（ADR保存先）
+    create_directory "docs/decisions" || true
+}
+
+# ============================================================================
+# Subfunction: setup_additional_files
+# Purpose: Update AGENTS.md, .gitignore, and create full mode files
+# Arguments: $1=mode, $2=force
+# ============================================================================
+setup_additional_files() {
+    local mode="$1"
+    local force="$2"
+    
+    # AGENTS.md に「既知の制約」セクションを追加
+    update_agents_md
+
+    # .gitignore 更新
+    update_gitignore "$force"
+
+    # full モードの場合は追加ファイルを作成
+    if [[ "$mode" == "full" ]]; then
+        echo ""
+        echo "  [完全モード: 追加ファイル作成]"
+        
+        # agents/custom.md
+        create_file "agents/custom.md" "$(generate_custom_agent_content)" "$force" || true
+        
+        # workflows/custom.yaml
+        create_file "workflows/custom.yaml" "$(generate_custom_workflow_content)" "$force" || true
+    fi
+}
+
+# ============================================================================
+# Main function
+# ============================================================================
+main() {
+    # Parse arguments (sets _PARSE_* global variables)
+    parse_init_arguments "$@" || exit $?
+    
+    # Copy to local variables for clarity
+    local mode="$_PARSE_mode"
+    local force="$_PARSE_force"
+    
+    # Validate inputs
+    validate_init_inputs
 
     echo "🚀 pi-issue-runner プロジェクト初期化"
     echo ""
 
-    # 1. .pi-runner.yaml
-    create_file ".pi-runner.yaml" "$(generate_config_content)" "$force" || true
+    # Setup config file
+    setup_config_file "$force"
 
     # minimal モードの場合はここで終了
     if [[ "$mode" == "minimal" ]]; then
@@ -294,35 +383,11 @@ main() {
         return 0
     fi
 
-    # 2. .worktrees/ ディレクトリ
-    if create_directory ".worktrees"; then
-        # .gitkeep を作成
-        create_file ".worktrees/.gitkeep" "$(generate_gitkeep_content)" "$force" || true
-    fi
+    # Setup directories
+    setup_directories "$force"
 
-    # 3. docs/plans/ ディレクトリ（計画書保存先）
-    create_directory "docs/plans" || true
-
-    # 4. docs/decisions/ ディレクトリ（ADR保存先）
-    create_directory "docs/decisions" || true
-
-    # 5. AGENTS.md に「既知の制約」セクションを追加
-    update_agents_md
-
-    # 6. .gitignore 更新
-    update_gitignore "$force"
-
-    # full モードの場合は追加ファイルを作成
-    if [[ "$mode" == "full" ]]; then
-        echo ""
-        echo "  [完全モード: 追加ファイル作成]"
-        
-        # 6. agents/custom.md
-        create_file "agents/custom.md" "$(generate_custom_agent_content)" "$force" || true
-        
-        # 7. workflows/custom.yaml
-        create_file "workflows/custom.yaml" "$(generate_custom_workflow_content)" "$force" || true
-    fi
+    # Setup additional files
+    setup_additional_files "$mode" "$force"
 
     echo ""
     echo "✅ 初期化完了！"
