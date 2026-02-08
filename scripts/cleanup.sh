@@ -224,6 +224,17 @@ execute_single_cleanup() {
 
     log_info "=== Cleanup ==="
     log_info "Target: $session_name (Issue #$issue_number)"
+    
+    # クリーンアップロックを取得（Issue #1077対策）
+    if ! acquire_cleanup_lock "$issue_number"; then
+        log_warn "Cleanup is already in progress for Issue #$issue_number (another process)"
+        log_warn "Skipping cleanup to avoid race condition"
+        return 0  # 他のプロセスがクリーンアップ中なので成功として扱う
+    fi
+    
+    # trapでロック解放を保証（エラー時も確実に解放）
+    # shellcheck disable=SC2064  # We want to expand $issue_number now
+    trap "release_cleanup_lock '$issue_number'" EXIT INT TERM
 
     # セッション停止
     if [[ "$keep_session" == "false" ]]; then
