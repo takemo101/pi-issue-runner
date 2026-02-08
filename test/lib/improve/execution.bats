@@ -218,13 +218,21 @@ EOF
 # ====================
 
 @test "execute_improve_issues_in_parallel starts sessions for each issue" {
-    # Create mock run.sh
-    cat > "$SCRIPT_DIR/run.sh" << 'EOF'
+    # Create mock run.sh at the actual computed location
+    local mock_scripts_dir="$PROJECT_ROOT/scripts"
+    mkdir -p "$mock_scripts_dir"
+    local run_sh_backup=""
+    if [[ -f "$mock_scripts_dir/run.sh" ]]; then
+        run_sh_backup="$BATS_TEST_TMPDIR/run.sh.backup"
+        cp "$mock_scripts_dir/run.sh" "$run_sh_backup"
+    fi
+    
+    cat > "$mock_scripts_dir/run.sh" << 'EOF'
 #!/usr/bin/env bash
 echo "started: $1"
 exit 0
 EOF
-    chmod +x "$SCRIPT_DIR/run.sh"
+    chmod +x "$mock_scripts_dir/run.sh"
     
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
@@ -233,12 +241,20 @@ EOF
         count_active_sessions() { echo '0'; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
-        export SCRIPT_DIR='$SCRIPT_DIR'
         
         issues=\$'42\n43\n44'
         execute_improve_issues_in_parallel \"\$issues\" 2>&1
     "
-    [ "$status" -eq 0 ]
+    local test_status=$status
+    
+    # Restore original run.sh if it existed
+    if [[ -n "$run_sh_backup" && -f "$run_sh_backup" ]]; then
+        mv "$run_sh_backup" "$mock_scripts_dir/run.sh"
+    else
+        rm -f "$mock_scripts_dir/run.sh"
+    fi
+    
+    [ "$test_status" -eq 0 ]
     [[ "$output" == *"started: 42"* ]]
     [[ "$output" == *"started: 43"* ]]
     [[ "$output" == *"started: 44"* ]]
@@ -262,12 +278,20 @@ EOF
 }
 
 @test "execute_improve_issues_in_parallel tracks active sessions" {
-    # Create mock run.sh that succeeds
-    cat > "$SCRIPT_DIR/run.sh" << 'EOF'
+    # Create mock run.sh at the actual computed location
+    local mock_scripts_dir="$PROJECT_ROOT/scripts"
+    mkdir -p "$mock_scripts_dir"
+    local run_sh_backup=""
+    if [[ -f "$mock_scripts_dir/run.sh" ]]; then
+        run_sh_backup="$BATS_TEST_TMPDIR/run.sh.backup"
+        cp "$mock_scripts_dir/run.sh" "$run_sh_backup"
+    fi
+    
+    cat > "$mock_scripts_dir/run.sh" << 'EOF'
 #!/usr/bin/env bash
 exit 0
 EOF
-    chmod +x "$SCRIPT_DIR/run.sh"
+    chmod +x "$mock_scripts_dir/run.sh"
     
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
@@ -275,7 +299,6 @@ EOF
         count_active_sessions() { echo '0'; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
-        export SCRIPT_DIR='$SCRIPT_DIR'
         
         issues=\$'42\n43'
         execute_improve_issues_in_parallel \"\$issues\" 2>&1 >/dev/null
@@ -283,17 +306,34 @@ EOF
         # Print the array contents
         echo \"ACTIVE_ISSUE_NUMBERS: \${ACTIVE_ISSUE_NUMBERS[*]}\"
     "
-    [ "$status" -eq 0 ]
+    local test_status=$status
+    
+    # Restore original run.sh if it existed
+    if [[ -n "$run_sh_backup" && -f "$run_sh_backup" ]]; then
+        mv "$run_sh_backup" "$mock_scripts_dir/run.sh"
+    else
+        rm -f "$mock_scripts_dir/run.sh"
+    fi
+    
+    [ "$test_status" -eq 0 ]
     [[ "$output" == *"ACTIVE_ISSUE_NUMBERS: 42 43"* ]]
 }
 
 @test "execute_improve_issues_in_parallel warns on session start failure" {
-    # Create mock run.sh that fails
-    cat > "$SCRIPT_DIR/run.sh" << 'EOF'
+    # Create mock run.sh at the actual computed location
+    local mock_scripts_dir="$PROJECT_ROOT/scripts"
+    mkdir -p "$mock_scripts_dir"
+    local run_sh_backup=""
+    if [[ -f "$mock_scripts_dir/run.sh" ]]; then
+        run_sh_backup="$BATS_TEST_TMPDIR/run.sh.backup"
+        cp "$mock_scripts_dir/run.sh" "$run_sh_backup"
+    fi
+    
+    cat > "$mock_scripts_dir/run.sh" << 'EOF'
 #!/usr/bin/env bash
 exit 1
 EOF
-    chmod +x "$SCRIPT_DIR/run.sh"
+    chmod +x "$mock_scripts_dir/run.sh"
     
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
@@ -301,22 +341,38 @@ EOF
         count_active_sessions() { echo '0'; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
-        export SCRIPT_DIR='$SCRIPT_DIR'
         
         issues='42'
         execute_improve_issues_in_parallel \"\$issues\" 2>&1
     "
-    [ "$status" -eq 0 ]
+    local test_status=$status
+    
+    # Restore original run.sh if it existed
+    if [[ -n "$run_sh_backup" && -f "$run_sh_backup" ]]; then
+        mv "$run_sh_backup" "$mock_scripts_dir/run.sh"
+    else
+        rm -f "$mock_scripts_dir/run.sh"
+    fi
+    
+    [ "$test_status" -eq 0 ]
     [[ "$output" == *"Failed to start session for Issue #42"* ]]
 }
 
 @test "execute_improve_issues_in_parallel does not track failed sessions" {
-    # Create mock run.sh that fails
-    cat > "$SCRIPT_DIR/run.sh" << 'EOF'
+    # Create mock run.sh at the actual computed location
+    local mock_scripts_dir="$PROJECT_ROOT/scripts"
+    mkdir -p "$mock_scripts_dir"
+    local run_sh_backup=""
+    if [[ -f "$mock_scripts_dir/run.sh" ]]; then
+        run_sh_backup="$BATS_TEST_TMPDIR/run.sh.backup"
+        cp "$mock_scripts_dir/run.sh" "$run_sh_backup"
+    fi
+    
+    cat > "$mock_scripts_dir/run.sh" << 'EOF'
 #!/usr/bin/env bash
 exit 1
 EOF
-    chmod +x "$SCRIPT_DIR/run.sh"
+    chmod +x "$mock_scripts_dir/run.sh"
     
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
@@ -324,7 +380,6 @@ EOF
         count_active_sessions() { echo '0'; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
-        export SCRIPT_DIR='$SCRIPT_DIR'
         
         issues='42'
         execute_improve_issues_in_parallel \"\$issues\" 2>&1 >/dev/null
@@ -332,7 +387,16 @@ EOF
         # Print the array contents
         echo \"ACTIVE_ISSUE_NUMBERS count: \${#ACTIVE_ISSUE_NUMBERS[@]}\"
     "
-    [ "$status" -eq 0 ]
+    local test_status=$status
+    
+    # Restore original run.sh if it existed
+    if [[ -n "$run_sh_backup" && -f "$run_sh_backup" ]]; then
+        mv "$run_sh_backup" "$mock_scripts_dir/run.sh"
+    else
+        rm -f "$mock_scripts_dir/run.sh"
+    fi
+    
+    [ "$test_status" -eq 0 ]
     [[ "$output" == *"ACTIVE_ISSUE_NUMBERS count: 0"* ]]
 }
 
@@ -399,13 +463,21 @@ EOF
 }
 
 @test "execute_improve_issues_in_parallel waits for slot when concurrent limit reached" {
-    # Create mock run.sh that succeeds
-    cat > "$SCRIPT_DIR/run.sh" << 'EOF'
+    # Create mock run.sh at the actual computed location
+    local mock_scripts_dir="$PROJECT_ROOT/scripts"
+    mkdir -p "$mock_scripts_dir"
+    local run_sh_backup=""
+    if [[ -f "$mock_scripts_dir/run.sh" ]]; then
+        run_sh_backup="$BATS_TEST_TMPDIR/run.sh.backup"
+        cp "$mock_scripts_dir/run.sh" "$run_sh_backup"
+    fi
+    
+    cat > "$mock_scripts_dir/run.sh" << 'EOF'
 #!/usr/bin/env bash
 echo "started: $1"
 exit 0
 EOF
-    chmod +x "$SCRIPT_DIR/run.sh"
+    chmod +x "$mock_scripts_dir/run.sh"
     
     local counter_file="$BATS_TEST_TMPDIR/call_count"
     echo "0" > "$counter_file"
@@ -431,12 +503,20 @@ EOF
         }
         get_status_value() { echo 'complete'; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
-        export SCRIPT_DIR='$SCRIPT_DIR'
         
         issues=\$'42\n43\n44'
         execute_improve_issues_in_parallel \"\$issues\" 2>&1
     "
-    [ "$status" -eq 0 ]
+    local test_status=$status
+    
+    # Restore original run.sh if it existed
+    if [[ -n "$run_sh_backup" && -f "$run_sh_backup" ]]; then
+        mv "$run_sh_backup" "$mock_scripts_dir/run.sh"
+    else
+        rm -f "$mock_scripts_dir/run.sh"
+    fi
+    
+    [ "$test_status" -eq 0 ]
     [[ "$output" == *"started: 42"* ]]
     [[ "$output" == *"started: 43"* ]]
     [[ "$output" == *"Concurrent limit (2) reached"* ]]
@@ -471,61 +551,109 @@ EOF
 }
 
 @test "wait_for_improve_completion waits for all active sessions" {
-    # Create mock wait-for-sessions.sh
-    cat > "$SCRIPT_DIR/wait-for-sessions.sh" << 'EOF'
+    # Create mock wait-for-sessions.sh at the actual computed location
+    local mock_scripts_dir="$PROJECT_ROOT/scripts"
+    mkdir -p "$mock_scripts_dir"
+    local wait_sh_backup=""
+    if [[ -f "$mock_scripts_dir/wait-for-sessions.sh" ]]; then
+        wait_sh_backup="$BATS_TEST_TMPDIR/wait-for-sessions.sh.backup"
+        cp "$mock_scripts_dir/wait-for-sessions.sh" "$wait_sh_backup"
+    fi
+    
+    cat > "$mock_scripts_dir/wait-for-sessions.sh" << 'EOF'
 #!/usr/bin/env bash
 echo "waiting for: $@"
 exit 0
 EOF
-    chmod +x "$SCRIPT_DIR/wait-for-sessions.sh"
+    chmod +x "$mock_scripts_dir/wait-for-sessions.sh"
     
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         source '$PROJECT_ROOT/lib/improve/execution.sh'
-        export SCRIPT_DIR='$SCRIPT_DIR'
         ACTIVE_ISSUE_NUMBERS=(42 43 44)
         wait_for_improve_completion 3600 2>&1
     "
-    [ "$status" -eq 0 ]
+    local test_status=$status
+    
+    # Restore original wait-for-sessions.sh if it existed
+    if [[ -n "$wait_sh_backup" && -f "$wait_sh_backup" ]]; then
+        mv "$wait_sh_backup" "$mock_scripts_dir/wait-for-sessions.sh"
+    else
+        rm -f "$mock_scripts_dir/wait-for-sessions.sh"
+    fi
+    
+    [ "$test_status" -eq 0 ]
     [[ "$output" == *"waiting for: 42 43 44"* ]]
 }
 
 @test "wait_for_improve_completion clears active sessions after completion" {
-    # Create mock wait-for-sessions.sh
-    cat > "$SCRIPT_DIR/wait-for-sessions.sh" << 'EOF'
+    # Create mock wait-for-sessions.sh at the actual computed location
+    local mock_scripts_dir="$PROJECT_ROOT/scripts"
+    mkdir -p "$mock_scripts_dir"
+    local wait_sh_backup=""
+    if [[ -f "$mock_scripts_dir/wait-for-sessions.sh" ]]; then
+        wait_sh_backup="$BATS_TEST_TMPDIR/wait-for-sessions.sh.backup"
+        cp "$mock_scripts_dir/wait-for-sessions.sh" "$wait_sh_backup"
+    fi
+    
+    cat > "$mock_scripts_dir/wait-for-sessions.sh" << 'EOF'
 #!/usr/bin/env bash
 exit 0
 EOF
-    chmod +x "$SCRIPT_DIR/wait-for-sessions.sh"
+    chmod +x "$mock_scripts_dir/wait-for-sessions.sh"
     
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         source '$PROJECT_ROOT/lib/improve/execution.sh'
-        export SCRIPT_DIR='$SCRIPT_DIR'
         ACTIVE_ISSUE_NUMBERS=(42 43)
         wait_for_improve_completion 3600 2>&1 >/dev/null
         echo \"ACTIVE_ISSUE_NUMBERS count: \${#ACTIVE_ISSUE_NUMBERS[@]}\"
     "
-    [ "$status" -eq 0 ]
+    local test_status=$status
+    
+    # Restore original wait-for-sessions.sh if it existed
+    if [[ -n "$wait_sh_backup" && -f "$wait_sh_backup" ]]; then
+        mv "$wait_sh_backup" "$mock_scripts_dir/wait-for-sessions.sh"
+    else
+        rm -f "$mock_scripts_dir/wait-for-sessions.sh"
+    fi
+    
+    [ "$test_status" -eq 0 ]
     [[ "$output" == *"ACTIVE_ISSUE_NUMBERS count: 0"* ]]
 }
 
 @test "wait_for_improve_completion warns on failure" {
-    # Create mock wait-for-sessions.sh that fails
-    cat > "$SCRIPT_DIR/wait-for-sessions.sh" << 'EOF'
+    # Create mock wait-for-sessions.sh at the actual computed location
+    local mock_scripts_dir="$PROJECT_ROOT/scripts"
+    mkdir -p "$mock_scripts_dir"
+    local wait_sh_backup=""
+    if [[ -f "$mock_scripts_dir/wait-for-sessions.sh" ]]; then
+        wait_sh_backup="$BATS_TEST_TMPDIR/wait-for-sessions.sh.backup"
+        cp "$mock_scripts_dir/wait-for-sessions.sh" "$wait_sh_backup"
+    fi
+    
+    cat > "$mock_scripts_dir/wait-for-sessions.sh" << 'EOF'
 #!/usr/bin/env bash
 exit 1
 EOF
-    chmod +x "$SCRIPT_DIR/wait-for-sessions.sh"
+    chmod +x "$mock_scripts_dir/wait-for-sessions.sh"
     
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         source '$PROJECT_ROOT/lib/improve/execution.sh'
-        export SCRIPT_DIR='$SCRIPT_DIR'
         ACTIVE_ISSUE_NUMBERS=(42)
         wait_for_improve_completion 3600 2>&1
     "
-    [ "$status" -eq 0 ]
+    local test_status=$status
+    
+    # Restore original wait-for-sessions.sh if it existed
+    if [[ -n "$wait_sh_backup" && -f "$wait_sh_backup" ]]; then
+        mv "$wait_sh_backup" "$mock_scripts_dir/wait-for-sessions.sh"
+    else
+        rm -f "$mock_scripts_dir/wait-for-sessions.sh"
+    fi
+    
+    [ "$test_status" -eq 0 ]
     [[ "$output" == *"Some sessions failed or timed out"* ]]
 }
 
