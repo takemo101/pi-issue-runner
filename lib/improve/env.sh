@@ -51,6 +51,7 @@ setup_improve_environment() {
     local dry_run="$5"
     local review_only="$6"
 
+    require_config_file "pi-improve" || exit 1
     load_config
     check_improve_dependencies || exit 1
 

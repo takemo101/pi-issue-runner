@@ -205,6 +205,7 @@ fetch_and_filter_issues() {
     local json_output="$2"
     
     check_dependencies || exit 2
+    require_config_file "pi-next" || exit 1
     load_config
     
     # Fetch open issues

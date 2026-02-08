@@ -161,6 +161,7 @@ main() {
     fi
     
     # 設定読み込み
+    require_config_file "pi-dashboard" || exit 1
     load_config
     
     # 表示モード
