@@ -321,7 +321,8 @@ end'
 
 @test "count_markers_outside_codeblock: marker adjacent to codeblock boundary (marker after triple backticks)" {
     source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
-    # ``` on line N-1, marker on line N → should be counted (not inside code block, just after it)
+    # ``` on line N-1 (opening fence), marker on line N → inside code block, should NOT be counted
+    # (single ``` without closing fence means everything after is in code block)
     local output='some text
 ```
 ###TASK_COMPLETE_42###
@@ -329,7 +330,7 @@ code here
 end'
     local result
     result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
-    [ "$result" -eq 1 ]
+    [ "$result" -eq 0 ]
 }
 
 @test "count_markers_outside_codeblock: marker 2 lines away from codeblock is counted" {

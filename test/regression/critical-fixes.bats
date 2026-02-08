@@ -8,9 +8,6 @@ setup() {
         export BATS_TEST_TMPDIR="$(mktemp -d)"
         export _CLEANUP_TMPDIR=1
     fi
-    
-    source "$PROJECT_ROOT/lib/config.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
 }
 
 teardown() {
@@ -32,48 +29,63 @@ teardown() {
 # ====================
 
 @test "Issue #22: generate_session_name with pi-issue prefix" {
-    _CONFIG_LOADED=""
-    CONFIG_TMUX_SESSION_PREFIX="pi-issue"
-    load_config
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    export CONFIG_MULTIPLEXER_SESSION_PREFIX="pi-issue"
+    export _CONFIG_LOADED="true"
     
     result="$(generate_session_name 42)"
     [ "$result" = "pi-issue-42" ]
 }
 
 @test "Issue #22: generate_session_name with dev prefix" {
-    _CONFIG_LOADED=""
-    CONFIG_TMUX_SESSION_PREFIX="dev"
-    load_config
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    export CONFIG_MULTIPLEXER_SESSION_PREFIX="dev"
+    export _CONFIG_LOADED="true"
     
     result="$(generate_session_name 42)"
     [ "$result" = "dev-issue-42" ]
 }
 
 @test "Issue #22: extract from pi-issue-42" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    
     result="$(extract_issue_number "pi-issue-42")"
     [ "$result" = "42" ]
 }
 
 @test "Issue #22: extract from dev-issue-99" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    
     result="$(extract_issue_number "dev-issue-99")"
     [ "$result" = "99" ]
 }
 
 @test "Issue #22: extract from pi-issue-42-feature" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    
     result="$(extract_issue_number "pi-issue-42-feature")"
     [ "$result" = "42" ]
 }
 
 @test "Issue #22: extract from custom-issue-123-bugfix" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    
     result="$(extract_issue_number "custom-issue-123-bugfix")"
     [ "$result" = "123" ]
 }
 
 # 往復テスト
 @test "Issue #22: round-trip for issue 1" {
-    _CONFIG_LOADED=""
-    CONFIG_TMUX_SESSION_PREFIX="pi-issue"
-    load_config
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    export CONFIG_MULTIPLEXER_SESSION_PREFIX="pi-issue"
+    export _CONFIG_LOADED="true"
     
     session="$(generate_session_name "1")"
     extracted="$(extract_issue_number "$session")"
@@ -81,9 +93,10 @@ teardown() {
 }
 
 @test "Issue #22: round-trip for issue 42" {
-    _CONFIG_LOADED=""
-    CONFIG_TMUX_SESSION_PREFIX="pi-issue"
-    load_config
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    export CONFIG_MULTIPLEXER_SESSION_PREFIX="pi-issue"
+    export _CONFIG_LOADED="true"
     
     session="$(generate_session_name "42")"
     extracted="$(extract_issue_number "$session")"
@@ -91,9 +104,10 @@ teardown() {
 }
 
 @test "Issue #22: round-trip for issue 99" {
-    _CONFIG_LOADED=""
-    CONFIG_TMUX_SESSION_PREFIX="pi-issue"
-    load_config
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    export CONFIG_MULTIPLEXER_SESSION_PREFIX="pi-issue"
+    export _CONFIG_LOADED="true"
     
     session="$(generate_session_name "99")"
     extracted="$(extract_issue_number "$session")"
@@ -101,9 +115,10 @@ teardown() {
 }
 
 @test "Issue #22: round-trip for issue 123" {
-    _CONFIG_LOADED=""
-    CONFIG_TMUX_SESSION_PREFIX="pi-issue"
-    load_config
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    export CONFIG_MULTIPLEXER_SESSION_PREFIX="pi-issue"
+    export _CONFIG_LOADED="true"
     
     session="$(generate_session_name "123")"
     extracted="$(extract_issue_number "$session")"
@@ -131,7 +146,7 @@ teardown() {
 }
 
 @test "Issue #21: run.sh uses @ to reference prompt file" {
-    grep -q '@.*prompt_file' "$PROJECT_ROOT/scripts/run.sh"
+    grep -q '@.*prompt_file' "$PROJECT_ROOT/lib/agent.sh"
 }
 
 # ====================
