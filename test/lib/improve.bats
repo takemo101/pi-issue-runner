@@ -398,6 +398,7 @@ teardown() {
         create_label_if_not_exists() { return 0; }
         check_improve_dependencies() { return 0; }
         load_config() { return 0; }
+        config_file_found() { return 0; }
         
         # Call with single quote in label
         setup_improve_environment 1 3 \"test's-label\" /tmp/logs false false
@@ -424,6 +425,7 @@ teardown() {
         create_label_if_not_exists() { return 0; }
         check_improve_dependencies() { return 0; }
         load_config() { return 0; }
+        config_file_found() { return 0; }
         
         # Call with single quote in log_dir
         setup_improve_environment 1 3 test-label \"/tmp/user's-logs\" false false
