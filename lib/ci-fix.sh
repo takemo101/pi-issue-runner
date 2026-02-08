@@ -478,15 +478,15 @@ _validate_node() {
             fi
         fi
     else
-        # Fallback: check if scripts section contains lint/test
-        if grep -E '"scripts"[[:space:]]*:[[:space:]]*\{[^}]*"lint"' package.json >/dev/null 2>&1; then
+        # Fallback: check if package.json contains "lint" or "test" script keys
+        if grep -q '"lint"' package.json 2>/dev/null; then
             log_info "Running npm run lint..."
             if ! npm run lint 2>&1; then
                 log_error "Lint check failed"
                 return 1
             fi
         fi
-        if grep -E '"scripts"[[:space:]]*:[[:space:]]*\{[^}]*"test"' package.json >/dev/null 2>&1; then
+        if grep -q '"test"' package.json 2>/dev/null; then
             log_info "Running npm test..."
             if ! npm test 2>&1; then
                 log_error "Test failed"
