@@ -331,8 +331,39 @@ get_workflow_agent_property() {
         return 0
     fi
     
-    # ファイル形式のワークフローは未サポート（将来拡張可能）
-    echo ""
+    # ファイル形式のワークフロー
+    if [[ ! -f "$workflow_file" ]]; then
+        echo ""
+        return 0
+    fi
+    
+    # YAMLパスを決定
+    local yaml_path
+    if [[ "$workflow_file" == *".pi-runner.yaml" ]]; then
+        yaml_path=".workflow.agent.${property}"
+    else
+        yaml_path=".agent.${property}"
+    fi
+    
+    local value
+    if [[ "$property" == "args" ]]; then
+        # args は配列なのでスペース区切りに変換
+        local args=""
+        while IFS= read -r arg; do
+            if [[ -n "$arg" ]]; then
+                if [[ -z "$args" ]]; then
+                    args="$arg"
+                else
+                    args="$args $arg"
+                fi
+            fi
+        done < <(yaml_get_array "$workflow_file" "$yaml_path" 2>/dev/null)
+        value="$args"
+    else
+        value=$(yaml_get "$workflow_file" "$yaml_path" 2>/dev/null || echo "")
+    fi
+    
+    echo "$value"
     return 0
 }
 

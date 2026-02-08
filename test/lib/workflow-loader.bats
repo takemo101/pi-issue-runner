@@ -1019,3 +1019,155 @@ YAML_EOF
     result="$(get_workflow_agent_config "feature" "type")"
     [ "$result" = "" ]
 }
+
+# ========================================
+# get_workflow_agent_property テスト（ファイル形式ワークフロー）
+# Issue #1135
+# ========================================
+
+@test "get_workflow_agent_property returns agent type from workflow YAML file" {
+    reset_yaml_cache
+
+    cat > "$TEST_DIR/workflows/frontend.yaml" << 'EOF'
+name: frontend
+description: Frontend workflow
+steps:
+  - plan
+  - implement
+  - review
+  - merge
+agent:
+  type: pi
+  args:
+    - --model
+    - claude-sonnet-4-20250514
+EOF
+
+    result="$(get_workflow_agent_property "$TEST_DIR/workflows/frontend.yaml" "type")"
+    [ "$result" = "pi" ]
+}
+
+@test "get_workflow_agent_property returns agent args from workflow YAML file" {
+    reset_yaml_cache
+
+    cat > "$TEST_DIR/workflows/frontend.yaml" << 'EOF'
+name: frontend
+steps:
+  - implement
+agent:
+  type: pi
+  args:
+    - --model
+    - claude-sonnet-4-20250514
+EOF
+
+    result="$(get_workflow_agent_property "$TEST_DIR/workflows/frontend.yaml" "args")"
+    [ "$result" = "--model claude-sonnet-4-20250514" ]
+}
+
+@test "get_workflow_agent_property returns agent command from workflow YAML file" {
+    reset_yaml_cache
+
+    cat > "$TEST_DIR/workflows/custom.yaml" << 'EOF'
+name: custom
+steps:
+  - implement
+agent:
+  type: custom
+  command: my-agent
+  template: "{{command}} {{args}} < {{prompt_file}}"
+EOF
+
+    result="$(get_workflow_agent_property "$TEST_DIR/workflows/custom.yaml" "command")"
+    [ "$result" = "my-agent" ]
+}
+
+@test "get_workflow_agent_property returns agent template from workflow YAML file" {
+    reset_yaml_cache
+
+    cat > "$TEST_DIR/workflows/custom.yaml" << 'EOF'
+name: custom
+steps:
+  - implement
+agent:
+  type: custom
+  command: my-agent
+  template: "{{command}} {{args}} < {{prompt_file}}"
+EOF
+
+    result="$(get_workflow_agent_property "$TEST_DIR/workflows/custom.yaml" "template")"
+    [ "$result" = "{{command}} {{args}} < {{prompt_file}}" ]
+}
+
+@test "get_workflow_agent_property returns empty when agent not defined in workflow YAML file" {
+    reset_yaml_cache
+
+    cat > "$TEST_DIR/workflows/simple.yaml" << 'EOF'
+name: simple
+steps:
+  - implement
+  - merge
+EOF
+
+    result="$(get_workflow_agent_property "$TEST_DIR/workflows/simple.yaml" "type")"
+    [ "$result" = "" ]
+}
+
+@test "get_workflow_agent_property returns empty for nonexistent workflow file" {
+    result="$(get_workflow_agent_property "$TEST_DIR/nonexistent.yaml" "type")"
+    [ "$result" = "" ]
+}
+
+@test "get_workflow_agent_property returns empty for builtin workflow" {
+    result="$(get_workflow_agent_property "builtin:default" "type")"
+    [ "$result" = "" ]
+}
+
+@test "get_workflow_agent_property returns agent type from config-workflow" {
+    reset_yaml_cache
+
+    cat > "$TEST_DIR/.pi-runner.yaml" << 'EOF'
+workflows:
+  feature:
+    steps:
+      - plan
+      - implement
+    agent:
+      type: claude
+EOF
+
+    export CONFIG_FILE="$TEST_DIR/.pi-runner.yaml"
+
+    result="$(get_workflow_agent_property "config-workflow:feature" "type")"
+    [ "$result" = "claude" ]
+}
+
+@test "get_workflow_agent_property returns all agent properties from workflow YAML file" {
+    reset_yaml_cache
+
+    cat > "$TEST_DIR/workflows/full.yaml" << 'EOF'
+name: full
+steps:
+  - plan
+  - implement
+  - merge
+agent:
+  type: custom
+  command: my-agent
+  args:
+    - --verbose
+    - --model
+    - gpt-4
+  template: "{{command}} {{args}} < {{prompt_file}}"
+EOF
+
+    type="$(get_workflow_agent_property "$TEST_DIR/workflows/full.yaml" "type")"
+    command="$(get_workflow_agent_property "$TEST_DIR/workflows/full.yaml" "command")"
+    args="$(get_workflow_agent_property "$TEST_DIR/workflows/full.yaml" "args")"
+    template="$(get_workflow_agent_property "$TEST_DIR/workflows/full.yaml" "template")"
+
+    [ "$type" = "custom" ]
+    [ "$command" = "my-agent" ]
+    [ "$args" = "--verbose --model gpt-4" ]
+    [ "$template" = "{{command}} {{args}} < {{prompt_file}}" ]
+}
