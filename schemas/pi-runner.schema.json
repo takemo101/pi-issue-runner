@@ -207,6 +207,26 @@
         "on_cleanup": {
           "type": "string",
           "description": "Script/command to run on cleanup"
+        },
+        "on_improve_start": {
+          "type": "string",
+          "description": "Script/command to run when improve.sh starts"
+        },
+        "on_improve_end": {
+          "type": "string",
+          "description": "Script/command to run when improve.sh ends"
+        },
+        "on_iteration_start": {
+          "type": "string",
+          "description": "Script/command to run when each iteration starts"
+        },
+        "on_iteration_end": {
+          "type": "string",
+          "description": "Script/command to run when each iteration completes"
+        },
+        "on_review_complete": {
+          "type": "string",
+          "description": "Script/command to run when review completes before creating issues"
         }
       }
     },
