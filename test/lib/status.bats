@@ -640,7 +640,16 @@ teardown() {
     acquire_cleanup_lock "1077"
     
     # Create a subprocess to try to acquire the same lock
-    run bash -c "source '$PROJECT_ROOT/lib/status.sh'; acquire_cleanup_lock 1077"
+    run bash -c "
+        source '$PROJECT_ROOT/lib/status.sh'
+        get_config() {
+            case \"\$1\" in
+                worktree_base_dir) echo \"$TEST_WORKTREE_DIR\" ;;
+                *) echo \"\" ;;
+            esac
+        }
+        acquire_cleanup_lock 1077
+    "
     [ "$status" -eq 1 ]
 }
 
@@ -673,9 +682,14 @@ teardown() {
 @test "release_cleanup_lock does not remove other process lock" {
     source "$PROJECT_ROOT/lib/status.sh"
     
-    # Create a lock owned by another process
+    # Create a lock owned by another process (use parent PID which should be running)
+    local other_pid
+    other_pid=$PPID
     mkdir -p "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock"
-    echo "1" > "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock/pid"
+    echo "$other_pid" > "$TEST_WORKTREE_DIR/.status/1077.cleanup.lock/pid"
+    
+    # Verify the other PID is actually running
+    kill -0 "$other_pid" 2>/dev/null || skip "Parent process not accessible for testing"
     
     # Try to release - should not remove
     release_cleanup_lock "1077"
@@ -731,17 +745,48 @@ teardown() {
     acquire_cleanup_lock "1077"
     
     # Process 2 tries to acquire - should fail
-    run bash -c "source '$PROJECT_ROOT/lib/status.sh'; acquire_cleanup_lock 1077"
+    # Note: Pass TEST_WORKTREE_DIR as an environment variable to the subprocess
+    run bash -c "
+        TEST_WORKTREE_DIR='$TEST_WORKTREE_DIR'
+        source '$PROJECT_ROOT/lib/status.sh'
+        get_config() {
+            case \"\$1\" in
+                worktree_base_dir) echo \"\$TEST_WORKTREE_DIR\" ;;
+                *) echo \"\" ;;
+            esac
+        }
+        acquire_cleanup_lock 1077
+    "
     [ "$status" -eq 1 ]
     
     # Process 2 checks if locked
-    run bash -c "source '$PROJECT_ROOT/lib/status.sh'; is_cleanup_locked 1077"
+    run bash -c "
+        TEST_WORKTREE_DIR='$TEST_WORKTREE_DIR'
+        source '$PROJECT_ROOT/lib/status.sh'
+        get_config() {
+            case \"\$1\" in
+                worktree_base_dir) echo \"\$TEST_WORKTREE_DIR\" ;;
+                *) echo \"\" ;;
+            esac
+        }
+        is_cleanup_locked 1077
+    "
     [ "$status" -eq 0 ]
     
     # Process 1 releases
     release_cleanup_lock "1077"
     
     # Process 2 can now acquire
-    run bash -c "source '$PROJECT_ROOT/lib/status.sh'; acquire_cleanup_lock 1077"
+    run bash -c "
+        TEST_WORKTREE_DIR='$TEST_WORKTREE_DIR'
+        source '$PROJECT_ROOT/lib/status.sh'
+        get_config() {
+            case \"\$1\" in
+                worktree_base_dir) echo \"\$TEST_WORKTREE_DIR\" ;;
+                *) echo \"\" ;;
+            esac
+        }
+        acquire_cleanup_lock 1077
+    "
     [ "$status" -eq 0 ]
 }
