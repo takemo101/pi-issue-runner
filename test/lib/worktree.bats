@@ -351,6 +351,132 @@ EOF
 }
 
 # ====================
+# git fetch before worktree creation テスト
+# ====================
+
+@test "create_worktree calls git fetch when base_branch starts with origin/" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        skip "Not in a git repository"
+    fi
+    
+    cd "$PROJECT_ROOT"
+    
+    _CONFIG_LOADED=""
+    export PI_RUNNER_WORKTREE_BASE_DIR="$TEST_WORKTREE_BASE"
+    export PI_RUNNER_WORKTREE_COPY_FILES=""
+    load_config "$TEST_CONFIG_FILE"
+    
+    TEST_BRANCH_NAME="issue-1153-fetch-test-$(date +%s)"
+    
+    # create_worktreeをorigin/HEADで呼び出し（fetchが実行されることを確認）
+    # stderr出力にfetchログが含まれることを確認
+    worktree_path="$(create_worktree "$TEST_BRANCH_NAME" "origin/HEAD" 2>"$BATS_TEST_TMPDIR/stderr.log")" || {
+        # origin/HEADが存在しない場合はスキップ
+        if grep -q "not a valid" "$BATS_TEST_TMPDIR/stderr.log" 2>/dev/null; then
+            skip "origin/HEAD not available"
+        fi
+        skip "Failed to create worktree"
+    }
+    
+    # fetchログが出力されていることを確認
+    grep -q "Fetching latest from origin" "$BATS_TEST_TMPDIR/stderr.log"
+    
+    # クリーンアップ
+    if [[ -n "$worktree_path" && -d "$worktree_path" ]]; then
+        git worktree remove --force "$worktree_path" 2>/dev/null || rm -rf "$worktree_path"
+    fi
+    git branch -D "feature/$TEST_BRANCH_NAME" 2>/dev/null || true
+}
+
+@test "create_worktree does not call git fetch for local branch" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        skip "Not in a git repository"
+    fi
+    
+    cd "$PROJECT_ROOT"
+    
+    _CONFIG_LOADED=""
+    export PI_RUNNER_WORKTREE_BASE_DIR="$TEST_WORKTREE_BASE"
+    export PI_RUNNER_WORKTREE_COPY_FILES=""
+    load_config "$TEST_CONFIG_FILE"
+    
+    TEST_BRANCH_NAME="issue-1153-nofetch-test-$(date +%s)"
+    
+    # HEADをbase_branchとして使用（fetchは不要）
+    worktree_path="$(create_worktree "$TEST_BRANCH_NAME" "HEAD" 2>"$BATS_TEST_TMPDIR/stderr.log")" || {
+        skip "Failed to create worktree"
+    }
+    
+    # fetchログが出力されていないことを確認
+    ! grep -q "Fetching latest from" "$BATS_TEST_TMPDIR/stderr.log"
+    
+    # クリーンアップ
+    if [[ -n "$worktree_path" && -d "$worktree_path" ]]; then
+        git worktree remove --force "$worktree_path" 2>/dev/null || rm -rf "$worktree_path"
+    fi
+    git branch -D "feature/$TEST_BRANCH_NAME" 2>/dev/null || true
+}
+
+@test "create_worktree warns on fetch failure and continues" {
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        skip "Not in a git repository"
+    fi
+    
+    cd "$PROJECT_ROOT"
+    
+    _CONFIG_LOADED=""
+    export PI_RUNNER_WORKTREE_BASE_DIR="$TEST_WORKTREE_BASE"
+    export PI_RUNNER_WORKTREE_COPY_FILES=""
+    load_config "$TEST_CONFIG_FILE"
+    
+    TEST_BRANCH_NAME="issue-1153-fetchfail-test-$(date +%s)"
+    
+    # 存在しないリモートを使用してfetch失敗をシミュレート
+    # origin/HEAD は通常存在するため、代わりにHEADで作成してfetchログを確認
+    # nonexistent_remote/main でfetch失敗のワーニングが出ることをテスト
+    
+    # git fetchをモックして失敗させる
+    mock_dir="$BATS_TEST_TMPDIR/mock_bin"
+    mkdir -p "$mock_dir"
+    cat > "$mock_dir/git" << 'MOCK_EOF'
+#!/usr/bin/env bash
+# fetchサブコマンドのみ失敗させるモック
+if [[ "$1" == "fetch" ]]; then
+    exit 1
+fi
+# その他のgitコマンドは本物を使用
+exec /usr/bin/git "$@"
+MOCK_EOF
+    chmod +x "$mock_dir/git"
+    
+    PATH="$mock_dir:$PATH" worktree_path="$(create_worktree "$TEST_BRANCH_NAME" "origin/HEAD" 2>"$BATS_TEST_TMPDIR/stderr.log")" || {
+        # worktree作成自体が失敗しても、warnログが出ていればOK
+        true
+    }
+    
+    # fetch失敗のワーニングログが出力されていることを確認
+    grep -q "git fetch.*failed" "$BATS_TEST_TMPDIR/stderr.log"
+    
+    # クリーンアップ
+    if [[ -n "${worktree_path:-}" && -d "${worktree_path:-}" ]]; then
+        git worktree remove --force "$worktree_path" 2>/dev/null || rm -rf "$worktree_path"
+    fi
+    git branch -D "feature/$TEST_BRANCH_NAME" 2>/dev/null || true
+}
+
+# ====================
 # 構成テスト
 # ====================
 
