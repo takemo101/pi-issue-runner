@@ -349,6 +349,7 @@ main() {
         all_cleanup age_days dry_run \
         "$@"
 
+    require_config_file "pi-cleanup" || exit 1
     load_config
 
     # Execute appropriate cleanup mode

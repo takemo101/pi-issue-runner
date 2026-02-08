@@ -81,6 +81,7 @@ main() {
         exit 1
     fi
 
+    require_config_file "pi-status" || exit 1
     load_config
 
     # Issue番号またはセッション名から両方を解決

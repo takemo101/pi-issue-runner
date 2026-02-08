@@ -180,6 +180,7 @@ main() {
     # Parse command line arguments
     parse_sweep_arguments dry_run force check_errors "$@"
     
+    require_config_file "pi-sweep" || exit 1
     load_config
     
     log_info "=== Session Sweep ==="
