@@ -333,6 +333,31 @@
         "context": {
           "type": "string",
           "description": "Workflow-specific context injected into all step prompts"
+        },
+        "agent": {
+          "type": "object",
+          "description": "Workflow-specific agent settings (overrides top-level agent)",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["pi", "claude", "opencode", "custom"],
+              "description": "Agent preset"
+            },
+            "command": {
+              "type": "string",
+              "description": "Custom agent command (for type: custom)"
+            },
+            "args": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Additional arguments to pass to the agent"
+            },
+            "template": {
+              "type": "string",
+              "description": "Command template for custom agents (e.g., '{{command}} {{args}} --file \"{{prompt_file}}\"')"
+            }
+          }
         }
       }
     }

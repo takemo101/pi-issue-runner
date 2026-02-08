@@ -457,6 +457,11 @@ start_agent_session() {
     log_info "Workflow: $workflow_name"
     write_workflow_prompt "$prompt_file" "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path" "." "$issue_comments"
     
+    # ワークフロー固有のエージェント設定を適用
+    local workflow_file
+    workflow_file=$(find_workflow_file "$workflow_name" ".")
+    apply_workflow_agent_override "$workflow_file"
+    
     # エージェントコマンド構築
     local full_command
     full_command="$(build_agent_command "$prompt_file" "$extra_agent_args")"
