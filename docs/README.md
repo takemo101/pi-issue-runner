@@ -233,7 +233,10 @@ GitHub Issueを入力として、独立したworktree環境でpiインスタン�
 
 ### Q: どのドキュメントから読めば良い？
 
-A: 初めての方は [SPECIFICATION.md](./SPECIFICATION.md) から、実装する方は [architecture.md](./architecture.md) から読むことをお勧めします。
+A: 役割に応じて以下から読むことをお勧めします：
+
+- 初めての方: [SPECIFICATION.md](./SPECIFICATION.md)
+- 実装する方: [architecture.md](./architecture.md)
 
 ### Q: ドキュメントが古い・間違っている
 

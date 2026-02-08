@@ -1118,6 +1118,7 @@ gh auth login
 - [概要](docs/overview.md) - システム全体の概要
 - [アーキテクチャ](docs/architecture.md) - システム設計
 - [仕様書](docs/SPECIFICATION.md) - 詳細仕様
+- [公開API](docs/public-api.md) - 外部から利用可能なライブラリ関数
 - [ワークフロー](docs/workflows.md) - ワークフロー定義の詳細
 - [Hook機能](docs/hooks.md) - イベントフック詳細
 - [Git Worktree管理](docs/worktree-management.md) - worktree運用
