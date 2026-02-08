@@ -71,12 +71,15 @@ copy_files_to_worktree() {
         # デフォルトファイルリスト（設定ファイルがない場合）
         local default_files
         default_files="$(get_config worktree_copy_files)"
-        for file in $default_files; do
-            if [[ -f "$file" ]]; then
+        # Use while-read loop to safely handle filenames with spaces
+        # Split space-separated list into lines, then read each line
+        # shellcheck disable=SC2086  # Intentional word splitting for space-separated file list
+        while IFS= read -r file; do
+            if [[ -n "$file" && -f "$file" ]]; then
                 log_debug "Copying $file to worktree"
                 cp "$file" "$worktree_dir/"
             fi
-        done
+        done < <(printf '%s\n' $default_files)
     fi
 }
 
