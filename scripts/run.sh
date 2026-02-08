@@ -24,6 +24,8 @@
 #   --pi-args ARGS      Alias for --agent-args (backward compatibility)
 #   --list-workflows    List available workflows
 #   --ignore-blockers   Skip dependency check and force execution
+#   -v, --verbose       Enable verbose/debug logging
+#   --quiet             Show only error messages
 #   -h, --help          Show help message
 #
 # Exit codes:
@@ -68,6 +70,8 @@ Options:
     --show-config       現在の設定を表示（デバッグ用）
     --list-agents       利用可能なエージェントプリセット一覧を表示
     --show-agent-config エージェント設定を表示（デバッグ用）
+    -v, --verbose       詳細ログを表示
+    --quiet             エラーのみ表示
     -h, --help          このヘルプを表示
 
 Examples:
@@ -195,6 +199,14 @@ parse_run_arguments() {
                 ;;
             --ignore-blockers)
                 ignore_blockers=true
+                shift
+                ;;
+            -v|--verbose)
+                enable_verbose
+                shift
+                ;;
+            --quiet)
+                enable_quiet
                 shift
                 ;;
             --agent-args|--pi-args)
