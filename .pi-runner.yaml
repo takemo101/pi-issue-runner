@@ -50,7 +50,7 @@ agent:
     - --provider
     - anthropic
     - --model
-    - claude-sonnet-4-5
+    - claude-opus-4-6
 
 # =====================================
 # GitHub設定
