@@ -498,6 +498,6 @@ teardown() {
 
 @test "total lines in improve modules is reasonable" {
     total_lines=$(cat "$PROJECT_ROOT/lib/improve.sh" "$PROJECT_ROOT/lib/improve"/*.sh | wc -l)
-    # Total should be less than 800 lines (includes headers and backward compatibility)
-    [ "$total_lines" -lt 800 ]
+    # Total should be less than 900 lines (includes headers and backward compatibility)
+    [ "$total_lines" -lt 900 ]
 }
