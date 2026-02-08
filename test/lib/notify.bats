@@ -181,6 +181,134 @@ teardown() {
 }
 
 # ====================
+# open_terminal_and_attach セキュリティテスト
+# ====================
+
+@test "open_terminal_and_attach rejects invalid session names with quotes" {
+    skip_if_not_macos
+    
+    # ダブルクォートを含むセッション名は拒否される
+    run open_terminal_and_attach 'pi-issue-"42"'
+    [ "$status" -eq 1 ]
+}
+
+@test "open_terminal_and_attach rejects invalid session names with backslash" {
+    skip_if_not_macos
+    
+    # バックスラッシュを含むセッション名は拒否される
+    run open_terminal_and_attach 'pi-issue-\42'
+    [ "$status" -eq 1 ]
+}
+
+@test "open_terminal_and_attach rejects invalid session names with special characters" {
+    skip_if_not_macos
+    
+    # 特殊文字を含むセッション名は拒否される
+    run open_terminal_and_attach 'pi-issue-42; rm -rf /'
+    [ "$status" -eq 1 ]
+}
+
+@test "open_terminal_and_attach accepts valid session names" {
+    skip_if_not_macos
+    
+    # モックosascriptを作成
+    mkdir -p "$BATS_TEST_TMPDIR/bin"
+    cat > "$BATS_TEST_TMPDIR/bin/osascript" << 'SCRIPT'
+#!/bin/bash
+exit 0
+SCRIPT
+    chmod +x "$BATS_TEST_TMPDIR/bin/osascript"
+    
+    # モックattach.shを作成
+    local mock_attach="$PROJECT_ROOT/scripts/attach.sh"
+    if [[ ! -x "$mock_attach" ]]; then
+        skip "attach.sh not found"
+    fi
+    
+    export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+    
+    # 有効なセッション名は受け入れられる
+    run open_terminal_and_attach 'pi-issue-42'
+    [ "$status" -eq 0 ]
+    
+    run open_terminal_and_attach 'valid_session-name_123'
+    [ "$status" -eq 0 ]
+}
+
+# ====================
+# notify_error エスケープテスト
+# ====================
+
+@test "notify_error escapes backslashes in error messages" {
+    skip_if_not_macos
+    
+    # モックosascriptを作成
+    mkdir -p "$BATS_TEST_TMPDIR/bin"
+    cat > "$BATS_TEST_TMPDIR/bin/osascript" << 'SCRIPT'
+#!/bin/bash
+# 引数をログに記録
+echo "$@" > "$BATS_TEST_TMPDIR/osascript.log"
+exit 0
+SCRIPT
+    chmod +x "$BATS_TEST_TMPDIR/bin/osascript"
+    export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+    
+    # バックスラッシュを含むエラーメッセージ
+    notify_error "test-session" "42" 'Error with \ backslash'
+    
+    # エスケープされたバックスラッシュが含まれているか確認
+    grep -q '\\\\' "$BATS_TEST_TMPDIR/osascript.log" || {
+        cat "$BATS_TEST_TMPDIR/osascript.log"
+        false
+    }
+}
+
+@test "notify_error escapes double quotes in error messages" {
+    skip_if_not_macos
+    
+    # モックosascriptを作成
+    mkdir -p "$BATS_TEST_TMPDIR/bin"
+    cat > "$BATS_TEST_TMPDIR/bin/osascript" << 'SCRIPT'
+#!/bin/bash
+echo "$@" > "$BATS_TEST_TMPDIR/osascript.log"
+exit 0
+SCRIPT
+    chmod +x "$BATS_TEST_TMPDIR/bin/osascript"
+    export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+    
+    # ダブルクォートを含むエラーメッセージ
+    notify_error "test-session" "42" 'Error with "quotes"'
+    
+    # エスケープされたダブルクォートが含まれているか確認
+    grep -q '\\"' "$BATS_TEST_TMPDIR/osascript.log" || {
+        cat "$BATS_TEST_TMPDIR/osascript.log"
+        false
+    }
+}
+
+@test "notify_error removes newlines from error messages" {
+    skip_if_not_macos
+    
+    # モックosascriptを作成（printfを使用してtrailing newlineを避ける）
+    mkdir -p "$BATS_TEST_TMPDIR/bin"
+    cat > "$BATS_TEST_TMPDIR/bin/osascript" << 'SCRIPT'
+#!/bin/bash
+printf "%s" "$*" > "$BATS_TEST_TMPDIR/osascript.log"
+exit 0
+SCRIPT
+    chmod +x "$BATS_TEST_TMPDIR/bin/osascript"
+    export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+    
+    # 改行を含むエラーメッセージ
+    notify_error "test-session" "42" $'Error with\nnewline'
+    
+    # 改行が含まれていないことを確認（wc -l が 0 を返す = 改行なし）
+    local line_count
+    line_count=$(wc -l < "$BATS_TEST_TMPDIR/osascript.log")
+    [ "$line_count" -eq 0 ]
+}
+
+# ====================
 # handle_complete / handle_error テスト
 # ====================
 # Note: handle_complete and handle_error were removed from lib/notify.sh in Issue #883/#904
