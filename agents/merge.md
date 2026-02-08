@@ -101,7 +101,7 @@ if gh pr checks "$PR_NUMBER" 2>/dev/null | grep -q .; then
     cd "{{worktree_path}}"
     
     # リトライ回数を追跡（ファイルベース）
-    RETRY_FILE="/tmp/pi-runner-ci-retry-{{issue_number}}"
+    RETRY_FILE="{{worktree_path}}/../.status/ci-retry-{{issue_number}}"
     RETRY_COUNT=$(cat "$RETRY_FILE" 2>/dev/null || echo "0")
     MAX_RETRIES=3
     
