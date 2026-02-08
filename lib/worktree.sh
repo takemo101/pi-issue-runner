@@ -72,12 +72,14 @@ copy_files_to_worktree() {
         local default_files
         default_files="$(get_config worktree_copy_files)"
         # Use while-read loop to safely handle filenames with spaces
-        while IFS=' ' read -r file; do
+        # Split space-separated list into lines, then read each line
+        # shellcheck disable=SC2086  # Intentional word splitting for space-separated file list
+        while IFS= read -r file; do
             if [[ -n "$file" && -f "$file" ]]; then
                 log_debug "Copying $file to worktree"
                 cp "$file" "$worktree_dir/"
             fi
-        done <<< "$default_files"
+        done < <(printf '%s\n' $default_files)
     fi
 }
 
