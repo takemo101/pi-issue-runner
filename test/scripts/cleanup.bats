@@ -467,3 +467,59 @@ JSON
     # Cleanup
     rm -f "$watcher_log" 2>/dev/null || true
 }
+
+@test "Issue #1268: cleanup.sh removes signal files and pipe-pane output log" {
+    if ! command -v git &>/dev/null; then
+        skip "git not available"
+    fi
+    
+    # モック環境セットアップ
+    mock_gh
+    mock_git
+    mock_tmux
+    enable_mocks
+    
+    local test_dir="${BATS_TEST_TMPDIR}/test-project"
+    mkdir -p "$test_dir"
+    
+    # Create minimal git repo
+    cd "$test_dir"
+    git init &>/dev/null
+    git config user.name "Test User"
+    git config user.email "test@example.com"
+    echo "test" > README.md
+    git add README.md
+    git commit -m "Initial commit" &>/dev/null
+    create_minimal_config "."
+    
+    # Create status directory and signal/output files
+    local status_dir="${test_dir}/.worktrees/.status"
+    mkdir -p "$status_dir"
+    echo "done" > "${status_dir}/signal-complete-999"
+    echo "error" > "${status_dir}/signal-error-999"
+    echo "output log content" > "${status_dir}/output-999.log"
+    
+    # Mock status file
+    cat > "${status_dir}/999.json" << 'JSON'
+{
+  "issue_number": "999",
+  "session_name": "pi-issue-999",
+  "worktree_path": ".worktrees/issue-999-test",
+  "branch_name": "issue-999-test",
+  "status": "running"
+}
+JSON
+    
+    # Verify files exist
+    [ -f "${status_dir}/signal-complete-999" ]
+    [ -f "${status_dir}/signal-error-999" ]
+    [ -f "${status_dir}/output-999.log" ]
+    
+    # Run cleanup
+    run "$PROJECT_ROOT/scripts/cleanup.sh" 999 --keep-session
+    
+    # Verify signal files and output log were removed
+    [ ! -f "${status_dir}/signal-complete-999" ]
+    [ ! -f "${status_dir}/signal-error-999" ]
+    [ ! -f "${status_dir}/output-999.log" ]
+}
