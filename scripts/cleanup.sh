@@ -397,4 +397,7 @@ main() {
     execute_single_cleanup "$target" "$force" "$delete_branch" "$keep_session" "$keep_worktree"
 }
 
-main "$@"
+# Only run main if script is executed directly (not sourced for testing)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
