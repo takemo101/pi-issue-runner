@@ -450,6 +450,66 @@ handle_complete() {
     return 0
 }
 
+# Setup pipe-pane output logging for reliable marker detection
+# Usage: setup_output_logging <session_name> <issue_number>
+# Output: path to log file (empty if pipe-pane is not available)
+setup_output_logging() {
+    local session_name="$1"
+    local issue_number="$2"
+    
+    # tmuxのpipe-paneが使えるか確認
+    local mux_type
+    mux_type="$(get_multiplexer_type 2>/dev/null)" || mux_type="tmux"
+    
+    if [[ "$mux_type" != "tmux" ]]; then
+        log_info "pipe-pane not available for $mux_type, using capture-pane fallback"
+        echo ""
+        return
+    fi
+    
+    # ログディレクトリ
+    local status_dir
+    status_dir="$(get_status_dir)"
+    local log_file="${status_dir}/output-${issue_number}.log"
+    
+    # 既存のpipe-paneを閉じてから新規設定
+    tmux pipe-pane -t "$session_name" "" 2>/dev/null || true
+    
+    # pipe-paneでセッション出力をファイルに追記
+    # Note: ベースラインキャプチャ後に開始するため、初期出力は含まれない。
+    #       初期マーカーチェックはベースラインキャプチャで対応済み。
+    if tmux pipe-pane -t "$session_name" "cat >> '${log_file}'" 2>/dev/null; then
+        log_info "Output logging started: $log_file"
+        echo "$log_file"
+    else
+        log_warn "Failed to start pipe-pane, using capture-pane fallback"
+        echo ""
+    fi
+}
+
+# Stop pipe-pane output logging
+# Usage: stop_output_logging <session_name> <output_log>
+stop_output_logging() {
+    local session_name="$1"
+    local output_log="$2"
+    
+    if [[ -n "$output_log" ]]; then
+        tmux pipe-pane -t "$session_name" "" 2>/dev/null || true
+        log_debug "Output logging stopped"
+    fi
+}
+
+# Clean up output log file
+# Usage: cleanup_output_log <output_log>
+cleanup_output_log() {
+    local output_log="$1"
+    
+    if [[ -n "$output_log" && -f "$output_log" ]]; then
+        rm -f "$output_log"
+        log_debug "Output log cleaned up: $output_log"
+    fi
+}
+
 # Capture baseline output and wait for initial prompt display
 # Usage: capture_baseline <session_name>
 # Output: baseline output text via stdout
@@ -522,8 +582,28 @@ check_initial_markers() {
     return 1  # No initial completion marker, continue to monitoring loop
 }
 
+# Get output for marker detection, using pipe-pane log file if available
+# Falls back to capture-pane if no log file
+# Usage: _get_detection_output <session_name> <output_log> <baseline_output>
+# Output: combined output text for marker scanning
+_get_detection_output() {
+    local session_name="$1"
+    local output_log="$2"
+    local baseline_output="$3"
+    
+    if [[ -n "$output_log" && -f "$output_log" ]]; then
+        # pipe-paneログがある場合: ベースライン + ログファイル全体を結合
+        # これによりスクロールアウトしたマーカーも確実に検出できる
+        printf '%s\n' "$baseline_output"
+        cat "$output_log"
+    else
+        # フォールバック: capture-paneで最後の1000行を取得
+        get_session_output "$session_name" 1000 2>/dev/null || echo ""
+    fi
+}
+
 # Main monitoring loop - detect markers and handle completion/errors
-# Usage: run_watch_loop <session_name> <issue_number> <marker> <error_marker> <interval> <auto_attach> <cleanup_args> <baseline_output>
+# Usage: run_watch_loop <session_name> <issue_number> <marker> <error_marker> <interval> <auto_attach> <cleanup_args> <baseline_output> <output_log>
 run_watch_loop() {
     local session_name="$1"
     local issue_number="$2"
@@ -533,8 +613,26 @@ run_watch_loop() {
     local auto_attach="$6"
     local cleanup_args="$7"
     local baseline_output="$8"
+    local output_log="${9:-}"
 
-    log_info "Starting marker detection..."
+    if [[ -n "$output_log" ]]; then
+        log_info "Starting marker detection (pipe-pane mode: $output_log)..."
+    else
+        log_info "Starting marker detection (capture-pane fallback)..."
+    fi
+
+    # マーカー検出済みの累積カウント（capture-paneフォールバック時のスクロールアウト対策）
+    # pipe-paneモードでは全出力を読むため不要だが、統一的に管理する
+    local cumulative_complete_count=0
+    local cumulative_error_count=0
+
+    # ベースラインのカウントを初期値として設定
+    cumulative_complete_count=$(count_any_markers_outside_codeblock "$baseline_output" "$marker" "$ALT_COMPLETE_MARKER")
+    cumulative_error_count=$(count_any_markers_outside_codeblock "$baseline_output" "$error_marker" "$ALT_ERROR_MARKER")
+
+    # セッション終了時のクリーンアップ用trap
+    # shellcheck disable=SC2064
+    trap "stop_output_logging '$session_name' '$output_log'; cleanup_output_log '$output_log'" EXIT
 
     while true; do
         # セッションが存在しなくなったら終了
@@ -543,10 +641,10 @@ run_watch_loop() {
             break
         fi
 
-        # 最新の出力をキャプチャ（最後の100行）
+        # 出力を取得（pipe-paneログ or capture-paneフォールバック）
         local output
-        output=$(get_session_output "$session_name" 100 2>/dev/null) || {
-            log_warn "Failed to capture pane output"
+        output=$(_get_detection_output "$session_name" "$output_log" "$baseline_output") || {
+            log_warn "Failed to capture output"
             sleep "$interval"
             continue
         }
@@ -554,13 +652,13 @@ run_watch_loop() {
         # エラーマーカー検出（完了マーカーより先にチェック）
         # Issue #393, #648, #651: コードブロック内のマーカーを誤検出しないよう除外
         # 代替マーカーも検出（AIが語順を間違えるケースに対応）
-        local error_count_baseline
         local error_count_current
-        error_count_baseline=$(count_any_markers_outside_codeblock "$baseline_output" "$error_marker" "$ALT_ERROR_MARKER")
         error_count_current=$(count_any_markers_outside_codeblock "$output" "$error_marker" "$ALT_ERROR_MARKER")
 
-        if [[ "$error_count_current" -gt "$error_count_baseline" ]]; then
-            log_warn "Error marker detected outside codeblock! (baseline: $error_count_baseline, current: $error_count_current)"
+        # 累積カウントより多い場合のみ新規検出とみなす
+        if [[ "$error_count_current" -gt "$cumulative_error_count" ]]; then
+            log_warn "Error marker detected outside codeblock! (cumulative: $cumulative_error_count, current: $error_count_current)"
+            cumulative_error_count="$error_count_current"
 
             # エラーメッセージを抽出（マーカー行の次の行）
             local error_message
@@ -569,21 +667,18 @@ run_watch_loop() {
             handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
 
             log_warn "Error notification sent. Session is still running for manual intervention."
-
-            # エラー後もセッションは継続するため、ベースラインを更新して監視を続ける
-            baseline_output="$output"
         fi
 
         # 完了マーカー検出
         # Issue #393, #648, #651: コードブロック内のマーカーを誤検出しないよう除外
         # 代替マーカーも検出（AIが語順を間違えるケースに対応）
-        local marker_count_baseline
         local marker_count_current
-        marker_count_baseline=$(count_any_markers_outside_codeblock "$baseline_output" "$marker" "$ALT_COMPLETE_MARKER")
         marker_count_current=$(count_any_markers_outside_codeblock "$output" "$marker" "$ALT_COMPLETE_MARKER")
 
-        if [[ "$marker_count_current" -gt "$marker_count_baseline" ]]; then
-            log_info "Completion marker detected outside codeblock! (baseline: $marker_count_baseline, current: $marker_count_current)"
+        # 累積カウントより多い場合のみ新規検出とみなす
+        if [[ "$marker_count_current" -gt "$cumulative_complete_count" ]]; then
+            log_info "Completion marker detected outside codeblock! (cumulative: $cumulative_complete_count, current: $marker_count_current)"
+            cumulative_complete_count="$marker_count_current"
 
             handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"
             local complete_result=$?
@@ -594,7 +689,6 @@ run_watch_loop() {
             elif [[ $complete_result -eq 2 ]]; then
                 # PR merge timeout: continue monitoring
                 log_warn "PR merge timeout. Continuing to monitor session..."
-                baseline_output="$output"  # Update baseline to prevent re-triggering
                 sleep "$interval"
                 continue
             else
@@ -649,8 +743,13 @@ main() {
     fi
     # init_result == 1: continue to monitoring loop
 
+    # pipe-paneで全出力をファイルに記録（スクロールアウト対策）
+    # tmuxの場合のみ使用。Zellijやpipe-pane非対応環境ではcapture-paneにフォールバック
+    local output_log=""
+    output_log=$(setup_output_logging "$session_name" "$issue_number")
+
     # 監視ループ
-    run_watch_loop "$session_name" "$issue_number" "$marker" "$error_marker" "$interval" "$auto_attach" "$cleanup_args" "$baseline_output"
+    run_watch_loop "$session_name" "$issue_number" "$marker" "$error_marker" "$interval" "$auto_attach" "$cleanup_args" "$baseline_output" "$output_log"
 }
 
 # Only run main if script is executed directly (not sourced for testing)
