@@ -6,6 +6,9 @@ All shell scripts (`.sh` files) in this project should follow this standardized 
 
 ### Template
 
+> **Note**: The following is a template for creating new scripts.
+> Replace `script-name` with your actual script name (e.g., `run.sh`, `cleanup.sh`, etc.).
+
 ```bash
 #!/usr/bin/env bash
 # ============================================================================
