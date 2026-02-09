@@ -186,7 +186,7 @@ check_pr_merge_status() {
                     log_warn "PR #$pr_number exists but is not merged yet"
                     log_warn "Completion marker detected but PR is still open - waiting for merge..."
                     log_warn "This may indicate the AI output the marker too early"
-                    notify_error "$session_name" "$issue_number" "PR #$pr_number is not merged yet - will retry"
+                    log_warn "PR #$pr_number is not merged yet - will retry"
                 fi
                 
                 if [[ $attempt -lt $max_attempts ]]; then
