@@ -221,11 +221,14 @@ MOCK_EOF
 
 @test "mux-all.sh detects sessions with tmux" {
     export PI_RUNNER_MULTIPLEXER_TYPE="tmux"
-    cat > "$MOCK_DIR/tmux" << 'MOCK_EOF'
+    # State file to track session creation
+    local state_file="$BATS_TEST_TMPDIR/tmux_state"
+    cat > "$MOCK_DIR/tmux" << MOCK_EOF
 #!/usr/bin/env bash
-case "$1" in
+STATE_FILE="$state_file"
+case "\$1" in
     "list-sessions")
-        if [[ "$*" == *"-F"* ]]; then
+        if [[ "\$*" == *"-F"* ]]; then
             echo "pi-issue-42"
             echo "pi-issue-43"
         else
@@ -235,9 +238,14 @@ case "$1" in
         exit 0
         ;;
     "has-session")
-        exit 1  # monitor session does not exist
+        # After new-session, the monitor session exists
+        if [[ -f "\$STATE_FILE" ]]; then
+            exit 0
+        fi
+        exit 1  # monitor session does not exist yet
         ;;
     "new-session")
+        touch "\$STATE_FILE"
         exit 0
         ;;
     "link-window")
@@ -245,6 +253,9 @@ case "$1" in
         ;;
     "attach-session")
         # Don't actually attach in test
+        exit 0
+        ;;
+    "send-keys"|"list-panes"|"kill-session"|"capture-pane")
         exit 0
         ;;
     *)
