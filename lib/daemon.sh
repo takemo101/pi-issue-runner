@@ -40,30 +40,49 @@ daemonize() {
     # RETURN trapでPIDファイルを確実にクリーンアップ（異常終了時も実行される）
     trap 'rm -f "$pid_file" 2>/dev/null' RETURN
     
-    # サブシェル内で実行し、即座にバックグラウンド化
-    # nohupでSIGHUPを無視し、標準入出力を適切にリダイレクト
-    (
-        # SIGHUPを無視（最優先で設定）
-        trap '' HUP
-        
-        # 標準入出力を閉じる（またはリダイレクト）
-        exec 0</dev/null
-        exec 1>>"$log_file"
-        exec 2>&1
-        
-        # バックグラウンドで実行しPIDを記録
-        "$@" &
-        local bg_pid=$!
-        echo "$bg_pid" > "$pid_file"
-        
-        # jobsテーブルから削除（親シェルに影響与えない）
-        # Note: サブシェル内では disown が失敗する場合があるが、
-        # trap '' HUP で SIGHUP を無視しているため問題ない
-        disown %1 2>/dev/null || disown "$bg_pid" 2>/dev/null || true
-        
-        # 親が先に終了しても子プロセスは継続
-        # このサブシェルはすぐに終了するが、バックグラウンドの子は生き続ける
-    ) &
+    # macOSではsetsidがないため、perlのsetpgrp(0,0)で新しいプロセスグループを作成。
+    # これにより親プロセスグループへのSIGTERM/SIGINTが子に波及しない。
+    # perlも利用不可の場合は、trap '' HUP でSIGHUPのみ無視するフォールバック。
+    #
+    # プロセスグループ分離が重要な理由:
+    #   run-batch.shがタイムアウト等でkillされると、同じプロセスグループ全体に
+    #   SIGTERMが送信され、watcherが巻き添えで死ぬ。
+    #   プロセスグループを分離すれば、親のkillは子に波及しない。
+    #   かつ、watcherは自身のSIGTERMハンドラを持てる（restart/stop可能）。
+    if command -v perl &> /dev/null; then
+        # perl経由でプロセスグループを分離して実行
+        (
+            exec 0</dev/null
+            exec 1>>"$log_file"
+            exec 2>&1
+            
+            # setpgrp(0,0)で新しいプロセスグループのリーダーになる
+            # これで親のプロセスグループへのシグナルが波及しない
+            perl -e '
+                use POSIX qw(setsid);
+                # setpgrp で新プロセスグループ作成（setsid より軽量）
+                setpgrp(0, 0);
+                exec @ARGV or die "exec failed: $!";
+            ' -- "$@" &
+            local bg_pid=$!
+            echo "$bg_pid" > "$pid_file"
+            disown "$bg_pid" 2>/dev/null || true
+        ) &
+    else
+        # perl も setsid もない環境: SIGHUPのみ無視（SIGTERM保護なし）
+        (
+            trap '' HUP
+            
+            exec 0</dev/null
+            exec 1>>"$log_file"
+            exec 2>&1
+            
+            "$@" &
+            local bg_pid=$!
+            echo "$bg_pid" > "$pid_file"
+            disown %1 2>/dev/null || disown "$bg_pid" 2>/dev/null || true
+        ) &
+    fi
     
     local wrapper_pid=$!
     
