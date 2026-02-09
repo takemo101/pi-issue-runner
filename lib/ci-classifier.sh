@@ -41,9 +41,19 @@ get_failed_ci_logs() {
         return 1
     fi
     
+    # PRのヘッドブランチを取得してフィルタリング
+    local head_branch
+    head_branch=$(gh pr view "$pr_number" --json headRefName -q '.headRefName' 2>/dev/null || echo "")
+    
     # 最新の失敗したワークフロー実行を取得
     local run_id
-    run_id=$(gh run list --limit 1 --status failure --json databaseId -q '.[0].databaseId' 2>/dev/null || echo "")
+    if [[ -n "$head_branch" ]]; then
+        run_id=$(gh run list --branch "$head_branch" --limit 1 --status failure --json databaseId -q '.[0].databaseId' 2>/dev/null || echo "")
+    else
+        # フォールバック: ブランチ取得失敗時は従来の動作
+        log_warn "Could not determine head branch for PR #$pr_number, falling back to unfiltered query"
+        run_id=$(gh run list --limit 1 --status failure --json databaseId -q '.[0].databaseId' 2>/dev/null || echo "")
+    fi
     
     if [[ -z "$run_id" ]]; then
         log_warn "No failed runs found"
