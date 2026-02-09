@@ -1032,6 +1032,15 @@ github:
 
 ### hooks
 
+#### 共通設定
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `allow_inline` | boolean | `false` | インラインhookコマンドの実行を許可する。`true` にすると `.pi-runner.yaml` に直接書いたコマンドが実行される |
+
+> **Note**: インラインhook（ファイルパスではなくコマンド文字列）を使用する場合は `allow_inline: true` を設定してください。
+> 環境変数 `PI_RUNNER_ALLOW_INLINE_HOOKS=true` でも上書き可能です。
+
 #### セッションライフサイクル
 
 | キー | 型 | デフォルト | 説明 |
@@ -1223,6 +1232,7 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_IMPROVE_LOGS_KEEP_RECENT` | `improve.logs.keep_recent` |
 | `PI_RUNNER_IMPROVE_LOGS_KEEP_DAYS` | `improve.logs.keep_days` |
 | `PI_RUNNER_IMPROVE_LOGS_DIR` | `improve.logs.dir` |
+| `PI_RUNNER_HOOKS_ALLOW_INLINE` | `hooks.allow_inline` |
 | `PI_RUNNER_HOOKS_ON_START` | `hooks.on_start` |
 | `PI_RUNNER_HOOKS_ON_SUCCESS` | `hooks.on_success` |
 | `PI_RUNNER_HOOKS_ON_ERROR` | `hooks.on_error` |
