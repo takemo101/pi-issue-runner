@@ -753,7 +753,7 @@ MOCK_EOF
 }
 
 @test "_validate_bash returns 1 when bats fails" {
-    mkdir -p "$BATS_TEST_TMPDIR/bash-proj3/scripts" "$BATS_TEST_TMPDIR/bash-proj3/lib"
+    mkdir -p "$BATS_TEST_TMPDIR/bash-proj3/scripts" "$BATS_TEST_TMPDIR/bash-proj3/lib" "$BATS_TEST_TMPDIR/bash-proj3/test"
     touch "$BATS_TEST_TMPDIR/bash-proj3/scripts/run.sh" "$BATS_TEST_TMPDIR/bash-proj3/lib/log.sh"
     
     mkdir -p "$BATS_TEST_TMPDIR/mocks"
@@ -772,6 +772,52 @@ MOCK_EOF
     cd "$BATS_TEST_TMPDIR/bash-proj3"
     run _validate_bash
     [ "$status" -eq 1 ]
+}
+
+@test "_validate_bash skips bats when no test directory exists" {
+    mkdir -p "$BATS_TEST_TMPDIR/bash-proj-notest/scripts"
+    touch "$BATS_TEST_TMPDIR/bash-proj-notest/scripts/run.sh"
+
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/shellcheck" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 0
+MOCK_EOF
+    cat > "$BATS_TEST_TMPDIR/mocks/bats" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "bats should not be called"
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/shellcheck" "$BATS_TEST_TMPDIR/mocks/bats"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    cd "$BATS_TEST_TMPDIR/bash-proj-notest"
+    run _validate_bash
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"No test directory found"* ]]
+}
+
+@test "_validate_bash uses tests/ directory when test/ does not exist" {
+    mkdir -p "$BATS_TEST_TMPDIR/bash-proj-tests/scripts" "$BATS_TEST_TMPDIR/bash-proj-tests/tests"
+    touch "$BATS_TEST_TMPDIR/bash-proj-tests/scripts/run.sh"
+
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/shellcheck" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 0
+MOCK_EOF
+    cat > "$BATS_TEST_TMPDIR/mocks/bats" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "bats OK on tests/"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/shellcheck" "$BATS_TEST_TMPDIR/mocks/bats"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    cd "$BATS_TEST_TMPDIR/bash-proj-tests"
+    run _validate_bash
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Running bats in tests/"* ]]
 }
 
 # ===================
