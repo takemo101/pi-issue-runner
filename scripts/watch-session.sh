@@ -444,28 +444,11 @@ handle_complete() {
     return 0
 }
 
-main() {
-    local session_name=""
-    local marker=""
-    local interval=2
-    local cleanup_args=""
-    local auto_attach=true
-
-    # Parse command line arguments
-    parse_watch_arguments session_name marker interval cleanup_args auto_attach "$@"
-
-    # Setup environment and validate
-    local issue_number error_marker
-    setup_watch_environment "$session_name" marker error_marker issue_number
-
-    log_info "Watching session: $session_name"
-    log_info "Completion marker: $marker"
-    log_info "Error marker: $error_marker"
-    log_info "Check interval: ${interval}s"
-    log_info "Auto-attach on error: $auto_attach"
-    
-    # 初期ステータスを保存
-    save_status "$issue_number" "running" "$session_name"
+# Capture baseline output and wait for initial prompt display
+# Usage: capture_baseline <session_name>
+# Output: baseline output text via stdout
+capture_baseline() {
+    local session_name="$1"
 
     # 初期遅延（プロンプト表示を待つ）
     local initial_delay
@@ -474,52 +457,75 @@ main() {
     sleep "$initial_delay"
 
     # 初期出力をキャプチャ（ベースライン）
-    local baseline_output
-    baseline_output=$(get_session_output "$session_name" 1000 2>/dev/null) || baseline_output=""
-    
-    # 初期化時点でマーカーが既にあるか確認（高速完了タスク対応）
+    get_session_output "$session_name" 1000 2>/dev/null || echo ""
+}
+
+# Check for markers already present at startup (fast-completing tasks)
+# Usage: check_initial_markers <session_name> <issue_number> <marker> <error_marker> <auto_attach> <cleanup_args> <baseline_output>
+# Returns: 0 if completion handled, 1 if should continue monitoring, 2 if cleanup failed
+check_initial_markers() {
+    local session_name="$1"
+    local issue_number="$2"
+    local marker="$3"
+    local error_marker="$4"
+    local auto_attach="$5"
+    local cleanup_args="$6"
+    local baseline_output="$7"
+
     # Issue #281: 初期化中（10秒待機中）にマーカーが出力された場合の検出
     # Issue #393, #648, #651: コードブロック内のマーカーを誤検出しないよう除外
     local initial_error_count
     initial_error_count=$(count_markers_outside_codeblock "$baseline_output" "$error_marker")
-    
+
     if [[ "$initial_error_count" -gt 0 ]]; then
         log_warn "Error marker already present at startup (outside codeblock)"
-        
+
         # エラーメッセージを抽出（マーカー行の次の行）
         local error_message
         error_message=$(echo "$baseline_output" | grep -A 1 -F "$error_marker" | tail -n 1 | head -c 200) || error_message="Unknown error"
-        
+
         handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
         log_warn "Error notification sent. Session is still running for manual intervention."
         # エラーの場合は監視を続行（ユーザーが修正する可能性があるため）
     fi
-    
+
     local initial_complete_count
     initial_complete_count=$(count_markers_outside_codeblock "$baseline_output" "$marker")
-    
+
     if [[ "$initial_complete_count" -gt 0 ]]; then
         log_info "Completion marker already present at startup (outside codeblock)"
-        
+
         handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"
         local complete_result=$?
-        
+
         if [[ $complete_result -eq 0 ]]; then
-            log_info "Cleanup completed successfully"
-            exit 0
+            return 0  # Completion handled successfully
         elif [[ $complete_result -eq 2 ]]; then
             # PR merge timeout at startup: continue monitoring
             log_warn "PR merge timeout at startup. Will continue monitoring..."
-            # Fall through to monitoring loop
+            return 1  # Continue to monitoring loop
         else
-            log_error "Cleanup failed"
-            exit 1
+            return 2  # Cleanup failed
         fi
     fi
-    
+
+    return 1  # No initial completion marker, continue to monitoring loop
+}
+
+# Main monitoring loop - detect markers and handle completion/errors
+# Usage: run_watch_loop <session_name> <issue_number> <marker> <error_marker> <interval> <auto_attach> <cleanup_args> <baseline_output>
+run_watch_loop() {
+    local session_name="$1"
+    local issue_number="$2"
+    local marker="$3"
+    local error_marker="$4"
+    local interval="$5"
+    local auto_attach="$6"
+    local cleanup_args="$7"
+    local baseline_output="$8"
+
     log_info "Starting marker detection..."
 
-    # 監視ループ
     while true; do
         # セッションが存在しなくなったら終了
         if ! session_exists "$session_name"; then
@@ -541,35 +547,35 @@ main() {
         local error_count_current
         error_count_baseline=$(count_markers_outside_codeblock "$baseline_output" "$error_marker")
         error_count_current=$(count_markers_outside_codeblock "$output" "$error_marker")
-        
+
         if [[ "$error_count_current" -gt "$error_count_baseline" ]]; then
             log_warn "Error marker detected outside codeblock! (baseline: $error_count_baseline, current: $error_count_current)"
-            
+
             # エラーメッセージを抽出（マーカー行の次の行）
             local error_message
             error_message=$(echo "$output" | grep -A 1 -F "$error_marker" | tail -n 1 | head -c 200) || error_message="Unknown error"
-            
+
             handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
-            
+
             log_warn "Error notification sent. Session is still running for manual intervention."
-            
+
             # エラー後もセッションは継続するため、ベースラインを更新して監視を続ける
             baseline_output="$output"
         fi
-        
+
         # 完了マーカー検出
         # Issue #393, #648, #651: コードブロック内のマーカーを誤検出しないよう除外
         local marker_count_baseline
         local marker_count_current
         marker_count_baseline=$(count_markers_outside_codeblock "$baseline_output" "$marker")
         marker_count_current=$(count_markers_outside_codeblock "$output" "$marker")
-        
+
         if [[ "$marker_count_current" -gt "$marker_count_baseline" ]]; then
             log_info "Completion marker detected outside codeblock! (baseline: $marker_count_baseline, current: $marker_count_current)"
-            
+
             handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"
             local complete_result=$?
-            
+
             if [[ $complete_result -eq 0 ]]; then
                 log_info "Cleanup completed successfully"
                 exit 0
@@ -587,6 +593,50 @@ main() {
 
         sleep "$interval"
     done
+}
+
+main() {
+    local session_name=""
+    local marker=""
+    local interval=2
+    local cleanup_args=""
+    local auto_attach=true
+
+    # Parse command line arguments
+    parse_watch_arguments session_name marker interval cleanup_args auto_attach "$@"
+
+    # Setup environment and validate
+    local issue_number error_marker
+    setup_watch_environment "$session_name" marker error_marker issue_number
+
+    log_info "Watching session: $session_name"
+    log_info "Completion marker: $marker"
+    log_info "Error marker: $error_marker"
+    log_info "Check interval: ${interval}s"
+    log_info "Auto-attach on error: $auto_attach"
+
+    # 初期ステータスを保存
+    save_status "$issue_number" "running" "$session_name"
+
+    # ベースラインキャプチャ
+    local baseline_output
+    baseline_output=$(capture_baseline "$session_name")
+
+    # 初期マーカーチェック（高速完了タスク対応）
+    check_initial_markers "$session_name" "$issue_number" "$marker" "$error_marker" "$auto_attach" "$cleanup_args" "$baseline_output"
+    local init_result=$?
+
+    if [[ $init_result -eq 0 ]]; then
+        log_info "Cleanup completed successfully"
+        exit 0
+    elif [[ $init_result -eq 2 ]]; then
+        log_error "Cleanup failed"
+        exit 1
+    fi
+    # init_result == 1: continue to monitoring loop
+
+    # 監視ループ
+    run_watch_loop "$session_name" "$issue_number" "$marker" "$error_marker" "$interval" "$auto_attach" "$cleanup_args" "$baseline_output"
 }
 
 # Only run main if script is executed directly (not sourced for testing)

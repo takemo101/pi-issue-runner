@@ -29,31 +29,27 @@ extract_default_value() {
         sed -E 's/^[^=]+="([^"]*)".*/\1/'
 }
 
-# メイン処理
-main() {
-    echo "=== Configuration Documentation Verification ==="
-    echo ""
-    
-    local exit_code=0
-    
-    # 1. 設定項目の存在チェック
+# Check configuration items exist in both config.sh and documentation
+# Returns: 0 if all items match, 1 if mismatch detected
+check_config_items() {
     echo "1. Checking configuration items..."
     local config_vars
     local doc_vars
-    
+
     config_vars=$(extract_config_vars)
     doc_vars=$(extract_doc_vars)
-    
+
     local config_count
     local doc_count
     config_count=$(echo "$config_vars" | wc -l | tr -d ' ')
     doc_count=$(echo "$doc_vars" | wc -l | tr -d ' ')
-    
+
     echo "   - lib/config.sh: $config_count items"
     echo "   - docs/configuration.md: $doc_count items"
-    
+
     if [[ "$config_vars" == "$doc_vars" ]]; then
         log_info "All configuration items are documented"
+        return 0
     else
         log_error "Configuration mismatch detected:"
         echo ""
@@ -62,41 +58,46 @@ main() {
         echo ""
         echo "Extra in documentation:"
         comm -13 <(echo "$config_vars") <(echo "$doc_vars") | sed 's/^/  - PI_RUNNER_/'
-        exit_code=1
+        return 1
     fi
-    
-    echo ""
-    
-    # 2. デフォルト値のサンプルチェック（一部のみ）
+}
+
+# Check sample default values match between config.sh and documentation
+# Returns: 0 if all match, 1 if mismatch detected
+check_default_values() {
     echo "2. Checking default values (sample)..."
-    
+
     local sample_vars=(
         "WORKTREE_BASE_DIR:.worktrees"
         "MULTIPLEXER_SESSION_PREFIX:pi"
         "PARALLEL_MAX_CONCURRENT:0"
         "PLANS_KEEP_RECENT:10"
     )
-    
+
+    local has_error=false
     local value
     local expected
     for item in "${sample_vars[@]}"; do
         local var_name="${item%%:*}"
         expected="${item#*:}"
         value=$(extract_default_value "$var_name")
-        
+
         if [[ "$value" == "$expected" ]]; then
             log_info "CONFIG_${var_name} = \"${value}\""
         else
             log_error "CONFIG_${var_name}: expected \"${expected}\", got \"${value}\""
-            exit_code=1
+            has_error=true
         fi
     done
-    
-    echo ""
-    
-    # 3. ドキュメント構造チェック
+
+    [[ "$has_error" == "false" ]]
+}
+
+# Check document structure has expected sections
+# Returns: always 0 (warnings only)
+check_document_structure() {
     echo "3. Checking document structure..."
-    
+
     local sections=(
         "worktree"
         "multiplexer"
@@ -108,7 +109,7 @@ main() {
         "agents"
         "github"
     )
-    
+
     for section in "${sections[@]}"; do
         if grep -q "### $section" "$PROJECT_ROOT/docs/configuration.md"; then
             log_info "Section \"$section\" found"
@@ -116,12 +117,15 @@ main() {
             log_warn "Section \"$section\" not found (may use different heading)"
         fi
     done
-    
-    echo ""
-    
-    # 4. Hooks設定の検証
+}
+
+# Check hooks configuration documentation
+# Returns: 0 if all hooks documented, 1 if missing
+check_hooks_config() {
     echo "4. Checking hooks configuration..."
-    
+
+    local has_error=false
+
     # hooks.mdまたはconfiguration.mdの存在確認
     local hooks_doc=""
     if [[ -f "$PROJECT_ROOT/docs/hooks.md" ]]; then
@@ -132,9 +136,9 @@ main() {
         log_info "hooks section exists in docs/configuration.md"
     else
         log_error "Neither docs/hooks.md nor hooks section in docs/configuration.md exists"
-        exit_code=1
+        return 1
     fi
-    
+
     # サポートされているイベントの確認
     local hook_events=(
         "on_start"
@@ -142,34 +146,52 @@ main() {
         "on_error"
         "on_cleanup"
     )
-    
-    if [[ -n "$hooks_doc" ]]; then
-        for event in "${hook_events[@]}"; do
-            if grep -q "\`$event\`" "$hooks_doc" 2>/dev/null; then
-                log_info "Hook event \"$event\" is documented"
-            else
-                log_error "Hook event \"$event\" is not documented"
-                exit_code=1
-            fi
-        done
-        
-        # 設定例の確認
-        if grep -q "^hooks:" "$hooks_doc" 2>/dev/null; then
-            log_info "Hooks configuration example found"
+
+    for event in "${hook_events[@]}"; do
+        if grep -q "\`$event\`" "$hooks_doc" 2>/dev/null; then
+            log_info "Hook event \"$event\" is documented"
         else
-            log_warn "Hooks configuration example not found (recommended)"
+            log_error "Hook event \"$event\" is not documented"
+            has_error=true
         fi
+    done
+
+    # 設定例の確認
+    if grep -q "^hooks:" "$hooks_doc" 2>/dev/null; then
+        log_info "Hooks configuration example found"
+    else
+        log_warn "Hooks configuration example not found (recommended)"
     fi
-    
+
+    [[ "$has_error" == "false" ]]
+}
+
+# メイン処理
+main() {
+    echo "=== Configuration Documentation Verification ==="
     echo ""
-    
+
+    local exit_code=0
+
+    check_config_items || exit_code=1
+    echo ""
+
+    check_default_values || exit_code=1
+    echo ""
+
+    check_document_structure
+    echo ""
+
+    check_hooks_config || exit_code=1
+    echo ""
+
     # 結果サマリー
     if [[ $exit_code -eq 0 ]]; then
         log_info "✅ Configuration documentation is up-to-date"
     else
         log_error "❌ Configuration documentation needs update"
     fi
-    
+
     return $exit_code
 }
 
