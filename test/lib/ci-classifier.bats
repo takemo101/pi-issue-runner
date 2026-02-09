@@ -297,3 +297,68 @@ Diff in src/main.rs at line 10:
         [ "$status" -eq 1 ]
     )
 }
+
+@test "get_failed_ci_logs uses --branch filter from PR head branch" {
+    # gh をモックして、PR のヘッドブランチ取得と run list の呼び出しを検証
+    gh() {
+        case "$1" in
+            pr)
+                if [[ "$2" == "view" && "$4" == "--json" ]]; then
+                    echo "feature/my-branch"
+                    return 0
+                fi
+                ;;
+            run)
+                if [[ "$2" == "list" ]]; then
+                    # --branch オプションが渡されていることを検証
+                    local has_branch=false
+                    for arg in "$@"; do
+                        if [[ "$arg" == "--branch" ]]; then
+                            has_branch=true
+                        fi
+                    done
+                    if [[ "$has_branch" == "true" ]]; then
+                        echo '12345'
+                        return 0
+                    else
+                        echo "ERROR: --branch not passed" >&2
+                        return 1
+                    fi
+                elif [[ "$2" == "view" ]]; then
+                    echo "mock log output"
+                    return 0
+                fi
+                ;;
+        esac
+    }
+    export -f gh
+    
+    run get_failed_ci_logs 42
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"mock log output"* ]]
+}
+
+@test "get_failed_ci_logs falls back when PR head branch unavailable" {
+    # gh pr view が失敗する場合のフォールバック
+    gh() {
+        case "$1" in
+            pr)
+                return 1  # PR情報取得失敗
+                ;;
+            run)
+                if [[ "$2" == "list" ]]; then
+                    echo '67890'
+                    return 0
+                elif [[ "$2" == "view" ]]; then
+                    echo "fallback log output"
+                    return 0
+                fi
+                ;;
+        esac
+    }
+    export -f gh
+    
+    run get_failed_ci_logs 999
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"fallback log output"* ]]
+}
