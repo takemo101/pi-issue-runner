@@ -191,9 +191,11 @@ get_all_workflows_info() {
     local config_file
     config_file="$(_resolve_config_file)"
     
-    # .pi-runner.yaml の workflows セクションが存在するか確認
+    # 出力済みワークフロー名を追跡（ユーザー定義を優先するため）
+    local -a emitted_names=()
+    
+    # 1. .pi-runner.yaml の workflows セクション（ユーザー定義、最優先）
     if [[ -f "$config_file" ]] && yaml_exists "$config_file" ".workflows"; then
-        # workflows セクション配下のキー一覧を取得
         local workflow_names
         workflow_names=$(yaml_get_keys "$config_file" ".workflows")
         
@@ -216,49 +218,59 @@ get_all_workflows_info() {
                 local context
                 context=$(yaml_get "$config_file" ".workflows.${name}.context" 2>/dev/null || echo "")
                 
-                # context の改行を \\n にエスケープ（タブ区切り出力で壊れないように）
                 local escaped_context
                 escaped_context=$(printf '%s' "$context" | awk '{printf "%s", (NR>1 ? "\\n" : "") $0}')
                 
-                # タブ区切りで出力
                 printf "%s\t%s\t%s\t%s\n" "$name" "$description" "$steps" "$escaped_context"
+                emitted_names+=("$name")
             fi
         done <<< "$workflow_names"
-    else
-        # workflows セクションが未定義の場合はビルトインワークフローをフォールバック
-        local builtin_dir="${_WORKFLOW_LOADER_LIB_DIR}/../workflows"
-        
-        for workflow_file in "$builtin_dir"/*.yaml; do
-            if [[ -f "$workflow_file" ]]; then
-                local name
-                name=$(yaml_get "$workflow_file" ".name" 2>/dev/null || basename "$workflow_file" .yaml)
-                
-                local description
-                description=$(yaml_get "$workflow_file" ".description" 2>/dev/null || echo "")
-                
-                local steps=""
-                while IFS= read -r step; do
-                    if [[ -n "$step" ]]; then
-                        if [[ -z "$steps" ]]; then
-                            steps="$step"
-                        else
-                            steps="$steps $step"
-                        fi
-                    fi
-                done < <(yaml_get_array "$workflow_file" ".steps" 2>/dev/null)
-                
-                local context
-                context=$(yaml_get "$workflow_file" ".context" 2>/dev/null || echo "")
-                
-                # context の改行を \\n にエスケープ（タブ区切り出力で壊れないように）
-                local escaped_context
-                escaped_context=$(printf '%s' "$context" | awk '{printf "%s", (NR>1 ? "\\n" : "") $0}')
-                
-                # タブ区切りで出力
-                printf "%s\t%s\t%s\t%s\n" "$name" "$description" "$steps" "$escaped_context"
-            fi
-        done
     fi
+    
+    # 2. ビルトインワークフロー（ユーザー定義と同名のものはスキップ）
+    local builtin_dir="${_WORKFLOW_LOADER_LIB_DIR}/../workflows"
+    
+    for workflow_file in "$builtin_dir"/*.yaml; do
+        if [[ -f "$workflow_file" ]]; then
+            local name
+            name=$(yaml_get "$workflow_file" ".name" 2>/dev/null || basename "$workflow_file" .yaml)
+            
+            # ユーザー定義で同名が既に出力されていればスキップ
+            local already_emitted=false
+            local emitted
+            for emitted in "${emitted_names[@]+"${emitted_names[@]}"}"; do
+                if [[ "$emitted" == "$name" ]]; then
+                    already_emitted=true
+                    break
+                fi
+            done
+            if [[ "$already_emitted" == "true" ]]; then
+                continue
+            fi
+            
+            local description
+            description=$(yaml_get "$workflow_file" ".description" 2>/dev/null || echo "")
+            
+            local steps=""
+            while IFS= read -r step; do
+                if [[ -n "$step" ]]; then
+                    if [[ -z "$steps" ]]; then
+                        steps="$step"
+                    else
+                        steps="$steps $step"
+                    fi
+                fi
+            done < <(yaml_get_array "$workflow_file" ".steps" 2>/dev/null)
+            
+            local context
+            context=$(yaml_get "$workflow_file" ".context" 2>/dev/null || echo "")
+            
+            local escaped_context
+            escaped_context=$(printf '%s' "$context" | awk '{printf "%s", (NR>1 ? "\\n" : "") $0}')
+            
+            printf "%s\t%s\t%s\t%s\n" "$name" "$description" "$steps" "$escaped_context"
+        fi
+    done
 }
 
 # ワークフローのagent設定を取得（存在する場合）
