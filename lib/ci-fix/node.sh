@@ -92,14 +92,14 @@ _validate_node() {
         fi
     else
         # Fallback: check if package.json contains "lint" or "test" script keys
-        if grep -q '"lint"' package.json 2>/dev/null; then
+        if grep -qE '"lint"\s*:' package.json 2>/dev/null; then
             log_info "Running npm run lint..."
             if ! npm run lint 2>&1; then
                 log_error "Lint check failed"
                 return 1
             fi
         fi
-        if grep -q '"test"' package.json 2>/dev/null; then
+        if grep -qE '"test"\s*:' package.json 2>/dev/null; then
             log_info "Running npm test..."
             if ! npm test 2>&1; then
                 log_error "Test failed"
