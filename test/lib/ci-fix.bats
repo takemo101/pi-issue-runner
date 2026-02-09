@@ -596,6 +596,9 @@ EOF
 }
 
 @test "_fix_format_bash uses shfmt when available" {
+    mkdir -p "$BATS_TEST_TMPDIR/bash-fmt/scripts"
+    echo '#!/bin/bash' > "$BATS_TEST_TMPDIR/bash-fmt/scripts/run.sh"
+    
     mkdir -p "$BATS_TEST_TMPDIR/mocks"
     cat > "$BATS_TEST_TMPDIR/mocks/shfmt" << 'MOCK_EOF'
 #!/usr/bin/env bash
@@ -605,12 +608,16 @@ MOCK_EOF
     chmod +x "$BATS_TEST_TMPDIR/mocks/shfmt"
     export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
 
+    cd "$BATS_TEST_TMPDIR/bash-fmt"
     run _fix_format_bash
     [ "$status" -eq 0 ]
     [[ "$output" == *"shfmt"* ]]
 }
 
 @test "_fix_format_bash returns 1 when shfmt fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/bash-fmt2/scripts"
+    echo '#!/bin/bash' > "$BATS_TEST_TMPDIR/bash-fmt2/scripts/run.sh"
+    
     mkdir -p "$BATS_TEST_TMPDIR/mocks"
     cat > "$BATS_TEST_TMPDIR/mocks/shfmt" << 'MOCK_EOF'
 #!/usr/bin/env bash
@@ -619,8 +626,50 @@ MOCK_EOF
     chmod +x "$BATS_TEST_TMPDIR/mocks/shfmt"
     export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
 
+    cd "$BATS_TEST_TMPDIR/bash-fmt2"
     run _fix_format_bash
     [ "$status" -eq 1 ]
+}
+
+@test "_fix_format_bash returns 2 when no .sh files found" {
+    mkdir -p "$BATS_TEST_TMPDIR/empty-proj"
+    
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/shfmt" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "shfmt executed"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/shfmt"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    cd "$BATS_TEST_TMPDIR/empty-proj"
+    run _fix_format_bash
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"No .sh files found"* ]]
+}
+
+@test "_fix_format_bash excludes .git directory" {
+    mkdir -p "$BATS_TEST_TMPDIR/bash-fmt-git/.git/hooks"
+    echo '#!/bin/bash' > "$BATS_TEST_TMPDIR/bash-fmt-git/.git/hooks/pre-commit.sh"
+    mkdir -p "$BATS_TEST_TMPDIR/bash-fmt-git/scripts"
+    echo '#!/bin/bash' > "$BATS_TEST_TMPDIR/bash-fmt-git/scripts/run.sh"
+    
+    local shfmt_args_file="$BATS_TEST_TMPDIR/shfmt_args.log"
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/shfmt" << MOCK_EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$shfmt_args_file"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/shfmt"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    cd "$BATS_TEST_TMPDIR/bash-fmt-git"
+    run _fix_format_bash
+    [ "$status" -eq 0 ]
+    # .git内のファイルがshfmtに渡されていないことを確認
+    ! grep -q ".git" "$shfmt_args_file"
 }
 
 @test "_fix_format_bash returns 2 when shfmt not found" {
@@ -679,6 +728,28 @@ MOCK_EOF
     cd "$BATS_TEST_TMPDIR/bash-proj2"
     run _validate_bash
     [ "$status" -eq 1 ]
+}
+
+@test "_validate_bash skips shellcheck when no .sh files found" {
+    mkdir -p "$BATS_TEST_TMPDIR/bash-proj-nosh/test"
+    
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/shellcheck" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "shellcheck should not run"
+exit 1
+MOCK_EOF
+    cat > "$BATS_TEST_TMPDIR/mocks/bats" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/shellcheck" "$BATS_TEST_TMPDIR/mocks/bats"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    cd "$BATS_TEST_TMPDIR/bash-proj-nosh"
+    run _validate_bash
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"No .sh files found"* ]]
 }
 
 @test "_validate_bash returns 1 when bats fails" {

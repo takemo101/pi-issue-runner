@@ -27,8 +27,16 @@ _fix_lint_bash() {
 _fix_format_bash() {
     # shfmtがあれば使用
     if command -v shfmt &> /dev/null; then
-        log_info "Running shfmt..."
-        if shfmt -w -i 4 . 2>&1; then
+        local sh_files
+        sh_files=$(find . -maxdepth 3 -name "*.sh" -not -path "./.git/*" -not -path "./node_modules/*" 2>/dev/null || true)
+        if [[ -z "$sh_files" ]]; then
+            log_warn "No .sh files found for shfmt"
+            return 2  # 自動修正不可
+        fi
+        local file_count
+        file_count=$(echo "$sh_files" | wc -l | tr -d " ")
+        log_info "Running shfmt on ${file_count} files..."
+        if echo "$sh_files" | xargs shfmt -w -i 4 2>&1; then
             log_info "shfmt fix applied successfully"
             return 0
         else
@@ -46,10 +54,18 @@ _fix_format_bash() {
 # Returns: 0=検証成功, 1=検証失敗
 _validate_bash() {
     if command -v shellcheck &>/dev/null; then
-        log_info "Running shellcheck..."
-        if ! shellcheck -x scripts/*.sh lib/*.sh 2>&1; then
-            log_error "ShellCheck failed"
-            return 1
+        local sh_files
+        sh_files=$(find . -maxdepth 3 -name "*.sh" -not -path "./.git/*" -not -path "./node_modules/*" 2>/dev/null || true)
+        if [[ -n "$sh_files" ]]; then
+            local file_count
+            file_count=$(echo "$sh_files" | wc -l | tr -d " ")
+            log_info "Running shellcheck on ${file_count} files..."
+            if ! echo "$sh_files" | xargs shellcheck -x 2>&1; then
+                log_error "ShellCheck failed"
+                return 1
+            fi
+        else
+            log_warn "No .sh files found for shellcheck, skipping"
         fi
     fi
     if command -v bats &>/dev/null; then
