@@ -60,26 +60,38 @@ get_failed_ci_logs() {
 classify_ci_failure() {
     local log_content="$1"
     
-    # フォーマットエラーをチェック（最も具体的なので先に）
-    if echo "$log_content" | grep -qE '(Diff in|would have been reformatted|fmt check failed)'; then
+    # フォーマットエラーをチェック（各言語対応）
+    # Rust: Diff in, would have been reformatted
+    # Bash: shfmt
+    if echo "$log_content" | grep -qE '(Diff in|would have been reformatted|fmt check failed|shfmt)'; then
         echo "$FAILURE_TYPE_FORMAT"
         return 0
     fi
     
-    # Lint/Clippyエラーをチェック
-    if echo "$log_content" | grep -qE '(warning:|clippy::|error: could not compile.*clippy)'; then
+    # Lint エラーをチェック（各言語対応）
+    # Rust: warning:, clippy::
+    # ESLint: N problems (N errors)
+    if echo "$log_content" | grep -qE '(warning:|clippy::|error: could not compile.*clippy|problems? \([0-9]+ errors?)'; then
         echo "$FAILURE_TYPE_LINT"
         return 0
     fi
     
-    # テスト失敗をチェック
-    if echo "$log_content" | grep -qE '(FAILED|test result: FAILED|failures:)'; then
+    # テスト失敗をチェック（各言語対応）
+    # Rust: FAILED, test result: FAILED, failures:
+    # Bats: not ok N, N tests, N failure(s)
+    # Go: --- FAIL:, FAIL\t
+    # Node/Jest: Tests:.*failed
+    # Python: FAILED (already matched by FAILED)
+    if echo "$log_content" | grep -qE '(FAILED|test result: FAILED|failures:|not ok [0-9]|[0-9]+ tests?, [0-9]+ failures?|--- FAIL:|FAIL\t|Tests:.*failed)'; then
         echo "$FAILURE_TYPE_TEST"
         return 0
     fi
     
-    # ビルドエラーをチェック
-    if echo "$log_content" | grep -qE '(error\[E|cannot find|unresolved import|expected.*found)'; then
+    # ビルドエラーをチェック（各言語対応）
+    # Rust: error[E, cannot find, unresolved import, expected.*found
+    # Node: npm ERR!, SyntaxError, ModuleNotFoundError
+    # Go: go build.*cannot
+    if echo "$log_content" | grep -qE '(error\[E|cannot find|unresolved import|expected.*found|npm ERR!|SyntaxError|ModuleNotFoundError|go build.*cannot)'; then
         echo "$FAILURE_TYPE_BUILD"
         return 0
     fi
