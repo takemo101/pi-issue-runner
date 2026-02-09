@@ -694,7 +694,9 @@ run_watch_loop() {
     cumulative_complete_count=$(count_any_markers_outside_codeblock "$baseline_output" "$marker" "$ALT_COMPLETE_MARKER")
     cumulative_error_count=$(count_any_markers_outside_codeblock "$baseline_output" "$error_marker" "$ALT_ERROR_MARKER")
 
+    local loop_count=0
     while true; do
+        ((loop_count++)) || true
         # セッションが存在しなくなったら終了
         if ! session_exists "$session_name"; then
             log_info "Session ended: $session_name"
@@ -744,6 +746,45 @@ run_watch_loop() {
                 fi
             fi
 
+            # pipe-paneログにマーカーが無い場合、定期的にcapture-paneでもチェック
+            # （watcher再起動時に既出力マーカーを拾うため。15ループごと=約30秒間隔）
+            if [[ "$error_count_current" -eq 0 ]] && [[ "$marker_count_current" -eq 0 ]] \
+               && [[ $((loop_count % 15)) -eq 0 ]]; then
+                local capture_fallback_output
+                capture_fallback_output=$(get_session_output "$session_name" 500 2>/dev/null) || capture_fallback_output=""
+                if [[ -n "$capture_fallback_output" ]]; then
+                    # エラーマーカーチェック
+                    if [[ "$cumulative_error_count" -eq 0 ]]; then
+                        local capture_error_count
+                        capture_error_count=$(count_any_markers_outside_codeblock "$capture_fallback_output" "$error_marker" "$ALT_ERROR_MARKER")
+                        if [[ "$capture_error_count" -gt 0 ]]; then
+                            log_warn "Error marker found via capture-pane fallback"
+                            cumulative_error_count="$capture_error_count"
+                            local fallback_error_msg
+                            fallback_error_msg=$(_extract_error_message "$capture_fallback_output" "$error_marker" "$ALT_ERROR_MARKER")
+                            handle_error "$session_name" "$issue_number" "$fallback_error_msg" "$auto_attach" "$cleanup_args"
+                            log_warn "Error notification sent. Session is still running for manual intervention."
+                        fi
+                    fi
+                    # 完了マーカーチェック
+                    if [[ "$cumulative_complete_count" -eq 0 ]]; then
+                        local capture_complete_count
+                        capture_complete_count=$(count_any_markers_outside_codeblock "$capture_fallback_output" "$marker" "$ALT_COMPLETE_MARKER")
+                        if [[ "$capture_complete_count" -gt 0 ]]; then
+                            log_info "Completion marker found via capture-pane fallback"
+                            handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"
+                            local fb_result=$?
+                            if [[ $fb_result -eq 0 ]]; then
+                                log_info "Cleanup completed successfully (capture-pane fallback)"
+                                exit 0
+                            elif [[ $fb_result -eq 2 ]]; then
+                                log_warn "PR merge timeout. Continuing to monitor session..."
+                            fi
+                        fi
+                    fi
+                fi
+            fi
+
             if [[ "$marker_count_current" -gt 0 ]] && [[ "$marker_count_current" -gt "$cumulative_complete_count" ]]; then
                 local real_complete=false
                 if _verify_marker_outside_codeblock "$output_log" "$marker" "true"; then
@@ -774,6 +815,7 @@ run_watch_loop() {
                     log_debug "Complete marker found in code block, ignoring"
                 fi
             fi
+
         else
             # ==== capture-pane フォールバック ====
             local output
