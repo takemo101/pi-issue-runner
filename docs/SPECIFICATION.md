@@ -891,7 +891,7 @@ Options:
 
 ### 必須
 
-- **Bash** 4.0以上
+- **Bash** 4.3以上
 - **Git** 2.17以上（worktreeサポート）
 - **GitHub CLI** 2.0以上（認証済み）
 - **tmux** 2.1以上 または **Zellij** 0.32以上
@@ -913,7 +913,7 @@ Options:
 ### 互換性
 
 - macOS / Linux対応
-- Bash 4.0+互換
+- Bash 4.3+互換
 
 ### セキュリティ
 
