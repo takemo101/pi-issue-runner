@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # ============================================================================
-# nudge.sh - Send a continuation message to a tmux session
+# nudge.sh - Send a continuation message to a session
 #
-# Sends a message to an existing pi-issue-runner tmux session to prompt
+# Sends a message to an existing pi-issue-runner session to prompt
 # the agent to continue working on the task.
 #
 # Usage: ./scripts/nudge.sh <session-name|issue-number> [options]
 #
 # Arguments:
-#   session-name    tmux session name (e.g., pi-issue-42)
+#   session-name    Session name (e.g., pi-issue-42)
 #   issue-number    GitHub Issue number (e.g., 42)
 #
 # Options:
@@ -42,7 +42,7 @@ usage() {
 Usage: $(basename "$0") <session-name|issue-number> [options]
 
 Arguments:
-    session-name    tmuxセッション名（例: pi-issue-42）
+    session-name    セッション名（例: pi-issue-42）
     issue-number    GitHub Issue番号（例: 42）
 
 Options:
