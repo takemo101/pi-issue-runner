@@ -677,9 +677,9 @@ teardown() {
     mkdir -p "$lock_dir"
     echo "999999" > "$lock_dir/pid"
 
-    # Get inode of lock directory before acquisition
+    # Get inode of lock directory before acquisition (ls -di is portable across macOS/Linux)
     local inode_before
-    inode_before=$(stat -f '%i' "$lock_dir" 2>/dev/null || stat -c '%i' "$lock_dir" 2>/dev/null)
+    inode_before=$(ls -di "$lock_dir" | awk '{print $1}')
 
     # Should succeed by overwriting PID (not rm+mkdir)
     acquire_cleanup_lock "1077"
@@ -691,7 +691,7 @@ teardown() {
 
     # Verify directory was NOT recreated (same inode = no rm+mkdir)
     local inode_after
-    inode_after=$(stat -f '%i' "$lock_dir" 2>/dev/null || stat -c '%i' "$lock_dir" 2>/dev/null)
+    inode_after=$(ls -di "$lock_dir" | awk '{print $1}')
     [ "$inode_before" = "$inode_after" ]
 }
 
