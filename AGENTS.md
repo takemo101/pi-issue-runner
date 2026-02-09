@@ -52,6 +52,7 @@ pi-issue-runner/
 │   ├── batch.sh       # バッチ処理コア機能
 │   ├── ci-classifier.sh   # CI失敗タイプ分類
 │   ├── ci-fix.sh      # CI失敗検出・自動修正（※ci-fix-helper.sh経由で使用）
+│   ├── cleanup-trap.sh    # エラー時クリーンアップトラップ管理
 │   ├── ci-monitor.sh      # CI状態監視
 │   ├── ci-retry.sh        # CI自動修正リトライ管理
 │   ├── cleanup-improve-logs.sh  # improve-logsのクリーンアップ
