@@ -140,12 +140,8 @@ is_daemon_running() {
     if [[ -z "$pid" ]] || [[ "$pid" == "0" ]]; then
         return 1
     fi
-    # set -e を一時的に無効化して kill の結果をチェック
-    set +e
-    kill -0 "$pid" 2>/dev/null
-    local result=$?
-    set -e
-    return $result
+    kill -0 "$pid" 2>/dev/null || return 1
+    return 0
 }
 
 # デーモンプロセスを安全に終了
@@ -158,16 +154,8 @@ stop_daemon() {
         return 1
     fi
     
-    # set -e を一時的に無効化
-    set +e
-    kill -"$signal" "$pid" 2>/dev/null
-    local result=$?
-    set -e
-    
-    if [[ $result -eq 0 ]]; then
-        return 0
-    fi
-    return 1
+    kill -"$signal" "$pid" 2>/dev/null || return 1
+    return 0
 }
 
 # 指定したコマンドラインで実行中のデーモンプロセスのPIDを検索
