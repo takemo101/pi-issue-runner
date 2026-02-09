@@ -31,18 +31,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Shard 1: workflow系 + yaml (~340 tests)
+          # Shard 1: workflow系 + yaml + config + status + github (~475 tests, light+medium)
           - shard: "1/4"
-            pattern: "workflow*.bats yaml.bats"
-          # Shard 2: improve系 + config + status (~350 tests)
+            pattern: "workflow*.bats yaml.bats config.bats status.bats github.bats"
+          # Shard 2: improve系 + small tests (~279 tests, heavy)
           - shard: "2/4"
-            pattern: "improve.bats improve/*.bats config.bats status.bats github.bats"
-          # Shard 3: multiplexer系 + batch + ci系 (~270 tests)
+            pattern: "improve.bats improve/*.bats dependency.bats priority.bats session-resolver.bats cleanup-improve-logs.bats"
+          # Shard 3: multiplexer系 + batch + ci系 + dashboard + log (~281 tests, medium)
           - shard: "3/4"
-            pattern: "multiplexer*.bats tmux.bats batch.bats ci-*.bats context.bats"
-          # Shard 4: その他 (~300 tests)
-            # agent, cleanup*, daemon, dashboard, dependency, hooks, log,
-            # marker, notify, priority, session-resolver, template, worktree
+            pattern: "multiplexer*.bats tmux.bats batch.bats ci-*.bats context.bats dashboard.bats log.bats"
+          # Shard 4: その他 (~216 tests, medium-heavy)
+            # agent, cleanup-orphans, cleanup-plans, daemon, hooks,
+            # marker, notify, template, worktree
           - shard: "4/4"
             pattern: "REMAINING"
     steps:
@@ -88,11 +88,15 @@ jobs:
           if [[ "$PATTERN" == "REMAINING" ]]; then
             # Collect files matched by other shards
             MATCHED=""
+            # Shard 1: workflow系 + yaml + config + status + github
             MATCHED+=" $(ls test/lib/workflow*.bats test/lib/yaml.bats 2>/dev/null)"
-            MATCHED+=" $(ls test/lib/improve.bats 2>/dev/null) $(ls test/lib/improve/*.bats 2>/dev/null)"
             MATCHED+=" $(ls test/lib/config.bats test/lib/status.bats test/lib/github.bats 2>/dev/null)"
+            # Shard 2: improve系 + small tests
+            MATCHED+=" $(ls test/lib/improve.bats 2>/dev/null) $(ls test/lib/improve/*.bats 2>/dev/null)"
+            MATCHED+=" $(ls test/lib/dependency.bats test/lib/priority.bats test/lib/session-resolver.bats test/lib/cleanup-improve-logs.bats 2>/dev/null)"
+            # Shard 3: multiplexer系 + batch + ci系 + dashboard + log
             MATCHED+=" $(ls test/lib/multiplexer*.bats test/lib/tmux.bats test/lib/batch.bats 2>/dev/null)"
-            MATCHED+=" $(ls test/lib/ci-*.bats test/lib/context.bats 2>/dev/null)"
+            MATCHED+=" $(ls test/lib/ci-*.bats test/lib/context.bats test/lib/dashboard.bats test/lib/log.bats 2>/dev/null)"
 
             # Get all lib test files, exclude matched ones
             for f in test/lib/*.bats; do
