@@ -226,17 +226,18 @@ mux_get_session_output() {
     # Zellijはdump-screenでファイルに出力する必要がある
     local tmp_file
     tmp_file=$(mktemp)
+    # RETURN trapでtmpfileを確実にクリーンアップ（シグナル中断時のリーク防止）
+    # shellcheck disable=SC2064
+    trap "rm -f '$tmp_file' 2>/dev/null" RETURN
     
     # セッションにアクションを送信
     ZELLIJ_SESSION_NAME="$session_name" zellij action dump-screen --full "$tmp_file" 2>/dev/null || {
-        rm -f "$tmp_file"
         log_warn "Could not capture output from session: $session_name"
         return 1
     }
     
     # 最後のN行を表示
     tail -n "$lines" "$tmp_file" 2>/dev/null || true
-    rm -f "$tmp_file"
 }
 
 # アクティブなセッション数をカウント
