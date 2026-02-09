@@ -220,17 +220,26 @@ PI_RUNNER_PARALLEL_MAX_CONCURRENT="5"
 ./scripts/run.sh <issue-number> [options]
 
 Options:
-    --branch NAME     カスタムブランチ名
-    --base BRANCH     ベースブランチ（デフォルト: HEAD）
-    --workflow NAME   ワークフロー名（デフォルト: default）
-                      ビルトイン: default, simple, thorough, ci-fix, auto
-    --no-attach       セッション作成後にアタッチしない
-    --no-cleanup      pi終了後の自動クリーンアップを無効化
-    --reattach        既存セッションがあればアタッチ
-    --force           既存セッション/worktreeを削除して再作成
-    --agent-args ARGS エージェントに渡す追加の引数
-    --pi-args ARGS    --agent-args のエイリアス（後方互換性）
-    --list-workflows  利用可能なワークフロー一覧を表示
+    -i, --issue NUMBER  Issue番号（位置引数の代替）
+    -b, --branch NAME   カスタムブランチ名（デフォルト: issue-<num>-<title>）
+    --base BRANCH       ベースブランチ（デフォルト: HEAD）
+    -w, --workflow NAME ワークフロー名（デフォルト: default）
+                        ビルトイン: default, simple, thorough, ci-fix, auto
+    -l, --label LABEL   セッションラベル（識別用タグ）
+    --no-attach         セッション作成後にアタッチしない
+    --no-cleanup        エージェント終了後の自動クリーンアップを無効化
+    --reattach          既存セッションがあればアタッチ
+    --force             既存セッション/worktreeを削除して再作成
+    --agent-args ARGS   エージェントに渡す追加の引数
+    --pi-args ARGS      --agent-args のエイリアス（後方互換性）
+    --list-workflows    利用可能なワークフロー一覧を表示
+    --ignore-blockers   依存関係チェックをスキップして強制実行
+    --show-config       現在の設定を表示（デバッグ用）
+    --list-agents       利用可能なエージェントプリセット一覧を表示
+    --show-agent-config エージェント設定を表示（デバッグ用）
+    -v, --verbose       詳細ログを表示
+    --quiet             エラーのみ表示
+    -h, --help          このヘルプを表示
 ```
 
 デフォルトでは、piが終了すると自動的にworktreeとセッションがクリーンアップされます。
