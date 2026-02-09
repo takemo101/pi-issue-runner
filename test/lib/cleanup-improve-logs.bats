@@ -233,6 +233,94 @@ teardown() {
     [ "$remaining" -eq 5 ]
 }
 
+@test "_find_improve_log_files: returns files sorted by mtime descending" {
+    mkdir -p "$TEST_DIR/.improve-logs"
+    
+    # Create files with different mtimes
+    echo "old" > "$TEST_DIR/.improve-logs/iteration-1-20260201-120000.log"
+    sleep 1
+    echo "new" > "$TEST_DIR/.improve-logs/iteration-2-20260202-120000.log"
+    
+    run _find_improve_log_files "$TEST_DIR/.improve-logs"
+    [ "$status" -eq 0 ]
+    
+    # Newest file should be first
+    local first_line
+    first_line=$(echo "$output" | head -1)
+    [[ "$first_line" == *"iteration-2"* ]]
+}
+
+@test "_find_improve_log_files: returns empty for no matching files" {
+    mkdir -p "$TEST_DIR/.improve-logs"
+    echo "not a log" > "$TEST_DIR/.improve-logs/README.md"
+    
+    run _find_improve_log_files "$TEST_DIR/.improve-logs"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "_should_cleanup_file: returns reason when exceeds keep_recent" {
+    local tmpfile="$BATS_TEST_TMPDIR/iteration-1-20260201-120000.log"
+    echo "test" > "$tmpfile"
+    
+    run _should_cleanup_file "$tmpfile" 6 5 0 ""
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"exceeds keep_recent limit"* ]]
+}
+
+@test "_should_cleanup_file: returns empty when within keep_recent" {
+    local tmpfile="$BATS_TEST_TMPDIR/iteration-1-20260201-120000.log"
+    echo "test" > "$tmpfile"
+    
+    run _should_cleanup_file "$tmpfile" 3 5 0 ""
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "_should_cleanup_file: returns reason for old files" {
+    local tmpfile="$BATS_TEST_TMPDIR/iteration-1-20260201-120000.log"
+    echo "test" > "$tmpfile"
+    
+    # Set mtime to 10 days ago
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        touch -t "$(date -v-10d +%Y%m%d%H%M.%S)" "$tmpfile"
+    else
+        touch -t "$(date -d '10 days ago' +%Y%m%d%H%M.%S)" "$tmpfile"
+    fi
+    
+    # Cutoff = 7 days ago
+    local cutoff
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        cutoff=$(date -v-7d +%s)
+    else
+        cutoff=$(date -d '7 days ago' +%s)
+    fi
+    
+    run _should_cleanup_file "$tmpfile" 1 0 7 "$cutoff"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"older than 7 days"* ]]
+}
+
+@test "_remove_improve_log: dry-run does not delete" {
+    local tmpfile="$BATS_TEST_TMPDIR/iteration-1-20260201-120000.log"
+    echo "test" > "$tmpfile"
+    
+    run _remove_improve_log "$tmpfile" "test reason" "true"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"[DRY-RUN]"* ]]
+    [ -f "$tmpfile" ]
+}
+
+@test "_remove_improve_log: actually deletes file" {
+    local tmpfile="$BATS_TEST_TMPDIR/iteration-1-20260201-120000.log"
+    echo "test" > "$tmpfile"
+    
+    run _remove_improve_log "$tmpfile" "test reason" "false"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Deleting:"* ]]
+    [ ! -f "$tmpfile" ]
+}
+
 @test "cleanup_improve_logs: ignores non-matching files" {
     mkdir -p "$TEST_DIR/.improve-logs"
     cd "$TEST_DIR"
