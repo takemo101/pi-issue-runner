@@ -149,12 +149,19 @@ run_hook() {
     fi
     
     # hook実行（テンプレート展開は非推奨、環境変数を使用）
-    _execute_hook "$hook" || {
-        log_warn "Hook execution failed for event: $event"
-        return 0  # hookの失敗でメイン処理を止めない
-    }
+    local hook_result=0
+    _execute_hook "$hook" || hook_result=$?
     
-    log_info "Hook completed for event: $event"
+    if [[ $hook_result -eq 2 ]]; then
+        # インラインhookがブロックされた場合、デフォルト動作にフォールバック
+        log_info "Falling back to default notification for event: $event"
+        _run_default_hook "$event" "$issue_number" "$session_name" "$error_message"
+    elif [[ $hook_result -ne 0 ]]; then
+        log_warn "Hook execution failed for event: $event"
+        # hookの失敗でメイン処理を止めない
+    else
+        log_info "Hook completed for event: $event"
+    fi
 }
 
 # hookを実行（ファイルまたはインラインコマンド）
@@ -174,10 +181,10 @@ _execute_hook() {
     
     # インラインコマンドの場合: 明示的許可が必要
     if [[ "${PI_RUNNER_ALLOW_INLINE_HOOKS:-false}" != "true" ]]; then
-        log_warn "Inline hook commands are disabled."
-        log_warn "To enable, set: export PI_RUNNER_ALLOW_INLINE_HOOKS=true"
-        log_warn "Hook: $hook"
-        return 0
+        log_warn "Inline hook commands are disabled. Falling back to default notification."
+        log_warn "To enable inline hooks, set: export PI_RUNNER_ALLOW_INLINE_HOOKS=true"
+        log_debug "Blocked hook: $hook"
+        return 2  # 2 = blocked, triggers fallback to default notification
     fi
     
     # インラインコマンドとして実行（bash -c を使用、eval は使用しない）

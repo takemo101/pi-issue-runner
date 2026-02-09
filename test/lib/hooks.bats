@@ -305,12 +305,12 @@ EOF
     
     # Should show warning that inline hooks are disabled
     [[ "$result" == *"Inline hook commands are disabled"* ]]
-    # The hook command text appears in the warning, but should NOT be executed as output
-    # Check that it's only in the warning line, not as actual execution output
-    [[ "$result" == *"Hook: echo"*"INLINE_EXECUTED_42"* ]]  # Present in warning
-    # Count lines - should only have 3 warning lines, no execution output
-    line_count=$(echo "$result" | wc -l | tr -d ' ')
-    [ "$line_count" -eq 3 ]
+    # Should fall back to default notification
+    [[ "$result" == *"Falling back to default notification"* ]]
+    # The inline hook command should NOT be executed
+    [[ "$result" != *"INLINE_EXECUTED_42"* ]] || [[ "$result" == *"Blocked hook:"*"INLINE_EXECUTED_42"* ]]
+    # Default notification should fire as fallback
+    [[ "$result" == *"NOTIFY_SUCCESS"* ]]
 }
 
 @test "run_hook blocks inline command when PI_RUNNER_ALLOW_INLINE_HOOKS is false" {
@@ -330,9 +330,12 @@ EOF
     
     result="$(run_hook "on_success" "42" "pi-42" "" "" "" "0" "" 2>&1)"
     [[ "$result" == *"disabled"* ]]
-    # Check that the echo command was NOT executed by filtering out log lines
-    filtered=$(echo "$result" | grep -v "^\[" || true)
-    [[ -z "$filtered" ]]
+    # Should fall back to default notification
+    [[ "$result" == *"Falling back to default notification"* ]]
+    # The inline echo command should NOT be executed
+    [[ "$result" != *"INLINE_EXECUTED_43"* ]] || [[ "$result" == *"Blocked hook:"*"INLINE_EXECUTED_43"* ]]
+    # Default notification should fire as fallback
+    [[ "$result" == *"NOTIFY_SUCCESS"* ]]
 }
 
 @test "run_hook allows inline command when PI_RUNNER_ALLOW_INLINE_HOOKS is true" {
