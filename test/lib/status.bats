@@ -334,6 +334,36 @@ teardown() {
     [ -z "$result" ]
 }
 
+@test "find_orphaned_statuses does not misdetect worktree without title suffix" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # worktreeディレクトリをタイトルサフィックスなしで作成（例: issue-42）
+    local worktree_base="${BATS_TEST_TMPDIR}/.worktrees"
+    mkdir -p "$worktree_base/issue-700"
+    
+    # 対応するステータスファイルを作成
+    save_status "700" "running" "pi-issue-700"
+    
+    # worktreeが存在するので孤立ではない
+    result="$(find_orphaned_statuses)"
+    [[ "$result" != *"700"* ]]
+}
+
+@test "find_orphaned_statuses does not false-match similar issue numbers" {
+    source "$PROJECT_ROOT/lib/status.sh"
+    
+    # issue-4 の worktree を作成（issue-42 とは別）
+    local worktree_base="${BATS_TEST_TMPDIR}/.worktrees"
+    mkdir -p "$worktree_base/issue-4-some-title"
+    
+    # issue-42 のステータスファイルを作成（対応するworktreeなし）
+    save_status "42" "running" "pi-issue-42"
+    
+    # issue-4 の worktree は issue-42 にマッチしないので、42 は孤立
+    result="$(find_orphaned_statuses)"
+    [[ "$result" == *"42"* ]]
+}
+
 # ====================
 # count_orphaned_statuses テスト
 # ====================
