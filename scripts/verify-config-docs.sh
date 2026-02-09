@@ -105,7 +105,7 @@ check_document_structure() {
         "agent"
         "parallel"
         "plans"
-        "improve_logs"
+        "improve"
         "agents"
         "github"
     )

@@ -249,20 +249,29 @@ plans:
   dir: "docs/plans"
 
 # =====================================
-# improve-logs クリーンアップ設定
+# improve 設定
 # =====================================
-improve_logs:
-  # 保持するログファイルの件数（0 = 全て保持）
-  # デフォルト: 10
-  keep_recent: 10
-  
-  # 保持するログファイルの日数（0 = 日数制限なし）
-  # デフォルト: 7
-  keep_days: 7
-  
-  # ログファイルの保存ディレクトリ
-  # デフォルト: .improve-logs
-  dir: ".improve-logs"
+improve:
+  # カスタムレビュープロンプトファイル（省略時は自動検索）
+  # 検索順: agents/improve-review.md → .pi/agents/improve-review.md → ビルトイン
+  # テンプレート変数: {{max_issues}}, {{session_label}}, {{review_context}}
+  review_prompt_file: "agents/improve-review.md"
+
+  # ログ設定
+  logs:
+    # 保持するログファイルの件数（0 = 全て保持）
+    # デフォルト: 10
+    keep_recent: 10
+    
+    # 保持するログファイルの日数（0 = 日数制限なし）
+    # デフォルト: 7
+    keep_days: 7
+    
+    # ログファイルの保存ディレクトリ
+    # デフォルト: .improve-logs
+    dir: ".improve-logs"
+
+# NOTE: 旧形式 improve_logs: も後方互換で引き続きサポートされます
 
 # =====================================
 # Watcher設定
@@ -563,15 +572,18 @@ docs/plans/
 └── issue-44-plan.md
 ```
 
-### improve_logs
+### improve
 
-`.improve-logs` ディレクトリの自動クリーンアップ設定
+`improve.sh` のレビュー・ログ設定
 
 | キー | 型 | デフォルト | 説明 |
 |------|------|-----------|------|
-| `keep_recent` | integer | `10` | 直近何件のログを保持するか（0 = 全て保持） |
-| `keep_days` | integer | `7` | 何日以内のログを保持するか（0 = 日数制限なし） |
-| `dir` | string | `.improve-logs` | ログファイルの保存ディレクトリ |
+| `review_prompt_file` | string | (自動検索) | カスタムレビュープロンプトファイルのパス |
+| `logs.keep_recent` | integer | `10` | 直近何件のログを保持するか（0 = 全て保持） |
+| `logs.keep_days` | integer | `7` | 何日以内のログを保持するか（0 = 日数制限なし） |
+| `logs.dir` | string | `.improve-logs` | ログファイルの保存ディレクトリ |
+
+> **後方互換**: 旧形式 `improve_logs:` もサポートされます。
 
 ### watcher
 
@@ -644,16 +656,20 @@ PI_RUNNER_WATCHER_PR_MERGE_RETRY_INTERVAL=60 \
 
 ```yaml
 # 最新10件かつ7日以内のログを保持
-improve_logs:
-  keep_recent: 10
-  keep_days: 7
-  dir: .improve-logs
+improve:
+  logs:
+    keep_recent: 10
+    keep_days: 7
+    dir: .improve-logs
 
 # 全てのログを保持（自動削除無効）
-improve_logs:
-  keep_recent: 0
-  keep_days: 0
+improve:
+  logs:
+    keep_recent: 0
+    keep_days: 0
 ```
+
+> **後方互換**: 旧形式 `improve_logs:` も引き続き動作します。
 
 #### 使用方法
 
@@ -1203,9 +1219,10 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_PLANS_DIR` | `plans.dir` |
 | `PI_RUNNER_GITHUB_INCLUDE_COMMENTS` | `github.include_comments` |
 | `PI_RUNNER_GITHUB_MAX_COMMENTS` | `github.max_comments` |
-| `PI_RUNNER_IMPROVE_LOGS_KEEP_RECENT` | `improve_logs.keep_recent` |
-| `PI_RUNNER_IMPROVE_LOGS_KEEP_DAYS` | `improve_logs.keep_days` |
-| `PI_RUNNER_IMPROVE_LOGS_DIR` | `improve_logs.dir` |
+| `PI_RUNNER_IMPROVE_REVIEW_PROMPT_FILE` | `improve.review_prompt_file` |
+| `PI_RUNNER_IMPROVE_LOGS_KEEP_RECENT` | `improve.logs.keep_recent` |
+| `PI_RUNNER_IMPROVE_LOGS_KEEP_DAYS` | `improve.logs.keep_days` |
+| `PI_RUNNER_IMPROVE_LOGS_DIR` | `improve.logs.dir` |
 | `PI_RUNNER_HOOKS_ON_START` | `hooks.on_start` |
 | `PI_RUNNER_HOOKS_ON_SUCCESS` | `hooks.on_success` |
 | `PI_RUNNER_HOOKS_ON_ERROR` | `hooks.on_error` |

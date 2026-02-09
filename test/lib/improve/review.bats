@@ -499,3 +499,137 @@ EOF
     source_content=$(cat "$PROJECT_ROOT/lib/improve/review.sh")
     [[ "$source_content" == *"問題は見つかりませんでした"* ]]
 }
+
+# ====================
+# Context Collection Tests
+# ====================
+
+@test "_collect_review_context returns empty when no git/gh available" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/improve/review.sh"
+
+    # Override commands to simulate missing git/gh
+    git() { return 1; }
+    gh() { return 1; }
+    export -f git gh
+
+    cd "$BATS_TEST_TMPDIR"
+    run _collect_review_context "test-label" ""
+    [ "$status" -eq 0 ]
+    # Should not fail, just return minimal/empty context
+}
+
+@test "_collect_review_context includes recent commits when in git repo" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/improve/review.sh"
+
+    # Run in actual project directory (which is a git repo)
+    cd "$PROJECT_ROOT"
+    result=$(_collect_review_context "test-label" "")
+    [[ "$result" == *"最近のコミット"* ]]
+}
+
+@test "_collect_review_context includes known constraints from AGENTS.md" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/improve/review.sh"
+
+    cd "$PROJECT_ROOT"
+    result=$(_collect_review_context "test-label" "")
+    [[ "$result" == *"既知の制約"* ]]
+}
+
+@test "_collect_review_context includes previous log summary" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/improve/review.sh"
+
+    local log_dir="${BATS_TEST_TMPDIR}/logs"
+    mkdir -p "$log_dir"
+    cat > "$log_dir/2026-02-08.log" << 'EOF'
+[PHASE 1] Running project review...
+Created issue #100 - fix typo
+Created issue #101 - update docs
+✅ Review complete
+EOF
+
+    cd "$BATS_TEST_TMPDIR"
+    result=$(_collect_review_context "test-label" "$log_dir")
+    [[ "$result" == *"前回のイテレーション結果"* ]]
+}
+
+@test "run_improve_review_phase prompt includes duplicate prevention rules" {
+    source_content=$(cat "$PROJECT_ROOT/lib/improve/review.sh")
+    [[ "$source_content" == *"重複する問題は作成しないでください"* ]]
+}
+
+@test "run_improve_review_phase prompt includes one-issue-per-problem rule" {
+    source_content=$(cat "$PROJECT_ROOT/lib/improve/review.sh")
+    [[ "$source_content" == *"1つのIssueには1つの具体的な問題"* ]]
+}
+
+# ====================
+# Custom Review Prompt Tests
+# ====================
+
+@test "_find_review_prompt_file finds agents/improve-review.md" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/improve/review.sh"
+
+    mkdir -p "$BATS_TEST_TMPDIR/project/agents"
+    echo "custom prompt {{max_issues}}" > "$BATS_TEST_TMPDIR/project/agents/improve-review.md"
+
+    result=$(_find_review_prompt_file "$BATS_TEST_TMPDIR/project")
+    [[ "$result" == *"agents/improve-review.md" ]]
+}
+
+@test "_find_review_prompt_file finds .pi/agents/improve-review.md" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/improve/review.sh"
+
+    mkdir -p "$BATS_TEST_TMPDIR/project/.pi/agents"
+    echo "custom prompt" > "$BATS_TEST_TMPDIR/project/.pi/agents/improve-review.md"
+
+    result=$(_find_review_prompt_file "$BATS_TEST_TMPDIR/project")
+    [[ "$result" == *".pi/agents/improve-review.md" ]]
+}
+
+@test "_find_review_prompt_file prefers agents/ over .pi/agents/" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/improve/review.sh"
+
+    mkdir -p "$BATS_TEST_TMPDIR/project/agents"
+    mkdir -p "$BATS_TEST_TMPDIR/project/.pi/agents"
+    echo "project local" > "$BATS_TEST_TMPDIR/project/agents/improve-review.md"
+    echo "pi local" > "$BATS_TEST_TMPDIR/project/.pi/agents/improve-review.md"
+
+    result=$(_find_review_prompt_file "$BATS_TEST_TMPDIR/project")
+    [[ "$result" == *"project/agents/improve-review.md" ]]
+}
+
+@test "_find_review_prompt_file returns builtin when exists" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/improve/review.sh"
+
+    # No project-local files, should find builtin
+    result=$(_find_review_prompt_file "$BATS_TEST_TMPDIR")
+    [[ "$result" == *"agents/improve-review.md" ]]
+}
+
+@test "_render_review_prompt expands variables" {
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/improve/review.sh"
+
+    local template="Create {{max_issues}} issues with label {{session_label}}. Context: {{review_context}}"
+    result=$(_render_review_prompt "$template" "5" "improve-v1" "some context")
+    [[ "$result" == *"Create 5 issues"* ]]
+    [[ "$result" == *"label improve-v1"* ]]
+    [[ "$result" == *"Context: some context"* ]]
+}

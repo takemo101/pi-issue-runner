@@ -35,6 +35,7 @@ CONFIG_GITHUB_MAX_COMMENTS="${CONFIG_GITHUB_MAX_COMMENTS:-10}"  # 最大コメ�
 CONFIG_IMPROVE_LOGS_KEEP_RECENT="${CONFIG_IMPROVE_LOGS_KEEP_RECENT:-10}"  # 直近N件のログを保持（0=全て保持）
 CONFIG_IMPROVE_LOGS_KEEP_DAYS="${CONFIG_IMPROVE_LOGS_KEEP_DAYS:-7}"      # N日以内のログを保持（0=日数制限なし）
 CONFIG_IMPROVE_LOGS_DIR="${CONFIG_IMPROVE_LOGS_DIR:-.improve-logs}"      # ログディレクトリ
+CONFIG_IMPROVE_REVIEW_PROMPT_FILE="${CONFIG_IMPROVE_REVIEW_PROMPT_FILE:-}"  # カスタムレビュープロンプトファイル
 
 # Watcher設定
 CONFIG_WATCHER_INITIAL_DELAY="${CONFIG_WATCHER_INITIAL_DELAY:-10}"                # 初期遅延（秒）
@@ -193,6 +194,12 @@ _CONFIG_MASTER=(
     ".agents.ci-fix:AGENTS_CI_FIX:agents_ci_fix:CONFIG_AGENTS_CI_FIX"
     ".auto.provider:AUTO_PROVIDER:auto_provider:CONFIG_AUTO_PROVIDER"
     ".auto.model:AUTO_MODEL:auto_model:CONFIG_AUTO_MODEL"
+    ".improve.review_prompt_file:IMPROVE_REVIEW_PROMPT_FILE:improve_review_prompt_file:CONFIG_IMPROVE_REVIEW_PROMPT_FILE"
+    # improve.logs.* (新形式: improve配下に統合)
+    ".improve.logs.keep_recent:IMPROVE_LOGS_KEEP_RECENT:improve_logs_keep_recent:CONFIG_IMPROVE_LOGS_KEEP_RECENT"
+    ".improve.logs.keep_days:IMPROVE_LOGS_KEEP_DAYS:improve_logs_keep_days:CONFIG_IMPROVE_LOGS_KEEP_DAYS"
+    ".improve.logs.dir:IMPROVE_LOGS_DIR:improve_logs_dir:CONFIG_IMPROVE_LOGS_DIR"
+    # improve_logs.* (旧形式: 後方互換)
     ".improve_logs.keep_recent:IMPROVE_LOGS_KEEP_RECENT:improve_logs_keep_recent:CONFIG_IMPROVE_LOGS_KEEP_RECENT"
     ".improve_logs.keep_days:IMPROVE_LOGS_KEEP_DAYS:improve_logs_keep_days:CONFIG_IMPROVE_LOGS_KEEP_DAYS"
     ".improve_logs.dir:IMPROVE_LOGS_DIR:improve_logs_dir:CONFIG_IMPROVE_LOGS_DIR"

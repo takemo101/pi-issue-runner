@@ -438,8 +438,8 @@ YAML
     git commit -m "Initial commit" &>/dev/null
     create_minimal_config "."
     
-    # Create watcher log file
-    local watcher_log="/tmp/pi-watcher-pi-issue-999.log"
+    # Create watcher log file (use TMPDIR to match cleanup.sh behavior)
+    local watcher_log="${TMPDIR:-/tmp}/pi-watcher-pi-issue-999.log"
     echo "test log content" > "$watcher_log"
     
     # Verify log file exists
