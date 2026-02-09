@@ -586,7 +586,18 @@ check_initial_markers() {
     return 1  # No initial completion marker, continue to monitoring loop
 }
 
+# Strip ANSI escape sequences from input (CSI sequences and carriage returns)
+# pipe-pane output may contain raw terminal codes even after sed stripping
+# (e.g., watcher started before fix, or edge cases)
+# Usage: echo "$text" | _strip_ansi
+#    or: _strip_ansi < file
+_strip_ansi() {
+    sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g; s/\r//g'
+}
+
 # Fast marker count using grep on a file (C-speed, no bash line iteration)
+# Note: grep -cF matches substrings, so ANSI codes around the marker don't prevent matching.
+# ANSI stripping is handled at pipe-pane level and in _verify_marker_outside_codeblock.
 # Usage: _grep_marker_count_in_file <file> <marker1> [marker2] ...
 # Returns: total count of lines matching any marker (0 if file doesn't exist)
 _grep_marker_count_in_file() {
@@ -608,6 +619,7 @@ _grep_marker_count_in_file() {
 }
 
 # Verify marker is outside code block by checking context around the match
+# Strips ANSI codes for defense-in-depth (pipe-pane raw output may contain them)
 # Usage: _verify_marker_outside_codeblock <file_or_text> <marker> [is_file]
 # Returns: 0 if at least one marker is outside a code block, 1 otherwise
 _verify_marker_outside_codeblock() {
@@ -617,10 +629,10 @@ _verify_marker_outside_codeblock() {
 
     local text
     if [[ "$is_file" == "true" ]]; then
-        # ファイルからマーカー周辺30行を抽出して検証（全体読み込みを回避）
-        text=$(grep -B 15 -A 15 -F "$marker" "$source" 2>/dev/null) || text=""
+        # ファイルからANSI除去→マーカー周辺30行を抽出して検証
+        text=$(_strip_ansi < "$source" | grep -B 15 -A 15 -F "$marker" 2>/dev/null) || text=""
     else
-        text="$source"
+        text=$(echo "$source" | _strip_ansi)
     fi
 
     if [[ -z "$text" ]]; then
@@ -642,14 +654,14 @@ _extract_error_message() {
 
     local msg=""
     if [[ "$is_file" == "true" ]]; then
-        msg=$(grep -A 1 -F "$error_marker" "$source" 2>/dev/null | tail -n 1 | head -c 200) || msg=""
+        msg=$(_strip_ansi < "$source" | grep -A 1 -F "$error_marker" 2>/dev/null | tail -n 1 | head -c 200) || msg=""
         if [[ -z "$msg" && -n "$alt_error_marker" ]]; then
-            msg=$(grep -A 1 -F "$alt_error_marker" "$source" 2>/dev/null | tail -n 1 | head -c 200) || msg=""
+            msg=$(_strip_ansi < "$source" | grep -A 1 -F "$alt_error_marker" 2>/dev/null | tail -n 1 | head -c 200) || msg=""
         fi
     else
-        msg=$(echo "$source" | grep -A 1 -F "$error_marker" 2>/dev/null | tail -n 1 | head -c 200) || msg=""
+        msg=$(echo "$source" | _strip_ansi | grep -A 1 -F "$error_marker" 2>/dev/null | tail -n 1 | head -c 200) || msg=""
         if [[ -z "$msg" && -n "$alt_error_marker" ]]; then
-            msg=$(echo "$source" | grep -A 1 -F "$alt_error_marker" 2>/dev/null | tail -n 1 | head -c 200) || msg=""
+            msg=$(echo "$source" | _strip_ansi | grep -A 1 -F "$alt_error_marker" 2>/dev/null | tail -n 1 | head -c 200) || msg=""
         fi
     fi
     echo "${msg:-Unknown error}"
