@@ -411,11 +411,11 @@ EOF
     local workflow_file="config-workflow:test-workflow"
     apply_workflow_agent_override "$workflow_file"
     
-    # 環境変数が設定されているか確認
-    [ -n "${AGENT_TYPE_OVERRIDE:-}" ]
-    [ "${AGENT_TYPE_OVERRIDE}" = "opencode" ]
-    [ -n "${AGENT_COMMAND_OVERRIDE:-}" ]
-    [ "${AGENT_COMMAND_OVERRIDE}" = "my-opencode" ]
+    # 環境変数が設定されているか確認（config-workflow形式はCONFIG_*変数を上書き）
+    [ -n "${CONFIG_AGENT_TYPE:-}" ]
+    [ "${CONFIG_AGENT_TYPE}" = "opencode" ]
+    [ -n "${CONFIG_AGENT_COMMAND:-}" ]
+    [ "${CONFIG_AGENT_COMMAND}" = "my-opencode" ]
 }
 
 @test "workflow-specific agent override: get_agent_type respects override" {

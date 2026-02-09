@@ -92,51 +92,6 @@ preset_exists() {
 }
 
 # ======================
-# ワークフロー固有のエージェント設定
-# ======================
-
-# ワークフロー固有のagent設定をグローバル設定として適用
-# 引数:
-#   $1 - workflow_file: ワークフローファイル識別子
-# 副作用: 環境変数 AGENT_TYPE_OVERRIDE, AGENT_COMMAND_OVERRIDE, AGENT_ARGS_OVERRIDE, AGENT_TEMPLATE_OVERRIDE を設定
-apply_workflow_agent_override() {
-    local workflow_file="$1"
-    
-    # オーバーライド環境変数をクリア
-    unset AGENT_TYPE_OVERRIDE
-    unset AGENT_COMMAND_OVERRIDE
-    unset AGENT_ARGS_OVERRIDE
-    unset AGENT_TEMPLATE_OVERRIDE
-    
-    # ワークフロー固有の設定を取得
-    local type command args template
-    type=$(get_workflow_agent_property "$workflow_file" "type")
-    command=$(get_workflow_agent_property "$workflow_file" "command")
-    args=$(get_workflow_agent_property "$workflow_file" "args")
-    template=$(get_workflow_agent_property "$workflow_file" "template")
-    
-    # 設定が存在する場合のみオーバーライド
-    if [[ -n "$type" ]]; then
-        export AGENT_TYPE_OVERRIDE="$type"
-        log_debug "Workflow agent type override: $type"
-    fi
-    
-    if [[ -n "$command" ]]; then
-        export AGENT_COMMAND_OVERRIDE="$command"
-        log_debug "Workflow agent command override: $command"
-    fi
-    
-    if [[ -n "$args" ]]; then
-        export AGENT_ARGS_OVERRIDE="$args"
-        log_debug "Workflow agent args override: $args"
-    fi
-    
-    if [[ -n "$template" ]]; then
-        export AGENT_TEMPLATE_OVERRIDE="$template"
-        log_debug "Workflow agent template override: $template"
-    fi
-}
-
 # ======================
 # エージェント設定取得
 # ======================
@@ -329,57 +284,92 @@ build_agent_command() {
 
 # ワークフロー固有のエージェント設定を適用
 # 引数:
-#   $1 - workflow_identifier: ワークフロー識別子（config-workflow:NAME 形式を想定）
+#   $1 - workflow_identifier: ワークフロー識別子（config-workflow:NAME 形式またはYAMLファイルパス）
 # 副作用:
-#   CONFIG_AGENT_TYPE, CONFIG_AGENT_COMMAND, CONFIG_AGENT_ARGS, CONFIG_AGENT_TEMPLATE を上書き
+#   config-workflow形式: CONFIG_AGENT_TYPE, CONFIG_AGENT_COMMAND, CONFIG_AGENT_ARGS, CONFIG_AGENT_TEMPLATE を上書き
+#   YAMLファイル形式: AGENT_TYPE_OVERRIDE, AGENT_COMMAND_OVERRIDE, AGENT_ARGS_OVERRIDE, AGENT_TEMPLATE_OVERRIDE を設定
 apply_workflow_agent_override() {
     local workflow_identifier="$1"
     
-    # config-workflow:NAME 形式から NAME を抽出
-    if [[ "$workflow_identifier" != config-workflow:* ]]; then
-        # ワークフロー識別子が config-workflow 形式でない場合はスキップ
-        log_debug "Workflow identifier '$workflow_identifier' is not config-workflow format, skipping agent override"
+    if [[ "$workflow_identifier" == config-workflow:* ]]; then
+        # config-workflow:NAME 形式の処理
+        local workflow_name="${workflow_identifier#config-workflow:}"
+        
+        # workflow-loader.sh の関数を使用してワークフロー固有の設定を取得
+        local workflow_agent_type
+        workflow_agent_type="$(get_workflow_agent_config "$workflow_name" "type")"
+        
+        if [[ -z "$workflow_agent_type" ]]; then
+            # ワークフロー固有のagent設定がない場合は何もしない
+            log_debug "No workflow-specific agent config for workflow '$workflow_name'"
+            return 0
+        fi
+        
+        # 環境変数を上書き（config.sh の load_config で設定される変数）
+        export CONFIG_AGENT_TYPE="$workflow_agent_type"
+        log_debug "Applied workflow-specific agent type: $CONFIG_AGENT_TYPE"
+        
+        local workflow_agent_command
+        workflow_agent_command="$(get_workflow_agent_config "$workflow_name" "command")"
+        if [[ -n "$workflow_agent_command" ]]; then
+            export CONFIG_AGENT_COMMAND="$workflow_agent_command"
+            log_debug "Applied workflow-specific agent command: $CONFIG_AGENT_COMMAND"
+        fi
+        
+        local workflow_agent_args
+        workflow_agent_args="$(get_workflow_agent_config "$workflow_name" "args")"
+        if [[ -n "$workflow_agent_args" ]]; then
+            export CONFIG_AGENT_ARGS="$workflow_agent_args"
+            log_debug "Applied workflow-specific agent args: $CONFIG_AGENT_ARGS"
+        fi
+        
+        local workflow_agent_template
+        workflow_agent_template="$(get_workflow_agent_config "$workflow_name" "template")"
+        if [[ -n "$workflow_agent_template" ]]; then
+            export CONFIG_AGENT_TEMPLATE="$workflow_agent_template"
+            log_debug "Applied workflow-specific agent template: $CONFIG_AGENT_TEMPLATE"
+        fi
+        
+        log_info "Applied workflow-specific agent override for workflow: $workflow_name"
+    elif [[ -f "$workflow_identifier" ]]; then
+        # YAMLファイルパスの処理
+        # オーバーライド環境変数をクリア
+        unset AGENT_TYPE_OVERRIDE
+        unset AGENT_COMMAND_OVERRIDE
+        unset AGENT_ARGS_OVERRIDE
+        unset AGENT_TEMPLATE_OVERRIDE
+        
+        # ワークフロー固有の設定を取得
+        local type command args template
+        type=$(get_workflow_agent_property "$workflow_identifier" "type")
+        command=$(get_workflow_agent_property "$workflow_identifier" "command")
+        args=$(get_workflow_agent_property "$workflow_identifier" "args")
+        template=$(get_workflow_agent_property "$workflow_identifier" "template")
+        
+        # 設定が存在する場合のみオーバーライド
+        if [[ -n "$type" ]]; then
+            export AGENT_TYPE_OVERRIDE="$type"
+            log_debug "Workflow agent type override: $type"
+        fi
+        
+        if [[ -n "$command" ]]; then
+            export AGENT_COMMAND_OVERRIDE="$command"
+            log_debug "Workflow agent command override: $command"
+        fi
+        
+        if [[ -n "$args" ]]; then
+            export AGENT_ARGS_OVERRIDE="$args"
+            log_debug "Workflow agent args override: $args"
+        fi
+        
+        if [[ -n "$template" ]]; then
+            export AGENT_TEMPLATE_OVERRIDE="$template"
+            log_debug "Workflow agent template override: $template"
+        fi
+    else
+        log_debug "Skipping agent override for: $workflow_identifier"
         return 0
     fi
-    
-    local workflow_name="${workflow_identifier#config-workflow:}"
-    
-    # workflow-loader.sh の関数を使用してワークフロー固有の設定を取得
-    local workflow_agent_type
-    workflow_agent_type="$(get_workflow_agent_config "$workflow_name" "type")"
-    
-    if [[ -z "$workflow_agent_type" ]]; then
-        # ワークフロー固有のagent設定がない場合は何もしない
-        log_debug "No workflow-specific agent config for workflow '$workflow_name'"
-        return 0
-    fi
-    
-    # 環境変数を上書き（config.sh の load_config で設定される変数）
-    export CONFIG_AGENT_TYPE="$workflow_agent_type"
-    log_debug "Applied workflow-specific agent type: $CONFIG_AGENT_TYPE"
-    
-    local workflow_agent_command
-    workflow_agent_command="$(get_workflow_agent_config "$workflow_name" "command")"
-    if [[ -n "$workflow_agent_command" ]]; then
-        export CONFIG_AGENT_COMMAND="$workflow_agent_command"
-        log_debug "Applied workflow-specific agent command: $CONFIG_AGENT_COMMAND"
-    fi
-    
-    local workflow_agent_args
-    workflow_agent_args="$(get_workflow_agent_config "$workflow_name" "args")"
-    if [[ -n "$workflow_agent_args" ]]; then
-        export CONFIG_AGENT_ARGS="$workflow_agent_args"
-        log_debug "Applied workflow-specific agent args: $CONFIG_AGENT_ARGS"
-    fi
-    
-    local workflow_agent_template
-    workflow_agent_template="$(get_workflow_agent_config "$workflow_name" "template")"
-    if [[ -n "$workflow_agent_template" ]]; then
-        export CONFIG_AGENT_TEMPLATE="$workflow_agent_template"
-        log_debug "Applied workflow-specific agent template: $CONFIG_AGENT_TEMPLATE"
-    fi
-    
-    log_info "Applied workflow-specific agent override for workflow: $workflow_name"
 }
 
 # ======================
