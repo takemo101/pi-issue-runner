@@ -699,6 +699,29 @@ improve:
 - 最新10件のログは保持（日時にかかわらず）
 - 11件目以降のログは、7日以内なら保持、7日より古ければ削除
 
+### auto
+
+`-w auto` で AI がワークフローを自動選択する際の設定
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `provider` | string | (agent設定から推定 or `anthropic`) | AIプロバイダー |
+| `model` | string | `claude-haiku-4-5` | AIモデル（軽量・高速なモデル推奨） |
+
+#### 使用例
+
+```yaml
+auto:
+  provider: anthropic
+  model: claude-haiku-4-5
+```
+
+環境変数でも設定可能:
+```bash
+PI_RUNNER_AUTO_PROVIDER=anthropic ./scripts/run.sh 42 -w auto
+PI_RUNNER_AUTO_MODEL=claude-haiku-4-5 ./scripts/run.sh 42 -w auto
+```
+
 ### workflow
 
 **重要**: `.pi-runner.yaml` の `workflow` セクションは、**`-w` オプションを指定しない場合に使用される「デフォルトワークフロー」**を定義します。

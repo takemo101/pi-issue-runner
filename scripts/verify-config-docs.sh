@@ -108,6 +108,10 @@ check_document_structure() {
         "improve"
         "agents"
         "github"
+        "watcher"
+        "auto"
+        "workflow"
+        "workflows"
     )
 
     for section in "${sections[@]}"; do
