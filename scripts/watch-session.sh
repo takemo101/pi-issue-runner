@@ -478,11 +478,13 @@ setup_output_logging() {
     # pipe-paneでセッション出力をファイルに追記
     # Note: ベースラインキャプチャ後に開始するため、初期出力は含まれない。
     #       初期マーカーチェックはベースラインキャプチャで対応済み。
-    # sed でANSIエスケープシーケンスとCR(\r)を除去してからファイルに書き込む。
+    # ANSIエスケープシーケンスとCR(\r)を除去してからファイルに書き込む。
     # pipe-paneは生のターミナル出力（カラーコード等）を含むため、
     # 除去しないとマーカーの完全一致検出に失敗する（Issue #1210）。
-    # 主要パターン: CSI(\x1b[...m 等のカラーコード、カーソル制御)
-    if tmux pipe-pane -t "$session_name" "sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g; s/\r//g' >> '${log_file}'" 2>/dev/null; then
+    # perlを使用: macOS の sed は不正バイトシーケンスで "illegal byte sequence" エラーになる。
+    # ターミナル出力にはUTF-8として不正なバイトが含まれることがあり、
+    # sed (UTF-8モード) では処理できない。perlはバイナリセーフ。
+    if tmux pipe-pane -t "$session_name" "perl -pe 's/\e\[[0-9;?]*[a-zA-Z]//g; s/\r//g' >> '${log_file}'" 2>/dev/null; then
         log_info "Output logging started: $log_file"
         echo "$log_file"
     else
