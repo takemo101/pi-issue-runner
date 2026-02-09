@@ -545,24 +545,40 @@ check_initial_markers() {
     # Issue #281: 初期化中（10秒待機中）にマーカーが出力された場合の検出
     # Issue #393, #648, #651: コードブロック内のマーカーを誤検出しないよう除外
     # 代替マーカーも検出（AIが語順を間違えるケースに対応）
-    local initial_error_count
-    initial_error_count=$(count_any_markers_outside_codeblock "$baseline_output" "$error_marker" "$ALT_ERROR_MARKER")
-
-    if [[ "$initial_error_count" -gt 0 ]]; then
-        log_warn "Error marker already present at startup (outside codeblock)"
-
-        # エラーメッセージを抽出（マーカー行の次の行）
+    #
+    # Note: ベースライン（capture-pane）ではエラーマーカーをチェックしない。
+    # capture-pane出力にはテンプレート全文（agents/merge.md等のコード例）が含まれ、
+    # ターミナル折り返しによりコードブロック判定が崩れてエラーマーカーを誤検出する。
+    # エラー検出はシグナルファイル（Phase 1）またはpipe-pane（Phase 2）に任せる。
+    #
+    # シグナルファイルによる初期エラーチェック
+    local status_dir
+    status_dir="$(get_status_dir 2>/dev/null)" || true
+    if [[ -n "$status_dir" && -f "${status_dir}/signal-error-${issue_number}" ]]; then
+        log_warn "Error signal file already present at startup"
         local error_message
-        error_message=$(echo "$baseline_output" | grep -A 1 -F "$error_marker" | tail -n 1 | head -c 200) || error_message=""
-        if [[ -z "$error_message" ]]; then
-            error_message=$(echo "$baseline_output" | grep -A 1 -F "$ALT_ERROR_MARKER" | tail -n 1 | head -c 200) || error_message="Unknown error"
-        fi
-
+        error_message=$(cat "${status_dir}/signal-error-${issue_number}" 2>/dev/null | head -c 200) || error_message="Unknown error"
+        rm -f "${status_dir}/signal-error-${issue_number}"
         handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
         log_warn "Error notification sent. Session is still running for manual intervention."
-        # エラーの場合は監視を続行（ユーザーが修正する可能性があるため）
     fi
 
+    # シグナルファイルによる初期完了チェック
+    if [[ -n "$status_dir" && -f "${status_dir}/signal-complete-${issue_number}" ]]; then
+        log_info "Completion signal file already present at startup"
+        rm -f "${status_dir}/signal-complete-${issue_number}"
+        handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"
+        local sig_result=$?
+        if [[ $sig_result -eq 0 ]]; then
+            return 0
+        elif [[ $sig_result -eq 2 ]]; then
+            log_warn "PR merge timeout at startup. Continuing to monitor..."
+        else
+            return 2
+        fi
+    fi
+
+    # capture-pane による完了マーカーチェック（エラーマーカーはチェックしない）
     local initial_complete_count
     initial_complete_count=$(count_any_markers_outside_codeblock "$baseline_output" "$marker" "$ALT_COMPLETE_MARKER")
 
@@ -785,38 +801,26 @@ run_watch_loop() {
 
             # pipe-paneログにマーカーが無い場合、定期的にcapture-paneでもチェック
             # （watcher再起動時に既出力マーカーを拾うため。15ループごと=約30秒間隔）
-            if [[ "$error_count_current" -eq 0 ]] && [[ "$marker_count_current" -eq 0 ]] \
+            # Note: エラーマーカーはcapture-paneではチェックしない。
+            #   capture-pane出力にはテンプレート全文が含まれ、コード例内の
+            #   TASK_ERROR パターンがターミナル折り返しでコードブロック外と誤判定される。
+            #   エラー検出はシグナルファイル（Phase 1）またはpipe-pane（Phase 2）に任せる。
+            if [[ "$marker_count_current" -eq 0 ]] && [[ "$cumulative_complete_count" -eq 0 ]] \
                && [[ $((loop_count % 15)) -eq 0 ]]; then
                 local capture_fallback_output
                 capture_fallback_output=$(get_session_output "$session_name" 500 2>/dev/null) || capture_fallback_output=""
                 if [[ -n "$capture_fallback_output" ]]; then
-                    # エラーマーカーチェック
-                    if [[ "$cumulative_error_count" -eq 0 ]]; then
-                        local capture_error_count
-                        capture_error_count=$(count_any_markers_outside_codeblock "$capture_fallback_output" "$error_marker" "$ALT_ERROR_MARKER")
-                        if [[ "$capture_error_count" -gt 0 ]]; then
-                            log_warn "Error marker found via capture-pane fallback"
-                            cumulative_error_count="$capture_error_count"
-                            local fallback_error_msg
-                            fallback_error_msg=$(_extract_error_message "$capture_fallback_output" "$error_marker" "$ALT_ERROR_MARKER")
-                            handle_error "$session_name" "$issue_number" "$fallback_error_msg" "$auto_attach" "$cleanup_args"
-                            log_warn "Error notification sent. Session is still running for manual intervention."
-                        fi
-                    fi
-                    # 完了マーカーチェック
-                    if [[ "$cumulative_complete_count" -eq 0 ]]; then
-                        local capture_complete_count
-                        capture_complete_count=$(count_any_markers_outside_codeblock "$capture_fallback_output" "$marker" "$ALT_COMPLETE_MARKER")
-                        if [[ "$capture_complete_count" -gt 0 ]]; then
-                            log_info "Completion marker found via capture-pane fallback"
-                            handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"
-                            local fb_result=$?
-                            if [[ $fb_result -eq 0 ]]; then
-                                log_info "Cleanup completed successfully (capture-pane fallback)"
-                                exit 0
-                            elif [[ $fb_result -eq 2 ]]; then
-                                log_warn "PR merge timeout. Continuing to monitor session..."
-                            fi
+                    local capture_complete_count
+                    capture_complete_count=$(count_any_markers_outside_codeblock "$capture_fallback_output" "$marker" "$ALT_COMPLETE_MARKER")
+                    if [[ "$capture_complete_count" -gt 0 ]]; then
+                        log_info "Completion marker found via capture-pane fallback"
+                        handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"
+                        local fb_result=$?
+                        if [[ $fb_result -eq 0 ]]; then
+                            log_info "Cleanup completed successfully (capture-pane fallback)"
+                            exit 0
+                        elif [[ $fb_result -eq 2 ]]; then
+                            log_warn "PR merge timeout. Continuing to monitor session..."
                         fi
                     fi
                 fi
