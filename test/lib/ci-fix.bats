@@ -111,6 +111,199 @@ teardown() {
 }
 
 # ===================
+# mark_pr_as_draft 動作テスト
+# ===================
+
+@test "mark_pr_as_draft calls gh pr ready --undo with correct PR number" {
+    # ghモックを作成（pr ready --undo を記録）
+    local mock_log="$BATS_TEST_TMPDIR/gh_calls.log"
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/gh" << MOCK_EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$mock_log"
+case "\$*" in
+    "pr ready"*"--undo"*)
+        exit 0
+        ;;
+    *)
+        exit 1
+        ;;
+esac
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/gh"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run mark_pr_as_draft 123
+    [ "$status" -eq 0 ]
+    # ghが正しい引数で呼ばれたことを確認
+    grep -q "pr ready 123 --undo" "$mock_log"
+}
+
+@test "mark_pr_as_draft returns 1 when gh pr ready --undo fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/gh"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run mark_pr_as_draft 456
+    [ "$status" -eq 1 ]
+}
+
+@test "mark_pr_as_draft returns 1 when gh CLI is not found" {
+    # ghを見つからなくする（基本コマンドは残す）
+    mkdir -p "$BATS_TEST_TMPDIR/no-gh-bin"
+    ln -sf "$(command -v bash)" "$BATS_TEST_TMPDIR/no-gh-bin/bash"
+    local saved_path="$PATH"
+    export PATH="$BATS_TEST_TMPDIR/no-gh-bin"
+
+    run mark_pr_as_draft 789
+    export PATH="$saved_path"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"gh CLI not found"* ]]
+}
+
+# ===================
+# add_pr_comment 動作テスト
+# ===================
+
+@test "add_pr_comment calls gh pr comment with correct PR number" {
+    local mock_log="$BATS_TEST_TMPDIR/gh_calls.log"
+    local mock_stdin="$BATS_TEST_TMPDIR/gh_stdin.log"
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/gh" << MOCK_EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$mock_log"
+cat > "$mock_stdin"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/gh"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run add_pr_comment 123 "CI fix failed"
+    [ "$status" -eq 0 ]
+    # gh pr comment が正しいPR番号で呼ばれた
+    grep -q "pr comment 123 -F -" "$mock_log"
+    # コメント内容がstdinで渡された
+    grep -q "CI fix failed" "$mock_stdin"
+}
+
+@test "add_pr_comment returns 1 when gh pr comment fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+cat > /dev/null  # stdin を消費
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/gh"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run add_pr_comment 456 "Some comment"
+    [ "$status" -eq 1 ]
+}
+
+@test "add_pr_comment returns 1 when gh CLI is not found" {
+    mkdir -p "$BATS_TEST_TMPDIR/no-gh-bin"
+    ln -sf "$(command -v bash)" "$BATS_TEST_TMPDIR/no-gh-bin/bash"
+    local saved_path="$PATH"
+    export PATH="$BATS_TEST_TMPDIR/no-gh-bin"
+
+    run add_pr_comment 789 "Some comment"
+    export PATH="$saved_path"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"gh CLI not found"* ]]
+}
+
+# ===================
+# escalate_to_manual 動作テスト
+# ===================
+
+@test "escalate_to_manual calls mark_pr_as_draft and add_pr_comment" {
+    local mock_log="$BATS_TEST_TMPDIR/gh_calls.log"
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/gh" << MOCK_EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$mock_log"
+case "\$*" in
+    "pr ready"*"--undo"*)
+        exit 0
+        ;;
+    "pr comment"*)
+        cat > /dev/null  # stdin を消費
+        exit 0
+        ;;
+    *)
+        exit 1
+        ;;
+esac
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/gh"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run escalate_to_manual 42 "Build failed: error[E0308]"
+    [ "$status" -eq 0 ]
+    # mark_pr_as_draft が呼ばれた
+    grep -q "pr ready 42 --undo" "$mock_log"
+    # add_pr_comment が呼ばれた
+    grep -q "pr comment 42 -F -" "$mock_log"
+}
+
+@test "escalate_to_manual includes failure log in comment" {
+    local mock_stdin="$BATS_TEST_TMPDIR/gh_stdin.log"
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/gh" << MOCK_EOF
+#!/usr/bin/env bash
+case "\$*" in
+    "pr ready"*"--undo"*)
+        exit 0
+        ;;
+    "pr comment"*)
+        cat > "$mock_stdin"
+        exit 0
+        ;;
+    *)
+        exit 1
+        ;;
+esac
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/gh"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run escalate_to_manual 42 "test failure: expected 0 got 1"
+    [ "$status" -eq 0 ]
+    # コメントに失敗ログが含まれる
+    grep -q "test failure: expected 0 got 1" "$mock_stdin"
+    # エスカレーションメッセージが含まれる
+    grep -q "エスカレーション" "$mock_stdin"
+}
+
+@test "escalate_to_manual succeeds even with empty failure log" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/gh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+case "$*" in
+    "pr ready"*"--undo"*)
+        exit 0
+        ;;
+    "pr comment"*)
+        cat > /dev/null
+        exit 0
+        ;;
+    *)
+        exit 1
+        ;;
+esac
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/gh"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run escalate_to_manual 42 ""
+    [ "$status" -eq 0 ]
+}
+
+# ===================
 # モジュール依存関係テスト
 # ===================
 
