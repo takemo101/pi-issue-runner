@@ -160,67 +160,91 @@ run_bats_tests() {
         bats_args+=(--jobs "$jobs")
     fi
     
-    # Determine which test files to run
-    local test_files=()
+    # Determine which test directories to run
+    # ディレクトリ単位で順次実行（大量ファイル一括実行のハング回避）
+    local targets=()
     case "$target" in
         lib)
-            test_files=("$TEST_DIR"/lib/*.bats)
+            targets=("lib")
             ;;
         scripts)
-            test_files=("$TEST_DIR"/scripts/*.bats)
+            targets=("scripts")
             ;;
         regression)
-            test_files=("$TEST_DIR"/regression/*.bats)
+            targets=("regression")
             ;;
         skills)
-            test_files=("$TEST_DIR"/skills/**/*.bats)
+            targets=("skills")
             ;;
         *)
-            test_files=("$TEST_DIR"/lib/*.bats "$TEST_DIR"/scripts/*.bats "$TEST_DIR"/regression/*.bats "$TEST_DIR"/skills/**/*.bats)
+            targets=("lib" "scripts" "regression" "skills")
             ;;
     esac
-    
-    # Filter to existing files only
-    local existing_files=()
-    for f in "${test_files[@]}"; do
-        [[ -f "$f" ]] && existing_files+=("$f")
-    done
-    
-    if [[ ${#existing_files[@]} -eq 0 ]]; then
-        echo "No Bats test files found for target: $target"
-        return 1
-    fi
     
     echo "=== Running Bats Tests ==="
     echo ""
     
-    if [[ "$fail_fast" == "true" ]]; then
-        # Run tests one by one for fail-fast
-        for test_file in "${existing_files[@]}"; do
-            echo "Running: $(basename "$test_file")..."
+    local overall_exit=0
+    
+    for dir_target in "${targets[@]}"; do
+        local test_files=()
+        case "$dir_target" in
+            lib)
+                # lib直下 + lib/improve/ のサブディレクトリ
+                for f in "$TEST_DIR"/lib/*.bats; do [[ -f "$f" ]] && test_files+=("$f"); done
+                for f in "$TEST_DIR"/lib/improve/*.bats; do [[ -f "$f" ]] && test_files+=("$f"); done
+                ;;
+            scripts)
+                for f in "$TEST_DIR"/scripts/*.bats; do [[ -f "$f" ]] && test_files+=("$f"); done
+                ;;
+            regression)
+                for f in "$TEST_DIR"/regression/*.bats; do [[ -f "$f" ]] && test_files+=("$f"); done
+                ;;
+            skills)
+                for f in "$TEST_DIR"/skills/**/*.bats; do [[ -f "$f" ]] && test_files+=("$f"); done
+                ;;
+        esac
+        
+        if [[ ${#test_files[@]} -eq 0 ]]; then
+            continue
+        fi
+        
+        echo "--- Running $dir_target tests (${#test_files[@]} files) ---"
+        
+        if [[ "$fail_fast" == "true" ]]; then
+            # Run tests one by one for fail-fast
+            for test_file in "${test_files[@]}"; do
+                echo "Running: $(basename "$test_file")..."
+                if [[ ${#bats_args[@]} -gt 0 ]]; then
+                    if ! bats "${bats_args[@]}" "$test_file"; then
+                        echo ""
+                        echo "Stopping due to --fail-fast"
+                        return 1
+                    fi
+                else
+                    if ! bats "$test_file"; then
+                        echo ""
+                        echo "Stopping due to --fail-fast"
+                        return 1
+                    fi
+                fi
+            done
+        else
             if [[ ${#bats_args[@]} -gt 0 ]]; then
-                if ! bats "${bats_args[@]}" "$test_file"; then
-                    echo ""
-                    echo "Stopping due to --fail-fast"
-                    return 1
+                if ! bats "${bats_args[@]}" "${test_files[@]}"; then
+                    overall_exit=1
                 fi
             else
-                if ! bats "$test_file"; then
-                    echo ""
-                    echo "Stopping due to --fail-fast"
-                    return 1
+                if ! bats "${test_files[@]}"; then
+                    overall_exit=1
                 fi
             fi
-        done
-    else
-        if [[ ${#bats_args[@]} -gt 0 ]]; then
-            bats "${bats_args[@]}" "${existing_files[@]}"
-            return $?
-        else
-            bats "${existing_files[@]}"
-            return $?
         fi
-    fi
+        
+        echo ""
+    done
+    
+    return "$overall_exit"
 }
 
 main() {

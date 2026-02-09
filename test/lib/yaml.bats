@@ -182,6 +182,53 @@ EOF
 }
 
 # ====================
+# yaml_get_bulk テスト
+# ====================
+
+@test "yaml_get_bulk returns multiple values" {
+    result="$(yaml_get_bulk "$TEST_YAML" ".worktree.base_dir" ".pi.command")"
+    [[ "$result" == *".custom-worktrees"* ]]
+    [[ "$result" == *"pi"* ]]
+}
+
+@test "yaml_get_bulk returns null for missing paths" {
+    result="$(yaml_get_bulk "$TEST_YAML" ".missing.key")"
+    [ "$result" = "null" ]
+}
+
+@test "yaml_get_bulk returns empty for missing file" {
+    result="$(yaml_get_bulk "/nonexistent/file.yaml" ".key1" ".key2")"
+    # Should output empty strings for each path
+    [ -z "$result" ]
+}
+
+@test "yaml_get_bulk handles boolean false correctly" {
+    local bool_yaml="${BATS_TEST_TMPDIR}/bool.yaml"
+    cat > "$bool_yaml" << 'BEOF'
+settings:
+  enabled: false
+  count: 5
+BEOF
+    result="$(yaml_get_bulk "$bool_yaml" ".settings.enabled" ".settings.count")"
+    [[ "$result" == *"false"* ]]
+    [[ "$result" == *"5"* ]]
+}
+
+@test "yaml_get_bulk returns correct number of lines" {
+    result="$(yaml_get_bulk "$TEST_YAML" ".worktree.base_dir" ".pi.command" ".missing.key")"
+    line_count=$(echo "$result" | wc -l | tr -d ' ')
+    [ "$line_count" -eq 3 ]
+}
+
+@test "yaml_get_bulk handles empty config file" {
+    local empty_yaml="${BATS_TEST_TMPDIR}/empty.yaml"
+    touch "$empty_yaml"
+    result="$(yaml_get_bulk "$empty_yaml" ".key1" ".key2")"
+    # Empty file should return empty strings
+    [ -z "$result" ]
+}
+
+# ====================
 # yaml_get_array テスト
 # ====================
 

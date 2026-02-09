@@ -168,6 +168,76 @@ yaml_get_keys() {
 }
 
 # ===================
+# バルク取得（複数パス一括）
+# ===================
+
+# YAML から複数パスの値を一括取得（yqを1回だけ呼ぶ）
+# Usage: yaml_get_bulk <file> <path1> <path2> ...
+# Output: 1行ずつ値を出力（nullの場合は空行）
+# Note: yqが利用可能な場合のみバルク最適化。なければ個別フォールバック
+yaml_get_bulk() {
+    local file="$1"
+    shift
+    local paths=("$@")
+    
+    if [[ ! -f "$file" || ${#paths[@]} -eq 0 ]]; then
+        for _ in "${paths[@]}"; do
+            echo ""
+        done
+        return 0
+    fi
+    
+    if check_yq; then
+        _yq_get_bulk "$file" "${paths[@]}"
+    else
+        # フォールバック: 個別取得
+        for path in "${paths[@]}"; do
+            _simple_yaml_get "$file" "$path" ""
+        done
+    fi
+}
+
+# yq バルク取得実装
+_yq_get_bulk() {
+    local file="$1"
+    shift
+    local paths=("$@")
+    
+    _yaml_ensure_cached "$file"
+    
+    # 空コンテンツの場合は全て空行
+    if [[ -z "$_YAML_CACHE_CONTENT" ]]; then
+        for _ in "${paths[@]}"; do
+            echo ""
+        done
+        return 0
+    fi
+    
+    # yqの式を構築: 各pathを文字列にキャストして出力
+    # (path | . tag = "!!str") で null → "null", false → "false" を保持
+    # 各pathが必ず1行出力されるため、行数がpaths数と一致する
+    local yq_expr=""
+    for path in "${paths[@]}"; do
+        if [[ -n "$yq_expr" ]]; then
+            yq_expr="${yq_expr}, "
+        fi
+        yq_expr="${yq_expr}(${path} | . tag = \"!!str\")"
+    done
+    
+    # 単一のyq呼び出しで全パスの値を取得
+    local result
+    result=$(echo "$_YAML_CACHE_CONTENT" | yq -r "${yq_expr}" - 2>/dev/null) || {
+        # yq失敗時はフォールバック
+        for path in "${paths[@]}"; do
+            yaml_get "$file" "$path" ""
+        done
+        return 0
+    }
+    
+    echo "$result"
+}
+
+# ===================
 # yq 実装
 # ===================
 
@@ -179,17 +249,16 @@ _yq_get() {
     
     _yaml_ensure_cached "$file"
     
+    # 単一のyq呼び出しで値を取得
+    # . tag = "!!str" でfalseも文字列として取得し、nullはそのまま
     local value
-    # パスが存在するか確認してから値を取得（falseも正しく取得するため）
-    if echo "$_YAML_CACHE_CONTENT" | yq -e "$path != null" - &>/dev/null; then
-        value=$(echo "$_YAML_CACHE_CONTENT" | yq -r "$path" - 2>/dev/null || echo "")
-        if [[ "$value" != "null" ]]; then
-            echo "$value"
-            return 0
-        fi
-    fi
+    value=$(echo "$_YAML_CACHE_CONTENT" | yq -r "${path} | . tag = \"!!str\"" - 2>/dev/null || echo "null")
     
-    echo "$default"
+    if [[ "$value" != "null" ]]; then
+        echo "$value"
+    else
+        echo "$default"
+    fi
 }
 
 # yq で配列を取得

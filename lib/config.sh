@@ -249,20 +249,37 @@ _build_config_mappings() {
 _build_config_mappings
 
 # Parse simple key-value configurations using mapping table
+# Uses yaml_get_bulk for batch extraction (single yq invocation)
 _parse_simple_configs() {
     local config_file="$1"
-    local yaml_key var_name value
+    
+    # Skip parsing for empty or non-existent files
+    if [[ ! -s "$config_file" ]]; then
+        return 0
+    fi
+    
+    # Build arrays of yaml keys and variable names
+    local yaml_keys=()
+    local var_names=()
+    local yaml_key var_name
     
     for mapping in "${_CONFIG_SIMPLE_MAPPINGS[@]}"; do
         yaml_key="${mapping%%:*}"
         var_name="${mapping##*:}"
-        value="$(yaml_get "$config_file" "$yaml_key" "")"
-        if [[ -n "$value" ]]; then
-            # Use printf -v instead of eval for safer variable assignment
-            # This avoids code injection risks with special characters in values
-            printf -v "$var_name" "%s" "$value"
-        fi
+        yaml_keys+=("$yaml_key")
+        var_names+=("$var_name")
     done
+    
+    # Bulk fetch all values in a single yq call
+    # yaml_get_bulk outputs "null" for missing paths, one line per path
+    local i=0
+    while IFS= read -r value; do
+        if [[ "$value" != "null" && -n "$value" && $i -lt ${#var_names[@]} ]]; then
+            # Use printf -v for safe variable assignment (no eval)
+            printf -v "${var_names[$i]}" "%s" "$value"
+        fi
+        i=$((i + 1))
+    done < <(yaml_get_bulk "$config_file" "${yaml_keys[@]}")
 }
 
 # 設定ファイルをパース（yaml.shを使用）
