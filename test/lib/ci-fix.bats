@@ -584,3 +584,845 @@ EOF
     # testスクリプトがないのでスキップされる
     [[ "$output" != *"Running npm test"* ]]
 }
+
+# ===================
+# Bash言語固有関数テスト
+# ===================
+
+@test "_fix_lint_bash returns 2 (auto-fix not supported)" {
+    run _fix_lint_bash
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"does not support auto-fix"* ]]
+}
+
+@test "_fix_format_bash uses shfmt when available" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/shfmt" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "shfmt executed"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/shfmt"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _fix_format_bash
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"shfmt"* ]]
+}
+
+@test "_fix_format_bash returns 1 when shfmt fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/shfmt" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/shfmt"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _fix_format_bash
+    [ "$status" -eq 1 ]
+}
+
+@test "_fix_format_bash returns 2 when shfmt not found" {
+    # Hide shfmt from PATH
+    mkdir -p "$BATS_TEST_TMPDIR/no-shfmt"
+    for cmd in bash cat grep sed awk; do
+        local cmd_path
+        cmd_path="$(command -v "$cmd" 2>/dev/null || true)"
+        [[ -n "$cmd_path" ]] && ln -sf "$cmd_path" "$BATS_TEST_TMPDIR/no-shfmt/$cmd"
+    done
+    local saved_path="$PATH"
+    export PATH="$BATS_TEST_TMPDIR/no-shfmt"
+
+    run _fix_format_bash
+    export PATH="$saved_path"
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"shfmt not found"* ]]
+}
+
+@test "_validate_bash runs shellcheck when available" {
+    mkdir -p "$BATS_TEST_TMPDIR/bash-proj/scripts" "$BATS_TEST_TMPDIR/bash-proj/lib"
+    touch "$BATS_TEST_TMPDIR/bash-proj/scripts/run.sh" "$BATS_TEST_TMPDIR/bash-proj/lib/log.sh"
+    
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/shellcheck" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "shellcheck OK"
+exit 0
+MOCK_EOF
+    cat > "$BATS_TEST_TMPDIR/mocks/bats" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "bats OK"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/shellcheck" "$BATS_TEST_TMPDIR/mocks/bats"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    cd "$BATS_TEST_TMPDIR/bash-proj"
+    run _validate_bash
+    [ "$status" -eq 0 ]
+}
+
+@test "_validate_bash returns 1 when shellcheck fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/bash-proj2/scripts" "$BATS_TEST_TMPDIR/bash-proj2/lib"
+    touch "$BATS_TEST_TMPDIR/bash-proj2/scripts/run.sh" "$BATS_TEST_TMPDIR/bash-proj2/lib/log.sh"
+    
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/shellcheck" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "SC2086: Double quote to prevent globbing" >&2
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/shellcheck"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    cd "$BATS_TEST_TMPDIR/bash-proj2"
+    run _validate_bash
+    [ "$status" -eq 1 ]
+}
+
+@test "_validate_bash returns 1 when bats fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/bash-proj3/scripts" "$BATS_TEST_TMPDIR/bash-proj3/lib"
+    touch "$BATS_TEST_TMPDIR/bash-proj3/scripts/run.sh" "$BATS_TEST_TMPDIR/bash-proj3/lib/log.sh"
+    
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/shellcheck" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 0
+MOCK_EOF
+    cat > "$BATS_TEST_TMPDIR/mocks/bats" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "1 test failed"
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/shellcheck" "$BATS_TEST_TMPDIR/mocks/bats"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    cd "$BATS_TEST_TMPDIR/bash-proj3"
+    run _validate_bash
+    [ "$status" -eq 1 ]
+}
+
+# ===================
+# Go言語固有関数テスト
+# ===================
+
+@test "_fix_lint_go uses golangci-lint when available" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/golangci-lint" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "golangci-lint executed with: $*"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/golangci-lint"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _fix_lint_go
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"golangci-lint"* ]]
+}
+
+@test "_fix_lint_go returns 1 when golangci-lint fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/golangci-lint" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/golangci-lint"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _fix_lint_go
+    [ "$status" -eq 1 ]
+}
+
+@test "_fix_lint_go returns 2 when golangci-lint not found" {
+    mkdir -p "$BATS_TEST_TMPDIR/no-golangci"
+    for cmd in bash cat grep sed awk; do
+        local cmd_path
+        cmd_path="$(command -v "$cmd" 2>/dev/null || true)"
+        [[ -n "$cmd_path" ]] && ln -sf "$cmd_path" "$BATS_TEST_TMPDIR/no-golangci/$cmd"
+    done
+    local saved_path="$PATH"
+    export PATH="$BATS_TEST_TMPDIR/no-golangci"
+
+    run _fix_lint_go
+    export PATH="$saved_path"
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"golangci-lint not found"* ]]
+}
+
+@test "_fix_format_go uses gofmt when available" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/gofmt" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "gofmt executed"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/gofmt"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _fix_format_go
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"gofmt"* ]]
+}
+
+@test "_fix_format_go returns 1 when gofmt fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/gofmt" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/gofmt"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _fix_format_go
+    [ "$status" -eq 1 ]
+}
+
+@test "_fix_format_go returns 1 when gofmt not found" {
+    mkdir -p "$BATS_TEST_TMPDIR/no-gofmt"
+    for cmd in bash cat grep sed awk; do
+        local cmd_path
+        cmd_path="$(command -v "$cmd" 2>/dev/null || true)"
+        [[ -n "$cmd_path" ]] && ln -sf "$cmd_path" "$BATS_TEST_TMPDIR/no-gofmt/$cmd"
+    done
+    local saved_path="$PATH"
+    export PATH="$BATS_TEST_TMPDIR/no-gofmt"
+
+    run _fix_format_go
+    export PATH="$saved_path"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"gofmt not found"* ]]
+}
+
+@test "_validate_go runs go vet and go test" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/go" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "go $* executed"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/go"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _validate_go
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"go vet"* ]]
+    [[ "$output" == *"go test"* ]]
+}
+
+@test "_validate_go returns 1 when go vet fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/go" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "vet" ]]; then
+    exit 1
+fi
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/go"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _validate_go
+    [ "$status" -eq 1 ]
+}
+
+@test "_validate_go returns 1 when go test fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/go" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "test" ]]; then
+    exit 1
+fi
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/go"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _validate_go
+    [ "$status" -eq 1 ]
+}
+
+@test "_validate_go skips when go not found" {
+    mkdir -p "$BATS_TEST_TMPDIR/no-go"
+    for cmd in bash cat grep sed awk; do
+        local cmd_path
+        cmd_path="$(command -v "$cmd" 2>/dev/null || true)"
+        [[ -n "$cmd_path" ]] && ln -sf "$cmd_path" "$BATS_TEST_TMPDIR/no-go/$cmd"
+    done
+    local saved_path="$PATH"
+    export PATH="$BATS_TEST_TMPDIR/no-go"
+
+    run _validate_go
+    export PATH="$saved_path"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"go not found"* ]]
+}
+
+# ===================
+# Node言語固有関数テスト
+# ===================
+
+@test "_fix_lint_node uses npm run lint:fix when available" {
+    mkdir -p "$BATS_TEST_TMPDIR/node-proj"
+    cat > "$BATS_TEST_TMPDIR/node-proj/package.json" << 'EOF'
+{ "scripts": { "lint:fix": "eslint --fix ." } }
+EOF
+    
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/npm" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "npm $* executed"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/npm"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    cd "$BATS_TEST_TMPDIR/node-proj"
+    run _fix_lint_node
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"lint:fix"* ]] || [[ "$output" == *"Lint fix applied"* ]]
+}
+
+@test "_fix_lint_node returns 1 when npm run lint:fix fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/node-proj2"
+    cat > "$BATS_TEST_TMPDIR/node-proj2/package.json" << 'EOF'
+{ "scripts": { "lint:fix": "eslint --fix ." } }
+EOF
+    
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/npm" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/npm"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    cd "$BATS_TEST_TMPDIR/node-proj2"
+    run _fix_lint_node
+    [ "$status" -eq 1 ]
+}
+
+@test "_fix_lint_node falls back to npx eslint --fix" {
+    mkdir -p "$BATS_TEST_TMPDIR/node-proj3"
+    # No lint:fix in package.json
+    cat > "$BATS_TEST_TMPDIR/node-proj3/package.json" << 'EOF'
+{ "scripts": {} }
+EOF
+    
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/npx" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "npx $* executed"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/npx"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    cd "$BATS_TEST_TMPDIR/node-proj3"
+    run _fix_lint_node
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"eslint"* ]] || [[ "$output" == *"ESLint fix applied"* ]]
+}
+
+@test "_fix_format_node uses npm run format when available" {
+    mkdir -p "$BATS_TEST_TMPDIR/node-fmt"
+    cat > "$BATS_TEST_TMPDIR/node-fmt/package.json" << 'EOF'
+{ "scripts": { "format": "prettier --write ." } }
+EOF
+    
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/npm" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "npm $* executed"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/npm"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    cd "$BATS_TEST_TMPDIR/node-fmt"
+    run _fix_format_node
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Format fix applied"* ]] || [[ "$output" == *"format"* ]]
+}
+
+@test "_fix_format_node returns 1 when npm run format fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/node-fmt2"
+    cat > "$BATS_TEST_TMPDIR/node-fmt2/package.json" << 'EOF'
+{ "scripts": { "format": "prettier --write ." } }
+EOF
+    
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/npm" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/npm"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    cd "$BATS_TEST_TMPDIR/node-fmt2"
+    run _fix_format_node
+    [ "$status" -eq 1 ]
+}
+
+@test "_fix_format_node falls back to npx prettier --write" {
+    mkdir -p "$BATS_TEST_TMPDIR/node-fmt3"
+    cat > "$BATS_TEST_TMPDIR/node-fmt3/package.json" << 'EOF'
+{ "scripts": {} }
+EOF
+    
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/npx" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "npx $* executed"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/npx"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    cd "$BATS_TEST_TMPDIR/node-fmt3"
+    run _fix_format_node
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"prettier"* ]] || [[ "$output" == *"Prettier fix applied"* ]]
+}
+
+@test "_validate_node runs lint and test scripts" {
+    mkdir -p "$BATS_TEST_TMPDIR/node-val"
+    cat > "$BATS_TEST_TMPDIR/node-val/package.json" << 'EOF'
+{ "name": "test", "scripts": { "lint": "eslint .", "test": "jest" } }
+EOF
+    
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/npm" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "npm $* OK"
+exit 0
+MOCK_EOF
+    # jqモック: jq -e '.scripts.lint' のチェックを通す
+    cat > "$BATS_TEST_TMPDIR/mocks/jq" << 'MOCK_EOF'
+#!/usr/bin/env bash
+# jq -e '.scripts.lint' or '.scripts.test' - both exist
+if [[ "$2" == ".scripts.lint" ]] || [[ "$2" == ".scripts.test" ]]; then
+    echo '"found"'
+    exit 0
+fi
+# Default: delegate to real jq if available
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/npm" "$BATS_TEST_TMPDIR/mocks/jq"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    cd "$BATS_TEST_TMPDIR/node-val"
+    run _validate_node
+    [ "$status" -eq 0 ]
+}
+
+@test "_validate_node returns 1 when npm run lint fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/node-val2"
+    cat > "$BATS_TEST_TMPDIR/node-val2/package.json" << 'EOF'
+{ "name": "test", "scripts": { "lint": "eslint ." } }
+EOF
+    
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/npm" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$*" == *"lint"* ]]; then
+    exit 1
+fi
+exit 0
+MOCK_EOF
+    cat > "$BATS_TEST_TMPDIR/mocks/jq" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$2" == ".scripts.lint" ]]; then
+    echo '"found"'
+    exit 0
+fi
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/npm" "$BATS_TEST_TMPDIR/mocks/jq"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    cd "$BATS_TEST_TMPDIR/node-val2"
+    run _validate_node
+    [ "$status" -eq 1 ]
+}
+
+@test "_validate_node returns 1 when npm test fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/node-val3"
+    cat > "$BATS_TEST_TMPDIR/node-val3/package.json" << 'EOF'
+{ "name": "test", "scripts": { "test": "jest" } }
+EOF
+    
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/npm" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$*" == *"test"* ]]; then
+    exit 1
+fi
+exit 0
+MOCK_EOF
+    cat > "$BATS_TEST_TMPDIR/mocks/jq" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$2" == ".scripts.test" ]]; then
+    echo '"found"'
+    exit 0
+fi
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/npm" "$BATS_TEST_TMPDIR/mocks/jq"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    cd "$BATS_TEST_TMPDIR/node-val3"
+    run _validate_node
+    [ "$status" -eq 1 ]
+}
+
+# ===================
+# Python言語固有関数テスト
+# ===================
+
+@test "_fix_lint_python uses autopep8 when available" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/autopep8" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "autopep8 executed"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/autopep8"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _fix_lint_python
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"autopep8"* ]]
+}
+
+@test "_fix_lint_python returns 1 when autopep8 fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/autopep8" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/autopep8"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _fix_lint_python
+    [ "$status" -eq 1 ]
+}
+
+@test "_fix_lint_python returns 2 when autopep8 not found" {
+    mkdir -p "$BATS_TEST_TMPDIR/no-autopep8"
+    for cmd in bash cat grep sed awk; do
+        local cmd_path
+        cmd_path="$(command -v "$cmd" 2>/dev/null || true)"
+        [[ -n "$cmd_path" ]] && ln -sf "$cmd_path" "$BATS_TEST_TMPDIR/no-autopep8/$cmd"
+    done
+    local saved_path="$PATH"
+    export PATH="$BATS_TEST_TMPDIR/no-autopep8"
+
+    run _fix_lint_python
+    export PATH="$saved_path"
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"autopep8 not found"* ]]
+}
+
+@test "_fix_format_python uses black when available" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/black" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "black executed"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/black"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _fix_format_python
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"black"* ]]
+}
+
+@test "_fix_format_python returns 1 when black fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/black" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/black"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _fix_format_python
+    [ "$status" -eq 1 ]
+}
+
+@test "_fix_format_python falls back to autopep8 when black not found" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    # No black mock, but provide autopep8
+    cat > "$BATS_TEST_TMPDIR/mocks/autopep8" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "autopep8 executed"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/autopep8"
+    # Ensure no black in this mock dir, use restricted PATH
+    mkdir -p "$BATS_TEST_TMPDIR/no-black"
+    for cmd in bash cat grep sed awk; do
+        local cmd_path
+        cmd_path="$(command -v "$cmd" 2>/dev/null || true)"
+        [[ -n "$cmd_path" ]] && ln -sf "$cmd_path" "$BATS_TEST_TMPDIR/no-black/$cmd"
+    done
+    ln -sf "$BATS_TEST_TMPDIR/mocks/autopep8" "$BATS_TEST_TMPDIR/no-black/autopep8"
+    local saved_path="$PATH"
+    export PATH="$BATS_TEST_TMPDIR/no-black"
+
+    run _fix_format_python
+    export PATH="$saved_path"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"autopep8"* ]]
+}
+
+@test "_fix_format_python returns 2 when no formatter found" {
+    mkdir -p "$BATS_TEST_TMPDIR/no-py-fmt"
+    for cmd in bash cat grep sed awk; do
+        local cmd_path
+        cmd_path="$(command -v "$cmd" 2>/dev/null || true)"
+        [[ -n "$cmd_path" ]] && ln -sf "$cmd_path" "$BATS_TEST_TMPDIR/no-py-fmt/$cmd"
+    done
+    local saved_path="$PATH"
+    export PATH="$BATS_TEST_TMPDIR/no-py-fmt"
+
+    run _fix_format_python
+    export PATH="$saved_path"
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"No formatter found"* ]]
+}
+
+@test "_validate_python runs flake8 and pytest" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/flake8" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "flake8 OK"
+exit 0
+MOCK_EOF
+    cat > "$BATS_TEST_TMPDIR/mocks/pytest" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "pytest OK"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/flake8" "$BATS_TEST_TMPDIR/mocks/pytest"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _validate_python
+    [ "$status" -eq 0 ]
+}
+
+@test "_validate_python returns 1 when flake8 fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/flake8" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "E501 line too long" >&2
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/flake8"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _validate_python
+    [ "$status" -eq 1 ]
+}
+
+@test "_validate_python returns 1 when pytest fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/flake8" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 0
+MOCK_EOF
+    cat > "$BATS_TEST_TMPDIR/mocks/pytest" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "FAILED"
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/flake8" "$BATS_TEST_TMPDIR/mocks/pytest"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _validate_python
+    [ "$status" -eq 1 ]
+}
+
+# ===================
+# Rust言語固有関数テスト
+# ===================
+
+@test "_fix_lint_rust uses cargo clippy --fix" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/cargo" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "cargo $* executed"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/cargo"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _fix_lint_rust
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Clippy fix applied"* ]]
+}
+
+@test "_fix_lint_rust returns 1 when cargo clippy --fix fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/cargo" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/cargo"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _fix_lint_rust
+    [ "$status" -eq 1 ]
+}
+
+@test "_fix_lint_rust returns 1 when cargo not found" {
+    mkdir -p "$BATS_TEST_TMPDIR/no-cargo"
+    for cmd in bash cat grep sed awk; do
+        local cmd_path
+        cmd_path="$(command -v "$cmd" 2>/dev/null || true)"
+        [[ -n "$cmd_path" ]] && ln -sf "$cmd_path" "$BATS_TEST_TMPDIR/no-cargo/$cmd"
+    done
+    local saved_path="$PATH"
+    export PATH="$BATS_TEST_TMPDIR/no-cargo"
+
+    run _fix_lint_rust
+    export PATH="$saved_path"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"cargo not found"* ]]
+}
+
+@test "_fix_format_rust uses cargo fmt" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/cargo" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "cargo $* executed"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/cargo"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _fix_format_rust
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Format fix applied"* ]]
+}
+
+@test "_fix_format_rust returns 1 when cargo fmt fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/cargo" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 1
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/cargo"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _fix_format_rust
+    [ "$status" -eq 1 ]
+}
+
+@test "_fix_format_rust returns 1 when cargo not found" {
+    mkdir -p "$BATS_TEST_TMPDIR/no-cargo2"
+    for cmd in bash cat grep sed awk; do
+        local cmd_path
+        cmd_path="$(command -v "$cmd" 2>/dev/null || true)"
+        [[ -n "$cmd_path" ]] && ln -sf "$cmd_path" "$BATS_TEST_TMPDIR/no-cargo2/$cmd"
+    done
+    local saved_path="$PATH"
+    export PATH="$BATS_TEST_TMPDIR/no-cargo2"
+
+    run _fix_format_rust
+    export PATH="$saved_path"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"cargo not found"* ]]
+}
+
+@test "_validate_rust runs clippy and tests" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/cargo" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "cargo $* OK"
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/cargo"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _validate_rust
+    [ "$status" -eq 0 ]
+}
+
+@test "_validate_rust returns 1 when clippy fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/cargo" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "clippy" ]]; then
+    exit 1
+fi
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/cargo"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _validate_rust
+    [ "$status" -eq 1 ]
+}
+
+@test "_validate_rust returns 1 when cargo test fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/cargo" << 'MOCK_EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "test" ]]; then
+    exit 1
+fi
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/cargo"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run _validate_rust
+    [ "$status" -eq 1 ]
+}
+
+@test "_validate_rust skips when cargo not found" {
+    mkdir -p "$BATS_TEST_TMPDIR/no-cargo3"
+    for cmd in bash cat grep sed awk; do
+        local cmd_path
+        cmd_path="$(command -v "$cmd" 2>/dev/null || true)"
+        [[ -n "$cmd_path" ]] && ln -sf "$cmd_path" "$BATS_TEST_TMPDIR/no-cargo3/$cmd"
+    done
+    local saved_path="$PATH"
+    export PATH="$BATS_TEST_TMPDIR/no-cargo3"
+
+    run _validate_rust
+    export PATH="$saved_path"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"cargo not found"* ]]
+}
+
+# ===================
+# run_local_validation with mocked commands
+# ===================
+
+@test "run_local_validation dispatches to correct language validator" {
+    # Create a bash project
+    mkdir -p "$BATS_TEST_TMPDIR/rlv-bash/scripts" "$BATS_TEST_TMPDIR/rlv-bash/lib"
+    touch "$BATS_TEST_TMPDIR/rlv-bash/test.bats"
+    touch "$BATS_TEST_TMPDIR/rlv-bash/scripts/run.sh" "$BATS_TEST_TMPDIR/rlv-bash/lib/log.sh"
+    
+    mkdir -p "$BATS_TEST_TMPDIR/mocks"
+    cat > "$BATS_TEST_TMPDIR/mocks/shellcheck" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 0
+MOCK_EOF
+    cat > "$BATS_TEST_TMPDIR/mocks/bats" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 0
+MOCK_EOF
+    chmod +x "$BATS_TEST_TMPDIR/mocks/shellcheck" "$BATS_TEST_TMPDIR/mocks/bats"
+    export PATH="$BATS_TEST_TMPDIR/mocks:$PATH"
+
+    run run_local_validation "$BATS_TEST_TMPDIR/rlv-bash"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"bash"* ]]
+}
