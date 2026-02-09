@@ -5,6 +5,35 @@ Pi Issue Runnerの主要な変更履歴です。
 ## [Unreleased]
 
 ### Added
+- **マルチプレクサ抽象化** (`lib/multiplexer.sh`, `lib/multiplexer-tmux.sh`, `lib/multiplexer-zellij.sh`, `docs/multiplexer-integration.md`)
+  - tmux/Zellijの統一インターフェース
+  - `multiplexer.type` 設定で切り替え可能
+  - 後方互換性のため `lib/tmux.sh` もラッパーとして保持
+- **ワークフロー自動選択** (`lib/workflow-selector.sh`)
+  - `-w auto` オプションでAIがIssue内容に基づいてワークフローを自動選択
+  - `.pi-runner.yaml` の `auto` セクションでプロバイダー/モデル設定
+- **カスタマイズ可能なレビュープロンプト** (`agents/improve-review.md`)
+  - `improve.review_prompt_file` 設定で `improve.sh` のレビュープロンプトを指定可能
+  - デフォルトは `agents/improve-review.md`
+- **CI修正サブモジュール化** (`lib/ci-fix/`)
+  - `bash.sh`, `common.sh`, `detect.sh`, `escalation.sh` - 共通機能
+  - `go.sh`, `node.sh`, `python.sh`, `rust.sh` - 言語固有の修正・検証ロジック
+  - プロジェクトタイプの自動検出
+- **改善処理のモジュール化** (`lib/improve/`)
+  - `args.sh` - 引数解析
+  - `deps.sh` - 依存関係チェック
+  - `env.sh` - 環境セットアップ
+  - `execution.sh` - 実行・監視フェーズ
+  - `review.sh` - レビューフェーズ
+- **追加スクリプト**
+  - `scripts/dashboard.sh` - ダッシュボード表示
+  - `scripts/mux-all.sh` - 全セッション表示（マルチプレクサ対応）
+  - `scripts/next.sh` - 次のタスク取得
+  - `scripts/restart-watcher.sh` - Watcher再起動
+  - `scripts/sweep.sh` - 全セッションのマーカーチェック・cleanup
+  - `scripts/generate-config.sh` - プロジェクト解析・設定生成
+  - `scripts/context.sh` - コンテキスト管理
+  - `scripts/ci-fix-helper.sh` - CI修正ヘルパー（`lib/ci-fix.sh` のラッパー）
 - **CI自動修正機能** (`lib/ci-fix.sh`, `lib/ci-monitor.sh`, `lib/ci-retry.sh`, `lib/ci-classifier.sh`)
   - CI失敗の自動検出と分類
   - 自動修正リトライ管理
@@ -17,6 +46,10 @@ Pi Issue Runnerの主要な変更履歴です。
   - `scripts/nudge.sh` - セッションへメッセージ送信
 - `docs/overview.md` - プロジェクトの設計思想と価値を文書化
 - `docs/CHANGELOG.md` - 変更履歴の追跡
+
+### Changed
+- **設定キー移行** `improve_logs` → `improve.logs`（後方互換性あり）
+- **マーカー検出の改善** pipe-pane + grep方式に変更し、全出力を記録・検索。代替パターンも検出
 
 ## [2026-01-31] - Hook機能とセキュリティ強化
 
