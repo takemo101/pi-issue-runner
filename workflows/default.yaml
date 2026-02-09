@@ -1,15 +1,16 @@
 # Default workflow for GitHub issue processing
 # Template variables: {{issue_number}}, {{issue_title}}, {{branch_name}}, {{worktree_path}}
 name: default
-description: 完全なワークフロー（計画・実装・レビュー・マージ）
+description: 標準ワークフロー（計画・実装・テスト・レビュー・マージ）
 steps:
   - plan
   - implement
+  - test
   - review
   - merge
 context: |
   ## ワークフローの方針
   - 計画を立ててから実装を行う
-  - 実装後は必ずレビューを実施
-  - テストを追加・更新する
+  - テストは全テストスイートを実行し、既存機能の破壊がないことを確認する
+  - レビューでは変更の波及影響を重点的に確認する
   - コミットメッセージは明確に記述する
