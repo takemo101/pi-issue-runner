@@ -769,8 +769,6 @@ run_watch_loop() {
             file_error_count=$(_grep_marker_count_in_file "$output_log" "$error_marker" "$ALT_ERROR_MARKER")
             file_complete_count=$(_grep_marker_count_in_file "$output_log" "$marker" "$ALT_COMPLETE_MARKER")
 
-            # ベースラインのカウントを加算（pipe-paneログはwatcher開始後のみ記録）
-            error_count_current=$((cumulative_error_count - cumulative_error_count + file_error_count))
             # ベースラインにあったカウントは check_initial_markers で処理済みなので
             # ファイル内のカウントがそのまま新規検出数
             error_count_current=$file_error_count
