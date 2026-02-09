@@ -401,8 +401,10 @@ find_orphaned_statuses() {
         issue_number="$(basename "$status_file" .json)"
         
         # 対応するworktreeが存在するか確認
+        # find_worktree_by_issue() と同じパターンで検索
+        # issue-42 と issue-42-fix-bug の両方にマッチし、issue-421 には誤マッチしない
         local has_worktree=false
-        for dir in "$worktree_base"/issue-"${issue_number}"-*; do
+        for dir in "$worktree_base"/issue-"${issue_number}"-* "$worktree_base"/issue-"${issue_number}"; do
             if [[ -d "$dir" ]]; then
                 has_worktree=true
                 break
