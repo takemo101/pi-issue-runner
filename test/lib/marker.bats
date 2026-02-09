@@ -220,3 +220,46 @@ console.log(x);
     result=$(count_markers_outside_codeblock "$output" "[**MARKER**(42)]")
     [ "$result" -eq 1 ]
 }
+
+# count_any_markers_outside_codeblock tests
+
+@test "count_any_markers_outside_codeblock counts single marker" {
+    local output="###TASK_COMPLETE_42###
+some text"
+    local result
+    result=$(count_any_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 1 ]
+}
+
+@test "count_any_markers_outside_codeblock counts multiple marker patterns" {
+    local output="###COMPLETE_TASK_42###
+some text"
+    local result
+    result=$(count_any_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###" "###COMPLETE_TASK_42###")
+    [ "$result" -eq 1 ]
+}
+
+@test "count_any_markers_outside_codeblock sums counts from both patterns" {
+    local output="###TASK_COMPLETE_42###
+some text
+###COMPLETE_TASK_42###"
+    local result
+    result=$(count_any_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###" "###COMPLETE_TASK_42###")
+    [ "$result" -eq 2 ]
+}
+
+@test "count_any_markers_outside_codeblock returns 0 when no match" {
+    local output="some text without markers"
+    local result
+    result=$(count_any_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###" "###COMPLETE_TASK_42###")
+    [ "$result" -eq 0 ]
+}
+
+@test "count_any_markers_outside_codeblock ignores markers in code blocks" {
+    local output="\`\`\`
+###COMPLETE_TASK_42###
+\`\`\`"
+    local result
+    result=$(count_any_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###" "###COMPLETE_TASK_42###")
+    [ "$result" -eq 0 ]
+}

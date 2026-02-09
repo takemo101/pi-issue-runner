@@ -147,6 +147,12 @@ setup_watch_environment() {
     # エラーマーカーを生成
     # shellcheck disable=SC2034  # Used via nameref
     error_marker_ref="###TASK_ERROR_${issue_number_ref}###"
+    
+    # AIが語順を間違えるケースに対応する代替マーカーをグローバルに設定
+    # e.g., ###COMPLETE_TASK_1123### (TASK_COMPLETE の逆)
+    # e.g., ###ERROR_TASK_1123### (TASK_ERROR の逆)
+    ALT_COMPLETE_MARKER="###COMPLETE_TASK_${issue_number_ref}###"
+    ALT_ERROR_MARKER="###ERROR_TASK_${issue_number_ref}###"
 }
 
 # Check PR merge status with retry logic
@@ -474,15 +480,19 @@ check_initial_markers() {
 
     # Issue #281: 初期化中（10秒待機中）にマーカーが出力された場合の検出
     # Issue #393, #648, #651: コードブロック内のマーカーを誤検出しないよう除外
+    # 代替マーカーも検出（AIが語順を間違えるケースに対応）
     local initial_error_count
-    initial_error_count=$(count_markers_outside_codeblock "$baseline_output" "$error_marker")
+    initial_error_count=$(count_any_markers_outside_codeblock "$baseline_output" "$error_marker" "$ALT_ERROR_MARKER")
 
     if [[ "$initial_error_count" -gt 0 ]]; then
         log_warn "Error marker already present at startup (outside codeblock)"
 
         # エラーメッセージを抽出（マーカー行の次の行）
         local error_message
-        error_message=$(echo "$baseline_output" | grep -A 1 -F "$error_marker" | tail -n 1 | head -c 200) || error_message="Unknown error"
+        error_message=$(echo "$baseline_output" | grep -A 1 -F "$error_marker" | tail -n 1 | head -c 200) || error_message=""
+        if [[ -z "$error_message" ]]; then
+            error_message=$(echo "$baseline_output" | grep -A 1 -F "$ALT_ERROR_MARKER" | tail -n 1 | head -c 200) || error_message="Unknown error"
+        fi
 
         handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
         log_warn "Error notification sent. Session is still running for manual intervention."
@@ -490,7 +500,7 @@ check_initial_markers() {
     fi
 
     local initial_complete_count
-    initial_complete_count=$(count_markers_outside_codeblock "$baseline_output" "$marker")
+    initial_complete_count=$(count_any_markers_outside_codeblock "$baseline_output" "$marker" "$ALT_COMPLETE_MARKER")
 
     if [[ "$initial_complete_count" -gt 0 ]]; then
         log_info "Completion marker already present at startup (outside codeblock)"
@@ -543,10 +553,11 @@ run_watch_loop() {
 
         # エラーマーカー検出（完了マーカーより先にチェック）
         # Issue #393, #648, #651: コードブロック内のマーカーを誤検出しないよう除外
+        # 代替マーカーも検出（AIが語順を間違えるケースに対応）
         local error_count_baseline
         local error_count_current
-        error_count_baseline=$(count_markers_outside_codeblock "$baseline_output" "$error_marker")
-        error_count_current=$(count_markers_outside_codeblock "$output" "$error_marker")
+        error_count_baseline=$(count_any_markers_outside_codeblock "$baseline_output" "$error_marker" "$ALT_ERROR_MARKER")
+        error_count_current=$(count_any_markers_outside_codeblock "$output" "$error_marker" "$ALT_ERROR_MARKER")
 
         if [[ "$error_count_current" -gt "$error_count_baseline" ]]; then
             log_warn "Error marker detected outside codeblock! (baseline: $error_count_baseline, current: $error_count_current)"
@@ -565,10 +576,11 @@ run_watch_loop() {
 
         # 完了マーカー検出
         # Issue #393, #648, #651: コードブロック内のマーカーを誤検出しないよう除外
+        # 代替マーカーも検出（AIが語順を間違えるケースに対応）
         local marker_count_baseline
         local marker_count_current
-        marker_count_baseline=$(count_markers_outside_codeblock "$baseline_output" "$marker")
-        marker_count_current=$(count_markers_outside_codeblock "$output" "$marker")
+        marker_count_baseline=$(count_any_markers_outside_codeblock "$baseline_output" "$marker" "$ALT_COMPLETE_MARKER")
+        marker_count_current=$(count_any_markers_outside_codeblock "$output" "$marker" "$ALT_COMPLETE_MARKER")
 
         if [[ "$marker_count_current" -gt "$marker_count_baseline" ]]; then
             log_info "Completion marker detected outside codeblock! (baseline: $marker_count_baseline, current: $marker_count_current)"
@@ -611,7 +623,9 @@ main() {
 
     log_info "Watching session: $session_name"
     log_info "Completion marker: $marker"
+    log_info "Alt completion marker: $ALT_COMPLETE_MARKER"
     log_info "Error marker: $error_marker"
+    log_info "Alt error marker: $ALT_ERROR_MARKER"
     log_info "Check interval: ${interval}s"
     log_info "Auto-attach on error: $auto_attach"
 

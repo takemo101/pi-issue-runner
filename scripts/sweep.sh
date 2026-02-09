@@ -115,21 +115,23 @@ check_session_markers() {
         return
     fi
     
-    # COMPLETEマーカーをチェック
+    # COMPLETEマーカーをチェック（代替パターンも検出：AIが語順を間違えるケースに対応）
     local complete_marker="###TASK_COMPLETE_${issue_number}###"
+    local alt_complete_marker="###COMPLETE_TASK_${issue_number}###"
     local complete_count
-    complete_count=$(count_markers_outside_codeblock "$output" "$complete_marker")
+    complete_count=$(count_any_markers_outside_codeblock "$output" "$complete_marker" "$alt_complete_marker")
     
     if [[ "$complete_count" -gt 0 ]]; then
         echo "complete"
         return
     fi
     
-    # ERRORマーカーをチェック（オプション）
+    # ERRORマーカーをチェック（オプション）（代替パターンも検出）
     if [[ "$check_errors" == "true" ]]; then
         local error_marker="###TASK_ERROR_${issue_number}###"
+        local alt_error_marker="###ERROR_TASK_${issue_number}###"
         local error_count
-        error_count=$(count_markers_outside_codeblock "$output" "$error_marker")
+        error_count=$(count_any_markers_outside_codeblock "$output" "$error_marker" "$alt_error_marker")
         
         if [[ "$error_count" -gt 0 ]]; then
             echo "error"

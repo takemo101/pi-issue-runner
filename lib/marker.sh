@@ -49,3 +49,21 @@ count_markers_outside_codeblock() {
     
     echo "$count"
 }
+
+# 複数マーカーのいずれかにマッチするコードブロック外の出現数を合計カウント
+# Usage: count_any_markers_outside_codeblock <output> <marker1> [marker2] [marker3] ...
+# Returns: コードブロック外のマーカー合計数
+count_any_markers_outside_codeblock() {
+    local output="$1"
+    shift
+    local markers=("$@")
+    local total=0
+    
+    for marker in "${markers[@]}"; do
+        local count
+        count=$(count_markers_outside_codeblock "$output" "$marker")
+        total=$((total + count))
+    done
+    
+    echo "$total"
+}
