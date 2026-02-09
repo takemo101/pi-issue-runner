@@ -125,6 +125,142 @@ failures:
     [ "$output" = "build" ]
 }
 
+# ===================
+# Bats テスト失敗パターン
+# ===================
+
+@test "classify_ci_failure detects Bats 'not ok' failures" {
+    local log="not ok 5 get_config returns default value"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "test" ]
+}
+
+@test "classify_ci_failure detects Bats summary failures" {
+    local log="49 tests, 1 failure"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "test" ]
+}
+
+@test "classify_ci_failure detects Bats plural failures" {
+    local log="10 tests, 3 failures"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "test" ]
+}
+
+# ===================
+# Go テスト失敗パターン
+# ===================
+
+@test "classify_ci_failure detects Go FAIL prefix" {
+    local log="--- FAIL: TestExample (0.00s)"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "test" ]
+}
+
+@test "classify_ci_failure detects Go FAIL tab pattern" {
+    local log=$'FAIL\texample.com/pkg\t0.005s'
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "test" ]
+}
+
+# ===================
+# Node/Jest テスト失敗パターン
+# ===================
+
+@test "classify_ci_failure detects Jest test failures" {
+    local log="Tests: 3 failed, 10 passed"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "test" ]
+}
+
+# ===================
+# ESLint パターン
+# ===================
+
+@test "classify_ci_failure detects ESLint errors" {
+    local log="✖ 5 problems (3 errors, 2 warnings)"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "lint" ]
+}
+
+@test "classify_ci_failure detects ESLint single problem" {
+    local log="✖ 1 problem (1 error, 0 warnings)"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "lint" ]
+}
+
+# ===================
+# Node ビルドエラーパターン
+# ===================
+
+@test "classify_ci_failure detects npm ERR" {
+    local log="npm ERR! code ELIFECYCLE"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "build" ]
+}
+
+@test "classify_ci_failure detects SyntaxError" {
+    local log="SyntaxError: Unexpected token"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "build" ]
+}
+
+@test "classify_ci_failure detects ModuleNotFoundError" {
+    local log="ModuleNotFoundError: No module named 'requests'"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "build" ]
+}
+
+# ===================
+# Go ビルドエラーパターン
+# ===================
+
+@test "classify_ci_failure detects Go build errors" {
+    local log="go build: cannot load example.com/pkg"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "build" ]
+}
+
+# ===================
+# Bash フォーマットパターン
+# ===================
+
+@test "classify_ci_failure detects shfmt format errors" {
+    local log="shfmt: scripts/run.sh: formatting differs"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "format" ]
+}
+
+# ===================
+# unknown パターン
+# ===================
+
 @test "classify_ci_failure returns unknown for unrecognized errors" {
     local log="Some random error message that doesn't match any pattern"
     
