@@ -18,7 +18,7 @@ GitHub Issueを入力として、Git worktreeを作成し、ターミナルマ�
 
 ## 前提条件
 
-- **Bash 4.0以上** (macOSの場合: `brew install bash`)
+- **Bash 4.3以上** (macOSの場合: `brew install bash`)
 - `gh` (GitHub CLI、認証済み)
 - `tmux` または `zellij` (ターミナルマルチプレクサ)
 - `pi`
@@ -362,7 +362,7 @@ workflows:
       - review
       - merge
     context: |
-      Bash 4.0+ / ShellCheck 準拠 / Bats テスト必須
+      Bash 4.3+ / ShellCheck 準拠 / Bats テスト必須
   fix:
     description: バグ修正・リファクタリング・セキュリティ修正
     steps:
@@ -651,7 +651,7 @@ workflows:
       - merge
     context: |
       ## 技術スタック
-      - Bash 4.0+ / ShellCheck 準拠
+      - Bash 4.3+ / ShellCheck 準拠
       - テスト: Bats (Bash Automated Testing System)
       ## 方針
       - 新しい lib/ には対応する test/lib/*.bats を必ず作成

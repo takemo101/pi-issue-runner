@@ -6,7 +6,7 @@
 
 ## 技術スタック
 
-- **言語**: Bash 4.0以上
+- **言語**: Bash 4.3以上
 - **依存ツール**: `gh` (GitHub CLI), `tmux`, `git`, `jq`, `yq` (YAMLパーサー、オプション)
 - **テストフレームワーク**: Bats (Bash Automated Testing System)
 - **静的解析**: ShellCheck
