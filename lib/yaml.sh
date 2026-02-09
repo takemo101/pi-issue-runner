@@ -215,13 +215,15 @@ _yq_get_bulk() {
     
     # yqの式を構築: 各pathを文字列にキャストして出力
     # (path | . tag = "!!str") で null → "null", false → "false" を保持
-    # 各pathが必ず1行出力されるため、行数がpaths数と一致する
+    # sub("\n$","") でリテラルブロック値の末尾改行を除去（1値=1行を保証）
+    # これがないとマルチライン値の末尾改行が余分な空行となり、
+    # _parse_simple_configs のインデックスがずれてhook値が1つずれる
     local yq_expr=""
     for path in "${paths[@]}"; do
         if [[ -n "$yq_expr" ]]; then
             yq_expr="${yq_expr}, "
         fi
-        yq_expr="${yq_expr}(${path} | . tag = \"!!str\")"
+        yq_expr="${yq_expr}(${path} | . tag = \"!!str\" | sub(\"\\\\n\$\",\"\"))"
     done
     
     # 単一のyq呼び出しで全パスの値を取得
@@ -463,6 +465,16 @@ _simple_yaml_get() {
         if [[ -n "$section" && "$current_section" == "$section" ]]; then
             if [[ "$line" =~ ^[[:space:]]{2}([a-z0-9_-]+):[[:space:]]*$ ]]; then
                 current_subsection="${BASH_REMATCH[1]}"
+                continue
+            fi
+            # レベル2リテラルブロック開始（例: on_success: |）
+            if [[ -z "$subsection" && "$line" =~ ^[[:space:]]{2}([a-z0-9_-]+):[[:space:]]*\|[[:space:]]*$ ]]; then
+                local line_key="${BASH_REMATCH[1]}"
+                if [[ "$line_key" == "$key" ]]; then
+                    in_literal_block=true
+                    literal_indent=2
+                    literal_content=""
+                fi
                 continue
             fi
             if [[ -z "$subsection" ]] && found_value="$(_yaml_process_level2 "$line" "$key")"; then
