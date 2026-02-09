@@ -65,79 +65,74 @@ _collect_directory_structure() {
     echo "$context"
 }
 
+# Find config files that exist in the project directory
+# Returns a list of "filename:language:max_lines" entries, one per line
+_find_config_files() {
+    local project_dir="${1:-.}"
+
+    # Define config file candidates: filename:language:max_lines
+    local candidates=(
+        "package.json:json:80"
+        "pyproject.toml:toml:60"
+        "Gemfile:ruby:40"
+        "go.mod::30"
+        "Cargo.toml:toml:40"
+        "composer.json:json:60"
+        "tsconfig.json:json:0"
+    )
+
+    for entry in "${candidates[@]}"; do
+        local filename="${entry%%:*}"
+        if [[ -f "$project_dir/$filename" ]]; then
+            echo "$entry"
+        fi
+    done
+
+    # Special case: build.gradle variants (only one)
+    if [[ -f "$project_dir/build.gradle.kts" ]]; then
+        echo "build.gradle.kts:kotlin:30"
+    elif [[ -f "$project_dir/build.gradle" ]]; then
+        echo "build.gradle:groovy:30"
+    fi
+}
+
+# Parse a single config file into markdown context
+# Args: project_dir filename language max_lines
+_parse_config_content() {
+    local project_dir="$1"
+    local filename="$2"
+    local language="$3"
+    local max_lines="$4"
+
+    local filepath="$project_dir/$filename"
+    [[ -f "$filepath" ]] || return 0
+
+    local content=""
+    content+="## $filename"$'\n'
+    content+='```'"${language}"$'\n'
+    if [[ "$max_lines" -eq 0 ]]; then
+        content+="$(cat "$filepath")"$'\n'
+    else
+        content+="$(head -"$max_lines" "$filepath")"$'\n'
+    fi
+    content+='```'$'\n\n'
+    echo "$content"
+}
+
 # Collect key configuration files content
 _collect_config_files() {
     local project_dir="${1:-.}"
     local context=""
 
-    # package.json (truncated)
-    if [[ -f "$project_dir/package.json" ]]; then
-        context+="## package.json"$'\n'
-        context+='```json'$'\n'
-        context+="$(head -80 "$project_dir/package.json")"$'\n'
-        context+='```'$'\n\n'
-    fi
-
-    # pyproject.toml
-    if [[ -f "$project_dir/pyproject.toml" ]]; then
-        context+="## pyproject.toml"$'\n'
-        context+='```toml'$'\n'
-        context+="$(head -60 "$project_dir/pyproject.toml")"$'\n'
-        context+='```'$'\n\n'
-    fi
-
-    # Gemfile
-    if [[ -f "$project_dir/Gemfile" ]]; then
-        context+="## Gemfile"$'\n'
-        context+='```ruby'$'\n'
-        context+="$(head -40 "$project_dir/Gemfile")"$'\n'
-        context+='```'$'\n\n'
-    fi
-
-    # go.mod
-    if [[ -f "$project_dir/go.mod" ]]; then
-        context+="## go.mod"$'\n'
-        context+='```'$'\n'
-        context+="$(head -30 "$project_dir/go.mod")"$'\n'
-        context+='```'$'\n\n'
-    fi
-
-    # Cargo.toml
-    if [[ -f "$project_dir/Cargo.toml" ]]; then
-        context+="## Cargo.toml"$'\n'
-        context+='```toml'$'\n'
-        context+="$(head -40 "$project_dir/Cargo.toml")"$'\n'
-        context+='```'$'\n\n'
-    fi
-
-    # composer.json
-    if [[ -f "$project_dir/composer.json" ]]; then
-        context+="## composer.json"$'\n'
-        context+='```json'$'\n'
-        context+="$(head -60 "$project_dir/composer.json")"$'\n'
-        context+='```'$'\n\n'
-    fi
-
-    # build.gradle / pom.xml (first lines)
-    if [[ -f "$project_dir/build.gradle.kts" ]]; then
-        context+="## build.gradle.kts (excerpt)"$'\n'
-        context+='```kotlin'$'\n'
-        context+="$(head -30 "$project_dir/build.gradle.kts")"$'\n'
-        context+='```'$'\n\n'
-    elif [[ -f "$project_dir/build.gradle" ]]; then
-        context+="## build.gradle (excerpt)"$'\n'
-        context+='```groovy'$'\n'
-        context+="$(head -30 "$project_dir/build.gradle")"$'\n'
-        context+='```'$'\n\n'
-    fi
-
-    # tsconfig.json
-    if [[ -f "$project_dir/tsconfig.json" ]]; then
-        context+="## tsconfig.json"$'\n'
-        context+='```json'$'\n'
-        context+="$(cat "$project_dir/tsconfig.json")"$'\n'
-        context+='```'$'\n\n'
-    fi
+    local entry
+    while IFS= read -r entry; do
+        [[ -z "$entry" ]] && continue
+        local filename language max_lines
+        filename="$(echo "$entry" | cut -d: -f1)"
+        language="$(echo "$entry" | cut -d: -f2)"
+        max_lines="$(echo "$entry" | cut -d: -f3)"
+        context+="$(_parse_config_content "$project_dir" "$filename" "$language" "$max_lines")"
+    done < <(_find_config_files "$project_dir")
 
     echo "$context"
 }
@@ -525,42 +520,9 @@ except ValidationError as e:
 # Argument parsing
 # ============================================================================
 
-parse_arguments() {
-    # Set defaults
-    OUTPUT_FILE=".pi-runner.yaml"
-    DRY_RUN=false
-    FORCE=false
-    NO_AI=false
-    VALIDATE_ONLY=false
-
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            -o|--output)
-                if [[ $# -lt 2 ]]; then
-                    log_error "--output requires a file path argument"
-                    exit 1
-                fi
-                OUTPUT_FILE="$2"
-                shift 2
-                ;;
-            --dry-run)
-                DRY_RUN=true
-                shift
-                ;;
-            --force)
-                FORCE=true
-                shift
-                ;;
-            --no-ai)
-                NO_AI=true
-                shift
-                ;;
-            --validate)
-                VALIDATE_ONLY=true
-                shift
-                ;;
-            -h|--help)
-                cat << 'HELP'
+# Show help message and exit
+_show_help() {
+    cat << 'HELP'
 Usage: generate-config.sh [options]
 
 プロジェクトの構造をAIで解析し、最適な .pi-runner.yaml を生成します。
@@ -586,8 +548,32 @@ Examples:
     generate-config.sh --validate       # 既存設定を検証
     generate-config.sh -o custom.yaml   # カスタム出力先
 HELP
-                exit 0
+    exit 0
+}
+
+parse_arguments() {
+    # Set defaults
+    OUTPUT_FILE=".pi-runner.yaml"
+    DRY_RUN=false
+    FORCE=false
+    NO_AI=false
+    VALIDATE_ONLY=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -o|--output)
+                if [[ $# -lt 2 ]]; then
+                    log_error "--output requires a file path argument"
+                    exit 1
+                fi
+                OUTPUT_FILE="$2"
+                shift 2
                 ;;
+            --dry-run)     DRY_RUN=true; shift ;;
+            --force)       FORCE=true; shift ;;
+            --no-ai)       NO_AI=true; shift ;;
+            --validate)    VALIDATE_ONLY=true; shift ;;
+            -h|--help)     _show_help ;;
             -*)
                 log_error "Unknown option: $1"
                 exit 1
@@ -600,43 +586,37 @@ HELP
     done
 }
 
-# ============================================================================
-# Main
-# ============================================================================
-
-main() {
-    # Parse command-line arguments (sets global variables)
-    parse_arguments "$@"
-
-    # Validate mode
+# Validate parsed arguments against current state
+validate_arguments() {
     if [[ "$VALIDATE_ONLY" == "true" ]]; then
-        validate_config "$OUTPUT_FILE"
-        return $?
+        return 0
     fi
 
-    # Check existing file
     if [[ -f "$OUTPUT_FILE" && "$FORCE" != "true" && "$DRY_RUN" != "true" ]]; then
         log_error "$OUTPUT_FILE は既に存在します。--force で上書きするか、--dry-run でプレビューしてください。"
         exit 1
     fi
+}
 
-    # Generate config
+# ============================================================================
+# Main
+# ============================================================================
+
+# Generate YAML content using AI with static fallback
+_generate_yaml_content() {
     local yaml_content=""
 
     if [[ "$NO_AI" != "true" ]]; then
-        # Collect project context
         log_info "プロジェクト情報を収集中..."
         local project_context
         project_context="$(collect_project_context ".")"
 
-        # Try AI generation
         yaml_content="$(generate_with_ai "$project_context")" || {
             log_warn "AI生成に失敗しました。静的テンプレートにフォールバックします。"
             yaml_content=""
         }
     fi
 
-    # Fallback to static generation
     if [[ -z "$yaml_content" ]]; then
         if [[ "$NO_AI" == "true" ]]; then
             log_info "静的テンプレートで生成中..."
@@ -644,7 +624,13 @@ main() {
         yaml_content="$(generate_static_yaml)"
     fi
 
-    # Output
+    echo "$yaml_content"
+}
+
+# Output generated YAML to stdout or file
+_output_yaml() {
+    local yaml_content="$1"
+
     if [[ "$DRY_RUN" == "true" ]]; then
         echo "$yaml_content"
     else
@@ -657,6 +643,22 @@ main() {
         echo ""
         echo "検証: $(basename "$0") --validate"
     fi
+}
+
+main() {
+    parse_arguments "$@"
+
+    if [[ "$VALIDATE_ONLY" == "true" ]]; then
+        validate_config "$OUTPUT_FILE"
+        return $?
+    fi
+
+    validate_arguments
+
+    local yaml_content
+    yaml_content="$(_generate_yaml_content)"
+
+    _output_yaml "$yaml_content"
 }
 
 main "$@"
