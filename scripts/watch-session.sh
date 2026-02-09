@@ -678,10 +678,6 @@ run_watch_loop() {
     cumulative_complete_count=$(count_any_markers_outside_codeblock "$baseline_output" "$marker" "$ALT_COMPLETE_MARKER")
     cumulative_error_count=$(count_any_markers_outside_codeblock "$baseline_output" "$error_marker" "$ALT_ERROR_MARKER")
 
-    # セッション終了時のクリーンアップ用trap
-    # shellcheck disable=SC2064
-    trap "stop_output_logging '$session_name' '$output_log'; cleanup_output_log '$output_log'" EXIT
-
     while true; do
         # セッションが存在しなくなったら終了
         if ! session_exists "$session_name"; then
@@ -854,6 +850,12 @@ main() {
     # tmuxの場合のみ使用。Zellijやpipe-pane非対応環境ではcapture-paneにフォールバック
     local output_log=""
     output_log=$(setup_output_logging "$session_name" "$issue_number")
+
+    # output_log のクリーンアップ用trap（pipe-pane停止 + ログファイル削除）
+    # main() に配置することで output_log のスコープが明確になり、
+    # run_watch_loop 内での早期終了時も確実にクリーンアップされる
+    # shellcheck disable=SC2064
+    trap "stop_output_logging '$session_name' '$output_log'; cleanup_output_log '$output_log'" EXIT
 
     # 監視ループ
     run_watch_loop "$session_name" "$issue_number" "$marker" "$error_marker" "$interval" "$auto_attach" "$cleanup_args" "$baseline_output" "$output_log"
