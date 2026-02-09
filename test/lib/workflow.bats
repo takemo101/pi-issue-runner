@@ -186,30 +186,33 @@ EOF
 
 # ====================
 # generate_workflow_prompt テスト
+# Performance: consolidated into fewer tests to reduce ~5s/call overhead
 # ====================
 
-@test "generate_workflow_prompt includes error marker documentation" {
-    result="$(generate_workflow_prompt "default" "42" "Test Issue" "Body" "feature/test" "/path" "$TEST_DIR")"
-    [[ "$result" == *"###TASK"* ]]
-    [[ "$result" == *"_ERROR_"* ]]
-    [[ "$result" == *"unrecoverable errors"* ]]
+@test "generate_workflow_prompt includes markers and error sections" {
+    local result_file="$BATS_TEST_TMPDIR/prompt_result.md"
+    generate_workflow_prompt "default" "42" "Test Issue" "Body" "feature/test" "/path" "$TEST_DIR" > "$result_file"
+    
+    # Error marker documentation
+    grep -qF '###TASK' "$result_file"
+    grep -qF '_ERROR_' "$result_file"
+    grep -qF "unrecoverable errors" "$result_file"
+    
+    # Completion marker documentation
+    grep -qF '_COMPLETE_' "$result_file"
+    
+    # On Error section
+    grep -qF "### On Error" "$result_file"
+    grep -qF "manual intervention" "$result_file"
+    
+    # Issue number
+    grep -qF "42" "$result_file"
 }
 
-@test "generate_workflow_prompt includes completion marker documentation" {
-    result="$(generate_workflow_prompt "default" "42" "Test Issue" "Body" "feature/test" "/path" "$TEST_DIR")"
-    [[ "$result" == *"###TASK"* ]]
-    [[ "$result" == *"_COMPLETE_"* ]]
-}
-
-@test "generate_workflow_prompt includes issue number in markers" {
-    result="$(generate_workflow_prompt "default" "99" "Test Issue" "Body" "feature/test" "/path" "$TEST_DIR")"
-    [[ "$result" == *"99"* ]]
-}
-
-@test "generate_workflow_prompt includes On Error section" {
-    result="$(generate_workflow_prompt "default" "42" "Test Issue" "Body" "feature/test" "/path" "$TEST_DIR")"
-    [[ "$result" == *"### On Error"* ]]
-    [[ "$result" == *"manual intervention"* ]]
+@test "generate_workflow_prompt includes different issue number in markers" {
+    local result_file="$BATS_TEST_TMPDIR/prompt_result.md"
+    generate_workflow_prompt "default" "99" "Test Issue" "Body" "feature/test" "/path" "$TEST_DIR" > "$result_file"
+    grep -qF "99" "$result_file"
 }
 
 # ====================

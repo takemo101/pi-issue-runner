@@ -389,9 +389,9 @@ MOCK_EOF
     
     # 3個の計画書を作成（異なる更新時刻）
     create_plan_file "10" "300"  # 最も古い
-    sleep 0.2
+    sleep 0.05
     create_plan_file "20" "200"
-    sleep 0.2
+    sleep 0.05
     create_plan_file "30" "100"  # 最も新しい
     
     run cleanup_old_plans "false" "1"
