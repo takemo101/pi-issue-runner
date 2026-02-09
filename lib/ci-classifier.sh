@@ -67,6 +67,14 @@ get_failed_ci_logs() {
 # CI失敗タイプを分類
 # Usage: classify_ci_failure <log_content>
 # Returns: lint | format | test | build | unknown
+#
+# 分類の優先順序:
+#   1. format - フォーマットエラー（十分に具体的なパターン）
+#   2. lint   - Lint エラー（具体的なツール名ベース）
+#   3. build  - ビルドエラー（テストより先: ビルドが通らなければテストは実行されない）
+#   4. test   - テスト失敗（具体的なテスト結果パターンのみ）
+#   5. フォールバック - 汎用パターン（warning:.*unused, npm ERR! 等）
+#   6. unknown
 classify_ci_failure() {
     local log_content="$1"
     
@@ -78,31 +86,43 @@ classify_ci_failure() {
         return 0
     fi
     
-    # Lint エラーをチェック（各言語対応）
-    # Rust: warning:, clippy::
+    # Lint エラーをチェック（具体的なツール名ベース）
+    # Rust: clippy::
     # ESLint: N problems (N errors)
-    if echo "$log_content" | grep -qE '(warning:|clippy::|error: could not compile.*clippy|problems? \([0-9]+ errors?)'; then
+    # Bash: SC[0-9]{4} (ShellCheck)
+    # Python: pylint, flake8
+    # Note: 汎用 "warning:" は除外（DeprecationWarning等の誤分類を防止）
+    if echo "$log_content" | grep -qE '(clippy::|error: could not compile.*clippy|problems? \([0-9]+ errors?|SC[0-9]{4}|pylint|flake8.*E[0-9])'; then
         echo "$FAILURE_TYPE_LINT"
         return 0
     fi
     
-    # テスト失敗をチェック（各言語対応）
-    # Rust: FAILED, test result: FAILED, failures:
+    # ビルドエラーをチェック（テストより先にチェック: ビルドが通らなければテストは実行されない）
+    # Rust: error[E, cannot find, unresolved import, expected.*found
+    # Node: SyntaxError, ModuleNotFoundError
+    # Go: go build.*cannot
+    # General: compilation failed
+    if echo "$log_content" | grep -qE '(error\[E|cannot find|unresolved import|expected.*found|SyntaxError|ModuleNotFoundError|go build.*cannot|compilation failed)'; then
+        echo "$FAILURE_TYPE_BUILD"
+        return 0
+    fi
+    
+    # テスト失敗をチェック（具体的なテスト結果パターンのみ）
+    # Rust: test result: FAILED, failures:
     # Bats: not ok N, N tests, N failure(s)
     # Go: --- FAIL:, FAIL\t
     # Node/Jest: Tests:.*failed
-    # Python: FAILED (already matched by FAILED)
-    if echo "$log_content" | grep -qE '(FAILED|test result: FAILED|failures:|not ok [0-9]|[0-9]+ tests?, [0-9]+ failures?|--- FAIL:|FAIL\t|Tests:.*failed)'; then
+    # Note: 汎用 "FAILED" は除外（ビルドエラーとの誤分類を防止）
+    if echo "$log_content" | grep -qE '(test result: FAILED|failures:|not ok [0-9]|[0-9]+ tests?, [0-9]+ failures?|--- FAIL:|FAIL\t|Tests:.*failed)'; then
         echo "$FAILURE_TYPE_TEST"
         return 0
     fi
     
-    # ビルドエラーをチェック（各言語対応）
-    # Rust: error[E, cannot find, unresolved import, expected.*found
-    # Node: npm ERR!, SyntaxError, ModuleNotFoundError
-    # Go: go build.*cannot
-    if echo "$log_content" | grep -qE '(error\[E|cannot find|unresolved import|expected.*found|npm ERR!|SyntaxError|ModuleNotFoundError|go build.*cannot)'; then
-        echo "$FAILURE_TYPE_BUILD"
+    # 汎用パターン（最終フォールバック）
+    # warning:.*unused は Rust/C の未使用警告に限定
+    # npm ERR! はテスト・ビルド両方で出るため、上記で分類できなかった場合のみ
+    if echo "$log_content" | grep -qE '(warning:.*unused|npm ERR!)'; then
+        echo "$FAILURE_TYPE_LINT"
         return 0
     fi
     
