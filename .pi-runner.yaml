@@ -194,17 +194,24 @@ plans:
   dir: "docs/plans"
 
 # =====================================
-# improve-logs設定
+# improve 設定
 # =====================================
-improve_logs:
-  # 保持するログファイルの件数（0 = 全て保持）
-  keep_recent: 10
+improve:
+  # カスタムレビュープロンプトファイル
+  # 検索順: この設定 → agents/improve-review.md → .pi/agents/improve-review.md → ビルトイン
+  # テンプレート変数: {{max_issues}}, {{session_label}}, {{review_context}}
+  review_prompt_file: "agents/improve-review.md"
 
-  # 保持するログファイルの日数（0 = 日数制限なし）
-  keep_days: 7
+  # ログ設定
+  logs:
+    # 保持するログファイルの件数（0 = 全て保持）
+    keep_recent: 10
 
-  # ログファイルの保存ディレクトリ
-  dir: ".improve-logs"
+    # 保持するログファイルの日数（0 = 日数制限なし）
+    keep_days: 7
+
+    # ログファイルの保存ディレクトリ
+    dir: ".improve-logs"
 
 # =====================================
 # Hook設定

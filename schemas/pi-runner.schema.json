@@ -145,9 +145,44 @@
         }
       }
     },
+    "improve": {
+      "type": "object",
+      "description": "Improve workflow settings (review prompt and logs)",
+      "additionalProperties": false,
+      "properties": {
+        "review_prompt_file": {
+          "type": "string",
+          "description": "Custom review prompt template file path. Template variables: {{max_issues}}, {{session_label}}, {{review_context}}"
+        },
+        "logs": {
+          "type": "object",
+          "description": "Improve logs cleanup settings",
+          "additionalProperties": false,
+          "properties": {
+            "keep_recent": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 10,
+              "description": "Number of recent log files to keep (0 = keep all)"
+            },
+            "keep_days": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 7,
+              "description": "Keep logs within N days (0 = no limit)"
+            },
+            "dir": {
+              "type": "string",
+              "default": ".improve-logs",
+              "description": "Log file directory"
+            }
+          }
+        }
+      }
+    },
     "improve_logs": {
       "type": "object",
-      "description": "Improve logs cleanup settings",
+      "description": "Improve logs cleanup settings (deprecated: use improve.logs instead)",
       "additionalProperties": false,
       "properties": {
         "keep_recent": {
