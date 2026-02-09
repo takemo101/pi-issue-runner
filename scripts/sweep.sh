@@ -99,7 +99,7 @@ parse_sweep_arguments() {
     done
 }
 
-# Check session for markers
+# Check session for markers using pipe-pane log file or capture-pane fallback
 # Usage: check_session_markers <session_name> <issue_number> <check_errors>
 # Returns: "complete", "error", or ""
 check_session_markers() {
@@ -107,9 +107,45 @@ check_session_markers() {
     local issue_number="$2"
     local check_errors="$3"
     
-    # セッション出力を取得（最後の100行）
-    local output
-    if ! output=$(get_session_output "$session_name" 100 2>/dev/null); then
+    local output=""
+    
+    # 1. pipe-pane ログファイルを優先的に検索（全出力を記録しているため確実）
+    local status_dir
+    status_dir="$(get_status_dir 2>/dev/null)" || true
+    local log_file="${status_dir}/output-${issue_number}.log"
+    
+    if [[ -n "$status_dir" && -f "$log_file" ]]; then
+        log_debug "Using pipe-pane log file: $log_file"
+        
+        # COMPLETEマーカーをチェック（grep -cF で高速検索）
+        local complete_marker="###TASK_COMPLETE_${issue_number}###"
+        local alt_complete_marker="###COMPLETE_TASK_${issue_number}###"
+        
+        if grep -qF "$complete_marker" "$log_file" 2>/dev/null || \
+           grep -qF "$alt_complete_marker" "$log_file" 2>/dev/null; then
+            echo "complete"
+            return
+        fi
+        
+        # ERRORマーカーをチェック（オプション）
+        if [[ "$check_errors" == "true" ]]; then
+            local error_marker="###TASK_ERROR_${issue_number}###"
+            local alt_error_marker="###ERROR_TASK_${issue_number}###"
+            
+            if grep -qF "$error_marker" "$log_file" 2>/dev/null || \
+               grep -qF "$alt_error_marker" "$log_file" 2>/dev/null; then
+                echo "error"
+                return
+            fi
+        fi
+        
+        echo ""
+        return
+    fi
+    
+    # 2. フォールバック: capture-pane で最後の500行を取得
+    log_debug "No pipe-pane log found, falling back to capture-pane (500 lines)"
+    if ! output=$(get_session_output "$session_name" 500 2>/dev/null); then
         log_warn "Failed to get output for session: $session_name"
         echo ""
         return
