@@ -71,10 +71,21 @@ _validate_bash() {
         fi
     fi
     if command -v bats &>/dev/null; then
-        log_info "Running bats..."
-        if ! bats test/ 2>&1; then
-            log_error "Bats test failed"
-            return 1
+        # test/ または tests/ ディレクトリが存在する場合のみ実行
+        local test_dir=""
+        if [[ -d "test" ]]; then
+            test_dir="test"
+        elif [[ -d "tests" ]]; then
+            test_dir="tests"
+        fi
+        if [[ -n "$test_dir" ]]; then
+            log_info "Running bats in $test_dir/..."
+            if ! bats "$test_dir/" 2>&1; then
+                log_error "Bats test failed"
+                return 1
+            fi
+        else
+            log_warn "No test directory found for bats"
         fi
     fi
     return 0
