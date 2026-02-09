@@ -209,6 +209,14 @@ execute_cleanup() {
     
     log_info "Executing cleanup for session: $session_name (Issue #$issue_number)"
     
+    # シグナルファイルを削除（cleanup.sh 実行前に削除して重複検出を防止）
+    local status_dir
+    status_dir="$(get_status_dir 2>/dev/null)" || true
+    if [[ -n "$status_dir" ]]; then
+        rm -f "${status_dir}/signal-complete-${issue_number}" 2>/dev/null || true
+        rm -f "${status_dir}/signal-error-${issue_number}" 2>/dev/null || true
+    fi
+    
     # cleanup.shを実行
     local cleanup_args=""
     if [[ "$force" == "true" ]]; then

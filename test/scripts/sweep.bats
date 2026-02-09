@@ -256,6 +256,95 @@ teardown() {
 }
 
 # ====================
+# Signal File Cleanup Tests (Issue #1269)
+# ====================
+
+@test "execute_cleanup removes signal files before running cleanup.sh" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/scripts/sweep.sh"
+    
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo "$TEST_WORKTREE_DIR" ;;
+            *) echo "" ;;
+        esac
+    }
+    
+    # Create signal files
+    echo "done" > "$TEST_WORKTREE_DIR/.status/signal-complete-9999"
+    echo "fail" > "$TEST_WORKTREE_DIR/.status/signal-error-9999"
+    
+    # Verify signal files exist
+    [ -f "$TEST_WORKTREE_DIR/.status/signal-complete-9999" ]
+    [ -f "$TEST_WORKTREE_DIR/.status/signal-error-9999" ]
+    
+    # Mock cleanup.sh to succeed without side effects
+    # Override SCRIPT_DIR to use mock
+    cat > "$MOCK_BIN/cleanup.sh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 0
+MOCK_EOF
+    chmod +x "$MOCK_BIN/cleanup.sh"
+    
+    # Override SCRIPT_DIR so execute_cleanup calls our mock
+    SCRIPT_DIR="$MOCK_BIN"
+    
+    # Mock is_cleanup_locked to return false (not locked)
+    is_cleanup_locked() { return 1; }
+    
+    run execute_cleanup "pi-issue-9999" "9999" "false"
+    [ "$status" -eq 0 ]
+    
+    # Signal files should be deleted
+    [ ! -f "$TEST_WORKTREE_DIR/.status/signal-complete-9999" ]
+    [ ! -f "$TEST_WORKTREE_DIR/.status/signal-error-9999" ]
+}
+
+@test "execute_cleanup removes signal files even when only complete signal exists" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/scripts/sweep.sh"
+    
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo "$TEST_WORKTREE_DIR" ;;
+            *) echo "" ;;
+        esac
+    }
+    
+    # Create only complete signal file
+    echo "done" > "$TEST_WORKTREE_DIR/.status/signal-complete-100"
+    
+    cat > "$MOCK_BIN/cleanup.sh" << 'MOCK_EOF'
+#!/usr/bin/env bash
+exit 0
+MOCK_EOF
+    chmod +x "$MOCK_BIN/cleanup.sh"
+    
+    SCRIPT_DIR="$MOCK_BIN"
+    is_cleanup_locked() { return 1; }
+    
+    run execute_cleanup "pi-issue-100" "100" "false"
+    [ "$status" -eq 0 ]
+    
+    # Signal file should be deleted
+    [ ! -f "$TEST_WORKTREE_DIR/.status/signal-complete-100" ]
+}
+
+# ====================
 # Lock Integration Tests (Issue #1077)
 # ====================
 
