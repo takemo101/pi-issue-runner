@@ -133,7 +133,7 @@ The marker format combines these parts (no spaces):
 - Issue number: \`${issue_number}\`
 - Suffix: \`###\`
 
-Combine them and output as a single line. This marker is monitored by an external process that will automatically clean up the worktree and terminate this tmux session.
+Combine them and output as a single line. This marker is monitored by an external process that will automatically clean up the worktree and terminate this session.
 
 Do NOT skip this step.
 EOF
