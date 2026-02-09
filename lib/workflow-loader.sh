@@ -15,6 +15,22 @@ source "$_WORKFLOW_LOADER_LIB_DIR/log.sh"
 source "$_WORKFLOW_LOADER_LIB_DIR/template.sh"
 source "$_WORKFLOW_LOADER_LIB_DIR/config.sh"
 
+# 設定ファイルのパスを解決して返す
+# CONFIG_FILE環境変数が設定されている場合はそれを使用（テスト用）
+# 未設定の場合は config_file_found() で自動検索
+# Usage: _resolve_config_file
+# Output: 設定ファイルのパスを stdout に出力
+# Side effect: load_config を呼び出す
+_resolve_config_file() {
+    if [[ -n "${CONFIG_FILE:-}" ]]; then
+        load_config "$CONFIG_FILE"
+        echo "$CONFIG_FILE"
+    else
+        load_config
+        config_file_found 2>/dev/null || echo ".pi-runner.yaml"
+    fi
+}
+
 # ビルトインワークフロー定義
 # workflows/ ディレクトリが存在しない場合に使用
 _BUILTIN_WORKFLOW_DEFAULT="plan implement review merge"
@@ -45,20 +61,8 @@ get_workflow_steps() {
     # config-workflow:NAME 形式の処理（.pi-runner.yaml の workflows.{NAME}.steps）
     if [[ "$workflow_file" == config-workflow:* ]]; then
         local workflow_name="${workflow_file#config-workflow:}"
-        # 設定ファイルのパスを決定
-        # - CONFIG_FILE 環境変数が設定されている場合はそれを使用（テスト用）
-        # - 未設定の場合は config_file_found() で自動検索
-        # NOTE: このパターンは #954 で追加され、#942 の重複issue でも同様の問題が報告された
         local config_file
-        if [[ -n "${CONFIG_FILE:-}" ]]; then
-            # CONFIG_FILE 環境変数が設定されている場合（テスト用）
-            load_config "$CONFIG_FILE"
-            config_file="$CONFIG_FILE"
-        else
-            # 通常の動作：設定ファイルを検索
-            load_config
-            config_file="$(config_file_found 2>/dev/null)" || config_file=".pi-runner.yaml"
-        fi
+        config_file="$(_resolve_config_file)"
         
         if [[ ! -f "$config_file" ]]; then
             log_warn "Config file not found, using builtin"
@@ -140,17 +144,8 @@ get_workflow_context() {
     # config-workflow:NAME 形式の処理（.pi-runner.yaml の workflows.{NAME}.context）
     if [[ "$workflow_file" == config-workflow:* ]]; then
         local workflow_name="${workflow_file#config-workflow:}"
-        # 設定ファイルのパスを決定（同上）
         local config_file
-        if [[ -n "${CONFIG_FILE:-}" ]]; then
-            # CONFIG_FILE 環境変数が設定されている場合（テスト用）
-            load_config "$CONFIG_FILE"
-            config_file="$CONFIG_FILE"
-        else
-            # 通常の動作：設定ファイルを検索
-            load_config
-            config_file="$(config_file_found 2>/dev/null)" || config_file=".pi-runner.yaml"
-        fi
+        config_file="$(_resolve_config_file)"
         
         if [[ ! -f "$config_file" ]]; then
             echo ""
@@ -193,17 +188,8 @@ get_all_workflows_info() {
     # shellcheck disable=SC2034  # project_root reserved for future use
     local project_root="${1:-.}"
     
-    # 設定ファイルのパスを決定（同上）
     local config_file
-    if [[ -n "${CONFIG_FILE:-}" ]]; then
-        # CONFIG_FILE 環境変数が設定されている場合（テスト用）
-        load_config "$CONFIG_FILE"
-        config_file="$CONFIG_FILE"
-    else
-        # 通常の動作：設定ファイルを検索
-        load_config
-        config_file="$(config_file_found 2>/dev/null)" || config_file=".pi-runner.yaml"
-    fi
+    config_file="$(_resolve_config_file)"
     
     # .pi-runner.yaml の workflows セクションが存在するか確認
     if [[ -f "$config_file" ]] && yaml_exists "$config_file" ".workflows"; then
@@ -293,14 +279,8 @@ get_workflow_agent_property() {
     # config-workflow:NAME 形式の処理
     if [[ "$workflow_file" == config-workflow:* ]]; then
         local workflow_name="${workflow_file#config-workflow:}"
-        # 設定ファイルのパスを決定
         local config_file
-        if [[ -n "${CONFIG_FILE:-}" ]]; then
-            config_file="$CONFIG_FILE"
-        else
-            load_config
-            config_file="$(config_file_found 2>/dev/null)" || config_file=".pi-runner.yaml"
-        fi
+        config_file="$(_resolve_config_file)"
         
         if [[ ! -f "$config_file" ]]; then
             echo ""
@@ -434,17 +414,8 @@ get_workflow_agent_config() {
     local workflow_name="$1"
     local property="$2"
     
-    # 設定ファイルのパスを決定
     local config_file
-    if [[ -n "${CONFIG_FILE:-}" ]]; then
-        # CONFIG_FILE 環境変数が設定されている場合（テスト用）
-        load_config "$CONFIG_FILE"
-        config_file="$CONFIG_FILE"
-    else
-        # 通常の動作：設定ファイルを検索
-        load_config
-        config_file="$(config_file_found 2>/dev/null)" || config_file=".pi-runner.yaml"
-    fi
+    config_file="$(_resolve_config_file)"
     
     if [[ ! -f "$config_file" ]]; then
         echo ""
