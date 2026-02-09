@@ -312,6 +312,20 @@ execute_single_cleanup() {
                     log_warn "Failed to remove watcher log file: $watcher_log"
                 }
             fi
+
+            # Signal files and pipe-pane output log cleanup (Issue #1268)
+            local status_dir
+            status_dir="$(get_status_dir)"
+            for signal_file in "${status_dir}/signal-complete-${issue_number}" \
+                               "${status_dir}/signal-error-${issue_number}" \
+                               "${status_dir}/output-${issue_number}.log"; do
+                if [[ -f "$signal_file" ]]; then
+                    log_debug "Removing: $signal_file"
+                    rm -f "$signal_file" 2>/dev/null || {
+                        log_warn "Failed to remove: $signal_file"
+                    }
+                fi
+            done
         fi
 
         # on_cleanup hookを実行（失敗しても後続処理を継続）
