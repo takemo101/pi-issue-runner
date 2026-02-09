@@ -200,37 +200,37 @@ has_dangerous_patterns() {
     local text="$1"
     
     # コマンド置換 $(...) - grepを使用して安全に検出
-    if echo "$text" | grep -qE '\$\([^)]+\)'; then
+    if printf '%s\n' "$text" | grep -qE '\$\([^)]+\)'; then
         log_warn "Dangerous pattern detected: command substitution \$(...)  "
         return 0  # 危険あり = true
     fi
     
     # バッククォート `...`
-    if echo "$text" | grep -q '`[^`]*`'; then
+    if printf '%s\n' "$text" | grep -q '`[^`]*`'; then
         log_warn "Dangerous pattern detected: backtick command \`...\`"
         return 0  # 危険あり = true
     fi
     
     # 変数展開 ${...}
-    if echo "$text" | grep -qE '\$\{[^}]+\}'; then
+    if printf '%s\n' "$text" | grep -qE '\$\{[^}]+\}'; then
         log_warn "Dangerous pattern detected: variable expansion \${...}"
         return 0  # 危険あり = true
     fi
     
     # プロセス置換 <(...)
-    if echo "$text" | grep -qE '<\([^)]+\)'; then
+    if printf '%s\n' "$text" | grep -qE '<\([^)]+\)'; then
         log_warn "Dangerous pattern detected: process substitution <(...)"
         return 0  # 危険あり = true
     fi
     
     # プロセス置換 >(...)
-    if echo "$text" | grep -qE '>\([^)]+\)'; then
+    if printf '%s\n' "$text" | grep -qE '>\([^)]+\)'; then
         log_warn "Dangerous pattern detected: process substitution >(...)"
         return 0  # 危険あり = true
     fi
     
     # 算術展開 $((...))
-    if echo "$text" | grep -qE '\$\(\([^)]+\)\)'; then
+    if printf '%s\n' "$text" | grep -qE '\$\(\([^)]+\)\)'; then
         log_warn "Dangerous pattern detected: arithmetic expansion \$((...))"
         return 0  # 危険あり = true
     fi
