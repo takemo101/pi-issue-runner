@@ -500,6 +500,119 @@ MOCK_EOF
 }
 
 # ====================
+# Code block exclusion tests (Issue #1278)
+# ====================
+
+@test "check_session_markers ignores COMPLETE marker inside code block in pipe-pane log" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/scripts/sweep.sh"
+    
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo "$TEST_WORKTREE_DIR" ;;
+            *) echo "" ;;
+        esac
+    }
+    
+    get_status_dir() { echo "$TEST_WORKTREE_DIR/.status"; }
+    
+    # Create pipe-pane log with marker INSIDE a code block
+    local log_file="$TEST_WORKTREE_DIR/.status/output-42.log"
+    cat > "$log_file" << 'EOF'
+Some output before
+```
+###TASK_COMPLETE_42###
+```
+Some output after
+EOF
+    
+    # Should NOT detect as complete (marker is inside code block)
+    run check_session_markers "pi-issue-42" "42" "false"
+    [ "$status" -eq 0 ]
+    [ "$output" = "" ]
+}
+
+@test "check_session_markers ignores ERROR marker inside code block in pipe-pane log" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/scripts/sweep.sh"
+    
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo "$TEST_WORKTREE_DIR" ;;
+            *) echo "" ;;
+        esac
+    }
+    
+    get_status_dir() { echo "$TEST_WORKTREE_DIR/.status"; }
+    
+    # Create pipe-pane log with ERROR marker INSIDE a code block
+    local log_file="$TEST_WORKTREE_DIR/.status/output-42.log"
+    cat > "$log_file" << 'EOF'
+Some output before
+```
+###TASK_ERROR_42###
+```
+Some output after
+EOF
+    
+    # Should NOT detect as error (marker is inside code block)
+    run check_session_markers "pi-issue-42" "42" "true"
+    [ "$status" -eq 0 ]
+    [ "$output" = "" ]
+}
+
+@test "check_session_markers detects COMPLETE marker outside code block in pipe-pane log" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/scripts/sweep.sh"
+    
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo "$TEST_WORKTREE_DIR" ;;
+            *) echo "" ;;
+        esac
+    }
+    
+    get_status_dir() { echo "$TEST_WORKTREE_DIR/.status"; }
+    
+    # Create pipe-pane log with marker both inside and outside code block
+    local log_file="$TEST_WORKTREE_DIR/.status/output-42.log"
+    cat > "$log_file" << 'EOF'
+Some output
+```
+###TASK_COMPLETE_42###
+```
+More output
+###TASK_COMPLETE_42###
+EOF
+    
+    # Should detect as complete (one marker is outside code block)
+    run check_session_markers "pi-issue-42" "42" "false"
+    [ "$status" -eq 0 ]
+    [ "$output" = "complete" ]
+}
+
+# ====================
 # Lock Integration Tests (Issue #1077)
 # ====================
 
