@@ -62,6 +62,7 @@ Options:
     --base BRANCH       ベースブランチ（デフォルト: HEAD）
     -w, --workflow NAME ワークフロー名（デフォルト: default）
                         利用可能: default, simple
+    -l, --label LABEL   セッションラベル（識別用タグ）
     --no-attach         セッション作成後にアタッチしない
     --no-cleanup        エージェント終了後の自動クリーンアップを無効化
     --reattach          既存セッションがあればアタッチ
