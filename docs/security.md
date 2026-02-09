@@ -226,7 +226,18 @@ eval "$old_opts"
 
 #### 有効化方法
 
-インラインhookを使用する場合は、環境変数を設定してください：
+インラインhookを使用する場合は、以下のいずれかの方法で有効化してください：
+
+方法1: `.pi-runner.yaml` で設定（推奨）
+
+```yaml
+hooks:
+  allow_inline: true
+  on_success: |
+    echo "Issue #$PI_ISSUE_NUMBER completed"
+```
+
+方法2: 環境変数で設定
 
 ```bash
 export PI_RUNNER_ALLOW_INLINE_HOOKS=true
@@ -249,7 +260,7 @@ export PI_RUNNER_ALLOW_INLINE_HOOKS=true
 
 ### コマンド実行とテンプレート変数
 
-hookのインラインコマンドは `bash -c` を使用して実行されます（`lib/hooks.sh` の `_execute_hook()` 関数）。環境変数によるオプトイン制御が実装されています：
+hookのインラインコマンドは `bash -c` を使用して実行されます（`lib/hooks.sh` の `_execute_hook()` 関数）。環境変数および設定ファイルによるオプトイン制御が実装されています：
 
 ```bash
 # lib/hooks.sh:_execute_hook()
@@ -257,10 +268,19 @@ _execute_hook() {
     local hook="$1"
     ...
     # インラインコマンドの場合: 明示的許可が必要
-    if [[ "${PI_RUNNER_ALLOW_INLINE_HOOKS:-false}" != "true" ]]; then
-        log_warn "Inline hook commands are disabled for security."
-        return 0
+    local allow_inline="${PI_RUNNER_ALLOW_INLINE_HOOKS:-}"
+    if [[ -z "$allow_inline" ]]; then
+        # 環境変数未設定の場合、設定ファイルの hooks.allow_inline を確認
+        allow_inline="$(get_config hooks_allow_inline)" || allow_inline="false"
     fi
+    
+    if [[ "$allow_inline" != "true" ]]; then
+        log_warn "Inline hook commands are disabled. Falling back to default notification."
+        log_warn "To enable, add 'hooks.allow_inline: true' to .pi-runner.yaml"
+        log_warn "  or set: export PI_RUNNER_ALLOW_INLINE_HOOKS=true"
+        return 2  # 2 = blocked, triggers fallback to default notification
+    fi
+    
     # bash -c を使用（eval は使用しない）
     bash -c "$hook"
 }
