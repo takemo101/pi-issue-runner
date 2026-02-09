@@ -109,9 +109,24 @@ check_session_markers() {
     
     local output=""
     
-    # 1. pipe-pane ログファイルを優先的に検索（全出力を記録しているため確実）
+    # 0. シグナルファイルを最優先でチェック（最も信頼性が高い）
     local status_dir
     status_dir="$(get_status_dir 2>/dev/null)" || true
+    
+    if [[ -n "$status_dir" ]]; then
+        if [[ -f "${status_dir}/signal-complete-${issue_number}" ]]; then
+            log_debug "Signal file detected: signal-complete-${issue_number}"
+            echo "complete"
+            return
+        fi
+        if [[ "$check_errors" == "true" ]] && [[ -f "${status_dir}/signal-error-${issue_number}" ]]; then
+            log_debug "Signal file detected: signal-error-${issue_number}"
+            echo "error"
+            return
+        fi
+    fi
+    
+    # 1. pipe-pane ログファイルを検索（全出力を記録しているため確実）
     local log_file="${status_dir}/output-${issue_number}.log"
     
     if [[ -n "$status_dir" && -f "$log_file" ]]; then
