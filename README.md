@@ -1178,3 +1178,4 @@ gh auth login
 ## ライセンス
 
 MIT License - [LICENSE](LICENSE) を参照
+# CI trigger
