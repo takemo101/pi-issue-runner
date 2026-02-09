@@ -152,15 +152,17 @@ run_hook() {
     local hook_result=0
     _execute_hook "$hook" || hook_result=$?
     
-    if [[ $hook_result -eq 2 ]]; then
+    if [[ $hook_result -eq 0 ]]; then
+        log_info "Hook completed for event: $event"
+    elif [[ $hook_result -eq 2 ]]; then
         # インラインhookがブロックされた場合、デフォルト動作にフォールバック
         log_info "Falling back to default notification for event: $event"
         _run_default_hook "$event" "$issue_number" "$session_name" "$error_message"
-    elif [[ $hook_result -ne 0 ]]; then
-        log_warn "Hook execution failed for event: $event"
-        # hookの失敗でメイン処理を止めない
     else
-        log_info "Hook completed for event: $event"
+        # hookスクリプト/コマンドが失敗した場合もフォールバック
+        log_warn "Hook execution failed for event: $event (exit code: $hook_result)"
+        log_info "Falling back to default notification for event: $event"
+        _run_default_hook "$event" "$issue_number" "$session_name" "$error_message"
     fi
 }
 
@@ -212,7 +214,7 @@ _run_default_hook() {
         on_error)
             notify_error "$session_name" "$issue_number" "$error_message"
             ;;
-        on_start|on_cleanup)
+        on_start|on_cleanup|on_improve_start|on_improve_end|on_iteration_start|on_iteration_end|on_review_complete)
             # デフォルトでは何もしない
             log_debug "No default action for event: $event"
             ;;
