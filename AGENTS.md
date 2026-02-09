@@ -133,6 +133,7 @@ pi-issue-runner/
 │   │   ├── ci-fix.bats
 │   │   ├── ci-monitor.bats     # ci-monitor.sh のテスト
 │   │   ├── ci-retry.bats       # ci-retry.sh のテスト
+│   │   ├── cleanup-trap.bats
 │   │   ├── cleanup-orphans.bats
 │   │   ├── cleanup-improve-logs.bats  # cleanup-improve-logs.sh のテスト
 │   │   ├── cleanup-plans.bats
