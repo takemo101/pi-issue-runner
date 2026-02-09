@@ -55,6 +55,15 @@ setup() {
     [[ "$output" == *'Section "agent" found'* ]]
 }
 
+@test "verify-config-docs.sh checks all configuration sections including watcher/auto/workflow/workflows" {
+    run "$VERIFY_SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'Section "watcher" found'* ]]
+    [[ "$output" == *'Section "auto" found'* ]]
+    [[ "$output" == *'Section "workflow" found'* ]]
+    [[ "$output" == *'Section "workflows" found'* ]]
+}
+
 @test "verify-config-docs.sh handles invalid option" {
     run "$VERIFY_SCRIPT" --invalid-option
     [ "$status" -eq 1 ]
