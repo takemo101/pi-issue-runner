@@ -107,6 +107,11 @@ setup() {
     [[ "$output" == *'Hook event "on_success" is documented'* ]]
     [[ "$output" == *'Hook event "on_error" is documented'* ]]
     [[ "$output" == *'Hook event "on_cleanup" is documented'* ]]
+    [[ "$output" == *'Hook event "on_improve_start" is documented'* ]]
+    [[ "$output" == *'Hook event "on_improve_end" is documented'* ]]
+    [[ "$output" == *'Hook event "on_iteration_start" is documented'* ]]
+    [[ "$output" == *'Hook event "on_iteration_end" is documented'* ]]
+    [[ "$output" == *'Hook event "on_review_complete" is documented'* ]]
 }
 
 @test "verify-config-docs.sh checks hooks configuration example" {
