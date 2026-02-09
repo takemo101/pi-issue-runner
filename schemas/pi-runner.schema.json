@@ -227,6 +227,11 @@
       "description": "Lifecycle hook scripts",
       "additionalProperties": false,
       "properties": {
+        "allow_inline": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow inline hook commands (set to true when defining inline hooks in .pi-runner.yaml)"
+        },
         "on_start": {
           "type": "string",
           "description": "Script/command to run on session start"

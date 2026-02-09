@@ -217,6 +217,10 @@ improve:
 # Hook設定
 # =====================================
 hooks:
+  # インラインコマンドの実行を許可（デフォルト: false）
+  # .pi-runner.yaml にインラインhookを書く場合は true に設定
+  allow_inline: true
+
   # 成功時の通知
   on_success: |
     osascript -e 'display notification "Issue #'"$PI_ISSUE_NUMBER"' が完了しました" with title "Pi Issue Runner" subtitle "✅ 完了" sound name "Glass"'

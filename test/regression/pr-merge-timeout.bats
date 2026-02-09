@@ -121,15 +121,18 @@ teardown() {
 
 @test "Issue #1015: baseline is updated after timeout to prevent re-trigger" {
     # When PR timeout occurs and monitoring continues,
-    # the cumulative counters prevent the same marker
+    # the baseline should be captured to prevent the same marker
     # from triggering handle_complete repeatedly
     
     local script_content
     script_content=$(<"$PROJECT_ROOT/scripts/watch-session.sh")
     
-    # Cumulative counters are used to track processed markers
-    [[ "$script_content" == *'cumulative_complete_count'* ]]
-    [[ "$script_content" == *'cumulative_error_count'* ]]
+    # Verify baseline capture function exists (refactored implementation)
+    [[ "$script_content" == *'capture_baseline'* ]]
+    # Verify baseline is used in marker checking
+    [[ "$script_content" == *'check_initial_markers'* ]]
+    # Verify baseline parameter is passed
+    [[ "$script_content" == *'baseline_output='* ]]
 }
 
 @test "Issue #1015: no hardcoded exit 1 in completion handler path" {

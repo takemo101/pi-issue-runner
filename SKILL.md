@@ -46,6 +46,28 @@ scripts/next.sh -l feature               # featureラベル付きから提案
 scripts/next.sh --json                   # JSON形式で出力
 scripts/next.sh -v                       # 詳細な判断理由を表示
 
+# プロジェクト初期化
+scripts/init.sh                          # プロジェクト初期化（.pi-runner.yaml等を作成）
+scripts/init.sh --full                   # 完全セットアップ（agents/, workflows/ も作成）
+scripts/init.sh --minimal                # 最小セットアップ（.pi-runner.yaml のみ）
+scripts/init.sh --force                  # 既存ファイルを上書き
+
+scripts/generate-config.sh               # AIでプロジェクトを解析し.pi-runner.yamlを生成
+scripts/generate-config.sh --dry-run     # 結果をプレビュー
+scripts/generate-config.sh --no-ai       # AI不使用で静的テンプレート生成
+scripts/generate-config.sh --validate    # 既存設定を検証
+
+# コンテキスト管理
+scripts/context.sh show <issue>          # Issue固有のコンテキストを表示
+scripts/context.sh show-project          # プロジェクトコンテキストを表示
+scripts/context.sh add <issue> <text>    # Issue固有のコンテキストに追記
+scripts/context.sh add-project <text>    # プロジェクトコンテキストに追記
+scripts/context.sh edit <issue>          # エディタでIssue固有コンテキストを編集
+scripts/context.sh list                  # コンテキストがあるIssue一覧
+scripts/context.sh clean [--days N]      # 古いコンテキストを削除
+scripts/context.sh export <issue>        # Markdown形式でエクスポート
+scripts/context.sh remove <issue>        # Issue固有のコンテキストを削除
+
 # セッション管理
 scripts/list.sh                          # セッション一覧
 scripts/mux-all.sh -w                    # 全セッションをタイル表示
@@ -63,6 +85,8 @@ scripts/sweep.sh --check-errors          # ERRORマーカーもチェック
 scripts/cleanup.sh <session>             # 手動クリーンアップ
 scripts/force-complete.sh <session>      # セッション強制完了
 scripts/force-complete.sh 42 --error     # エラーとして完了
+scripts/restart-watcher.sh <session>     # Watcher再起動
+scripts/restart-watcher.sh 42            # Issue番号でも指定可能
 
 # メッセージ送信
 scripts/nudge.sh <issue-number>          # セッションに続行を促すメッセージを送信

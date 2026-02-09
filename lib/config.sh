@@ -63,6 +63,7 @@ CONFIG_AUTO_PROVIDER="${CONFIG_AUTO_PROVIDER:-}"    # auto選択用のAIプロ�
 CONFIG_AUTO_MODEL="${CONFIG_AUTO_MODEL:-}"          # auto選択用のモデル（空 = claude-haiku-4-5）
 
 # Hooks設定
+CONFIG_HOOKS_ALLOW_INLINE="${CONFIG_HOOKS_ALLOW_INLINE:-false}"  # インラインhookの許可
 CONFIG_HOOKS_ON_START="${CONFIG_HOOKS_ON_START:-}"       # セッション開始時のhook
 CONFIG_HOOKS_ON_SUCCESS="${CONFIG_HOOKS_ON_SUCCESS:-}"   # セッション成功時のhook
 CONFIG_HOOKS_ON_ERROR="${CONFIG_HOOKS_ON_ERROR:-}"       # セッションエラー時のhook
@@ -203,6 +204,7 @@ _CONFIG_MASTER=(
     ".improve_logs.keep_recent:IMPROVE_LOGS_KEEP_RECENT:improve_logs_keep_recent:CONFIG_IMPROVE_LOGS_KEEP_RECENT"
     ".improve_logs.keep_days:IMPROVE_LOGS_KEEP_DAYS:improve_logs_keep_days:CONFIG_IMPROVE_LOGS_KEEP_DAYS"
     ".improve_logs.dir:IMPROVE_LOGS_DIR:improve_logs_dir:CONFIG_IMPROVE_LOGS_DIR"
+    ".hooks.allow_inline:HOOKS_ALLOW_INLINE:hooks_allow_inline:CONFIG_HOOKS_ALLOW_INLINE"
     ".hooks.on_start:HOOKS_ON_START:hooks_on_start:CONFIG_HOOKS_ON_START"
     ".hooks.on_success:HOOKS_ON_SUCCESS:hooks_on_success:CONFIG_HOOKS_ON_SUCCESS"
     ".hooks.on_error:HOOKS_ON_ERROR:hooks_on_error:CONFIG_HOOKS_ON_ERROR"
