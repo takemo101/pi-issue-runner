@@ -19,6 +19,7 @@ pi-list
 pi-attach
 pi-status
 pi-stop
+pi-sweep
 pi-cleanup
 pi-force-complete
 pi-improve
@@ -27,8 +28,13 @@ pi-watch
 pi-init
 pi-nudge
 pi-context
+pi-dashboard
+pi-ci-fix
+pi-next
+pi-restart-watcher
+pi-mux-all
 pi-generate-config
-pi-sweep
+pi-test
 pi-verify-config-docs
 "
 
