@@ -28,7 +28,9 @@ _fix_format_bash() {
     # shfmtがあれば使用
     if command -v shfmt &> /dev/null; then
         log_info "Running shfmt..."
-        if shfmt -w -i 4 . 2>&1; then
+        # shfmt はデフォルトで .editorconfig を参照する
+        # -i オプションを指定しないことで、プロジェクト固有の設定を尊重
+        if shfmt -w . 2>&1; then
             log_info "shfmt fix applied successfully"
             return 0
         else
