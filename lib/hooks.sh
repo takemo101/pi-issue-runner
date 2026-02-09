@@ -199,7 +199,6 @@ _execute_hook() {
     # インラインコマンドとして実行（bash -c を使用、eval は使用しない）
     # 環境変数は既に run_hook で設定済み
     log_debug "Executing inline hook command"
-    log_debug "Executing inline hook"
     bash -c "$hook"
 }
 
