@@ -223,7 +223,7 @@ Options:
     --branch NAME     カスタムブランチ名
     --base BRANCH     ベースブランチ（デフォルト: HEAD）
     --workflow NAME   ワークフロー名（デフォルト: default）
-                      利用可能: default, simple
+                      ビルトイン: default, simple, thorough, ci-fix, auto
     --no-attach       セッション作成後にアタッチしない
     --no-cleanup      pi終了後の自動クリーンアップを無効化
     --reattach        既存セッションがあればアタッチ
