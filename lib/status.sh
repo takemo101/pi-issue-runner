@@ -578,16 +578,28 @@ acquire_cleanup_lock() {
     pid=$(cat "$lock_file/pid" 2>/dev/null) || pid=""
     
     if [[ -n "$pid" ]] && ! kill -0 "$pid" 2>/dev/null; then
-        # stale lock - プロセスが存在しないので削除して再取得
-        log_debug "Removing stale lock for issue #$issue_number (dead PID: $pid)"
+        # stale lock - PIDファイルを上書きしてロック所有権を主張
+        # rm + mkdir ではなく、PIDの上書きで原子的に所有権を移転（TOCTOU回避）
+        if echo $$ > "$lock_file/pid" 2>/dev/null; then
+            # PID書き込み成功後、実際に自分のPIDか再確認（別プロセスも上書きした可能性）
+            local new_pid
+            new_pid=$(cat "$lock_file/pid" 2>/dev/null) || new_pid=""
+            if [[ "$new_pid" == "$$" ]]; then
+                log_debug "Acquired cleanup lock for issue #$issue_number (took over stale lock from PID: $pid)"
+                return 0
+            fi
+            log_debug "Failed to acquire cleanup lock for issue #$issue_number (race condition, got PID: $new_pid)"
+            return 1
+        fi
+        # PIDファイルへの書き込みに失敗した場合はディレクトリごと作り直す
         rm -rf "$lock_file"
-        
-        # 再度取得
         if mkdir "$lock_file" 2>/dev/null; then
             echo $$ > "$lock_file/pid"
             log_debug "Acquired cleanup lock for issue #$issue_number after stale cleanup (PID: $$)"
             return 0
         fi
+        log_debug "Failed to acquire cleanup lock for issue #$issue_number (race condition during recovery)"
+        return 1
     fi
     
     log_debug "Failed to acquire cleanup lock for issue #$issue_number (held by PID: $pid)"

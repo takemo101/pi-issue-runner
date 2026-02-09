@@ -669,6 +669,32 @@ teardown() {
     [ "$pid" = "$$" ]
 }
 
+@test "acquire_cleanup_lock stale recovery overwrites PID without removing directory (TOCTOU fix)" {
+    source "$PROJECT_ROOT/lib/status.sh"
+
+    # Create a stale lock with non-existent PID
+    local lock_dir="$TEST_WORKTREE_DIR/.status/1077.cleanup.lock"
+    mkdir -p "$lock_dir"
+    echo "999999" > "$lock_dir/pid"
+
+    # Get inode of lock directory before acquisition (ls -di is portable across macOS/Linux)
+    local inode_before
+    inode_before=$(ls -di "$lock_dir" | awk '{print $1}')
+
+    # Should succeed by overwriting PID (not rm+mkdir)
+    acquire_cleanup_lock "1077"
+
+    # Verify PID was updated
+    local pid
+    pid=$(cat "$lock_dir/pid")
+    [ "$pid" = "$$" ]
+
+    # Verify directory was NOT recreated (same inode = no rm+mkdir)
+    local inode_after
+    inode_after=$(ls -di "$lock_dir" | awk '{print $1}')
+    [ "$inode_before" = "$inode_after" ]
+}
+
 @test "release_cleanup_lock removes lock directory" {
     source "$PROJECT_ROOT/lib/status.sh"
     
