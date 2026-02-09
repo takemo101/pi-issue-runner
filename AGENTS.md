@@ -205,10 +205,13 @@ pi-issue-runner/
 │   ├── regression/    # 回帰テスト
 │   │   ├── applescript-injection.bats
 │   │   ├── cleanup-race-condition.bats
+│   │   ├── config-master-table-dry.bats
 │   │   ├── critical-fixes.bats
 │   │   ├── eval-injection.bats
 │   │   ├── hooks-env-sanitization.bats
 │   │   ├── issue-1066-spaces-in-filenames.bats
+│   │   ├── issue-1129-session-label-arg.bats
+│   │   ├── issue-1145-duplicate-agent-override.bats
 │   │   ├── multiline-json-grep.bats
 │   │   ├── pr-merge-timeout.bats
 │   │   └── workflow-name-template.bats
