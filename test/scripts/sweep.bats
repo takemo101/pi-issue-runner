@@ -259,6 +259,161 @@ teardown() {
 # Lock Integration Tests (Issue #1077)
 # ====================
 
+# ====================
+# Signal file detection tests (Issue #1272)
+# ====================
+
+@test "check_session_markers detects signal-complete file" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/scripts/sweep.sh"
+    
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo "$TEST_WORKTREE_DIR" ;;
+            *) echo "" ;;
+        esac
+    }
+    
+    # Override get_status_dir to use test directory
+    get_status_dir() { echo "$TEST_WORKTREE_DIR/.status"; }
+    
+    # Create signal-complete file
+    echo "done" > "$TEST_WORKTREE_DIR/.status/signal-complete-42"
+    
+    run check_session_markers "pi-issue-42" "42" "false"
+    [ "$status" -eq 0 ]
+    [ "$output" = "complete" ]
+}
+
+@test "check_session_markers detects signal-error file with --check-errors" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/scripts/sweep.sh"
+    
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo "$TEST_WORKTREE_DIR" ;;
+            *) echo "" ;;
+        esac
+    }
+    
+    get_status_dir() { echo "$TEST_WORKTREE_DIR/.status"; }
+    
+    # Create signal-error file
+    echo "some error occurred" > "$TEST_WORKTREE_DIR/.status/signal-error-99"
+    
+    run check_session_markers "pi-issue-99" "99" "true"
+    [ "$status" -eq 0 ]
+    [ "$output" = "error" ]
+}
+
+@test "check_session_markers ignores signal-error file without --check-errors" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/scripts/sweep.sh"
+    
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo "$TEST_WORKTREE_DIR" ;;
+            *) echo "" ;;
+        esac
+    }
+    
+    get_status_dir() { echo "$TEST_WORKTREE_DIR/.status"; }
+    
+    # Create signal-error file but check_errors=false
+    echo "some error" > "$TEST_WORKTREE_DIR/.status/signal-error-55"
+    
+    # No log file, mock get_session_output to return empty
+    get_session_output() { echo ""; }
+    
+    run check_session_markers "pi-issue-55" "55" "false"
+    [ "$status" -eq 0 ]
+    [ "$output" = "" ]
+}
+
+@test "check_session_markers returns empty when no signal file and no markers" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/scripts/sweep.sh"
+    
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo "$TEST_WORKTREE_DIR" ;;
+            *) echo "" ;;
+        esac
+    }
+    
+    get_status_dir() { echo "$TEST_WORKTREE_DIR/.status"; }
+    
+    # No signal files, no log file
+    get_session_output() { echo "just normal output"; }
+    
+    run check_session_markers "pi-issue-77" "77" "false"
+    [ "$status" -eq 0 ]
+    [ "$output" = "" ]
+}
+
+@test "check_session_markers prioritizes signal file over text markers" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+    
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/log.sh"
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/scripts/sweep.sh"
+    
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo "$TEST_WORKTREE_DIR" ;;
+            *) echo "" ;;
+        esac
+    }
+    
+    get_status_dir() { echo "$TEST_WORKTREE_DIR/.status"; }
+    
+    # Create both signal-complete AND error marker in log
+    echo "done" > "$TEST_WORKTREE_DIR/.status/signal-complete-42"
+    local log_file="$TEST_WORKTREE_DIR/.status/output-42.log"
+    echo "###TASK_ERROR_42###" > "$log_file"
+    
+    # Signal file should take priority → "complete"
+    run check_session_markers "pi-issue-42" "42" "true"
+    [ "$status" -eq 0 ]
+    [ "$output" = "complete" ]
+}
+
+# ====================
+# Lock Integration Tests (Issue #1077)
+# ====================
+
 @test "sweep.sh skips cleanup when lock is held" {
     # This test verifies that sweep.sh respects cleanup locks
     # to prevent race conditions with watch-session.sh

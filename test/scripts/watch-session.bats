@@ -462,6 +462,157 @@ EOF
     export GH_STATE_SEQUENCE="$state_sequence"
 }
 
+# ====================
+# Signal file detection in check_initial_markers (Issue #1272)
+# ====================
+
+@test "check_initial_markers detects signal-complete file at startup" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+    
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/lib/notify.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    source "$PROJECT_ROOT/lib/cleanup-orphans.sh"
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo "$TEST_WORKTREE_DIR" ;;
+            *) echo "" ;;
+        esac
+    }
+    
+    get_status_dir() { echo "$TEST_WORKTREE_DIR/.status"; }
+    
+    # Create signal-complete file
+    echo "done" > "$TEST_WORKTREE_DIR/.status/signal-complete-42"
+    
+    # Mock handle_complete to track call and return success
+    handle_complete() {
+        echo "handle_complete called for issue $2"
+        return 0
+    }
+    
+    run check_initial_markers "pi-issue-42" "42" "###TASK_COMPLETE_42###" "###TASK_ERROR_42###" "true" "" ""
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"handle_complete called for issue 42"* ]]
+    
+    # Signal file should be removed after detection
+    [ ! -f "$TEST_WORKTREE_DIR/.status/signal-complete-42" ]
+}
+
+@test "check_initial_markers detects signal-error file at startup" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+    
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/lib/notify.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    source "$PROJECT_ROOT/lib/cleanup-orphans.sh"
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo "$TEST_WORKTREE_DIR" ;;
+            *) echo "" ;;
+        esac
+    }
+    
+    get_status_dir() { echo "$TEST_WORKTREE_DIR/.status"; }
+    
+    # Create signal-error file
+    echo "build failed" > "$TEST_WORKTREE_DIR/.status/signal-error-42"
+    
+    # Mock handle_error
+    handle_error() {
+        echo "handle_error called: $3"
+        return 0
+    }
+    
+    # Mock handle_complete (should not be called since no signal-complete)
+    handle_complete() {
+        echo "handle_complete should not be called"
+        return 1
+    }
+    
+    # Mock count_any_markers_outside_codeblock to return 0 (no text markers)
+    count_any_markers_outside_codeblock() { echo "0"; }
+    
+    run check_initial_markers "pi-issue-42" "42" "###TASK_COMPLETE_42###" "###TASK_ERROR_42###" "true" "" ""
+    [ "$status" -eq 1 ]  # Returns 1 = continue monitoring
+    [[ "$output" == *"handle_error called: build failed"* ]]
+    
+    # Signal file should be removed after detection
+    [ ! -f "$TEST_WORKTREE_DIR/.status/signal-error-42" ]
+}
+
+@test "check_initial_markers continues monitoring when no signal files" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+    
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/lib/notify.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    source "$PROJECT_ROOT/lib/cleanup-orphans.sh"
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo "$TEST_WORKTREE_DIR" ;;
+            *) echo "" ;;
+        esac
+    }
+    
+    get_status_dir() { echo "$TEST_WORKTREE_DIR/.status"; }
+    
+    # No signal files, no text markers in baseline
+    run check_initial_markers "pi-issue-42" "42" "###TASK_COMPLETE_42###" "###TASK_ERROR_42###" "true" "" "just normal output"
+    [ "$status" -eq 1 ]  # Returns 1 = continue monitoring
+}
+
+@test "check_initial_markers removes signal-complete file after processing" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+    
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/lib/notify.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    source "$PROJECT_ROOT/lib/cleanup-orphans.sh"
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo "$TEST_WORKTREE_DIR" ;;
+            *) echo "" ;;
+        esac
+    }
+    
+    get_status_dir() { echo "$TEST_WORKTREE_DIR/.status"; }
+    
+    echo "done" > "$TEST_WORKTREE_DIR/.status/signal-complete-42"
+    [ -f "$TEST_WORKTREE_DIR/.status/signal-complete-42" ]
+    
+    handle_complete() { return 0; }
+    
+    check_initial_markers "pi-issue-42" "42" "###TASK_COMPLETE_42###" "###TASK_ERROR_42###" "true" "" "" || true
+    
+    # Verify signal file was deleted
+    [ ! -f "$TEST_WORKTREE_DIR/.status/signal-complete-42" ]
+}
+
+# ====================
+# Issue #1015: PR merge retry logic tests
+# ====================
+
 @test "Issue #1015: check_pr_merge_status retries when PR is OPEN" {
     skip "Requires mock gh - integration test"
     
