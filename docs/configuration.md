@@ -249,6 +249,15 @@ plans:
   dir: "docs/plans"
 
 # =====================================
+# improve レビュープロンプト設定
+# =====================================
+improve:
+  # カスタムレビュープロンプトファイル（省略時は自動検索）
+  # 検索順: agents/improve-review.md → .pi/agents/improve-review.md → ビルトイン
+  # テンプレート変数: {{max_issues}}, {{session_label}}, {{review_context}}
+  review_prompt_file: "agents/improve-review.md"
+
+# =====================================
 # improve-logs クリーンアップ設定
 # =====================================
 improve_logs:
