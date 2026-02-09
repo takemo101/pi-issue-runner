@@ -1,0 +1,38 @@
+name: Setup Dependencies
+description: Install Bats, yq, tmux for CI
+
+runs:
+  using: composite
+  steps:
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      id: cache-deps
+      with:
+        path: |
+          /usr/local/bin/bats
+          /usr/local/libexec/bats-core
+          /usr/local/bin/yq
+        key: ${{ runner.os }}-deps-v3
+
+    - name: Install system dependencies
+      shell: bash
+      run: |
+        # gh and jq are pre-installed on ubuntu-latest runners
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq tmux
+
+    - name: Install yq
+      if: steps.cache-deps.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        YQ_VERSION="v4.40.5"
+        sudo wget -qO /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+        sudo chmod +x /usr/local/bin/yq
+
+    - name: Install Bats
+      if: steps.cache-deps.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats-core
+        cd /tmp/bats-core
+        sudo ./install.sh /usr/local
