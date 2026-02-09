@@ -300,10 +300,19 @@ Examples:
 ./scripts/cleanup.sh <session-name|issue-number> [options]
 
 Options:
-    --force, -f       強制削除
+    --force, -f       強制削除（未コミットの変更があっても削除）
     --delete-branch   対応するGitブランチも削除
-    --keep-session    セッションを維持
-    --keep-worktree   worktreeを維持
+    --keep-session    セッションを維持（worktreeのみ削除）
+    --keep-worktree   worktreeを維持（セッションのみ削除）
+    --orphans         孤立したステータスファイルをクリーンアップ
+    --orphan-worktrees  complete状態だがworktreeが残存しているケースをクリーンアップ
+    --delete-plans    クローズ済みIssueの計画書を削除
+    --rotate-plans    古い計画書を削除（直近N件を保持、設定: plans.keep_recent）
+    --improve-logs    .improve-logsディレクトリをクリーンアップ
+    --all             全てのクリーンアップを実行（--orphans + --rotate-plans + --orphan-worktrees + --improve-logs）
+    --age <days>      指定日数より古いステータスファイルを削除（--orphansと併用）
+    --dry-run         削除せずに対象を表示（--orphans/--delete-plans/--rotate-plans/--allと使用）
+    -h, --help        このヘルプを表示
 ```
 
 ### watch-session.sh - セッション監視と自動クリーンアップ
