@@ -16,6 +16,7 @@ __CI_FIX_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 __CI_FIX_COMMON_LIB_DIR="$(cd "$__CI_FIX_COMMON_DIR/.." && pwd)"
 
 source "$__CI_FIX_COMMON_LIB_DIR/log.sh"
+source "$__CI_FIX_COMMON_LIB_DIR/ci-classifier.sh"
 source "$__CI_FIX_COMMON_DIR/detect.sh"
 source "$__CI_FIX_COMMON_DIR/rust.sh"
 source "$__CI_FIX_COMMON_DIR/node.sh"
