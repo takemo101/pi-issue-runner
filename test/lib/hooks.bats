@@ -338,6 +338,24 @@ EOF
     [[ "$result" == *"NOTIFY_SUCCESS"* ]]
 }
 
+@test "run_hook allows inline command when hooks.allow_inline is true in config" {
+    cat > "$TEST_WORKDIR/.pi-runner.yaml" << 'EOF'
+hooks:
+  allow_inline: true
+  on_success: echo "CONFIG_INLINE_ALLOWED"
+EOF
+    
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    override_get_config
+    mock_notify
+    
+    # Do NOT set PI_RUNNER_ALLOW_INLINE_HOOKS env var
+    unset PI_RUNNER_ALLOW_INLINE_HOOKS
+    
+    result="$(run_hook "on_success" "42" "pi-42" "" "" "" "0" "")"
+    [[ "$result" == *"CONFIG_INLINE_ALLOWED"* ]]
+}
+
 @test "run_hook allows inline command when PI_RUNNER_ALLOW_INLINE_HOOKS is true" {
     cat > "$TEST_WORKDIR/.pi-runner.yaml" << 'EOF'
 hooks:

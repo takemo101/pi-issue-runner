@@ -94,6 +94,7 @@ project-root/
 │   └── thorough.yaml        # 徹底ワークフロー
 ├── agents/                  # エージェントテンプレート
 │   ├── ci-fix.md            # CI修正エージェント
+│   ├── improve-review.md    # improve.sh レビュープロンプト（カスタマイズ可能）
 │   ├── plan.md              # 計画エージェント
 │   ├── implement.md         # 実装エージェント
 │   ├── review.md            # レビューエージェント
@@ -104,18 +105,41 @@ project-root/
 │   ├── batch.sh             # バッチ処理コア機能
 │   ├── ci-classifier.sh     # CI失敗タイプ分類
 │   ├── ci-fix.sh            # CI失敗検出・自動修正
+│   ├── ci-fix/              # CI修正サブモジュール群
+│   │   ├── bash.sh          # Bash固有の修正・検証ロジック
+│   │   ├── common.sh        # 共通ユーティリティ
+│   │   ├── detect.sh        # プロジェクトタイプ検出
+│   │   ├── escalation.sh    # エスカレーション処理
+│   │   ├── go.sh            # Go固有の修正・検証ロジック
+│   │   ├── node.sh          # Node固有の修正・検証ロジック
+│   │   ├── python.sh        # Python固有の修正・検証ロジック
+│   │   └── rust.sh          # Rust固有の修正・検証ロジック
 │   ├── ci-monitor.sh        # CI状態監視
 │   ├── ci-retry.sh          # CI自動修正リトライ管理
 │   ├── cleanup-improve-logs.sh # 改善ログのクリーンアップ
 │   ├── cleanup-orphans.sh   # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh     # 計画書のローテーション
+│   ├── cleanup-trap.sh      # エラー時クリーンアップトラップ管理
 │   ├── config.sh            # 設定管理
+│   ├── context.sh           # コンテキスト管理
 │   ├── daemon.sh            # プロセスデーモン化
+│   ├── dashboard.sh         # ダッシュボード機能
 │   ├── dependency.sh        # 依存関係解析・レイヤー計算
+│   ├── generate-config.sh   # プロジェクト解析・設定生成（ライブラリ関数）
 │   ├── github.sh            # GitHub CLI操作
 │   ├── hooks.sh             # Hook機能
+│   ├── improve.sh           # 継続的改善ライブラリ（オーケストレーター）
+│   ├── improve/             # 継続的改善モジュール群
+│   │   ├── args.sh          # 引数解析
+│   │   ├── deps.sh          # 依存関係チェック
+│   │   ├── env.sh           # 環境セットアップ
+│   │   ├── execution.sh     # 実行・監視フェーズ
+│   │   └── review.sh        # レビューフェーズ
 │   ├── log.sh               # ログ出力
+│   ├── marker.sh            # マーカー検出ユーティリティ
 │   ├── notify.sh            # 通知機能
+│   ├── priority.sh          # 優先度計算
+│   ├── session-resolver.sh  # セッション名解決ユーティリティ
 │   ├── status.sh            # ステータスファイル管理
 │   ├── template.sh          # テンプレート処理
 │   ├── tmux.sh              # tmux操作（後方互換ラッパー）
@@ -126,21 +150,31 @@ project-root/
 │   ├── workflow-finder.sh   # ワークフロー検索
 │   ├── workflow-loader.sh   # ワークフロー読み込み
 │   ├── workflow-prompt.sh   # プロンプト処理
+│   ├── workflow-selector.sh # ワークフロー自動選択（auto モード）
 │   ├── worktree.sh          # Git worktree操作
 │   └── yaml.sh              # YAMLパーサー
 └── scripts/                 # 実行スクリプト
     ├── attach.sh            # セッションアタッチ
+    ├── ci-fix-helper.sh     # CI修正ヘルパー（lib/ci-fix.shのラッパー）
     ├── cleanup.sh           # クリーンアップ
+    ├── context.sh           # コンテキスト管理
+    ├── dashboard.sh         # ダッシュボード表示
     ├── force-complete.sh    # セッション強制完了
+    ├── generate-config.sh   # プロジェクト解析・設定生成
     ├── improve.sh           # 継続的改善スクリプト
     ├── init.sh              # プロジェクト初期化
     ├── list.sh              # セッション一覧
+    ├── mux-all.sh           # 全セッション表示（マルチプレクサ対応）
+    ├── next.sh              # 次のタスク取得
     ├── nudge.sh             # セッションへメッセージ送信
+    ├── restart-watcher.sh   # Watcher再起動
     ├── run-batch.sh         # バッチ実行
     ├── run.sh               # タスク起動
     ├── status.sh            # 状態確認
     ├── stop.sh              # セッション停止
+    ├── sweep.sh             # 全セッションのマーカーチェック・cleanup
     ├── test.sh              # テスト実行
+    ├── verify-config-docs.sh # 設定ドキュメントの整合性検証
     ├── wait-for-sessions.sh # 複数セッション完了待機
     └── watch-session.sh     # セッション監視と自動クリーンアップ
 ```
@@ -189,7 +223,7 @@ Options:
     --branch NAME     カスタムブランチ名
     --base BRANCH     ベースブランチ（デフォルト: HEAD）
     --workflow NAME   ワークフロー名（デフォルト: default）
-                      利用可能: default, simple
+                      ビルトイン: default, simple, thorough, ci-fix, auto
     --no-attach       セッション作成後にアタッチしない
     --no-cleanup      pi終了後の自動クリーンアップを無効化
     --reattach        既存セッションがあればアタッチ

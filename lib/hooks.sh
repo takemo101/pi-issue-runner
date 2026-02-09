@@ -181,17 +181,24 @@ _execute_hook() {
         return $?
     fi
     
-    # インラインコマンドの場合: 明示的許可が必要
-    if [[ "${PI_RUNNER_ALLOW_INLINE_HOOKS:-false}" != "true" ]]; then
+    # インラインコマンドの場合: 設定または環境変数で許可が必要
+    local allow_inline="${PI_RUNNER_ALLOW_INLINE_HOOKS:-}"
+    if [[ -z "$allow_inline" ]]; then
+        # 環境変数未設定の場合、設定ファイルの hooks.allow_inline を確認
+        allow_inline="$(get_config hooks_allow_inline)" || allow_inline="false"
+    fi
+    
+    if [[ "$allow_inline" != "true" ]]; then
         log_warn "Inline hook commands are disabled. Falling back to default notification."
-        log_warn "To enable inline hooks, set: export PI_RUNNER_ALLOW_INLINE_HOOKS=true"
+        log_warn "To enable, add 'hooks.allow_inline: true' to .pi-runner.yaml"
+        log_warn "  or set: export PI_RUNNER_ALLOW_INLINE_HOOKS=true"
         log_debug "Blocked hook: $hook"
         return 2  # 2 = blocked, triggers fallback to default notification
     fi
     
     # インラインコマンドとして実行（bash -c を使用、eval は使用しない）
     # 環境変数は既に run_hook で設定済み
-    log_warn "Executing inline hook command (security note: ensure this is from a trusted source)"
+    log_debug "Executing inline hook command"
     log_debug "Executing inline hook"
     bash -c "$hook"
 }
