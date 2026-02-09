@@ -15,6 +15,7 @@ GitHub Issueを入力として、Git worktreeを作成し、ターミナルマ�
 scripts/run.sh <issue-number> [options]
 
 Options:
+  -i, --issue <number>   Issue番号（位置引数の代替）
   -w, --workflow <name>  ワークフロー名（省略時: workflows セクションがあれば auto、なければ default）
   --list-workflows       利用可能なワークフロー一覧を表示
   --no-attach            バックグラウンドで起動
@@ -25,10 +26,13 @@ Options:
   --base <branch>        ベースブランチ
   --agent-args <args>    エージェントに渡す追加の引数
   --pi-args <args>       --agent-args のエイリアス（後方互換性）
+  -l, --label <label>    セッションラベル（識別用タグ）
   --ignore-blockers      依存関係チェックをスキップして強制実行
   --show-config          現在の設定を表示（デバッグ用）
   --list-agents          利用可能なエージェントプリセット一覧を表示
   --show-agent-config    エージェント設定を表示（デバッグ用）
+  -v, --verbose          詳細ログを表示
+  --quiet                エラーのみ表示
 
 # バッチ実行（依存関係順）
 scripts/run-batch.sh <issue>... [options]

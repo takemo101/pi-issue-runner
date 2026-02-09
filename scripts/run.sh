@@ -22,6 +22,7 @@
 #   --force             Remove and recreate existing session/worktree
 #   --agent-args ARGS   Additional arguments for the agent
 #   --pi-args ARGS      Alias for --agent-args (backward compatibility)
+#   -l, --label LABEL   Session label (identification tag)
 #   --list-workflows    List available workflows
 #   --ignore-blockers   Skip dependency check and force execution
 #   --show-config       Show current configuration (debug)
@@ -69,6 +70,7 @@ Options:
     --force             既存セッション/worktreeを削除して再作成
     --agent-args ARGS   エージェントに渡す追加の引数
     --pi-args ARGS      --agent-args のエイリアス（後方互換性）
+    -l, --label LABEL   セッションラベル（識別用タグ）
     --list-workflows    利用可能なワークフロー一覧を表示
     --ignore-blockers   依存関係チェックをスキップして強制実行
     --show-config       現在の設定を表示（デバッグ用）
