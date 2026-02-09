@@ -161,7 +161,7 @@ EOF
     mock_notify
     
     # Enable inline hooks for this test
-    export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+    export PI_RUNNER_HOOKS_ALLOW_INLINE=true
     
     result="$(run_hook "on_success" "42" "pi-42" "" "" "" "0" "")"
     [[ "$result" == *"INLINE_HOOK_EXECUTED"* ]]
@@ -178,7 +178,7 @@ EOF
     mock_notify
     
     # Enable inline hooks for this test
-    export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+    export PI_RUNNER_HOOKS_ALLOW_INLINE=true
     
     result="$(run_hook "on_success" "42" "pi-42" "" "" "" "0" "")"
     [[ "$result" == *"Issue 42 done"* ]]
@@ -285,7 +285,7 @@ EOF
 # セキュリティテスト
 # ====================
 
-@test "run_hook blocks inline command when PI_RUNNER_ALLOW_INLINE_HOOKS is not set (default: false)" {
+@test "run_hook blocks inline command when PI_RUNNER_HOOKS_ALLOW_INLINE is not set (default: false)" {
     cat > "$TEST_WORKDIR/.pi-runner.yaml" << 'EOF'
 hooks:
   on_success: echo "INLINE_EXECUTED_42"
@@ -295,8 +295,8 @@ EOF
     override_get_config
     mock_notify
     
-    # Do NOT set PI_RUNNER_ALLOW_INLINE_HOOKS (default is now false)
-    unset PI_RUNNER_ALLOW_INLINE_HOOKS
+    # Do NOT set PI_RUNNER_HOOKS_ALLOW_INLINE (default is now false)
+    unset PI_RUNNER_HOOKS_ALLOW_INLINE
     
     # Enable WARN level logging to capture the warning message
     export LOG_LEVEL="WARN"
@@ -313,7 +313,7 @@ EOF
     [[ "$result" == *"NOTIFY_SUCCESS"* ]]
 }
 
-@test "run_hook blocks inline command when PI_RUNNER_ALLOW_INLINE_HOOKS is false" {
+@test "run_hook blocks inline command when PI_RUNNER_HOOKS_ALLOW_INLINE is false" {
     cat > "$TEST_WORKDIR/.pi-runner.yaml" << 'EOF'
 hooks:
   on_success: echo "INLINE_EXECUTED_43"
@@ -323,7 +323,7 @@ EOF
     override_get_config
     mock_notify
     
-    export PI_RUNNER_ALLOW_INLINE_HOOKS=false
+    export PI_RUNNER_HOOKS_ALLOW_INLINE=false
     
     # Enable WARN level logging to capture the message
     export LOG_LEVEL="WARN"
@@ -349,14 +349,14 @@ EOF
     override_get_config
     mock_notify
     
-    # Do NOT set PI_RUNNER_ALLOW_INLINE_HOOKS env var
-    unset PI_RUNNER_ALLOW_INLINE_HOOKS
+    # Do NOT set PI_RUNNER_HOOKS_ALLOW_INLINE env var
+    unset PI_RUNNER_HOOKS_ALLOW_INLINE
     
     result="$(run_hook "on_success" "42" "pi-42" "" "" "" "0" "")"
     [[ "$result" == *"CONFIG_INLINE_ALLOWED"* ]]
 }
 
-@test "run_hook allows inline command when PI_RUNNER_ALLOW_INLINE_HOOKS is true" {
+@test "run_hook allows inline command when PI_RUNNER_HOOKS_ALLOW_INLINE is true" {
     cat > "$TEST_WORKDIR/.pi-runner.yaml" << 'EOF'
 hooks:
   on_success: echo "INLINE_ALLOWED"
@@ -366,13 +366,13 @@ EOF
     override_get_config
     mock_notify
     
-    export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+    export PI_RUNNER_HOOKS_ALLOW_INLINE=true
     
     result="$(run_hook "on_success" "42" "pi-42" "" "" "" "0" "")"
     [[ "$result" == *"INLINE_ALLOWED"* ]]
 }
 
-@test "run_hook always allows script file hooks regardless of PI_RUNNER_ALLOW_INLINE_HOOKS" {
+@test "run_hook always allows script file hooks regardless of PI_RUNNER_HOOKS_ALLOW_INLINE" {
     mkdir -p "$TEST_WORKDIR/hooks"
     cat > "$TEST_WORKDIR/hooks/test.sh" << 'EOF'
 #!/bin/bash
@@ -389,8 +389,8 @@ EOF
     override_get_config
     mock_notify
     
-    # Do NOT set PI_RUNNER_ALLOW_INLINE_HOOKS
-    unset PI_RUNNER_ALLOW_INLINE_HOOKS
+    # Do NOT set PI_RUNNER_HOOKS_ALLOW_INLINE
+    unset PI_RUNNER_HOOKS_ALLOW_INLINE
     
     result="$(run_hook "on_success" "42" "pi-42" "" "" "" "0" "")"
     [[ "$result" == *"SCRIPT_EXECUTED"* ]]
@@ -410,7 +410,7 @@ EOF
     override_get_config
     mock_notify
     
-    export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+    export PI_RUNNER_HOOKS_ALLOW_INLINE=true
     
     # 悪意のあるIssueタイトル
     malicious_title='Fix bug"; rm -rf /tmp/test; echo "'
@@ -431,7 +431,7 @@ EOF
     override_get_config
     mock_notify
     
-    export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+    export PI_RUNNER_HOOKS_ALLOW_INLINE=true
     
     # 悪意のあるエラーメッセージ
     malicious_error='Error"; echo INJECTED; echo "'
@@ -454,7 +454,7 @@ EOF
     override_get_config
     mock_notify
     
-    export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+    export PI_RUNNER_HOOKS_ALLOW_INLINE=true
     
     # バッククォートを使った攻撃
     malicious_title='Test `echo BACKTICK_INJECTION` title'
@@ -475,7 +475,7 @@ EOF
     override_get_config
     mock_notify
     
-    export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+    export PI_RUNNER_HOOKS_ALLOW_INLINE=true
     
     # $(...)を使った攻撃
     malicious_title='Test $(echo SUBSHELL_INJECTION) title'
@@ -580,7 +580,7 @@ EOF
     override_get_config
     mock_notify
     
-    export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+    export PI_RUNNER_HOOKS_ALLOW_INLINE=true
     
     # 様々な特殊文字
     malicious_title='Test; ls -la & echo "injection" | cat'

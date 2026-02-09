@@ -41,7 +41,7 @@ hooks:
 
 ### インラインコマンド
 
-> **⚠️ セキュリティ注意**: インラインhookコマンドはデフォルトで無効化されています。使用するには `.pi-runner.yaml` で `hooks.allow_inline: true` を設定するか、環境変数 `PI_RUNNER_ALLOW_INLINE_HOOKS=true` を設定してください。セキュリティの観点から、可能な限り[スクリプトファイル](#スクリプトファイル指定)を使用することを推奨します。詳細は[セキュリティドキュメント](./security.md#インラインhookの制御)を参照してください。
+> **⚠️ セキュリティ注意**: インラインhookコマンドはデフォルトで無効化されています。使用するには `.pi-runner.yaml` で `hooks.allow_inline: true` を設定するか、環境変数 `PI_RUNNER_HOOKS_ALLOW_INLINE=true` を設定してください。セキュリティの観点から、可能な限り[スクリプトファイル](#スクリプトファイル指定)を使用することを推奨します。詳細は[セキュリティドキュメント](./security.md#インラインhookの制御)を参照してください。
 
 > **🔒 環境変数のサニタイズ**: `PI_ISSUE_TITLE` および `PI_ERROR_MESSAGE` に含まれる制御文字（改行、タブ、ヌル文字等）は自動的に除去されます。これにより、Issueタイトルやエラーメッセージに含まれる特殊文字が `bash -c` 内で意図しない動作を引き起こすことを防ぎます。
 
@@ -70,7 +70,7 @@ hooks:
 方法2: 環境変数で設定
 
 ```bash
-export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+export PI_RUNNER_HOOKS_ALLOW_INLINE=true
 ./scripts/run.sh 42
 ```
 

@@ -28,7 +28,7 @@ setup() {
     export _CONFIG_LOADED=""
     
     # inline hookを有効化
-    export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+    export PI_RUNNER_HOOKS_ALLOW_INLINE=true
 }
 
 teardown() {

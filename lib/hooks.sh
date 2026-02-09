@@ -182,7 +182,7 @@ _execute_hook() {
     fi
     
     # インラインコマンドの場合: 設定または環境変数で許可が必要
-    local allow_inline="${PI_RUNNER_ALLOW_INLINE_HOOKS:-}"
+    local allow_inline="${PI_RUNNER_HOOKS_ALLOW_INLINE:-${PI_RUNNER_ALLOW_INLINE_HOOKS:-}}"
     if [[ -z "$allow_inline" ]]; then
         # 環境変数未設定の場合、設定ファイルの hooks.allow_inline を確認
         allow_inline="$(get_config hooks_allow_inline)" || allow_inline="false"
@@ -191,7 +191,7 @@ _execute_hook() {
     if [[ "$allow_inline" != "true" ]]; then
         log_warn "Inline hook commands are disabled. Falling back to default notification."
         log_warn "To enable, add 'hooks.allow_inline: true' to .pi-runner.yaml"
-        log_warn "  or set: export PI_RUNNER_ALLOW_INLINE_HOOKS=true"
+        log_warn "  or set: export PI_RUNNER_HOOKS_ALLOW_INLINE=true"
         log_debug "Blocked hook: $hook"
         return 2  # 2 = blocked, triggers fallback to default notification
     fi

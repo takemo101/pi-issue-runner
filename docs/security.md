@@ -135,7 +135,7 @@ _execute_hook() {
     local hook="$1"
     ...
     # インラインコマンドの場合: 明示的許可が必要
-    if [[ "${PI_RUNNER_ALLOW_INLINE_HOOKS:-false}" != "true" ]]; then
+    if [[ "${PI_RUNNER_HOOKS_ALLOW_INLINE:-false}" != "true" ]]; then
         log_warn "Inline hook commands are disabled for security."
         return 0
     fi
@@ -151,7 +151,7 @@ _execute_hook() {
 - テンプレート変数（`{{...}}`）は非推奨、環境変数（`$PI_*`）を使用
 - 環境変数経由で渡される値は文字列として安全に処理される
 - デフォルトでインラインhookは拒否される
-- `PI_RUNNER_ALLOW_INLINE_HOOKS=true` を設定した場合のみ実行可能
+- `PI_RUNNER_HOOKS_ALLOW_INLINE=true` を設定した場合のみ実行可能
 - ファイルパスhookは常に許可される
 
 **環境変数の使用例**:
@@ -219,7 +219,7 @@ eval "$old_opts"
 
 ```
 [WARN] Inline hook commands are disabled for security.
-[WARN] To enable, set: export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+[WARN] To enable, set: export PI_RUNNER_HOOKS_ALLOW_INLINE=true
 ```
 
 ファイルパスで指定されたhookスクリプトは、環境変数の設定に関係なく常に実行されます。
@@ -240,7 +240,7 @@ hooks:
 方法2: 環境変数で設定
 
 ```bash
-export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+export PI_RUNNER_HOOKS_ALLOW_INLINE=true
 ./scripts/run.sh 42
 ```
 
@@ -248,7 +248,7 @@ export PI_RUNNER_ALLOW_INLINE_HOOKS=true
 
 ```bash
 # ~/.bashrc または ~/.zshrc
-export PI_RUNNER_ALLOW_INLINE_HOOKS=true
+export PI_RUNNER_HOOKS_ALLOW_INLINE=true
 ```
 
 #### 推奨事項
@@ -268,7 +268,7 @@ _execute_hook() {
     local hook="$1"
     ...
     # インラインコマンドの場合: 明示的許可が必要
-    local allow_inline="${PI_RUNNER_ALLOW_INLINE_HOOKS:-}"
+    local allow_inline="${PI_RUNNER_HOOKS_ALLOW_INLINE:-${PI_RUNNER_ALLOW_INLINE_HOOKS:-}}"
     if [[ -z "$allow_inline" ]]; then
         # 環境変数未設定の場合、設定ファイルの hooks.allow_inline を確認
         allow_inline="$(get_config hooks_allow_inline)" || allow_inline="false"
@@ -277,7 +277,7 @@ _execute_hook() {
     if [[ "$allow_inline" != "true" ]]; then
         log_warn "Inline hook commands are disabled. Falling back to default notification."
         log_warn "To enable, add 'hooks.allow_inline: true' to .pi-runner.yaml"
-        log_warn "  or set: export PI_RUNNER_ALLOW_INLINE_HOOKS=true"
+        log_warn "  or set: export PI_RUNNER_HOOKS_ALLOW_INLINE=true"
         return 2  # 2 = blocked, triggers fallback to default notification
     fi
     

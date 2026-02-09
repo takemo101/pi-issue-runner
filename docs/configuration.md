@@ -1039,7 +1039,7 @@ github:
 | `allow_inline` | boolean | `false` | インラインhookコマンドの実行を許可する。`true` にすると `.pi-runner.yaml` に直接書いたコマンドが実行される |
 
 > **Note**: インラインhook（ファイルパスではなくコマンド文字列）を使用する場合は `allow_inline: true` を設定してください。
-> 環境変数 `PI_RUNNER_ALLOW_INLINE_HOOKS=true` でも上書き可能です。
+> 環境変数 `PI_RUNNER_HOOKS_ALLOW_INLINE=true` でも上書き可能です。
 
 #### セッションライフサイクル
 
