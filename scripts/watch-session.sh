@@ -850,8 +850,9 @@ main() {
     baseline_output=$(capture_baseline "$session_name")
 
     # 初期マーカーチェック（高速完了タスク対応）
-    check_initial_markers "$session_name" "$issue_number" "$marker" "$error_marker" "$auto_attach" "$cleanup_args" "$baseline_output"
-    local init_result=$?
+    # Note: || true で set -e による即死を防止（return 1 = 監視続行）
+    local init_result=0
+    check_initial_markers "$session_name" "$issue_number" "$marker" "$error_marker" "$auto_attach" "$cleanup_args" "$baseline_output" || init_result=$?
 
     if [[ $init_result -eq 0 ]]; then
         log_info "Cleanup completed successfully"
