@@ -24,6 +24,9 @@
 #   --pi-args ARGS      Alias for --agent-args (backward compatibility)
 #   --list-workflows    List available workflows
 #   --ignore-blockers   Skip dependency check and force execution
+#   --show-config       Show current configuration (debug)
+#   --list-agents       List available agent presets
+#   --show-agent-config Show agent configuration (debug)
 #   -v, --verbose       Enable verbose/debug logging
 #   --quiet             Show only error messages
 #   -h, --help          Show help message
