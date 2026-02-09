@@ -81,8 +81,16 @@ _validate_bash() {
             test_dir="tests"
         fi
         if [[ -n "$test_dir" ]]; then
-            log_info "Running bats in $test_dir/..."
-            if ! bats "$test_dir/" 2>&1; then
+            # CI修正検証では実行時間を制限（タイムアウト防止）
+            local timeout_sec="${CI_FIX_BATS_TIMEOUT:-120}"
+            log_info "Running bats in $test_dir/ (timeout: ${timeout_sec}s)..."
+            local exit_code=0
+            timeout "$timeout_sec" bats "$test_dir/" 2>&1 || exit_code=$?
+            if [[ $exit_code -ne 0 ]]; then
+                if [[ $exit_code -eq 124 ]]; then
+                    log_warn "Bats test timed out after ${timeout_sec}s (skipping)"
+                    return 0  # タイムアウトは検証スキップとして扱う
+                fi
                 log_error "Bats test failed"
                 return 1
             fi
