@@ -128,7 +128,7 @@ $FAILED_LOGS
 - [ ] CIの再実行
 " 2>/dev/null || true
       
-      echo "###TASK_ERROR_{{issue_number}}###"
+      echo "###TASK""_ERROR_{{issue_number}}###"
       echo "CI failed after $MAX_RETRIES auto-fix attempts. PR marked as draft for manual handling."
       exit 1
     fi
@@ -234,7 +234,7 @@ Refs #{{issue_number}}" || true
         else
           echo "❌ CI still failing after auto-fix. Will retry..."
         fi
-        echo "###TASK_ERROR_{{issue_number}}###"
+        echo "###TASK""_ERROR_{{issue_number}}###"
         echo "CI failed after auto-fix attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
         exit 1
       fi
@@ -253,7 +253,7 @@ $FAILED_LOGS
 \`\`\`
 " 2>/dev/null || true
       
-      echo "###TASK_ERROR_{{issue_number}}###"
+      echo "###TASK""_ERROR_{{issue_number}}###"
       echo "CI failure type '$FAILURE_TYPE' requires manual fixing."
       exit 1
     fi
