@@ -81,7 +81,7 @@ classify_ci_failure() {
     # フォーマットエラーをチェック（各言語対応）
     # Rust: Diff in, would have been reformatted
     # Bash: shfmt
-    if echo "$log_content" | grep -qE '(Diff in|would have been reformatted|fmt check failed|shfmt)'; then
+    if printf '%s\n' "$log_content" | grep -qE '(Diff in|would have been reformatted|fmt check failed|shfmt)'; then
         echo "$FAILURE_TYPE_FORMAT"
         return 0
     fi
@@ -92,7 +92,7 @@ classify_ci_failure() {
     # Bash: SC[0-9]{4} (ShellCheck)
     # Python: pylint, flake8
     # Note: 汎用 "warning:" は除外（DeprecationWarning等の誤分類を防止）
-    if echo "$log_content" | grep -qE '(clippy::|error: could not compile.*clippy|problems? \([0-9]+ errors?|SC[0-9]{4}|pylint|flake8.*E[0-9])'; then
+    if printf '%s\n' "$log_content" | grep -qE '(clippy::|error: could not compile.*clippy|problems? \([0-9]+ errors?|SC[0-9]{4}|pylint|flake8.*E[0-9])'; then
         echo "$FAILURE_TYPE_LINT"
         return 0
     fi
@@ -102,7 +102,7 @@ classify_ci_failure() {
     # Node: SyntaxError, ModuleNotFoundError
     # Go: go build.*cannot
     # General: compilation failed
-    if echo "$log_content" | grep -qE '(error\[E|cannot find|unresolved import|expected.*found|SyntaxError|ModuleNotFoundError|go build.*cannot|compilation failed)'; then
+    if printf '%s\n' "$log_content" | grep -qE '(error\[E|cannot find|unresolved import|expected.*found|SyntaxError|ModuleNotFoundError|go build.*cannot|compilation failed)'; then
         echo "$FAILURE_TYPE_BUILD"
         return 0
     fi
@@ -113,7 +113,7 @@ classify_ci_failure() {
     # Go: --- FAIL:, FAIL\t
     # Node/Jest: Tests:.*failed
     # Note: 汎用 "FAILED" は除外（ビルドエラーとの誤分類を防止）
-    if echo "$log_content" | grep -qE '(test result: FAILED|failures:|not ok [0-9]|[0-9]+ tests?, [0-9]+ failures?|--- FAIL:|FAIL\t|Tests:.*failed)'; then
+    if printf '%s\n' "$log_content" | grep -qE '(test result: FAILED|failures:|not ok [0-9]|[0-9]+ tests?, [0-9]+ failures?|--- FAIL:|FAIL\t|Tests:.*failed)'; then
         echo "$FAILURE_TYPE_TEST"
         return 0
     fi
@@ -121,7 +121,7 @@ classify_ci_failure() {
     # 汎用パターン（最終フォールバック）
     # warning:.*unused は Rust/C の未使用警告に限定
     # npm ERR! はテスト・ビルド両方で出るため、上記で分類できなかった場合のみ
-    if echo "$log_content" | grep -qE '(warning:.*unused|npm ERR!)'; then
+    if printf '%s\n' "$log_content" | grep -qE '(warning:.*unused|npm ERR!)'; then
         echo "$FAILURE_TYPE_LINT"
         return 0
     fi

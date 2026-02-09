@@ -417,6 +417,27 @@ MOCK_EOF
     [ "$status" -eq 0 ]
 }
 
+@test "has_dangerous_patterns detects patterns in input starting with -n" {
+    source "$PROJECT_ROOT/lib/github.sh"
+
+    run has_dangerous_patterns '-n $(rm -rf /)'
+    [ "$status" -eq 0 ]
+}
+
+@test "has_dangerous_patterns detects patterns in input starting with -e" {
+    source "$PROJECT_ROOT/lib/github.sh"
+
+    run has_dangerous_patterns '-e $(whoami)'
+    [ "$status" -eq 0 ]
+}
+
+@test "has_dangerous_patterns detects patterns in input starting with -E" {
+    source "$PROJECT_ROOT/lib/github.sh"
+
+    run has_dangerous_patterns '-E ${HOME}'
+    [ "$status" -eq 0 ]
+}
+
 # ====================
 # get_issue_comments テスト
 # ====================

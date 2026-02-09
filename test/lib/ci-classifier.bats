@@ -449,6 +449,24 @@ test result: FAILED. 0 passed; 1 failed;"
     [ "$output" = "build" ]
 }
 
+@test "classify_ci_failure handles input starting with -n" {
+    run classify_ci_failure '-n Diff in foo.rs'
+    [ "$status" -eq 0 ]
+    [ "$output" = "format" ]
+}
+
+@test "classify_ci_failure handles input starting with -e" {
+    run classify_ci_failure '-e error[E0425]: cannot find value'
+    [ "$status" -eq 0 ]
+    [ "$output" = "build" ]
+}
+
+@test "classify_ci_failure handles input starting with -E" {
+    run classify_ci_failure '-E test result: FAILED. 0 passed; 1 failed;'
+    [ "$status" -eq 0 ]
+    [ "$output" = "test" ]
+}
+
 # ===================
 # get_failed_ci_logs テスト
 # ===================
