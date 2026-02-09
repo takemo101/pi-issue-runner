@@ -553,6 +553,66 @@ MOCK_EOF
     [[ "$result" == *"Test comment body"* ]]
 }
 
+@test "format_comments_section handles multiple comments" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    comments_json='[
+        {"author":{"login":"user1"},"body":"First comment","createdAt":"2024-03-15T09:00:00Z"},
+        {"author":{"login":"user2"},"body":"Second comment","createdAt":"2024-03-16T10:00:00Z"}
+    ]'
+    result="$(format_comments_section "$comments_json")"
+    
+    [[ "$result" == *"### @user1 (2024-03-15)"* ]]
+    [[ "$result" == *"First comment"* ]]
+    [[ "$result" == *"### @user2 (2024-03-16)"* ]]
+    [[ "$result" == *"Second comment"* ]]
+}
+
+@test "format_comments_section handles multiline body" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    comments_json='[{"author":{"login":"testuser"},"body":"Line 1\nLine 2\nLine 3","createdAt":"2024-03-15T09:30:00Z"}]'
+    result="$(format_comments_section "$comments_json")"
+    
+    [[ "$result" == *"### @testuser (2024-03-15)"* ]]
+    [[ "$result" == *"Line 1"* ]]
+    [[ "$result" == *"Line 2"* ]]
+    [[ "$result" == *"Line 3"* ]]
+}
+
+@test "format_comments_section handles body with tabs" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    comments_json='[{"author":{"login":"testuser"},"body":"col1\tcol2\tcol3","createdAt":"2024-03-15T09:30:00Z"}]'
+    result="$(format_comments_section "$comments_json")"
+    
+    [[ "$result" == *"### @testuser (2024-03-15)"* ]]
+    # Body should contain tab characters
+    [[ "$result" == *"col1"* ]]
+    [[ "$result" == *"col2"* ]]
+}
+
+@test "format_comments_section handles missing author and date" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    comments_json='[{"author":null,"body":"orphan comment","createdAt":""}]'
+    result="$(format_comments_section "$comments_json")"
+    
+    [[ "$result" == *"### @unknown (unknown)"* ]]
+    [[ "$result" == *"orphan comment"* ]]
+}
+
+@test "format_comments_section handles special characters in body" {
+    source "$PROJECT_ROOT/lib/github.sh"
+    
+    comments_json='[{"author":{"login":"testuser"},"body":"code: `echo hello` and <tag> & \"quotes\"","createdAt":"2024-03-15T09:30:00Z"}]'
+    result="$(format_comments_section "$comments_json")"
+    
+    [[ "$result" == *"### @testuser (2024-03-15)"* ]]
+    # Body content should be present (may be sanitized)
+    [ -n "$result" ]
+}
+
 # ====================
 # get_issue_blockers テスト
 # ====================

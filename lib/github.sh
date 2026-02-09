@@ -135,15 +135,11 @@ format_comments_section() {
     fi
     
     local result=""
-    local comment_count
-    comment_count="$(echo "$comments_json" | jq 'length')"
+    local author created_at body formatted_date
     
-    for ((i=0; i<comment_count; i++)); do
-        local author body created_at formatted_date
-        author="$(echo "$comments_json" | jq -r ".[$i].author.login // \"unknown\"")"
-        body="$(echo "$comments_json" | jq -r ".[$i].body // \"\"")"
-        created_at="$(echo "$comments_json" | jq -r ".[$i].createdAt // \"\"")"
-        
+    # 全コメントを単一のjq呼び出しで処理
+    # null文字区切りでauthor, createdAt, bodyを出力し、レコード間もnull文字で区切る
+    while IFS= read -r -d '' author && IFS= read -r -d '' created_at && IFS= read -r -d '' body; do
         # ISO8601形式から日付部分を抽出（YYYY-MM-DD）
         if [[ -n "$created_at" ]]; then
             formatted_date="${created_at%%T*}"
@@ -162,7 +158,8 @@ format_comments_section() {
         fi
         result="${result}### @${author} (${formatted_date})
 ${body}"
-    done
+    done < <(printf '%s' "$comments_json" | jq -j \
+        '.[] | (.author.login // "unknown"), "\u0000", (.createdAt // ""), "\u0000", (.body // ""), "\u0000"')
     
     echo "$result"
 }
