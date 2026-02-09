@@ -209,12 +209,34 @@ failures:
 # Node ビルドエラーパターン
 # ===================
 
-@test "classify_ci_failure detects npm ERR" {
+@test "classify_ci_failure detects npm ERR as lint fallback" {
+    # npm ERR! はテスト・ビルド両方で出るため、具体的パターンに
+    # マッチしない場合はフォールバックで lint に分類される
     local log="npm ERR! code ELIFECYCLE"
     
     run classify_ci_failure "$log"
     [ "$status" -eq 0 ]
+    [ "$output" = "lint" ]
+}
+
+@test "classify_ci_failure detects npm ERR with build error as build" {
+    # npm ERR! + SyntaxError がある場合はビルドエラーに分類される
+    local log="SyntaxError: Unexpected token
+npm ERR! code ELIFECYCLE"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
     [ "$output" = "build" ]
+}
+
+@test "classify_ci_failure detects npm ERR with test failure as test" {
+    # npm ERR! + テスト失敗パターンがある場合はテスト失敗に分類される
+    local log="Tests: 2 failed, 5 passed
+npm ERR! code ELIFECYCLE"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "test" ]
 }
 
 @test "classify_ci_failure detects SyntaxError" {
@@ -337,6 +359,99 @@ Diff in src/main.rs at line 10:
     [ "$status" -eq 0 ]
     [[ "$output" == *"mock log output"* ]]
 }
+
+# ===================
+# 誤分類防止テスト（Issue #1246）
+# ===================
+
+@test "classify_ci_failure does not misclassify Python DeprecationWarning as lint" {
+    # Python の DeprecationWarning は lint ではない
+    local log="DeprecationWarning: pkg_resources is deprecated
+  import pkg_resources"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "unknown" ]
+}
+
+@test "classify_ci_failure does not misclassify Node ExperimentalWarning as lint" {
+    # Node.js の ExperimentalWarning は lint ではない
+    local log="(node:12345) ExperimentalWarning: The Fetch API is an experimental feature."
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "unknown" ]
+}
+
+@test "classify_ci_failure does not misclassify build FAILED as test" {
+    # ビルドエラーに FAILED が含まれる場合、テストに誤分類しない
+    local log="error[E0433]: failed to resolve: could not find module
+cargo build FAILED"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "build" ]
+}
+
+@test "classify_ci_failure classifies compilation failed as build" {
+    local log="compilation failed: exit status 2"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "build" ]
+}
+
+@test "classify_ci_failure detects ShellCheck errors as lint" {
+    local log="In scripts/run.sh line 42:
+  echo \$var
+       ^---^ SC2086: Double quote to prevent globbing"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "lint" ]
+}
+
+@test "classify_ci_failure detects pylint errors as lint" {
+    local log="************* Module mypackage.main
+mypackage/main.py:10:0: C0114: Missing module docstring (missing-module-docstring)
+pylint returned exit code 4"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "lint" ]
+}
+
+@test "classify_ci_failure detects flake8 errors as lint" {
+    local log="src/main.py:1:1: flake8: E302 expected 2 blank lines, got 1"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "lint" ]
+}
+
+@test "classify_ci_failure classifies Rust unused warning via fallback as lint" {
+    # warning:.*unused は汎用フォールバックで lint に分類
+    local log="warning: unused variable: \`x\`
+  --> src/main.rs:5:9"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "lint" ]
+}
+
+@test "classify_ci_failure build takes priority over test when both present" {
+    # ビルドエラーとテストパターンが両方あっても、ビルドが先にマッチ
+    local log="error[E0425]: cannot find function 'foo'
+test result: FAILED. 0 passed; 1 failed;"
+    
+    run classify_ci_failure "$log"
+    [ "$status" -eq 0 ]
+    [ "$output" = "build" ]
+}
+
+# ===================
+# get_failed_ci_logs テスト
+# ===================
 
 @test "get_failed_ci_logs falls back when PR head branch unavailable" {
     # gh pr view が失敗する場合のフォールバック

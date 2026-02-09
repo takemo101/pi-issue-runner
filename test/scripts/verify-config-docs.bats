@@ -55,6 +55,15 @@ setup() {
     [[ "$output" == *'Section "agent" found'* ]]
 }
 
+@test "verify-config-docs.sh checks all configuration sections including watcher/auto/workflow/workflows" {
+    run "$VERIFY_SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'Section "watcher" found'* ]]
+    [[ "$output" == *'Section "auto" found'* ]]
+    [[ "$output" == *'Section "workflow" found'* ]]
+    [[ "$output" == *'Section "workflows" found'* ]]
+}
+
 @test "verify-config-docs.sh handles invalid option" {
     run "$VERIFY_SCRIPT" --invalid-option
     [ "$status" -eq 1 ]
@@ -98,6 +107,11 @@ setup() {
     [[ "$output" == *'Hook event "on_success" is documented'* ]]
     [[ "$output" == *'Hook event "on_error" is documented'* ]]
     [[ "$output" == *'Hook event "on_cleanup" is documented'* ]]
+    [[ "$output" == *'Hook event "on_improve_start" is documented'* ]]
+    [[ "$output" == *'Hook event "on_improve_end" is documented'* ]]
+    [[ "$output" == *'Hook event "on_iteration_start" is documented'* ]]
+    [[ "$output" == *'Hook event "on_iteration_end" is documented'* ]]
+    [[ "$output" == *'Hook event "on_review_complete" is documented'* ]]
 }
 
 @test "verify-config-docs.sh checks hooks configuration example" {

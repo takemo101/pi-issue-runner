@@ -108,6 +108,10 @@ check_document_structure() {
         "improve"
         "agents"
         "github"
+        "watcher"
+        "auto"
+        "workflow"
+        "workflows"
     )
 
     for section in "${sections[@]}"; do
@@ -145,6 +149,11 @@ check_hooks_config() {
         "on_success"
         "on_error"
         "on_cleanup"
+        "on_improve_start"
+        "on_improve_end"
+        "on_iteration_start"
+        "on_iteration_end"
+        "on_review_complete"
     )
 
     for event in "${hook_events[@]}"; do

@@ -36,7 +36,9 @@ _fix_format_bash() {
         local file_count
         file_count=$(echo "$sh_files" | wc -l | tr -d " ")
         log_info "Running shfmt on ${file_count} files..."
-        if echo "$sh_files" | xargs shfmt -w -i 4 2>&1; then
+        # shfmt はデフォルトで .editorconfig を参照する
+        # -i オプションを指定しないことで、プロジェクト固有の設定を尊重
+        if echo "$sh_files" | xargs shfmt -w 2>&1; then
             log_info "shfmt fix applied successfully"
             return 0
         else
