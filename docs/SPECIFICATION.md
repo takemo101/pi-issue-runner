@@ -514,7 +514,7 @@ Options:
     -f, --fail-fast   最初の失敗で終了
     -s, --shellcheck  ShellCheckを実行
     -a, --all         全てのチェック（bats + shellcheck）を実行
-    -j, --jobs N      並列実行のジョブ数（デフォルト: 16）
+    -j, --jobs N      並列実行のジョブ数（デフォルト: 4）
     --fast            高速モード（重いテストをスキップ）
     -h, --help        このヘルプを表示
 ```
@@ -525,6 +525,8 @@ Options:
 |-----------|------|
 | `lib` | test/lib/*.bats のみ実行 |
 | `scripts` | test/scripts/*.bats のみ実行 |
+| `regression` | test/regression/*.bats のみ実行 |
+| `skills` | test/skills/**/*.bats のみ実行 |
 | (デフォルト) | 全Batsテストを実行 |
 
 #### 使用例
