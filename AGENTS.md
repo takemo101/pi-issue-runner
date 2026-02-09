@@ -553,6 +553,7 @@ PRをマージする前に警告が解消されている必要があります。
 <!-- 例: - playwright-cli 0.0.63+: デフォルトセッション使用必須 → [詳細](docs/decisions/001-playwright-session.md) -->
 - Bats並列テスト: 16ジョブでハング、デフォルト2ジョブ推奨 → [詳細](docs/decisions/001-test-parallel-jobs-limit.md)
 - マーカー検出: pipe-pane+grepで全出力を記録・検索、代替パターンも検出 → [詳細](docs/decisions/002-marker-detection-reliability.md)
+- 完了検出: シグナルファイル最優先、テキストマーカーはフォールバック → [詳細](docs/decisions/003-signal-file-completion.md)
 
 ## 注意事項
 

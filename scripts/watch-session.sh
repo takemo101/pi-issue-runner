@@ -694,6 +694,12 @@ run_watch_loop() {
     cumulative_complete_count=$(count_any_markers_outside_codeblock "$baseline_output" "$marker" "$ALT_COMPLETE_MARKER")
     cumulative_error_count=$(count_any_markers_outside_codeblock "$baseline_output" "$error_marker" "$ALT_ERROR_MARKER")
 
+    # シグナルファイルのパス（ターミナルスクレイピングより信頼性が高い）
+    local status_dir
+    status_dir="$(get_status_dir)"
+    local signal_complete="${status_dir}/signal-complete-${issue_number}"
+    local signal_error="${status_dir}/signal-error-${issue_number}"
+
     local loop_count=0
     while true; do
         ((loop_count++)) || true
@@ -703,7 +709,38 @@ run_watch_loop() {
             break
         fi
 
-        # --- マーカー検出 ---
+        # === Phase 1: シグナルファイルチェック（最優先・最も信頼性が高い） ===
+        # AIがファイルを作成するだけなので、ANSI・コードブロック・スクロールアウト問題が一切ない
+        if [[ -f "$signal_complete" ]]; then
+            log_info "Completion signal file detected: $signal_complete"
+            rm -f "$signal_complete"
+
+            handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"
+            local sig_result=$?
+            if [[ $sig_result -eq 0 ]]; then
+                log_info "Cleanup completed successfully (signal file)"
+                exit 0
+            elif [[ $sig_result -eq 2 ]]; then
+                log_warn "PR merge timeout. Continuing to monitor session..."
+                sleep "$interval"
+                continue
+            else
+                log_error "Cleanup failed"
+                exit 1
+            fi
+        fi
+
+        if [[ -f "$signal_error" ]]; then
+            log_warn "Error signal file detected: $signal_error"
+            local sig_error_message
+            sig_error_message=$(cat "$signal_error" 2>/dev/null | head -c 200) || sig_error_message="Unknown error"
+            rm -f "$signal_error"
+
+            handle_error "$session_name" "$issue_number" "$sig_error_message" "$auto_attach" "$cleanup_args"
+            log_warn "Error notification sent. Session is still running for manual intervention."
+        fi
+
+        # === Phase 2: テキストマーカー検出（フォールバック・後方互換） ===
         # pipe-paneモード: grep でファイルを直接検索（高速、O(n) C実装）
         # フォールバック: capture-pane + bash行スキャン
         local error_count_current=0

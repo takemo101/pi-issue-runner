@@ -66,7 +66,15 @@ git commit -m "<type>: <description>" -m "Refs #{{issue_number}}"
 
 ## エラー報告
 
-回復不能なエラーが発生した場合は、以下の形式でエラーマーカーを出力してください：
+回復不能なエラーが発生した場合は、**以下の2つを両方実行**してください：
+
+### 1. シグナルファイルを作成（必須・最優先）
+
+```bash
+mkdir -p "{{signal_dir}}" && echo "エラーの説明" > "{{signal_dir}}/signal-error-{{issue_number}}"
+```
+
+### 2. エラーマーカーをテキスト出力（後方互換）
 
 - プレフィックス: `###TASK`
 - 中間部: `_ERROR_`

@@ -65,5 +65,12 @@ render_template() {
     result="${result//\{\{pr_number\}\}/$pr_number}"
     result="${result//\{\{plans_dir\}\}/$plans_dir}"
     
+    # シグナルファイルディレクトリ（worktreeの親の.status/）
+    local signal_dir=""
+    if [[ -n "$worktree_path" ]]; then
+        signal_dir="${worktree_path}/../.status"
+    fi
+    result="${result//\{\{signal_dir\}\}/$signal_dir}"
+    
     echo "$result"
 }
