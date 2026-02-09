@@ -315,10 +315,11 @@ Arguments:
     session-name    監視するセッション名
 
 Options:
-    --marker <text>   完了マーカー（デフォルト: ###TASK_COMPLETE_<issue>###）
-    --interval <sec>  監視間隔（デフォルト: 2秒）
-    --cleanup-args    cleanup.shに渡す追加引数
-    -h, --help        このヘルプを表示
+    --marker <text>       完了マーカー（デフォルト: ###TASK_COMPLETE_<issue>###）
+    --interval <sec>      監視間隔（デフォルト: 2秒）
+    --cleanup-args        cleanup.shに渡す追加引数
+    --no-auto-attach      エラー検知時にTerminalを自動で開かない
+    -h, --help            このヘルプを表示
 ```
 
 #### 動作概要
