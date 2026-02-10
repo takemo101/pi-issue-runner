@@ -142,6 +142,8 @@ project-root/
 │   ├── session-resolver.sh  # セッション名解決ユーティリティ
 │   ├── status.sh            # ステータスファイル管理
 │   ├── template.sh          # テンプレート処理
+│   ├── tracker.sh           # プロンプト効果測定（記録コア）
+│   ├── knowledge-loop.sh    # 知識ループコアライブラリ
 │   ├── tmux.sh              # tmux操作（後方互換ラッパー）
 │   ├── multiplexer.sh       # マルチプレクサ抽象化レイヤー
 │   ├── multiplexer-tmux.sh  # tmux実装
@@ -162,6 +164,7 @@ project-root/
     ├── force-complete.sh    # セッション強制完了
     ├── generate-config.sh   # プロジェクト解析・設定生成
     ├── improve.sh           # 継続的改善スクリプト
+    ├── knowledge-loop.sh    # 知識ループ（fixコミットから知見抽出・AGENTS.md更新提案）
     ├── init.sh              # プロジェクト初期化
     ├── list.sh              # セッション一覧
     ├── mux-all.sh           # 全セッション表示（マルチプレクサ対応）
@@ -174,6 +177,7 @@ project-root/
     ├── stop.sh              # セッション停止
     ├── sweep.sh             # 全セッションのマーカーチェック・cleanup
     ├── test.sh              # テスト実行
+    ├── tracker.sh           # プロンプト効果測定（集計・表示）
     ├── verify-config-docs.sh # 設定ドキュメントの整合性検証
     ├── wait-for-sessions.sh # 複数セッション完了待機
     └── watch-session.sh     # セッション監視と自動クリーンアップ
@@ -595,6 +599,39 @@ Options:
 ./scripts/improve.sh --auto-continue
 ```
 
+### knowledge-loop.sh - 知識ループ
+
+```bash
+./scripts/knowledge-loop.sh [options]
+
+Options:
+    --since "PERIOD"     対象期間（デフォルト: "1 week ago"）
+                         例: "1 week ago", "3 days ago", "1 month ago"
+    --apply              提案をAGENTS.mdに自動適用
+    --dry-run            提案のみ表示（デフォルト）
+    --json               JSON形式で出力
+    -h, --help           このヘルプを表示
+```
+
+#### 動作概要
+
+fixコミットと`docs/decisions/`から知見を自動抽出し、AGENTS.mdの「既知の制約」セクションへの追加を提案します。
+
+**解析対象**:
+1. `fix:` コミット（git log --grep="^fix:"）
+2. 新しい `docs/decisions/*.md` ファイル
+3. tracker.jsonl の失敗パターン（存在する場合）
+
+#### 使用例
+
+```bash
+./scripts/knowledge-loop.sh                         # 直近7日間を解析
+./scripts/knowledge-loop.sh --since "1 week ago"    # 同上
+./scripts/knowledge-loop.sh --since "3 days ago"    # 直近3日間のみ
+./scripts/knowledge-loop.sh --apply                 # AGENTS.mdに自動適用
+./scripts/knowledge-loop.sh --dry-run               # プレビューのみ（デフォルト）
+```
+
 ### nudge.sh - セッションへメッセージ送信
 
 ```bash
@@ -821,6 +858,29 @@ Options:
 ./scripts/test.sh -f          # fail-fast モード
 ./scripts/test.sh -s          # ShellCheckのみ実行
 ./scripts/test.sh -a          # Batsテスト + ShellCheck
+```
+
+### tracker.sh - プロンプト効果測定
+
+```bash
+./scripts/tracker.sh [options]
+
+Options:
+    --by-workflow       ワークフロー別成功率を表示
+    --failures          失敗パターン分析（直近の失敗一覧）
+    --since "N days"    期間指定（N日以内のエントリのみ）
+    --json              JSON形式で出力
+    -h, --help          このヘルプを表示
+```
+
+#### 使用例
+
+```bash
+./scripts/tracker.sh                    # 全記録を表示
+./scripts/tracker.sh --by-workflow      # ワークフロー別成功率
+./scripts/tracker.sh --failures         # 失敗パターン分析
+./scripts/tracker.sh --since "7 days"   # 直近7日間のみ
+./scripts/tracker.sh --json             # JSON形式で出力
 ```
 
 ### verify-config-docs.sh - 設定ドキュメントの整合性検証
