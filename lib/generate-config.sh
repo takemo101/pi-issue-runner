@@ -14,6 +14,9 @@
 
 set -euo pipefail
 
+_GENERATE_CONFIG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$_GENERATE_CONFIG_LIB_DIR/compat.sh"
+
 # ============================================================================
 # Project information collection
 # ============================================================================
@@ -271,7 +274,7 @@ generate_with_ai() {
 
     local response
     local exit_code=0
-    response=$(echo "$prompt" | timeout 60 "$pi_command" --print \
+    response=$(echo "$prompt" | safe_timeout 60 "$pi_command" --print \
         --provider "${PI_RUNNER_AUTO_PROVIDER:-anthropic}" \
         --model "${PI_RUNNER_AUTO_MODEL:-claude-haiku-4-5}" \
         --no-tools \
