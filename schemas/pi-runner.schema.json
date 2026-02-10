@@ -304,6 +304,30 @@
         "ci-fix": {
           "type": "string",
           "description": "Template file for ci-fix step"
+        },
+        "code-review": {
+          "type": "string",
+          "description": "Template file for independent code review (used with call: steps)"
+        },
+        "improve-review": {
+          "type": "string",
+          "description": "Template file for improve.sh review prompt"
+        },
+        "review-bugs": {
+          "type": "string",
+          "description": "Template file for bug and logic error review"
+        },
+        "review-security": {
+          "type": "string",
+          "description": "Template file for security review"
+        },
+        "review-architecture": {
+          "type": "string",
+          "description": "Template file for design and architecture review"
+        },
+        "review-ai-antipattern": {
+          "type": "string",
+          "description": "Template file for AI implementation anti-pattern review"
         }
       }
     },
