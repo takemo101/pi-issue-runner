@@ -577,9 +577,19 @@ setup_completion_watcher() {
         local watcher_script
         watcher_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/watch-session.sh"
         
+        # Build watcher arguments
+        local watcher_args=("$session_name")
+        
+        # Check auto_attach config setting
+        local auto_attach_setting
+        auto_attach_setting="$(get_config watcher_auto_attach)"
+        if [[ "$auto_attach_setting" == "false" ]]; then
+            watcher_args+=("--no-auto-attach")
+        fi
+        
         # Issue #553: daemonize関数を使用してプロセスグループを分離
         local watcher_pid
-        watcher_pid=$(daemonize "$watcher_log" "$watcher_script" "$session_name")
+        watcher_pid=$(daemonize "$watcher_log" "$watcher_script" "${watcher_args[@]}")
         
         # Issue #693: Save watcher PID for restart functionality
         save_watcher_pid "$issue_number" "$watcher_pid"

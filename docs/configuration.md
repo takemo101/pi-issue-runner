@@ -351,6 +351,11 @@ watcher:
   # 完了マーカー検出後にセッションを強制終了・クリーンアップする
   # デフォルト: false
   force_cleanup_on_timeout: false
+  
+  # エラー検知時にターミナルを自動で開いてセッションにアタッチする
+  # Terminal.app以外（Ghostty等）を使用中にウィンドウが多発する場合はfalseに設定
+  # デフォルト: true
+  auto_attach: true
 
 # =====================================
 # エージェント設定（オプション）
@@ -647,6 +652,7 @@ docs/plans/
 | `pr_merge_max_attempts` | integer | `10` | PRマージチェックの最大試行回数 |
 | `pr_merge_retry_interval` | integer | `60` | PRマージチェックのリトライ間隔（秒） |
 | `force_cleanup_on_timeout` | boolean | `false` | PRマージタイムアウト時に強制クリーンアップを実行する |
+| `auto_attach` | boolean | `true` | エラー検知時にターミナルを自動で開いてセッションにアタッチする |
 
 #### タイミング調整の指針
 
@@ -1384,6 +1390,7 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_WATCHER_PR_MERGE_MAX_ATTEMPTS` | `watcher.pr_merge_max_attempts` |
 | `PI_RUNNER_WATCHER_PR_MERGE_RETRY_INTERVAL` | `watcher.pr_merge_retry_interval` |
 | `PI_RUNNER_WATCHER_FORCE_CLEANUP_ON_TIMEOUT` | `watcher.force_cleanup_on_timeout` |
+| `PI_RUNNER_WATCHER_AUTO_ATTACH` | `watcher.auto_attach` |
 | `PI_RUNNER_TRACKER_FILE` | `tracker.file` |
 
 ### 例: CI環境での使用
