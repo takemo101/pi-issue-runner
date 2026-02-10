@@ -257,8 +257,3 @@ ${review_context}"
         exit 0
     fi
 }
-
-# Backward compatibility: keep old function name
-run_review_phase() {
-    run_improve_review_phase "$@"
-}

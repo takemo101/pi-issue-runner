@@ -73,12 +73,6 @@ teardown() {
     [[ "$output" == *"Examples:"* ]]
 }
 
-@test "usage() is backward compatible wrapper" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve/args.sh' && usage"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Usage: improve.sh"* ]]
-}
-
 # ====================
 # parse_improve_arguments() - Normal Cases
 # ====================

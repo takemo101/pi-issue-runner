@@ -91,18 +91,8 @@ teardown() {
 }
 
 # ====================
-# 関数定義テスト (backward compatibility)
+# 関数定義テスト
 # ====================
-
-@test "improve.sh library provides cleanup_on_exit function" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F cleanup_on_exit"
-    [ "$status" -eq 0 ]
-}
-
-@test "improve.sh library provides usage function" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F usage"
-    [ "$status" -eq 0 ]
-}
 
 @test "improve.sh library provides parse_improve_arguments function" {
     run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F parse_improve_arguments"
@@ -114,52 +104,22 @@ teardown() {
     [ "$status" -eq 0 ]
 }
 
-@test "improve.sh library provides run_review_phase function" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F run_review_phase"
-    [ "$status" -eq 0 ]
-}
-
-@test "improve.sh library provides fetch_created_issues function" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F fetch_created_issues"
-    [ "$status" -eq 0 ]
-}
-
-@test "improve.sh library provides execute_issues_in_parallel function" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F execute_issues_in_parallel"
-    [ "$status" -eq 0 ]
-}
-
-@test "improve.sh library provides wait_for_completion function" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F wait_for_completion"
-    [ "$status" -eq 0 ]
-}
-
-@test "improve.sh library provides start_next_iteration function" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F start_next_iteration"
-    [ "$status" -eq 0 ]
-}
-
-@test "improve.sh library provides check_dependencies function" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && declare -F check_dependencies"
-    [ "$status" -eq 0 ]
-}
-
 @test "improve.sh library has improve_main function" {
     grep -q 'improve_main()' "$PROJECT_ROOT/lib/improve.sh"
 }
 
 # ====================
-# usage() 関数テスト
+# show_improve_usage() 関数テスト
 # ====================
 
-@test "usage function displays help text" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && usage"
+@test "show_improve_usage function displays help text" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && show_improve_usage"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Usage:"* ]]
 }
 
-@test "usage function shows all options" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && usage"
+@test "show_improve_usage function shows all options" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && show_improve_usage"
     [[ "$output" == *"--max-iterations"* ]]
     [[ "$output" == *"--max-issues"* ]]
     [[ "$output" == *"--timeout"* ]]
@@ -170,13 +130,13 @@ teardown() {
     [[ "$output" == *"--auto-continue"* ]]
 }
 
-@test "usage function shows description" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && usage"
+@test "show_improve_usage function shows description" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && show_improve_usage"
     [[ "$output" == *"Description:"* ]]
 }
 
-@test "usage function shows examples" {
-    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && usage"
+@test "show_improve_usage function shows examples" {
+    run bash -c "source '$PROJECT_ROOT/lib/improve.sh' && show_improve_usage"
     [[ "$output" == *"Examples:"* ]]
 }
 
@@ -272,12 +232,11 @@ teardown() {
 }
 
 # ====================
-# check_dependencies() 関数テスト
+# check_improve_dependencies() 関数テスト
 # ====================
 
-@test "check_dependencies function exists in deps module" {
-    grep -q 'check_improve_dependencies()' "$PROJECT_ROOT/lib/improve/deps.sh" || \
-    grep -q 'check_dependencies()' "$PROJECT_ROOT/lib/improve/deps.sh"
+@test "check_improve_dependencies function exists in deps module" {
+    grep -q 'check_improve_dependencies()' "$PROJECT_ROOT/lib/improve/deps.sh"
 }
 
 @test "check_dependencies checks for pi command" {
@@ -333,10 +292,10 @@ teardown() {
 }
 
 # ====================
-# cleanup_on_exit() 関数テスト
+# cleanup_improve_on_exit() 関数テスト
 # ====================
 
-@test "cleanup_on_exit function handles active sessions (Issue #1106)" {
+@test "cleanup_improve_on_exit function handles active sessions (Issue #1106)" {
     source_content=$(cat "$PROJECT_ROOT/lib/improve/execution.sh")
     # Should use file-based tracking instead of ACTIVE_ISSUE_NUMBERS
     [[ "$source_content" == *'get_improve_active_issues'* ]]
