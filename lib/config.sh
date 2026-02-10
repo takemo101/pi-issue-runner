@@ -43,6 +43,7 @@ CONFIG_WATCHER_CLEANUP_DELAY="${CONFIG_WATCHER_CLEANUP_DELAY:-5}"               
 CONFIG_WATCHER_CLEANUP_RETRY_INTERVAL="${CONFIG_WATCHER_CLEANUP_RETRY_INTERVAL:-3}"  # cleanup リトライ間隔（秒）
 CONFIG_WATCHER_PR_MERGE_MAX_ATTEMPTS="${CONFIG_WATCHER_PR_MERGE_MAX_ATTEMPTS:-10}"    # PRマージチェック最大回数
 CONFIG_WATCHER_PR_MERGE_RETRY_INTERVAL="${CONFIG_WATCHER_PR_MERGE_RETRY_INTERVAL:-60}" # PRマージチェック間隔（秒）
+CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT="${CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT:-false}" # PRマージタイムアウト時に強制クリーンアップ
 
 # エージェント設定（マルチエージェント対応）
 CONFIG_AGENT_TYPE="${CONFIG_AGENT_TYPE:-}"       # pi | claude | opencode | custom (空 = pi.commandを使用)
@@ -223,6 +224,7 @@ _CONFIG_MASTER=(
     ".watcher.cleanup_retry_interval:WATCHER_CLEANUP_RETRY_INTERVAL:watcher_cleanup_retry_interval:CONFIG_WATCHER_CLEANUP_RETRY_INTERVAL"
     ".watcher.pr_merge_max_attempts:WATCHER_PR_MERGE_MAX_ATTEMPTS:watcher_pr_merge_max_attempts:CONFIG_WATCHER_PR_MERGE_MAX_ATTEMPTS"
     ".watcher.pr_merge_retry_interval:WATCHER_PR_MERGE_RETRY_INTERVAL:watcher_pr_merge_retry_interval:CONFIG_WATCHER_PR_MERGE_RETRY_INTERVAL"
+    ".watcher.force_cleanup_on_timeout:WATCHER_FORCE_CLEANUP_ON_TIMEOUT:watcher_force_cleanup_on_timeout:CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT"
 )
 
 # Array configuration items (parsed differently from YAML)

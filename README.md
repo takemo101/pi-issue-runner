@@ -423,6 +423,15 @@ improve_logs:
   keep_recent: 10    # 直近N件のログを保持（0=全て保持）
   keep_days: 7       # N日以内のログを保持（0=日数制限なし）
   dir: .improve-logs # ログディレクトリ
+
+# セッション監視（Watcher）設定
+watcher:
+  initial_delay: 10              # 監視開始前の初期遅延（秒）
+  cleanup_delay: 5               # cleanup実行前の待機時間（秒）
+  cleanup_retry_interval: 3      # cleanupリトライ間隔（秒）
+  pr_merge_max_attempts: 10      # PRマージチェックの最大試行回数
+  pr_merge_retry_interval: 60    # PRマージチェック間隔（秒）
+  force_cleanup_on_timeout: false # PRマージタイムアウト時に強制クリーンアップ
 ```
 
 ### マルチプレクサの切り替え
@@ -566,6 +575,14 @@ scripts/attach.sh 42
 ### 完了後のクリーンアップ
 
 piセッション内で `###TASK_COMPLETE_42###` を出力すると、外部プロセスが自動的にworktreeとセッションをクリーンアップします。
+
+完了マーカー検出後、PRのマージ確認を行います（デフォルト: 最大10回×60秒間隔）。PRが見つからない/マージされない場合はタイムアウトとなり、デフォルトでは監視を継続します。`force_cleanup_on_timeout: true` を設定すると、タイムアウト時でもセッションを強制的にクリーンアップします：
+
+```yaml
+# .pi-runner.yaml
+watcher:
+  force_cleanup_on_timeout: true  # PRマージタイムアウト時でも強制終了
+```
 
 ```bash
 # 手動でクリーンアップする場合

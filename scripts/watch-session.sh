@@ -436,8 +436,15 @@ handle_complete() {
     
     if [[ $pr_check_result -eq 2 ]]; then
         # Timeout: PR が見つからないまたはマージされないままタイムアウト
-        log_warn "PR merge timeout. Will continue monitoring for manual completion."
-        return 2
+        local force_cleanup
+        force_cleanup="$(get_config watcher_force_cleanup_on_timeout)"
+        if [[ "$force_cleanup" == "true" ]]; then
+            log_warn "PR merge timeout. Force cleanup enabled - proceeding with cleanup anyway."
+        else
+            log_warn "PR merge timeout. Will continue monitoring for manual completion."
+            log_warn "Hint: Set watcher.force_cleanup_on_timeout: true in .pi-runner.yaml to auto-cleanup on timeout."
+            return 2
+        fi
     elif [[ $pr_check_result -ne 0 ]]; then
         # その他のエラー
         log_error "PR check failed with unexpected error"

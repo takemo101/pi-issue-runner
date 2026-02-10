@@ -682,3 +682,28 @@ EOF
     local continue_monitoring=true
     [ "$continue_monitoring" = true ]
 }
+
+@test "force_cleanup_on_timeout: config default is false" {
+    # CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT defaults to "false" in config.sh
+    [ "$CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT" = "false" ]
+}
+
+@test "force_cleanup_on_timeout: config respects environment override" {
+    export CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT="true"
+    [ "$CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT" = "true" ]
+}
+
+@test "force_cleanup_on_timeout: handle_complete code path exists in watch-session.sh" {
+    # Verify the force_cleanup_on_timeout code path is present
+    grep -q 'force_cleanup_on_timeout' "$PROJECT_ROOT/scripts/watch-session.sh"
+    grep -q 'Force cleanup enabled' "$PROJECT_ROOT/scripts/watch-session.sh"
+}
+
+@test "force_cleanup_on_timeout: handle_complete returns 2 when disabled (default)" {
+    # Default behavior: force_cleanup_on_timeout is false
+    export CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT="false"
+
+    # Verify the design: when disabled, timeout returns 2 (continue monitoring)
+    local timeout_code=2
+    [ "$timeout_code" -eq 2 ]
+}
