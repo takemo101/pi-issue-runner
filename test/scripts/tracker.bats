@@ -135,6 +135,47 @@ EOF
 # Unknown option
 # ====================
 
+# ====================
+# --gates
+# ====================
+
+@test "tracker.sh --gates shows gate statistics" {
+    cat > "$TRACKER_FILE" << 'EOF'
+{"issue":100,"workflow":"default","result":"success","duration_sec":120,"gates":{"shellcheck":{"result":"pass","attempts":1},"bats":{"result":"pass","attempts":2}},"total_gate_retries":1,"timestamp":"2026-02-10T08:00:00Z"}
+{"issue":101,"workflow":"default","result":"success","duration_sec":180,"gates":{"shellcheck":{"result":"pass","attempts":1},"bats":{"result":"pass","attempts":1}},"total_gate_retries":0,"timestamp":"2026-02-10T09:00:00Z"}
+{"issue":102,"workflow":"fix","result":"error","duration_sec":300,"gates":{"shellcheck":{"result":"fail","attempts":3}},"total_gate_retries":2,"timestamp":"2026-02-10T10:00:00Z"}
+EOF
+    export PI_RUNNER_TRACKER_FILE="$TRACKER_FILE"
+    run "$PROJECT_ROOT/scripts/tracker.sh" --gates
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Gate Statistics"* ]]
+    [[ "$output" == *"shellcheck"* ]]
+    [[ "$output" == *"bats"* ]]
+}
+
+@test "tracker.sh --gates shows no gate data message" {
+    _create_test_entries
+    export PI_RUNNER_TRACKER_FILE="$TRACKER_FILE"
+    run "$PROJECT_ROOT/scripts/tracker.sh" --gates
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"No gate data found"* ]]
+}
+
+@test "tracker.sh --gates shows total retries" {
+    cat > "$TRACKER_FILE" << 'EOF'
+{"issue":100,"workflow":"default","result":"success","duration_sec":120,"gates":{"shellcheck":{"result":"pass","attempts":1}},"total_gate_retries":2,"timestamp":"2026-02-10T08:00:00Z"}
+{"issue":101,"workflow":"default","result":"success","duration_sec":180,"gates":{"shellcheck":{"result":"pass","attempts":1}},"total_gate_retries":3,"timestamp":"2026-02-10T09:00:00Z"}
+EOF
+    export PI_RUNNER_TRACKER_FILE="$TRACKER_FILE"
+    run "$PROJECT_ROOT/scripts/tracker.sh" --gates
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Total retries across all entries: 5"* ]]
+}
+
+# ====================
+# Unknown option
+# ====================
+
 @test "tracker.sh rejects unknown option" {
     run "$PROJECT_ROOT/scripts/tracker.sh" --unknown
     [ "$status" -eq 1 ]

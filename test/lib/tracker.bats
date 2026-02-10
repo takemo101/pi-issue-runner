@@ -229,3 +229,53 @@ teardown() {
     count="$(wc -l < "$TEST_WORKTREE_DIR/.status/tracker.jsonl" | tr -d ' ')"
     [ "$count" = "2" ]
 }
+
+# ====================
+# record_tracker_entry with gates_json
+# ====================
+
+@test "record_tracker_entry includes gates when gates_json provided" {
+    save_tracker_metadata "42" "default"
+    local gates='{"gates":{"shellcheck":{"result":"pass","attempts":1},"bats":{"result":"pass","attempts":2}},"total_gate_retries":1}'
+    record_tracker_entry "42" "success" "" "$gates"
+    local line
+    line="$(cat "$TEST_WORKTREE_DIR/.status/tracker.jsonl")"
+    local gates_obj
+    gates_obj="$(echo "$line" | jq '.gates')"
+    [ "$(echo "$gates_obj" | jq -r '.shellcheck.result')" = "pass" ]
+    [ "$(echo "$gates_obj" | jq '.shellcheck.attempts')" = "1" ]
+    [ "$(echo "$gates_obj" | jq -r '.bats.result')" = "pass" ]
+    [ "$(echo "$gates_obj" | jq '.bats.attempts')" = "2" ]
+}
+
+@test "record_tracker_entry includes total_gate_retries" {
+    save_tracker_metadata "42" "default"
+    local gates='{"gates":{"shellcheck":{"result":"pass","attempts":1}},"total_gate_retries":3}'
+    record_tracker_entry "42" "success" "" "$gates"
+    local line
+    line="$(cat "$TEST_WORKTREE_DIR/.status/tracker.jsonl")"
+    local retries
+    retries="$(echo "$line" | jq '.total_gate_retries')"
+    [ "$retries" = "3" ]
+}
+
+@test "record_tracker_entry omits gates when gates_json is empty" {
+    save_tracker_metadata "42" "default"
+    record_tracker_entry "42" "success" "" ""
+    local line
+    line="$(cat "$TEST_WORKTREE_DIR/.status/tracker.jsonl")"
+    local has_gates
+    has_gates="$(echo "$line" | jq 'has("gates")')"
+    [ "$has_gates" = "false" ]
+}
+
+@test "record_tracker_entry works with both error_type and gates_json" {
+    save_tracker_metadata "42" "fix"
+    local gates='{"gates":{"shellcheck":{"result":"fail","attempts":2}},"total_gate_retries":1}'
+    record_tracker_entry "42" "error" "gate_failure" "$gates"
+    local line
+    line="$(cat "$TEST_WORKTREE_DIR/.status/tracker.jsonl")"
+    [ "$(echo "$line" | jq -r '.error_type')" = "gate_failure" ]
+    [ "$(echo "$line" | jq -r '.gates.shellcheck.result')" = "fail" ]
+    [ "$(echo "$line" | jq '.total_gate_retries')" = "1" ]
+}

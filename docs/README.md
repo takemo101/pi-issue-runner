@@ -98,6 +98,16 @@ GitHub Issueを入力として、独立したworktree環境でpiインスタン�
   - ワークフロー選択ロジック
   - AI自動選択の実装方針
 
+- **[gates.md](./gates.md)** - Gates（品質ゲート）
+  - 設定方法（シンプル / command / call 形式）
+  - 動作フロー
+  - Tracker連携
+
+- **[gates-spec.md](./gates-spec.md)** - Gates仕様書
+  - 詳細な技術仕様
+  - 循環呼び出し検出
+  - 実行環境
+
 - **[hooks.md](./hooks.md)** - Hook機能
   - ライフサイクルイベント
   - カスタムスクリプト実行

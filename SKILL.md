@@ -24,6 +24,7 @@ Options:
   --force                強制再作成
   -b, --branch <name>    カスタムブランチ名
   --base <branch>        ベースブランチ
+  --no-gates             品質ゲートをスキップ
   --agent-args <args>    エージェントに渡す追加の引数
   --pi-args <args>       --agent-args のエイリアス（後方互換性）
   -l, --label <label>    セッションラベル（識別用タグ）
