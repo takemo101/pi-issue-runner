@@ -947,6 +947,7 @@ pi-issue-runner/
 │   └── thorough.yaml       # 徹底ワークフロー
 ├── agents/                  # エージェントテンプレート
 │   ├── ci-fix.md           # CI修正エージェント
+│   ├── improve-review.md   # improve.sh レビュープロンプト
 │   ├── plan.md             # 計画エージェント
 │   ├── implement.md        # 実装エージェント
 │   ├── test.md             # テストエージェント
