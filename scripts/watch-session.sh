@@ -901,6 +901,11 @@ run_watch_loop() {
 
         sleep "$interval"
     done
+
+    # セッションが予期せず消滅した場合（マーカー/シグナルなしで終了）
+    # ステータスを error に更新して、wait-for-sessions.sh等が検出できるようにする
+    log_warn "Session disappeared without completion/error signal: $session_name"
+    save_status "$issue_number" "error" "$session_name" "Session disappeared unexpectedly (no completion marker detected)"
 }
 
 main() {
