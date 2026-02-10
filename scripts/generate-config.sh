@@ -135,6 +135,8 @@ _generate_yaml_content() {
         local project_context
         project_context="$(collect_project_context ".")"
 
+        detect_gates "."
+
         yaml_content="$(generate_with_ai "$project_context")" || {
             log_warn "AI生成に失敗しました。静的テンプレートにフォールバックします。"
             yaml_content=""
