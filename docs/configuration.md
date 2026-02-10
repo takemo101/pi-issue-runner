@@ -405,6 +405,17 @@ worktree:
     - .npmrc                  # npm認証情報
 ```
 
+#### copy_dirsの使い方
+
+ディレクトリ全体をworktreeにコピーしたい場合に使用します。
+
+```yaml
+worktree:
+  copy_dirs:
+    - .opencode              # OpenCode設定ディレクトリ
+    - .vscode                # VSCode設定
+```
+
 ### multiplexer
 
 | キー | 型 | デフォルト | 説明 |
