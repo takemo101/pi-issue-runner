@@ -116,10 +116,15 @@ pi-issue-runner/
 │   └── thorough.yaml  # 徹底ワークフロー
 ├── agents/            # エージェントテンプレート
 │   ├── ci-fix.md      # CI修正エージェント
+│   ├── code-review.md # 独立コードレビュー（call: ステップ用）
 │   ├── improve-review.md  # improve.sh レビュープロンプト（カスタマイズ可能）
 │   ├── plan.md        # 計画エージェント
 │   ├── implement.md   # 実装エージェント
-│   ├── review.md      # レビューエージェント
+│   ├── review.md      # レビューエージェント（同一セッション内）
+│   ├── review-bugs.md          # バグ・ロジックエラーレビュー
+│   ├── review-security.md      # セキュリティレビュー
+│   ├── review-architecture.md  # 設計・構造レビュー
+│   ├── review-ai-antipattern.md # AI実装アンチパターンレビュー
 │   ├── test.md        # テストエージェント
 │   └── merge.md       # マージエージェント
 ├── schemas/           # JSON Schema

@@ -827,6 +827,52 @@ steps:
 | `{{step_name}}` | 現在のステップ名（カスタム用） |
 | `{{workflow_name}}` | ワークフロー名（カスタム用） |
 
+## 観点別レビューエージェント
+
+`call:` ステップで利用できる観点別のレビューエージェントテンプレートが用意されています。各エージェントは `git diff origin/main` を対象に特定の観点からレビューし、重大度 HIGH の問題は直接修正します。
+
+| エージェント | ファイル | 観点 |
+|---|---|---|
+| バグ・ロジックエラー | `agents/review-bugs.md` | エッジケース、off-by-one、リソースリーク等 |
+| セキュリティ | `agents/review-security.md` | インジェクション、パストラバーサル、機密情報等 |
+| 設計・構造 | `agents/review-architecture.md` | 単一責任、循環依存、重複コード等 |
+| AI実装アンチパターン | `agents/review-ai-antipattern.md` | ハルシネーション、スコープクリープ、形だけのテスト等 |
+
+### 設定例
+
+```yaml
+workflows:
+  feature:
+    steps:
+      - plan
+      - implement
+      - run: "shellcheck -x scripts/*.sh lib/*.sh"
+      - run: "bats --jobs 2 test/"
+        timeout: 600
+      - call: review-bugs
+      - call: review-security
+      - merge
+
+  # レビュー用ワークフロー（call: から呼び出される）
+  review-bugs:
+    description: バグ・ロジックエラーのレビュー
+    steps:
+      - review-bugs
+    agent:
+      type: pi
+      args: [--provider, anthropic, --model, claude-haiku-4-5]
+
+  review-security:
+    description: セキュリティレビュー
+    steps:
+      - review-security
+    agent:
+      type: pi
+      args: [--provider, anthropic, --model, claude-haiku-4-5]
+```
+
+プロジェクトごとに必要な観点だけ `call:` ステップとして追加してください。
+
 ## Hook機能
 
 セッションのライフサイクルイベントでカスタムスクリプトを実行できます。
@@ -957,11 +1003,16 @@ pi-issue-runner/
 │   └── thorough.yaml       # 徹底ワークフロー
 ├── agents/                  # エージェントテンプレート
 │   ├── ci-fix.md           # CI修正エージェント
+│   ├── code-review.md      # 独立コードレビュー（call: ステップ用）
 │   ├── improve-review.md   # improve.sh レビュープロンプト
 │   ├── plan.md             # 計画エージェント
 │   ├── implement.md        # 実装エージェント
 │   ├── test.md             # テストエージェント
-│   ├── review.md           # レビューエージェント
+│   ├── review.md           # レビューエージェント（同一セッション内）
+│   ├── review-bugs.md      # バグ・ロジックエラーレビュー
+│   ├── review-security.md  # セキュリティレビュー
+│   ├── review-architecture.md  # 設計・構造レビュー
+│   ├── review-ai-antipattern.md # AI実装アンチパターンレビュー
 │   └── merge.md            # マージエージェント
 ├── docs/                    # ドキュメント
 ├── test/                    # Batsテスト（*.bats形式）
