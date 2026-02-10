@@ -699,6 +699,175 @@ EOF
     grep -q 'Force cleanup enabled' "$PROJECT_ROOT/scripts/watch-session.sh"
 }
 
+# ====================
+# Issue #1389: _run_gates_check テスト
+# ====================
+
+@test "_run_gates_check: skips when PI_NO_GATES=1" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/lib/notify.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    source "$PROJECT_ROOT/lib/cleanup-orphans.sh"
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+
+    export PI_NO_GATES=1
+
+    run _run_gates_check "pi-issue-42" "42" "$BATS_TEST_TMPDIR/worktree" "issue-42-branch"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Gates disabled"* ]]
+}
+
+@test "_run_gates_check: skips when no config file" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/lib/notify.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    source "$PROJECT_ROOT/lib/cleanup-orphans.sh"
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+
+    unset PI_NO_GATES
+
+    # config_file_found returns empty (no config)
+    config_file_found() { return 1; }
+
+    # Should return 0 (no gates = pass) when no config file
+    run _run_gates_check "pi-issue-42" "42" "$BATS_TEST_TMPDIR/worktree" "issue-42-branch"
+    [ "$status" -eq 0 ]
+}
+
+@test "_run_gates_check: skips when no gates defined" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/lib/notify.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    source "$PROJECT_ROOT/lib/cleanup-orphans.sh"
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+
+    unset PI_NO_GATES
+
+    # config_file_found returns a file
+    config_file_found() { echo "$BATS_TEST_TMPDIR/config.yaml"; }
+    # load_tracker_metadata returns empty
+    load_tracker_metadata() { return 1; }
+    # parse_gate_config returns empty (no gates)
+    parse_gate_config() { echo ""; }
+
+    # Should return 0 (no gates = pass) when no gate definitions
+    run _run_gates_check "pi-issue-42" "42" "$BATS_TEST_TMPDIR/worktree" "issue-42-branch"
+    [ "$status" -eq 0 ]
+}
+
+@test "_run_gates_check: returns 0 when all gates pass" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/lib/notify.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    source "$PROJECT_ROOT/lib/cleanup-orphans.sh"
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+
+    unset PI_NO_GATES
+
+    config_file_found() { echo "$BATS_TEST_TMPDIR/config.yaml"; }
+    load_tracker_metadata() { printf "default\t"; }
+    parse_gate_config() { echo "shellcheck:run:shellcheck -x lib/*.sh"; }
+    run_gates() { echo "All gates passed"; return 0; }
+
+    run _run_gates_check "pi-issue-42" "42" "$BATS_TEST_TMPDIR/worktree" "issue-42-branch"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"All gates passed"* ]]
+}
+
+@test "_run_gates_check: returns 1 and sends nudge when gate fails" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/lib/notify.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    source "$PROJECT_ROOT/lib/cleanup-orphans.sh"
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+
+    unset PI_NO_GATES
+
+    config_file_found() { echo "$BATS_TEST_TMPDIR/config.yaml"; }
+    load_tracker_metadata() { printf "default\t"; }
+    parse_gate_config() { echo "shellcheck:run:shellcheck -x lib/*.sh"; }
+    run_gates() { echo "FAIL: shellcheck found errors"; return 1; }
+    session_exists() { return 0; }
+
+    local nudge_sent=""
+    send_keys() { nudge_sent="$2"; echo "nudge_sent: $2"; }
+
+    run _run_gates_check "pi-issue-42" "42" "$BATS_TEST_TMPDIR/worktree" "issue-42-branch"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Gate(s) failed"* ]]
+    [[ "$output" == *"nudge_sent:"* ]]
+}
+
+@test "_run_gates_check: handles session not existing for nudge" {
+    export TEST_WORKTREE_DIR="$BATS_TEST_TMPDIR/.worktrees"
+    mkdir -p "$TEST_WORKTREE_DIR/.status"
+
+    source "$PROJECT_ROOT/lib/status.sh"
+    source "$PROJECT_ROOT/lib/marker.sh"
+    source "$PROJECT_ROOT/lib/notify.sh"
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    source "$PROJECT_ROOT/lib/hooks.sh"
+    source "$PROJECT_ROOT/lib/cleanup-orphans.sh"
+    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+
+    unset PI_NO_GATES
+
+    config_file_found() { echo "$BATS_TEST_TMPDIR/config.yaml"; }
+    load_tracker_metadata() { printf "default\t"; }
+    parse_gate_config() { echo "shellcheck:run:shellcheck -x lib/*.sh"; }
+    run_gates() { echo "FAIL: error"; return 1; }
+    session_exists() { return 1; }
+    send_keys() { echo "should not be called"; return 1; }
+
+    run _run_gates_check "pi-issue-42" "42" "$BATS_TEST_TMPDIR/worktree" "issue-42-branch"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"no longer exists"* ]]
+}
+
+@test "handle_complete returns 2 when gate check fails (continue monitoring)" {
+    # Verify the design: gate failure returns 2 from handle_complete
+    # which means the monitoring loop continues watching for re-completion
+    grep -q '_run_gates_check.*gate_result' "$PROJECT_ROOT/scripts/watch-session.sh"
+    grep -q 'return 2' "$PROJECT_ROOT/scripts/watch-session.sh"
+}
+
+@test "handle_complete: gates run before status/plans/hooks (step 2)" {
+    # Verify that _run_gates_check call in handle_complete is before _complete_status_and_plans
+    # We look specifically inside handle_complete function (after its definition)
+    local handle_complete_start
+    handle_complete_start=$(grep -n '^handle_complete()' "$PROJECT_ROOT/scripts/watch-session.sh" | head -1 | cut -d: -f1)
+    local gates_call
+    local status_call
+    gates_call=$(awk "NR>$handle_complete_start" "$PROJECT_ROOT/scripts/watch-session.sh" | grep -n '_run_gates_check' | head -1 | cut -d: -f1)
+    status_call=$(awk "NR>$handle_complete_start" "$PROJECT_ROOT/scripts/watch-session.sh" | grep -n '_complete_status_and_plans' | head -1 | cut -d: -f1)
+    [ "$gates_call" -lt "$status_call" ]
+}
+
 @test "force_cleanup_on_timeout: handle_complete returns 2 when disabled (default)" {
     # Default behavior: force_cleanup_on_timeout is false
     export CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT="false"

@@ -49,6 +49,7 @@ teardown() {
     [[ "$output" == *"--no-attach"* ]]
     [[ "$output" == *"--force"* ]]
     [[ "$output" == *"--ignore-blockers"* ]]
+    [[ "$output" == *"--no-gates"* ]]
 }
 
 @test "help includes examples" {
@@ -158,6 +159,31 @@ teardown() {
 @test "run.sh accepts --ignore-blockers option" {
     run "$PROJECT_ROOT/scripts/run.sh" --help
     [[ "$output" == *"--ignore-blockers"* ]]
+}
+
+@test "run.sh accepts --no-gates option" {
+    run "$PROJECT_ROOT/scripts/run.sh" --help
+    [[ "$output" == *"--no-gates"* ]]
+}
+
+@test "run.sh --no-gates is parsed into _PARSE_no_gates" {
+    source "$PROJECT_ROOT/scripts/run.sh" 2>/dev/null || true
+
+    # Mock functions called during parse
+    resolve_default_workflow() { echo "default"; }
+
+    parse_run_arguments 42 --no-gates
+    [ "$_PARSE_no_gates" = "true" ]
+    [ "$_PARSE_issue_number" = "42" ]
+}
+
+@test "run.sh _PARSE_no_gates defaults to false" {
+    source "$PROJECT_ROOT/scripts/run.sh" 2>/dev/null || true
+
+    resolve_default_workflow() { echo "default"; }
+
+    parse_run_arguments 42
+    [ "$_PARSE_no_gates" = "false" ]
 }
 
 # ====================
