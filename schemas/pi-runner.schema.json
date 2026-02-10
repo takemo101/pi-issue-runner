@@ -374,6 +374,11 @@
           "minimum": 1,
           "default": 60,
           "description": "Interval in seconds between PR merge check retries"
+        },
+        "auto_attach": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-open terminal and attach to session on error detection"
         }
       }
     }
