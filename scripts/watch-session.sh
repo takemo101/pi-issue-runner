@@ -610,7 +610,7 @@ check_initial_markers() {
 # Usage: echo "$text" | _strip_ansi
 #    or: _strip_ansi < file
 _strip_ansi() {
-    sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g; s/\r//g'
+    perl -pe 's/\e\[[0-9;?]*[a-zA-Z]//g; s/\r//g'
 }
 
 # Fast marker count using grep on a file (C-speed, no bash line iteration)
