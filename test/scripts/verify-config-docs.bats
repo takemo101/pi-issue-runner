@@ -33,8 +33,8 @@ setup() {
 @test "verify-config-docs.sh counts configuration items correctly" {
     run "$VERIFY_SCRIPT"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"lib/config.sh: 46 items"* ]]
-    [[ "$output" == *"docs/configuration.md: 46 items"* ]]
+    [[ "$output" == *"lib/config.sh: 47 items"* ]]
+    [[ "$output" == *"docs/configuration.md: 47 items"* ]]
 }
 
 @test "verify-config-docs.sh checks default values" {
