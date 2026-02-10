@@ -41,6 +41,7 @@ source "$WATCHER_SCRIPT_DIR/../lib/hooks.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/cleanup-orphans.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/marker.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/tracker.sh"
+source "$WATCHER_SCRIPT_DIR/../lib/workflow.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/step-runner.sh"
 
 usage() {
@@ -423,12 +424,6 @@ _run_non_ai_steps() {
     local branch_name="$4"
     local non_ai_group_escaped="$5"
 
-    # PI_SKIP_RUN が設定されている場合はスキップ
-    if [[ "${PI_SKIP_RUN:-}" == "1" ]]; then
-        log_info "run:/call: steps disabled (PI_SKIP_RUN=1), skipping"
-        return 0
-    fi
-
     if [[ -z "$non_ai_group_escaped" ]]; then
         log_debug "No non-AI steps defined, skipping"
         return 0
@@ -455,10 +450,23 @@ _run_non_ai_steps() {
 
         local step_output="" step_result=0
         if [[ "$step_type" == "run" ]]; then
+            if [[ "${PI_SKIP_RUN:-}" == "1" ]]; then
+                log_info "run: step skipped (PI_SKIP_RUN=1): $display_name"
+                continue
+            fi
             step_output=$(run_command_step "$cmd_or_name" "$timeout" "$worktree_path" "$issue_number" "" "$branch_name" 2>&1) || step_result=$?
         elif [[ "$step_type" == "call" ]]; then
-            local config_file
-            config_file="$(config_file_found 2>/dev/null)" || config_file=""
+            if [[ "${PI_SKIP_CALL:-}" == "1" ]]; then
+                log_info "call: step skipped (PI_SKIP_CALL=1): $display_name"
+                continue
+            fi
+            # worktree 内の .pi-runner.yaml を優先、なければ config_file_found
+            local config_file=""
+            if [[ -f "$worktree_path/.pi-runner.yaml" ]]; then
+                config_file="$worktree_path/.pi-runner.yaml"
+            else
+                config_file="$(config_file_found 2>/dev/null)" || config_file=""
+            fi
             step_output=$(run_call_step "$cmd_or_name" "$timeout" "$worktree_path" "$config_file" "$issue_number" "$branch_name" 2>&1) || step_result=$?
         else
             log_warn "Unknown step type: $step_type, skipping"
@@ -599,7 +607,14 @@ handle_phase_complete() {
             # 次のAIグループのプロンプトを生成
             local worktree_path_resolved branch_name_resolved
             _resolve_worktree_info "$issue_number" worktree_path_resolved branch_name_resolved
-            local ai_group_index=$(( after_index / 2 ))  # AIグループのインデックス（概算）
+            # AIグループのインデックスを正確に計算
+            local ai_group_index=0 _gi
+            for ((_gi=0; _gi<=after_index; _gi++)); do
+                local _g_type
+                _g_type="$(echo "$_STEP_GROUPS_DATA" | sed -n "$((_gi + 1))p" | cut -f1)"
+                [[ "$_g_type" == "ai_group" ]] && ((ai_group_index++)) || true
+            done
+            ((ai_group_index--)) || true  # 0始まりに調整
 
             local continue_prompt
             continue_prompt="$(generate_ai_group_prompt "$ai_group_index" "$total_groups" "$after_content" "$is_final" \
@@ -646,6 +661,9 @@ handle_complete() {
     
     # 3. ステータスと計画書の処理
     _complete_status_and_plans "$issue_number" "$session_name"
+
+    # 3.5. ステップグループ情報をクリーンアップ
+    remove_step_groups "$issue_number" 2>/dev/null || true
     
     # 4. Hook実行
     _run_completion_hooks "$issue_number" "$session_name" "$branch_name" "$worktree_path" "$gates_json"

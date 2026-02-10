@@ -127,40 +127,16 @@ run_call_step() {
         return 1
     fi
 
-    # git diff を取得（レビュー用）
-    local diff_content=""
-    if [[ -d "$worktree_path/.git" ]] || [[ -f "$worktree_path/.git" ]]; then
-        diff_content=$(cd "$worktree_path" && git diff origin/main 2>/dev/null || git diff HEAD 2>/dev/null || echo "")
-    fi
-
-    # プロンプトファイルを生成
+    # プロンプトファイルを生成（write_workflow_prompt で agents/*.md テンプレートを使用）
     local prompt_file
     prompt_file="$(mktemp "${TMPDIR:-/tmp}/pi-call-step-XXXXXX.md")"
 
-    # ワークフロー情報取得
-    local steps="" description=""
-    while IFS= read -r step; do
-        [[ -n "$step" ]] && steps="${steps:+$steps }$step"
-    done < <(yaml_get_array "$config_file" ".workflows.${workflow_name}.steps")
-    description=$(yaml_get "$config_file" ".workflows.${workflow_name}.description" 2>/dev/null || echo "")
+    # Issue タイトルを取得（利用可能な場合）
+    local issue_title=""
+    issue_title=$(cd "$worktree_path" && gh issue view "$issue_number" --json title -q '.title' 2>/dev/null) || issue_title=""
 
-    {
-        printf '# Call Step: %s\n\n' "$workflow_name"
-        [[ -n "$description" ]] && printf 'Description: %s\n' "$description"
-        printf 'Steps: %s\n\n' "$steps"
-        printf 'Issue: #%s\n' "$issue_number"
-        printf 'Branch: %s\n' "$branch_name"
-        printf 'Worktree: %s\n\n' "$worktree_path"
-
-        if [[ -n "$diff_content" ]]; then
-            printf '## Changes\n\n```diff\n%s\n```\n\n' "$diff_content"
-        fi
-
-        printf '## Instructions\n\n'
-        printf 'Review/execute the changes above.\n'
-        printf 'Completion marker: ###TASK_COMPLETE_%s###\n' "$issue_number"
-        printf 'Error marker: ###TASK_ERROR_%s###\n' "$issue_number"
-    } > "$prompt_file"
+    write_workflow_prompt "$prompt_file" "$workflow_name" "$issue_number" "$issue_title" "" \
+        "$branch_name" "$worktree_path" "$worktree_path" ""
 
     # エージェント設定を取得
     local agent_type agent_args=""

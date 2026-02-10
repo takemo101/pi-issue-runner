@@ -67,7 +67,8 @@ Options:
     --no-attach         セッション作成後にアタッチしない
     --no-cleanup        エージェント終了後の自動クリーンアップを無効化
     --no-gates          ゲート（品質チェック）を無効化（非推奨: --skip-run を使用）
-    --skip-run          run:/call: ステップをスキップ
+    --skip-run          run: ステップをスキップ
+    --skip-call         call: ステップをスキップ
     --reattach          既存セッションがあればアタッチ
     --force             既存セッション/worktreeを削除して再作成
     --agent-args ARGS   エージェントに渡す追加の引数
@@ -168,6 +169,7 @@ parse_run_arguments() {
     local ignore_blockers=false
     local session_label=""
     local no_gates=false
+    local skip_call=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -214,6 +216,10 @@ parse_run_arguments() {
                 ;;
             --no-gates|--skip-run)
                 no_gates=true
+                shift
+                ;;
+            --skip-call)
+                skip_call=true
                 shift
                 ;;
             --ignore-blockers)
@@ -272,6 +278,7 @@ parse_run_arguments() {
     _PARSE_ignore_blockers="$ignore_blockers"
     _PARSE_session_label="$session_label"
     _PARSE_no_gates="$no_gates"
+    _PARSE_skip_call="$skip_call"
 }
 
 # ============================================================================
@@ -474,6 +481,16 @@ start_agent_session() {
     local prompt_file="$full_worktree_path/.pi-prompt.md"
     log_info "Workflow: $workflow_name"
 
+    # gates 後方互換警告
+    local _config_for_gates
+    _config_for_gates="$(config_file_found 2>/dev/null)" || _config_for_gates=""
+    if [[ -n "$_config_for_gates" ]] && [[ -f "$_config_for_gates" ]]; then
+        if yaml_exists "$_config_for_gates" ".gates" 2>/dev/null; then
+            log_warn "⚠ 'gates' section is deprecated. Move gate definitions into workflow 'steps' as run:/call: entries."
+            log_warn "  See: docs/workflows.md#run--call-ステップ非aiステップ"
+        fi
+    fi
+
     # ステップグループを解析（run:/call: 対応）
     local workflow_file
     workflow_file=$(find_workflow_file "$workflow_name" ".")
@@ -495,19 +512,20 @@ start_agent_session() {
         # 最初のグループがAIグループであることを確認
         local first_group_type
         first_group_type="$(echo "$step_groups" | head -1 | cut -f1)"
-        if [[ "$first_group_type" == "ai_group" ]]; then
-            local is_final="false"
-            if [[ "$total_groups" -eq 1 ]]; then
-                is_final="true"
-            fi
-
-            generate_ai_group_prompt 0 "$total_groups" "$first_ai_steps" "$is_final" \
-                "$workflow_name" "$issue_number" "$issue_title" "$issue_body" \
-                "$branch_name" "$full_worktree_path" "." "$issue_comments" "" > "$prompt_file"
-        else
-            # 最初が non-AI の場合（まれ）: 従来のプロンプト生成にフォールバック
-            write_workflow_prompt "$prompt_file" "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path" "." "$issue_comments"
+        if [[ "$first_group_type" != "ai_group" ]]; then
+            log_error "Workflow '$workflow_name': first step must be an AI step (e.g., plan, implement), not run:/call:"
+            log_error "Move run:/call: steps after at least one AI step."
+            exit 1
         fi
+
+        local is_final="false"
+        if [[ "$total_groups" -eq 1 ]]; then
+            is_final="true"
+        fi
+
+        generate_ai_group_prompt 0 "$total_groups" "$first_ai_steps" "$is_final" \
+            "$workflow_name" "$issue_number" "$issue_title" "$issue_body" \
+            "$branch_name" "$full_worktree_path" "." "$issue_comments" "" > "$prompt_file"
 
         # ステップグループ情報を保存（watcherが使用）
         save_step_groups "$issue_number" "$step_groups"
@@ -682,6 +700,10 @@ main() {
     if [[ "$no_gates" == "true" ]]; then
         export PI_NO_GATES=1
         export PI_SKIP_RUN=1
+    fi
+    local skip_call="$_PARSE_skip_call"
+    if [[ "$skip_call" == "true" ]]; then
+        export PI_SKIP_CALL=1
     fi
     setup_completion_watcher "$cleanup_mode" "$session_name" "$issue_number"
     
