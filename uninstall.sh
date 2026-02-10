@@ -1,11 +1,22 @@
 #!/usr/bin/env bash
+# ============================================================================
 # uninstall.sh - pi-issue-runner をアンインストール
 #
-# 使用方法:
+# install.sh で作成したラッパースクリプトを削除します。
+# pi-issue-runner のコメントを含むファイルのみを削除します。
+#
+# Usage: ./uninstall.sh
+#
+# Environment Variables:
+#   INSTALL_DIR     インストール先ディレクトリ (default: ~/.local/bin)
+#
+# Exit codes:
+#   0 - Success (コマンドが削除された、または削除対象がなかった)
+#
+# Examples:
 #   ./uninstall.sh
 #   INSTALL_DIR=/usr/local/bin ./uninstall.sh
-#
-# install.sh で作成したラッパースクリプトを削除します。
+# ============================================================================
 
 set -euo pipefail
 
