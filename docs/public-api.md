@@ -16,6 +16,7 @@
 - [設定管理](#設定管理)
 - [YAML処理](#yaml処理)
 - [ログ管理](#ログ管理)
+- [クロスプラットフォーム互換性](#クロスプラットフォーム互換性)
 
 ---
 
@@ -380,6 +381,61 @@ DEBUG (最も詳細)
 - `log_info` (lib/log.sh)
 - `log_warn` (lib/log.sh)
 - `log_error` (lib/log.sh)
+
+---
+
+## クロスプラットフォーム互換性
+
+### safe_timeout
+
+**定義場所**: `lib/compat.sh`
+
+**説明**: `timeout` コマンドのクロスプラットフォームラッパー。
+Linux では `timeout` をそのまま使用し、macOS（`timeout` 未インストール）では
+タイムアウトなしで直接コマンドを実行します。
+
+**シグネチャ**:
+```bash
+safe_timeout <seconds> <command> [args...]
+```
+
+**使用例**:
+```bash
+source lib/compat.sh
+
+# 60秒タイムアウトでコマンド実行
+response=$(echo "$prompt" | safe_timeout 60 pi --print "Analyze this")
+
+# テスト実行にタイムアウトを設定（macOSでもLinuxでも動作）
+safe_timeout 30 bats test/ 2>&1 || exit_code=$?
+
+# ワークフロー選択（15秒タイムアウト）
+result=$(safe_timeout 15 "$pi_command" --print "$selection_prompt")
+```
+
+**引数**:
+1. `seconds` - タイムアウト秒数（整数）
+2. `command` - 実行するコマンド
+3. `args...` - コマンドへの引数（オプション）
+
+**戻り値**:
+- コマンドの終了コード
+- タイムアウト時は `timeout` コマンドの終了コード (124)
+- macOS で `timeout` が利用不可の場合はコマンドの終了コード（タイムアウトなし）
+
+**使用箇所**:
+- `lib/generate-config.sh` - プロジェクト解析時のAI呼び出し（60秒タイムアウト）
+- `lib/workflow-selector.sh` - ワークフロー自動選択のAI呼び出し（15秒タイムアウト）
+- `lib/ci-fix/bash.sh` - Batsテスト実行時のタイムアウト制御
+
+**注意事項**:
+- macOS標準環境では `timeout` が利用不可のため、タイムアウトなしで実行される
+- `brew install coreutils` で `gtimeout` をインストールすることで macOS でもタイムアウトが有効になる（現在は未対応）
+- タイムアウトが必須の処理では、macOS環境での動作を考慮する必要がある
+
+**関連コマンド**:
+- `timeout(1)` - Linux標準のタイムアウトコマンド
+- `gtimeout(1)` - GNU coreutils版（macOSでは `brew install coreutils` で利用可能）
 
 ---
 
