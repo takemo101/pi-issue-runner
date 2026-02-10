@@ -316,11 +316,28 @@
         }
       }
     },
+    "tracker": {
+      "type": "object",
+      "description": "Prompt tracker settings",
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string",
+          "default": ".worktrees/.status/tracker.jsonl",
+          "description": "Path to the tracker JSONL file"
+        }
+      }
+    },
     "watcher": {
       "type": "object",
       "description": "Session watcher settings",
       "additionalProperties": false,
       "properties": {
+        "force_cleanup_on_timeout": {
+          "type": "boolean",
+          "default": false,
+          "description": "Force cleanup on PR merge timeout"
+        },
         "initial_delay": {
           "type": "integer",
           "minimum": 0,
