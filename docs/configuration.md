@@ -39,6 +39,11 @@ worktree:
     - .envrc
     - config/database.yml    # 例: Railsプロジェクトの場合
     - config/secrets.yml     # 例: Railsプロジェクトの場合
+  
+  # worktree作成時にコピーするディレクトリ（再帰コピー）
+  # デフォルト: (なし)
+  copy_dirs:
+    - .opencode
 
 # =====================================
 # マルチプレクサ設定
@@ -379,6 +384,7 @@ agents:
 | `base_dir` | string | `.worktrees` | worktreeの作成先ディレクトリ |
 | `base_branch` | string | `HEAD` | worktree作成時のデフォルトベースブランチ（`--base`オプションで上書き可能） |
 | `copy_files` | string[] | `.env .env.local .envrc` | worktree作成時にコピーするファイル |
+| `copy_dirs` | array | `[]` | worktree作成時に再帰コピーするディレクトリ |
 
 #### copy_filesの使い方
 

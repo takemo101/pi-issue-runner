@@ -26,6 +26,12 @@
           "items": { "type": "string" },
           "default": [".env", ".env.local", ".envrc"],
           "description": "Files to copy into new worktrees"
+        },
+        "copy_dirs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Directories to recursively copy to worktree on creation"
         }
       }
     },
