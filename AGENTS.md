@@ -78,6 +78,7 @@ pi-issue-runner/
 │   ├── daemon.sh      # プロセスデーモン化
 │   ├── dashboard.sh   # ダッシュボード機能
 │   ├── dependency.sh  # 依存関係解析・レイヤー計算
+│   ├── gates.sh       # ゲート実行エンジン（品質ゲート）
 │   ├── generate-config.sh  # プロジェクト解析・設定生成（ライブラリ関数）
 │   ├── github.sh      # GitHub CLI操作
 │   ├── hooks.sh       # Hook機能
@@ -171,6 +172,7 @@ pi-issue-runner/
 │   │   ├── daemon.bats
 │   │   ├── dashboard.bats
 │   │   ├── dependency.bats       # dependency.sh のテスト
+│   │   ├── gates.bats           # gates.sh のテスト
 │   │   ├── github.bats      # github.sh のテスト
 │   │   ├── hooks.bats
 │   │   ├── improve/       # improve サブモジュールのテスト
