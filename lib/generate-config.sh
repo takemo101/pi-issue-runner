@@ -245,7 +245,11 @@ build_ai_prompt() {
     prompt+="- Always include: default (standard), quick (minimal), thorough (full), docs (documentation) workflows"$'\n'
     prompt+="- Add frontend/backend workflows only if the project has those aspects"$'\n'
     prompt+="- If the project has test frameworks, include test step in default workflow"$'\n'
-    prompt+="- Set parallel.max_concurrent to a reasonable value (e.g., 3)"$'\n\n'
+    prompt+="- Set parallel.max_concurrent to a reasonable value (e.g., 3)"$'\n'
+    prompt+="- Detect test and lint commands from the project and generate a top-level 'gates:' section"$'\n'
+    prompt+="- Gates are quality check commands run after task completion (exit 0 = pass)"$'\n'
+    prompt+="- Include lint commands before test commands in gates (lint is faster)"$'\n'
+    prompt+="- Only include gates for tools that actually exist in the project"$'\n\n'
 
     # Schema
     if [[ -f "$schema_file" ]]; then
@@ -258,6 +262,15 @@ build_ai_prompt() {
     # Project context
     prompt+="# Project Information"$'\n'
     prompt+="$project_context"$'\n'
+
+    # Detected gates hint
+    if [[ -n "${DETECTED_GATES+x}" ]] && [[ ${#DETECTED_GATES[@]} -gt 0 ]]; then
+        prompt+="# Detected Quality Gate Commands (use as reference)"$'\n'
+        for gate in "${DETECTED_GATES[@]}"; do
+            prompt+="- $gate"$'\n'
+        done
+        prompt+=$'\n'
+    fi
 
     echo "$prompt"
 }
@@ -301,6 +314,91 @@ generate_with_ai() {
     fi
 
     echo "$response"
+}
+
+# ============================================================================
+# Gates detection
+# ============================================================================
+
+# Detect quality gate commands based on project structure
+# Populates the global DETECTED_GATES array
+#
+# Detection targets:
+#   - package.json (test/lint scripts) → npm test, npm run lint
+#   - Makefile (test/lint targets) → make test, make lint
+#   - Cargo.toml → cargo test, cargo clippy
+#   - go.mod → go test ./..., go vet ./...
+#   - pyproject.toml / setup.py → pytest, ruff check . or flake8
+#   - .shellcheckrc / scripts/*.sh → shellcheck -x scripts/*.sh lib/*.sh
+#   - test/ + *.bats → bats --jobs 4 test/
+#
+# Usage: detect_gates <project_dir>
+# Side effect: populates DETECTED_GATES array
+detect_gates() {
+    local project_dir="${1:-.}"
+    DETECTED_GATES=()
+
+    # Node.js
+    if [[ -f "$project_dir/package.json" ]]; then
+        if grep -qE '"lint"\s*:' "$project_dir/package.json" 2>/dev/null; then
+            DETECTED_GATES+=("npm run lint")
+        fi
+        if grep -qE '"test"\s*:' "$project_dir/package.json" 2>/dev/null; then
+            DETECTED_GATES+=("npm test")
+        fi
+    fi
+
+    # Makefile
+    if [[ -f "$project_dir/Makefile" ]]; then
+        if grep -qE '^lint\s*:' "$project_dir/Makefile" 2>/dev/null; then
+            DETECTED_GATES+=("make lint")
+        fi
+        if grep -qE '^test\s*:' "$project_dir/Makefile" 2>/dev/null; then
+            DETECTED_GATES+=("make test")
+        fi
+    fi
+
+    # Rust
+    if [[ -f "$project_dir/Cargo.toml" ]]; then
+        DETECTED_GATES+=("cargo clippy")
+        DETECTED_GATES+=("cargo test")
+    fi
+
+    # Go
+    if [[ -f "$project_dir/go.mod" ]]; then
+        DETECTED_GATES+=("go vet ./...")
+        DETECTED_GATES+=("go test ./...")
+    fi
+
+    # Python
+    if [[ -f "$project_dir/pyproject.toml" ]] || [[ -f "$project_dir/setup.py" ]]; then
+        if [[ -f "$project_dir/pyproject.toml" ]] && grep -qE '\[tool\.ruff\]' "$project_dir/pyproject.toml" 2>/dev/null; then
+            DETECTED_GATES+=("ruff check .")
+        elif [[ -f "$project_dir/.flake8" ]] || { [[ -f "$project_dir/setup.cfg" ]] && grep -qE '\[flake8\]' "$project_dir/setup.cfg" 2>/dev/null; }; then
+            DETECTED_GATES+=("flake8")
+        fi
+        DETECTED_GATES+=("pytest")
+    fi
+
+    # ShellCheck
+    local has_shell_scripts=false
+    if [[ -f "$project_dir/.shellcheckrc" ]]; then
+        has_shell_scripts=true
+    elif ls "$project_dir"/scripts/*.sh &>/dev/null; then
+        has_shell_scripts=true
+    fi
+    if [[ "$has_shell_scripts" == "true" ]]; then
+        DETECTED_GATES+=("shellcheck -x scripts/*.sh lib/*.sh")
+    fi
+
+    # Bats
+    if [[ -d "$project_dir/test" ]]; then
+        if find "$project_dir/test" -name '*.bats' -print -quit 2>/dev/null | grep -q .; then
+            DETECTED_GATES+=("bats --jobs 4 test/")
+        fi
+    fi
+
+    return 0
 }
 
 # ============================================================================
@@ -381,6 +479,19 @@ _generate_static_agent_and_parallel() {
     echo "  max_concurrent: 3"
 }
 
+# Generate gates section from DETECTED_GATES array
+_generate_static_gates() {
+    if [[ ${#DETECTED_GATES[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    echo ""
+    echo "gates:"
+    for gate in "${DETECTED_GATES[@]}"; do
+        echo "  - \"$gate\""
+    done
+}
+
 # Generate workflows section
 _generate_static_workflows() {
     echo ""
@@ -442,11 +553,13 @@ _generate_static_github_and_plans() {
 # Generate static fallback YAML (no AI)
 generate_static_yaml() {
     detect_copy_files "."
+    detect_gates "."
 
     _generate_static_header
     _generate_static_worktree
     _generate_static_multiplexer
     _generate_static_agent_and_parallel
+    _generate_static_gates
     _generate_static_workflows
     _generate_static_github_and_plans
 }

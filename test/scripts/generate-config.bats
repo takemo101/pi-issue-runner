@@ -422,3 +422,137 @@ EOF
     # plansセクションが含まれる
     [[ "$output" == *"plans:"* ]]
 }
+
+# ====================
+# ゲート検出テスト
+# ====================
+
+@test "generate-config.sh detects Node.js test/lint and proposes gates" {
+    cat > "package.json" << 'EOF'
+{
+  "name": "test-project",
+  "scripts": {
+    "test": "jest",
+    "lint": "eslint ."
+  }
+}
+EOF
+
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --no-ai --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"gates:"* ]]
+    [[ "$output" == *"npm run lint"* ]]
+    [[ "$output" == *"npm test"* ]]
+}
+
+@test "generate-config.sh detects Node.js test only (no lint)" {
+    cat > "package.json" << 'EOF'
+{
+  "name": "test-project",
+  "scripts": {
+    "test": "jest"
+  }
+}
+EOF
+
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --no-ai --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"gates:"* ]]
+    [[ "$output" == *"npm test"* ]]
+    [[ "$output" != *"npm run lint"* ]]
+}
+
+@test "generate-config.sh detects Bash project (shellcheck + bats)" {
+    touch ".shellcheckrc"
+    mkdir -p scripts
+    touch "scripts/example.sh"
+    mkdir -p test
+    touch "test/example.bats"
+
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --no-ai --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"gates:"* ]]
+    [[ "$output" == *"shellcheck"* ]]
+    [[ "$output" == *"bats"* ]]
+}
+
+@test "generate-config.sh detects Go project gates" {
+    cat > "go.mod" << 'EOF'
+module example.com/test
+go 1.21
+EOF
+
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --no-ai --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"gates:"* ]]
+    [[ "$output" == *"go vet ./..."* ]]
+    [[ "$output" == *"go test ./..."* ]]
+}
+
+@test "generate-config.sh detects Rust project gates" {
+    cat > "Cargo.toml" << 'EOF'
+[package]
+name = "test-project"
+version = "0.1.0"
+EOF
+
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --no-ai --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"gates:"* ]]
+    [[ "$output" == *"cargo clippy"* ]]
+    [[ "$output" == *"cargo test"* ]]
+}
+
+@test "generate-config.sh detects Python project gates" {
+    cat > "pyproject.toml" << 'EOF'
+[project]
+name = "test-project"
+
+[tool.ruff]
+line-length = 88
+EOF
+
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --no-ai --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"gates:"* ]]
+    [[ "$output" == *"ruff check ."* ]]
+    [[ "$output" == *"pytest"* ]]
+}
+
+@test "generate-config.sh detects Makefile test/lint targets" {
+    cat > "Makefile" << 'EOF'
+lint:
+	echo "linting"
+
+test:
+	echo "testing"
+EOF
+
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --no-ai --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"gates:"* ]]
+    [[ "$output" == *"make lint"* ]]
+    [[ "$output" == *"make test"* ]]
+}
+
+@test "generate-config.sh no gates when no tools detected" {
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --no-ai --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"gates:"* ]]
+}
+
+@test "generate-config.sh gates section has correct YAML format" {
+    cat > "Cargo.toml" << 'EOF'
+[package]
+name = "test-project"
+version = "0.1.0"
+EOF
+
+    run "$PROJECT_ROOT/scripts/generate-config.sh" --no-ai --dry-run
+    [ "$status" -eq 0 ]
+
+    # Verify gates entries are properly indented YAML list items
+    echo "$output" | grep -qE '^gates:$'
+    echo "$output" | grep -qE '^  - "cargo clippy"$'
+    echo "$output" | grep -qE '^  - "cargo test"$'
+}
