@@ -604,63 +604,11 @@ check_initial_markers() {
     return 1  # No initial completion marker, continue to monitoring loop
 }
 
-# Strip ANSI escape sequences from input (CSI sequences and carriage returns)
-# pipe-pane output may contain raw terminal codes even after sed stripping
-# (e.g., watcher started before fix, or edge cases)
-# Usage: echo "$text" | _strip_ansi
-#    or: _strip_ansi < file
-_strip_ansi() {
-    sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g; s/\r//g'
-}
-
-# Fast marker count using grep on a file (C-speed, no bash line iteration)
-# Note: grep -cF matches substrings, so ANSI codes around the marker don't prevent matching.
-# ANSI stripping is handled at pipe-pane level and in _verify_marker_outside_codeblock.
-# Usage: _grep_marker_count_in_file <file> <marker1> [marker2] ...
-# Returns: total count of lines matching any marker (0 if file doesn't exist)
-_grep_marker_count_in_file() {
-    local file="$1"
-    shift
-    local total=0
-
-    if [[ ! -f "$file" ]]; then
-        echo 0
-        return
-    fi
-
-    for m in "$@"; do
-        local c
-        c=$(grep -cF "$m" "$file" 2>/dev/null) || c=0
-        total=$((total + c))
-    done
-    echo "$total"
-}
-
-# Verify marker is outside code block by checking context around the match
-# Strips ANSI codes for defense-in-depth (pipe-pane raw output may contain them)
-# Usage: _verify_marker_outside_codeblock <file_or_text> <marker> [is_file]
-# Returns: 0 if at least one marker is outside a code block, 1 otherwise
-_verify_marker_outside_codeblock() {
-    local source="$1"
-    local marker="$2"
-    local is_file="${3:-false}"
-
-    local text
-    if [[ "$is_file" == "true" ]]; then
-        # ファイルからANSI除去→マーカー周辺30行を抽出して検証
-        text=$(_strip_ansi < "$source" | grep -B 15 -A 15 -F "$marker" 2>/dev/null) || text=""
-    else
-        text=$(echo "$source" | _strip_ansi)
-    fi
-
-    if [[ -z "$text" ]]; then
-        return 1
-    fi
-
-    local count
-    count=$(count_markers_outside_codeblock "$text" "$marker")
-    [[ "$count" -gt 0 ]]
-}
+# Backward-compatible wrappers delegating to lib/marker.sh shared functions
+# These private aliases are kept for internal use within this file.
+_strip_ansi() { strip_ansi; }
+_grep_marker_count_in_file() { grep_marker_count_in_file "$@"; }
+_verify_marker_outside_codeblock() { verify_marker_outside_codeblock "$@"; }
 
 # Extract error message from file or text (line after error marker)
 # Usage: _extract_error_message <source> <error_marker> [alt_error_marker] [is_file]
