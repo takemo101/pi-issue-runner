@@ -66,7 +66,8 @@ Options:
     -l, --label LABEL   セッションラベル（識別用タグ）
     --no-attach         セッション作成後にアタッチしない
     --no-cleanup        エージェント終了後の自動クリーンアップを無効化
-    --no-gates          ゲート（品質チェック）を無効化
+    --no-gates          ゲート（品質チェック）を無効化（非推奨: --skip-run を使用）
+    --skip-run          run:/call: ステップをスキップ
     --reattach          既存セッションがあればアタッチ
     --force             既存セッション/worktreeを削除して再作成
     --agent-args ARGS   エージェントに渡す追加の引数
@@ -211,7 +212,7 @@ parse_run_arguments() {
                 cleanup_mode="none"
                 shift
                 ;;
-            --no-gates)
+            --no-gates|--skip-run)
                 no_gates=true
                 shift
                 ;;
@@ -472,11 +473,51 @@ start_agent_session() {
     # ワークフローからプロンプトファイルを生成
     local prompt_file="$full_worktree_path/.pi-prompt.md"
     log_info "Workflow: $workflow_name"
-    write_workflow_prompt "$prompt_file" "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path" "." "$issue_comments"
-    
-    # ワークフロー固有のエージェント設定を適用
+
+    # ステップグループを解析（run:/call: 対応）
     local workflow_file
     workflow_file=$(find_workflow_file "$workflow_name" ".")
+    local typed_steps step_groups has_non_ai_steps=false
+    typed_steps="$(get_workflow_steps_typed "$workflow_file")"
+    step_groups="$(echo "$typed_steps" | get_step_groups)"
+
+    # non-AI ステップが含まれるか判定
+    if echo "$step_groups" | grep -q "^non_ai_group"; then
+        has_non_ai_steps=true
+    fi
+
+    if [[ "$has_non_ai_steps" == "true" ]]; then
+        # non-AIステップがある場合: 最初のAIグループのみのプロンプトを生成
+        local first_ai_steps total_groups
+        total_groups=$(echo "$step_groups" | wc -l | tr -d ' ')
+        first_ai_steps="$(echo "$step_groups" | head -1 | cut -f2)"
+
+        # 最初のグループがAIグループであることを確認
+        local first_group_type
+        first_group_type="$(echo "$step_groups" | head -1 | cut -f1)"
+        if [[ "$first_group_type" == "ai_group" ]]; then
+            local is_final="false"
+            if [[ "$total_groups" -eq 1 ]]; then
+                is_final="true"
+            fi
+
+            generate_ai_group_prompt 0 "$total_groups" "$first_ai_steps" "$is_final" \
+                "$workflow_name" "$issue_number" "$issue_title" "$issue_body" \
+                "$branch_name" "$full_worktree_path" "." "$issue_comments" "" > "$prompt_file"
+        else
+            # 最初が non-AI の場合（まれ）: 従来のプロンプト生成にフォールバック
+            write_workflow_prompt "$prompt_file" "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path" "." "$issue_comments"
+        fi
+
+        # ステップグループ情報を保存（watcherが使用）
+        save_step_groups "$issue_number" "$step_groups"
+        log_info "Step groups saved (non-AI steps detected)"
+    else
+        # non-AIステップなし: 従来の全ステップ一括プロンプト
+        write_workflow_prompt "$prompt_file" "$workflow_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path" "." "$issue_comments"
+    fi
+    
+    # ワークフロー固有のエージェント設定を適用
     apply_workflow_agent_override "$workflow_file"
     
     # エージェントコマンド構築
@@ -640,6 +681,7 @@ main() {
     # Setup completion watcher
     if [[ "$no_gates" == "true" ]]; then
         export PI_NO_GATES=1
+        export PI_SKIP_RUN=1
     fi
     setup_completion_watcher "$cleanup_mode" "$session_name" "$issue_number"
     

@@ -156,6 +156,9 @@ setup_watch_environment() {
     # e.g., ###ERROR_TASK_1123### (TASK_ERROR の逆)
     ALT_COMPLETE_MARKER="###COMPLETE_TASK_${issue_number_ref}###"
     ALT_ERROR_MARKER="###ERROR_TASK_${issue_number_ref}###"
+
+    # 中間マーカー（run:/call: ステップ対応）
+    PHASE_COMPLETE_MARKER="###PHASE_COMPLETE_${issue_number_ref}###"
 }
 
 # Check PR merge status with retry logic
@@ -519,6 +522,7 @@ _run_non_ai_steps() {
 
         # タブ区切りフィールドを分解
         local cmd_or_name timeout max_retry retry_interval continue_on_fail description
+        # shellcheck disable=SC2034  # max_retry, retry_interval reserved for future per-step retry
         IFS=$'\t' read -r cmd_or_name timeout max_retry retry_interval continue_on_fail description <<< "$rest"
 
         local display_name="${description:-$cmd_or_name}"
@@ -562,6 +566,138 @@ _run_non_ai_steps() {
     done < <(printf '%b\n' "$non_ai_group_escaped")
 
     log_info "All non-AI steps passed for Issue #$issue_number"
+    return 0
+}
+
+# ===================
+# PHASE_COMPLETE ハンドリング（run:/call: ステップ対応）
+# ===================
+
+# 現在のフェーズ進行状態を管理するグローバル変数
+# _CURRENT_PHASE_INDEX: 現在処理中のステップグループのインデックス（0始まり）
+# _STEP_GROUPS_DATA: ステップグループ情報（load_step_groups の出力をキャッシュ）
+# _PHASE_RETRY_COUNT: non-AIステップ群のリトライ回数
+_CURRENT_PHASE_INDEX="${_CURRENT_PHASE_INDEX:-0}"
+_STEP_GROUPS_DATA="${_STEP_GROUPS_DATA:-}"
+_PHASE_RETRY_COUNT="${_PHASE_RETRY_COUNT:-0}"
+_MAX_STEP_RETRIES="${_MAX_STEP_RETRIES:-10}"
+
+# PHASE_COMPLETE マーカー検出時のハンドラー
+# non-AI ステップ群を実行し、成功したら次のAIグループのプロンプトを nudge
+# Usage: handle_phase_complete <session_name> <issue_number> <auto_attach> <cleanup_args>
+# Returns: 0=次のAIグループへ進行, 1=エラー, 2=non-AIステップ失敗（再監視を継続）
+handle_phase_complete() {
+    local session_name="$1"
+    local issue_number="$2"
+    local auto_attach="$3"
+    local cleanup_args="${4:-}"
+
+    log_info "Phase complete detected: $session_name (Issue #$issue_number)"
+
+    # ステップグループ情報を読み込み（初回のみ）
+    if [[ -z "$_STEP_GROUPS_DATA" ]]; then
+        _STEP_GROUPS_DATA="$(load_step_groups "$issue_number" 2>/dev/null)" || _STEP_GROUPS_DATA=""
+        if [[ -z "$_STEP_GROUPS_DATA" ]]; then
+            log_warn "No step groups data found. Treating as regular COMPLETE."
+            return 0
+        fi
+    fi
+
+    local total_groups
+    total_groups=$(echo "$_STEP_GROUPS_DATA" | wc -l | tr -d ' ')
+
+    # 現在のフェーズの次のグループを取得
+    local next_index=$((_CURRENT_PHASE_INDEX + 1))
+
+    if [[ $next_index -ge $total_groups ]]; then
+        log_info "All phases complete (no more groups)"
+        return 0
+    fi
+
+    # 次のグループを取得
+    local next_group
+    next_group="$(echo "$_STEP_GROUPS_DATA" | sed -n "$((next_index + 1))p")"
+    local next_type="${next_group%%	*}"
+    local next_content="${next_group#*	}"
+
+    if [[ "$next_type" == "non_ai_group" ]]; then
+        # non-AI ステップ群を実行
+        local worktree_path branch_name
+        _resolve_worktree_info "$issue_number" worktree_path branch_name
+
+        local step_result=0
+        _run_non_ai_steps "$session_name" "$issue_number" "$worktree_path" "$branch_name" "$next_content" || step_result=$?
+
+        if [[ $step_result -ne 0 ]]; then
+            _PHASE_RETRY_COUNT=$((_PHASE_RETRY_COUNT + 1))
+            if [[ $_PHASE_RETRY_COUNT -ge $_MAX_STEP_RETRIES ]]; then
+                log_error "Non-AI steps exceeded max retries ($_MAX_STEP_RETRIES). Aborting."
+                return 1
+            fi
+            log_warn "Non-AI steps failed (retry $_PHASE_RETRY_COUNT/$_MAX_STEP_RETRIES). Waiting for AI fix..."
+            return 2
+        fi
+
+        # non-AI ステップ通過 → リトライカウンタをリセット
+        _PHASE_RETRY_COUNT=0
+        _CURRENT_PHASE_INDEX=$((next_index))
+
+        # さらに次のグループを確認
+        local after_index=$((_CURRENT_PHASE_INDEX + 1))
+        if [[ $after_index -ge $total_groups ]]; then
+            # non-AI が最後のグループ → 全フェーズ完了として処理
+            log_info "All phases complete (non-AI steps were the last group)"
+            return 0
+        fi
+
+        local after_group
+        after_group="$(echo "$_STEP_GROUPS_DATA" | sed -n "$((after_index + 1))p")"
+        local after_type="${after_group%%	*}"
+        local after_content="${after_group#*	}"
+
+        if [[ "$after_type" == "ai_group" ]]; then
+            # 次のAIグループのプロンプトを nudge
+            _CURRENT_PHASE_INDEX=$after_index
+            local is_final="false"
+            if [[ $((after_index + 1)) -ge $total_groups ]]; then
+                is_final="true"
+            fi
+
+            # ワークフロー名を取得
+            local workflow_name=""
+            local tracker_meta
+            tracker_meta="$(load_tracker_metadata "$issue_number" 2>/dev/null)" || tracker_meta=""
+            if [[ -n "$tracker_meta" ]]; then
+                workflow_name="$(echo "$tracker_meta" | cut -f1)"
+            fi
+
+            # 次のAIグループのプロンプトを生成
+            local worktree_path_resolved branch_name_resolved
+            _resolve_worktree_info "$issue_number" worktree_path_resolved branch_name_resolved
+            local ai_group_index=$(( after_index / 2 ))  # AIグループのインデックス（概算）
+
+            local continue_prompt
+            continue_prompt="$(generate_ai_group_prompt "$ai_group_index" "$total_groups" "$after_content" "$is_final" \
+                "$workflow_name" "$issue_number" "" "" "$branch_name_resolved" "$worktree_path_resolved" "." "" "" 2>/dev/null)"
+
+            if session_exists "$session_name"; then
+                send_keys "$session_name" "$continue_prompt"
+                log_info "Continue prompt sent for next AI group: $after_content"
+            else
+                log_warn "Session $session_name no longer exists"
+                return 1
+            fi
+
+            # AIグループの完了待ちに戻る
+            return 2
+        fi
+    elif [[ "$next_type" == "ai_group" ]]; then
+        # 次がAIグループ（non-AI ステップがなかった場合）
+        _CURRENT_PHASE_INDEX=$next_index
+        log_info "Next group is AI, continuing..."
+        return 2
+    fi
+
     return 0
 }
 
@@ -916,7 +1052,36 @@ _check_pipe_pane_markers() {
         fi
     fi
 
-    # Step 3: 新規完了マーカーが見つかった場合のみコードブロック検証
+    # Step 3: PHASE_COMPLETE マーカーチェック（run:/call: ステップ対応）
+    if [[ -n "${PHASE_COMPLETE_MARKER:-}" ]]; then
+        local file_phase_count=0
+        file_phase_count=$(grep -cF "$PHASE_COMPLETE_MARKER" "$output_log" 2>/dev/null) || file_phase_count=0
+        if [[ "$file_phase_count" -gt 0 ]] && [[ "$file_phase_count" -gt "${_cpp_cumulative_phase:-0}" ]]; then
+            if verify_marker_outside_codeblock "$output_log" "$PHASE_COMPLETE_MARKER" "true" 2>/dev/null; then
+                log_info "Phase complete marker detected! (count: $file_phase_count)"
+                _cpp_cumulative_phase="$file_phase_count"
+
+                local phase_result=0
+                handle_phase_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args" || phase_result=$?
+
+                if [[ $phase_result -eq 0 ]]; then
+                    # 全フェーズ完了 → 通常の COMPLETE として処理
+                    local complete_result=0
+                    handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args" || complete_result=$?
+                    _handle_complete_result "$complete_result" "phase-complete"
+                    return $?
+                elif [[ $phase_result -eq 2 ]]; then
+                    # non-AIステップ失敗 or 次のAIグループへ → 再監視
+                    return 255
+                else
+                    # エラー
+                    return 1
+                fi
+            fi
+        fi
+    fi
+
+    # Step 4: 新規完了マーカーが見つかった場合のみコードブロック検証
     if [[ "$file_complete_count" -gt 0 ]] && [[ "$file_complete_count" -gt "$_cpp_cumulative_complete" ]]; then
         if _verify_real_marker "$output_log" "$marker" "$ALT_COMPLETE_MARKER" "true"; then
             log_info "Completion marker detected! (count: $file_complete_count)"
@@ -1048,6 +1213,10 @@ run_watch_loop() {
     cumulative_complete_count=$(count_any_markers_outside_codeblock "$baseline_output" "$marker" "$ALT_COMPLETE_MARKER")
     # shellcheck disable=SC2034
     cumulative_error_count=$(count_any_markers_outside_codeblock "$baseline_output" "$error_marker" "$ALT_ERROR_MARKER")
+
+    # PHASE_COMPLETE マーカーの累積カウント（run:/call: ステップ対応）
+    # shellcheck disable=SC2034
+    _cpp_cumulative_phase=0
 
     # シグナルファイルのパス（ターミナルスクレイピングより信頼性が高い）
     local status_dir

@@ -124,6 +124,57 @@ remove_tracker_metadata() {
 }
 
 # ===================
+# ステップグループ情報
+# ===================
+
+# ステップグループ情報を保存
+# Usage: save_step_groups <issue_number> <step_groups_output>
+# Input: get_step_groups の出力（複数行のタブ区切りテキスト）
+save_step_groups() {
+    local issue_number="$1"
+    local step_groups="$2"
+
+    local status_dir
+    status_dir="$(get_status_dir)"
+    mkdir -p "$status_dir"
+
+    local groups_file="${status_dir}/${issue_number}.step-groups"
+    local tmp_file="${groups_file}.tmp.$$"
+    printf '%s\n' "$step_groups" > "$tmp_file"
+    mv -f "$tmp_file" "$groups_file"
+
+    log_debug "Saved step groups for issue #$issue_number"
+}
+
+# ステップグループ情報を読み込み
+# Usage: load_step_groups <issue_number>
+# Output: get_step_groups の出力形式（複数行のタブ区切りテキスト）
+# Returns: 0=success, 1=not found
+load_step_groups() {
+    local issue_number="$1"
+
+    local status_dir
+    status_dir="$(get_status_dir)"
+    local groups_file="${status_dir}/${issue_number}.step-groups"
+
+    if [[ ! -f "$groups_file" ]]; then
+        return 1
+    fi
+
+    cat "$groups_file"
+}
+
+# ステップグループ情報を削除
+# Usage: remove_step_groups <issue_number>
+remove_step_groups() {
+    local issue_number="$1"
+
+    local status_dir
+    status_dir="$(get_status_dir)"
+    rm -f "${status_dir}/${issue_number}.step-groups"
+}
+
+# ===================
 # 記録
 # ===================
 
