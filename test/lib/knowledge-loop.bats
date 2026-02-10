@@ -239,7 +239,8 @@ EOF
 
     result="$(generate_knowledge_proposals "1 week ago" "$TEST_PROJECT")"
     [[ "$result" == *"prevent set -e from killing watcher"* ]]
-    [[ "$result" == *"Found"* ]]
+    [[ "$result" == *"Top"* ]]
+    [[ "$result" == *"insights"* ]]
 }
 
 @test "generate_knowledge_proposals skips duplicates in AGENTS.md" {
@@ -308,6 +309,156 @@ EOF
 # collect_knowledge_context
 # ====================
 
+# ====================
+# categorize_commit
+# ====================
+
+@test "categorize_commit returns テスト安定性 for test-only changes" {
+    mkdir -p "$TEST_PROJECT/test"
+    printf 'test\n' > "$TEST_PROJECT/test/foo.bats"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: stabilize flaky test" >/dev/null 2>&1
+
+    local hash
+    hash="$(git -C "$TEST_PROJECT" log -1 --format="%h")"
+    result="$(categorize_commit "$hash" "$TEST_PROJECT")"
+    [ "$result" = "テスト安定性" ]
+}
+
+@test "categorize_commit returns マーカー検出 for marker.sh changes" {
+    mkdir -p "$TEST_PROJECT/lib"
+    printf 'marker\n' > "$TEST_PROJECT/lib/marker.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: improve marker detection" >/dev/null 2>&1
+
+    local hash
+    hash="$(git -C "$TEST_PROJECT" log -1 --format="%h")"
+    result="$(categorize_commit "$hash" "$TEST_PROJECT")"
+    [ "$result" = "マーカー検出" ]
+}
+
+@test "categorize_commit returns CI関連 for ci files" {
+    mkdir -p "$TEST_PROJECT/lib"
+    printf 'ci\n' > "$TEST_PROJECT/lib/ci-fix.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: CI retry logic" >/dev/null 2>&1
+
+    local hash
+    hash="$(git -C "$TEST_PROJECT" log -1 --format="%h")"
+    result="$(categorize_commit "$hash" "$TEST_PROJECT")"
+    [ "$result" = "CI関連" ]
+}
+
+@test "categorize_commit returns 一般 for unmatched files" {
+    printf 'general\n' > "$TEST_PROJECT/something.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: some general fix" >/dev/null 2>&1
+
+    local hash
+    hash="$(git -C "$TEST_PROJECT" log -1 --format="%h")"
+    result="$(categorize_commit "$hash" "$TEST_PROJECT")"
+    [ "$result" = "一般" ]
+}
+
+# ====================
+# score_commit
+# ====================
+
+@test "score_commit gives higher score for issue references" {
+    printf 'fix\n' > "$TEST_PROJECT/file.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: handle edge case" -m "Refs #123" >/dev/null 2>&1
+
+    local hash
+    hash="$(git -C "$TEST_PROJECT" log -1 --format="%h")"
+    local score
+    score="$(score_commit "$hash" "fix: handle edge case" "$TEST_PROJECT")"
+    [ "$score" -ge 2 ]
+}
+
+@test "score_commit gives lower score for typo fixes" {
+    printf 'typo\n' > "$TEST_PROJECT/file.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: typo in readme" >/dev/null 2>&1
+
+    local hash
+    hash="$(git -C "$TEST_PROJECT" log -1 --format="%h")"
+    local score
+    score="$(score_commit "$hash" "fix: typo in readme" "$TEST_PROJECT")"
+    [ "$score" -le 1 ]
+}
+
+# ====================
+# group_commits_by_category
+# ====================
+
+@test "group_commits_by_category groups commits" {
+    mkdir -p "$TEST_PROJECT/lib"
+    printf 'fix1\n' > "$TEST_PROJECT/lib/marker.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: marker detection issue 1" >/dev/null 2>&1
+
+    printf 'fix2\n' >> "$TEST_PROJECT/lib/marker.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: marker detection issue 2" >/dev/null 2>&1
+
+    result="$(group_commits_by_category "1 week ago" "$TEST_PROJECT")"
+    [[ "$result" == *"CATEGORY:マーカー検出"* ]]
+    [[ "$result" == *"COUNT:2"* ]]
+}
+
+@test "group_commits_by_category returns empty for no commits" {
+    result="$(group_commits_by_category "1 week ago" "$TEST_PROJECT")"
+    [ -z "$result" ]
+}
+
+# ====================
+# generate_knowledge_proposals with top_n
+# ====================
+
+@test "generate_knowledge_proposals respects top_n limit" {
+    # Create commits in different categories
+    mkdir -p "$TEST_PROJECT/lib" "$TEST_PROJECT/test"
+
+    printf 'a\n' > "$TEST_PROJECT/lib/marker.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: marker fix 1" >/dev/null 2>&1
+
+    printf 'b\n' > "$TEST_PROJECT/lib/ci-fix.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: ci fix 1" >/dev/null 2>&1
+
+    printf 'c\n' > "$TEST_PROJECT/something.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: general fix" >/dev/null 2>&1
+
+    # With top_n=1, should only show 1 insight
+    result="$(generate_knowledge_proposals "1 week ago" "$TEST_PROJECT" 1)"
+    [[ "$result" == *"Top 1 insights"* ]]
+    # Should mention "Use --all"
+    [[ "$result" == *"--all"* ]]
+}
+
+@test "generate_knowledge_proposals shows all with top_n=0" {
+    mkdir -p "$TEST_PROJECT/lib"
+
+    printf 'a\n' > "$TEST_PROJECT/lib/marker.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: marker fix" >/dev/null 2>&1
+
+    printf 'b\n' > "$TEST_PROJECT/lib/ci-fix.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: ci fix" >/dev/null 2>&1
+
+    result="$(generate_knowledge_proposals "1 week ago" "$TEST_PROJECT" 0)"
+    [[ "$result" == *"Top 2 insights"* ]]
+    [[ "$result" != *"--all"* ]]
+}
+
+# ====================
+# collect_knowledge_context (updated)
+# ====================
+
 @test "collect_knowledge_context returns empty when nothing found" {
     result="$(collect_knowledge_context "1 week ago" "$TEST_PROJECT")"
     [ -z "$result" ]
@@ -319,7 +470,7 @@ EOF
     git -C "$TEST_PROJECT" commit -m "fix: handle UTF-8 edge case" >/dev/null 2>&1
 
     result="$(collect_knowledge_context "1 week ago" "$TEST_PROJECT")"
-    [[ "$result" == *"fix commit"* ]]
+    [[ "$result" == *"知見"* ]]
     [[ "$result" == *"handle UTF-8 edge case"* ]]
 }
 
