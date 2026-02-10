@@ -16,6 +16,9 @@
 ```
 pi-issue-runner/
 ├── .github/
+│   ├── actions/
+│   │   └── setup-deps/
+│   │       └── action.yaml    # CI依存セットアップ（Bats, yq, tmux）
 │   └── workflows/
 │       └── ci.yaml    # CI設定
 ├── SKILL.md           # スキル定義（必須）
