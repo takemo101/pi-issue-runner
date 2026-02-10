@@ -14,6 +14,7 @@ setup() {
     unset _LOG_SH_SOURCED
     unset _YAML_SH_SOURCED
     unset _CONFIG_SH_SOURCED
+    unset _MARKER_SH_SOURCED
 
     # Reset yaml cache
     unset _YAML_CACHE_FILE
@@ -373,14 +374,315 @@ EOF
 }
 
 # ====================
-# run_gates: call形式スキップ
+# run_call_gate: 正常完了
 # ====================
 
-@test "run_gates: skips call gates" {
-    local gates
-    gates=$(printf "call\tcode-review\t300\t2\t10\tfalse\t\nsimple\ttrue\t10\t0\t1\tfalse\t")
-    run run_gates "$gates" "" "" "" "$BATS_TEST_TMPDIR"
+@test "run_call_gate: passes when agent outputs COMPLETE marker" {
+    local config="$BATS_TEST_TMPDIR/call-pass.yaml"
+    local mock_agent="$BATS_TEST_TMPDIR/mock-agent"
+
+    cat > "$mock_agent" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "Reviewing code..."
+echo "###TASK_COMPLETE_42###"
+MOCK_EOF
+    chmod +x "$mock_agent"
+
+    cat > "$config" << EOF
+workflows:
+  code-review:
+    description: code review
+    steps:
+      - review
+    agent:
+      type: custom
+      command: $mock_agent
+      template: '{{command}}'
+EOF
+    reset_yaml_cache
+
+    export PI_ISSUE_NUMBER=42
+    run run_call_gate "code-review" 30 "$BATS_TEST_TMPDIR" "$config" "42" "main"
     [ "$status" -eq 0 ]
+    [[ "$output" == *"COMPLETE"* ]]
+}
+
+# ====================
+# run_call_gate: ERROR マーカー
+# ====================
+
+@test "run_call_gate: fails when agent outputs ERROR marker" {
+    local config="$BATS_TEST_TMPDIR/call-fail.yaml"
+    local mock_agent="$BATS_TEST_TMPDIR/mock-agent-err"
+
+    cat > "$mock_agent" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "Found issues in code"
+echo "###TASK_ERROR_42###"
+echo "Missing error handling"
+MOCK_EOF
+    chmod +x "$mock_agent"
+
+    cat > "$config" << EOF
+workflows:
+  code-review:
+    description: code review
+    steps:
+      - review
+    agent:
+      type: custom
+      command: $mock_agent
+      template: '{{command}}'
+EOF
+    reset_yaml_cache
+
+    run run_call_gate "code-review" 30 "$BATS_TEST_TMPDIR" "$config" "42" "main"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"ERROR"* ]]
+}
+
+# ====================
+# run_call_gate: タイムアウト
+# ====================
+
+@test "run_call_gate: fails on timeout" {
+    local timeout_cmd
+    timeout_cmd=$(get_timeout_cmd)
+    if [[ -z "$timeout_cmd" ]]; then
+        skip "timeout command not available"
+    fi
+
+    local config="$BATS_TEST_TMPDIR/call-timeout.yaml"
+    local mock_agent="$BATS_TEST_TMPDIR/mock-agent-slow"
+
+    cat > "$mock_agent" << 'MOCK_EOF'
+#!/usr/bin/env bash
+sleep 30
+MOCK_EOF
+    chmod +x "$mock_agent"
+
+    cat > "$config" << EOF
+workflows:
+  slow-review:
+    description: slow review
+    steps:
+      - review
+    agent:
+      type: custom
+      command: $mock_agent
+      template: '{{command}}'
+EOF
+    reset_yaml_cache
+
+    run run_call_gate "slow-review" 1 "$BATS_TEST_TMPDIR" "$config" "42" "main"
+    [ "$status" -eq 1 ]
+}
+
+# ====================
+# run_call_gate: 循環呼び出し
+# ====================
+
+@test "run_call_gate: fails on cycle detection" {
+    if ! check_yq; then
+        skip "yq not available"
+    fi
+
+    local config="$BATS_TEST_TMPDIR/call-cycle.yaml"
+    cat > "$config" << 'EOF'
+workflows:
+  default:
+    steps:
+      - implement
+    gates:
+      - call: default
+EOF
+    reset_yaml_cache
+
+    run run_call_gate "default" 30 "$BATS_TEST_TMPDIR" "$config" "42" "main" "default"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"cycle"* ]]
+}
+
+# ====================
+# run_call_gate: 存在しないワークフロー
+# ====================
+
+@test "run_call_gate: fails for nonexistent workflow" {
+    local config="$BATS_TEST_TMPDIR/call-noexist.yaml"
+    cat > "$config" << 'EOF'
+workflows:
+  default:
+    steps:
+      - implement
+EOF
+    reset_yaml_cache
+
+    run run_call_gate "nonexistent" 30 "$BATS_TEST_TMPDIR" "$config" "42" "main"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"not found"* ]]
+}
+
+# ====================
+# run_call_gate: exit 0 マーカーなし → 通過
+# ====================
+
+@test "run_call_gate: passes with exit 0 and no marker" {
+    local config="$BATS_TEST_TMPDIR/call-nomarker.yaml"
+    local mock_agent="$BATS_TEST_TMPDIR/mock-agent-ok"
+
+    cat > "$mock_agent" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "All good"
+exit 0
+MOCK_EOF
+    chmod +x "$mock_agent"
+
+    cat > "$config" << EOF
+workflows:
+  quick-review:
+    description: quick review
+    steps:
+      - review
+    agent:
+      type: custom
+      command: $mock_agent
+      template: '{{command}}'
+EOF
+    reset_yaml_cache
+
+    run run_call_gate "quick-review" 30 "$BATS_TEST_TMPDIR" "$config" "42" "main"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"All good"* ]]
+}
+
+# ====================
+# run_call_gate: exit 1 マーカーなし → 失敗
+# ====================
+
+@test "run_call_gate: fails with non-zero exit and no marker" {
+    local config="$BATS_TEST_TMPDIR/call-exit1.yaml"
+    local mock_agent="$BATS_TEST_TMPDIR/mock-agent-fail"
+
+    cat > "$mock_agent" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "Something went wrong"
+exit 1
+MOCK_EOF
+    chmod +x "$mock_agent"
+
+    cat > "$config" << EOF
+workflows:
+  broken-review:
+    description: broken review
+    steps:
+      - review
+    agent:
+      type: custom
+      command: $mock_agent
+      template: '{{command}}'
+EOF
+    reset_yaml_cache
+
+    run run_call_gate "broken-review" 30 "$BATS_TEST_TMPDIR" "$config" "42" "main"
+    [ "$status" -eq 1 ]
+}
+
+# ====================
+# run_call_gate: agent設定のフォールバック
+# ====================
+
+@test "run_call_gate: falls back to global agent config" {
+    local config="$BATS_TEST_TMPDIR/call-fallback.yaml"
+    local mock_agent="$BATS_TEST_TMPDIR/mock-agent-global"
+
+    cat > "$mock_agent" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "Global agent reviewing"
+echo "###TASK_COMPLETE_42###"
+MOCK_EOF
+    chmod +x "$mock_agent"
+
+    cat > "$config" << EOF
+agent:
+  type: custom
+  command: $mock_agent
+  template: '{{command}}'
+workflows:
+  code-review:
+    description: code review
+    steps:
+      - review
+EOF
+    reset_yaml_cache
+
+    run run_call_gate "code-review" 30 "$BATS_TEST_TMPDIR" "$config" "42" "main"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Global agent reviewing"* ]]
+}
+
+# ====================
+# run_gates: call形式実行
+# ====================
+
+@test "run_gates: executes call gates" {
+    local config="$BATS_TEST_TMPDIR/gates-call.yaml"
+    local mock_agent="$BATS_TEST_TMPDIR/mock-agent-gates"
+
+    cat > "$mock_agent" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "###TASK_COMPLETE_42###"
+MOCK_EOF
+    chmod +x "$mock_agent"
+
+    cat > "$config" << EOF
+workflows:
+  code-review:
+    description: code review
+    steps:
+      - review
+    agent:
+      type: custom
+      command: $mock_agent
+      template: '{{command}}'
+EOF
+    reset_yaml_cache
+
+    local gates
+    gates=$(printf "call\tcode-review\t30\t0\t1\tfalse\t\nsimple\ttrue\t10\t0\t1\tfalse\t")
+    run run_gates "$gates" "42" "" "" "$BATS_TEST_TMPDIR" "$config"
+    [ "$status" -eq 0 ]
+}
+
+@test "run_gates: call gate failure stops execution" {
+    local config="$BATS_TEST_TMPDIR/gates-call-fail.yaml"
+    local mock_agent="$BATS_TEST_TMPDIR/mock-agent-fail2"
+
+    cat > "$mock_agent" << 'MOCK_EOF'
+#!/usr/bin/env bash
+echo "###TASK_ERROR_42###"
+echo "Bad code"
+MOCK_EOF
+    chmod +x "$mock_agent"
+
+    cat > "$config" << EOF
+workflows:
+  code-review:
+    description: code review
+    steps:
+      - review
+    agent:
+      type: custom
+      command: $mock_agent
+      template: '{{command}}'
+EOF
+    reset_yaml_cache
+
+    local marker="$BATS_TEST_TMPDIR/gate2_ran_after_call"
+    local gates
+    gates=$(printf "call\tcode-review\t30\t0\t1\tfalse\t\nsimple\ttouch ${marker}\t10\t0\t1\tfalse\t")
+    run run_gates "$gates" "42" "" "" "$BATS_TEST_TMPDIR" "$config"
+    [ "$status" -eq 1 ]
+    [ ! -f "$marker" ]
 }
 
 # ====================
