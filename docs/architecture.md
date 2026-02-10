@@ -177,6 +177,8 @@ pi-issue-runner/
 ├── test/              # Batsテスト
 │   ├── lib/           # ライブラリテスト
 │   ├── scripts/       # スクリプトテスト
+│   ├── regression/    # 回帰テスト
+│   ├── fixtures/      # テスト用フィクスチャ
 │   └── test_helper.bash
 ├── .worktrees/        # worktree作業ディレクトリ（実行時生成）
 │   ├── issue-42-*/
