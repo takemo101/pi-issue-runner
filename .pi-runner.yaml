@@ -89,23 +89,33 @@ auto:
 # -w 省略時は auto（AIがIssue内容から自動選択）
 # =====================================
 workflows:
-  # 標準: 計画→実装→レビュー→マージ
+  # 標準: 計画→実装→品質チェック→レビュー→マージ
   default:
-    description: 標準ワークフロー（計画・実装・テスト・レビュー・マージ）
+    description: 標準ワークフロー（計画・実装・品質チェック・レビュー・マージ）
     steps:
       - plan
       - implement
       - test
+      - run: "shellcheck -x scripts/*.sh lib/*.sh"
+        description: "ShellCheck 静的解析"
+      - run: "bats --jobs 2 test/"
+        timeout: 600
+        description: "Bats テスト"
       - review
       - merge
 
-  # 機能追加: 計画→実装→テスト→レビュー→マージ（opencode で高度な処理）
+  # 機能追加: 計画→実装→品質チェック→レビュー→マージ（opencode で高度な処理）
   feature:
     description: 新機能・大規模変更（lib/scripts への新関数追加、新スクリプト作成）
     steps:
       - plan
       - implement
       - test
+      - run: "shellcheck -x scripts/*.sh lib/*.sh"
+        description: "ShellCheck 静的解析"
+      - run: "bats --jobs 2 test/"
+        timeout: 600
+        description: "Bats テスト"
       - review
       - merge
     agent:
@@ -126,12 +136,17 @@ workflows:
       - 新しい scripts/ には対応する test/scripts/*.bats を必ず作成
       - AGENTS.md のディレクトリ構造を更新すること
 
-  # バグ修正・リファクタリング: 実装→テスト→レビュー→マージ
+  # バグ修正・リファクタリング: 実装→品質チェック→レビュー→マージ
   fix:
     description: バグ修正・リファクタリング・セキュリティ修正
     steps:
       - implement
       - test
+      - run: "shellcheck -x scripts/*.sh lib/*.sh"
+        description: "ShellCheck 静的解析"
+      - run: "bats --jobs 2 test/"
+        timeout: 600
+        description: "Bats テスト"
       - review
       - merge
     context: |
@@ -141,7 +156,7 @@ workflows:
       - ShellCheck 警告を解消すること
       - 既存テストが壊れないことを確認
 
-  # ドキュメント: 実装→マージ（軽量モデルで十分）
+  # ドキュメント: 実装→マージ（軽量モデルで十分、品質チェック不要）
   docs:
     description: ドキュメント更新（README, AGENTS.md, docs/ 以下）
     steps:
@@ -160,12 +175,17 @@ workflows:
       - AGENTS.md のディレクトリ構造が実態と一致しているか確認
       - コード例は実際に動作するものを記載
 
-  # テスト追加: 実装→レビュー→マージ
+  # テスト追加: 実装→品質チェック→レビュー→マージ
   test:
     description: テスト追加・テスト改善
     steps:
       - implement
       - test
+      - run: "shellcheck -x scripts/*.sh lib/*.sh"
+        description: "ShellCheck 静的解析"
+      - run: "bats --jobs 2 test/"
+        timeout: 600
+        description: "Bats テスト"
       - review
       - merge
     context: |
@@ -175,7 +195,7 @@ workflows:
       - 並列実行 (BATS_JOBS=4) でも安定するよう、グローバル状態を汚染しない
       - reset_yaml_cache, _YQ_CHECK_RESULT="" を setup で呼ぶ
 
-  # 簡易修正: 実装→マージのみ（軽量モデルで高速・低コスト）
+  # 簡易修正: 実装→マージのみ（軽量モデルで高速・低コスト、品質チェック不要）
   quickfix:
     description: typo修正・設定値変更・コメント修正など軽微な変更
     steps:
