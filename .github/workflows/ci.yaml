@@ -39,7 +39,7 @@ jobs:
             pattern: "improve.bats improve/*.bats dependency.bats priority.bats session-resolver.bats cleanup-improve-logs.bats"
           # Shard 3: multiplexer系 + batch + ci系 + dashboard + log (~281 tests, medium)
           - shard: "3/4"
-            pattern: "multiplexer*.bats tmux.bats batch.bats ci-*.bats context.bats dashboard.bats log.bats"
+            pattern: "multiplexer*.bats tmux.bats batch.bats ci-*.bats ci-fix/*.bats context.bats dashboard.bats log.bats"
           # Shard 4: その他 (~216 tests, medium-heavy)
             # agent, cleanup-orphans, cleanup-plans, daemon, hooks,
             # marker, notify, template, worktree
@@ -70,6 +70,7 @@ jobs:
             # Shard 3: multiplexer系 + batch + ci系 + dashboard + log
             MATCHED+=" $(ls test/lib/multiplexer*.bats test/lib/tmux.bats test/lib/batch.bats 2>/dev/null)"
             MATCHED+=" $(ls test/lib/ci-*.bats test/lib/context.bats test/lib/dashboard.bats test/lib/log.bats 2>/dev/null)"
+            MATCHED+=" $(ls test/lib/ci-fix/*.bats 2>/dev/null)"
 
             # Get all lib test files, exclude matched ones
             for f in test/lib/*.bats; do
