@@ -201,19 +201,23 @@ process_issue_status() {
             fi
             ;;
         running)
-            # セッションが存在するか確認（watcher未更新のstale running検出）
+            # セッションが実際に存在するか確認（stale running 検出）
             local session_name
             session_name="$(generate_session_name "$issue")"
-            if ! session_exists "$session_name" 2>/dev/null; then
-                # セッションがないのにrunning → watcherが更新せずに終了した
+            if session_exists "$session_name" 2>/dev/null; then
+                _all_done_ref=false
+            else
+                # セッション不在 → watcherがステータス更新せず終了した可能性
                 _errored_ref="$_errored_ref $issue"
                 _has_error_ref=true
                 if [[ "$quiet" != "true" ]]; then
-                    echo "[✗] Issue #$issue エラー（セッションが消滅）"
+                    echo "[✗] Issue #$issue エラー（セッション消滅、ステータス未更新）"
                 fi
                 _run_issue_cleanup "$issue"
-            else
-                _all_done_ref=false
+                if [[ "$fail_fast" == "true" ]]; then
+                    log_error "Fail-fast enabled. Exiting due to stale running session for issue #$issue"
+                    return 1
+                fi
             fi
             ;;
         unknown)

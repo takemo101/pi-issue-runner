@@ -25,7 +25,7 @@ mux_generate_session_name() {
     
     load_config
     local prefix
-    prefix="$(get_config session_prefix)"
+    prefix="$(get_config multiplexer_session_prefix)"
     
     if [[ "$prefix" == *"-issue" ]]; then
         echo "${prefix}-${issue_number}"
@@ -176,7 +176,7 @@ mux_list_sessions() {
     
     load_config
     local prefix
-    prefix="$(get_config session_prefix)"
+    prefix="$(get_config multiplexer_session_prefix)"
     
     tmux list-sessions -F "#{session_name}" 2>/dev/null | grep "^${prefix}" | grep -v "^${prefix}-monitor$" || true
 }

@@ -87,10 +87,11 @@ auto:
 workflows:
   # 標準: 計画→実装→レビュー→マージ
   default:
-    description: 標準ワークフロー（計画・実装・レビュー・マージ）
+    description: 標準ワークフロー（計画・実装・テスト・レビュー・マージ）
     steps:
       - plan
       - implement
+      - test
       - review
       - merge
 
@@ -160,6 +161,7 @@ workflows:
     description: テスト追加・テスト改善
     steps:
       - implement
+      - test
       - review
       - merge
     context: |

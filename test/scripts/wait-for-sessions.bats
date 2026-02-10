@@ -99,7 +99,7 @@ EOF
 # ====================
 
 @test "wait-for-sessions.sh returns 2 on timeout" {
-    # 実行中のままのステータス
+    # 実行中のままのステータス（セッションが存在する場合はタイムアウト）
     cat > "$TEST_WORKTREE_DIR/.status/400.json" << 'EOF'
 {
   "issue": 400,
@@ -109,49 +109,36 @@ EOF
 }
 EOF
 
-    # セッションが存在する状態をモック（stale running検出を回避）
-    local mock_script="$BATS_TEST_TMPDIR/mock_bin/tmux"
-    mkdir -p "$(dirname "$mock_script")"
-    cat > "$mock_script" << 'MOCK_EOF'
+    # tmuxモックでセッションが存在するように設定
+    mkdir -p "$BATS_TEST_TMPDIR/mock_bin"
+    cat > "$BATS_TEST_TMPDIR/mock_bin/tmux" << 'MOCK'
 #!/usr/bin/env bash
 case "$1" in
     "has-session") exit 0 ;;  # セッションが存在する
     *) exit 0 ;;
 esac
-MOCK_EOF
-    chmod +x "$mock_script"
-    export PATH="$BATS_TEST_TMPDIR/mock_bin:$PATH"
-
-    run "$PROJECT_ROOT/scripts/wait-for-sessions.sh" 400 --interval 1 --timeout 2 --quiet
+MOCK
+    chmod +x "$BATS_TEST_TMPDIR/mock_bin/tmux"
+    
+    PATH="$BATS_TEST_TMPDIR/mock_bin:$PATH" \
+        run "$PROJECT_ROOT/scripts/wait-for-sessions.sh" 400 --interval 1 --timeout 2 --quiet
     [ "$status" -eq 2 ]
 }
 
-@test "wait-for-sessions.sh detects stale running (session disappeared)" {
-    # running ステータスだがセッションが存在しない
-    cat > "$TEST_WORKTREE_DIR/.status/450.json" << 'EOF'
+@test "wait-for-sessions.sh detects stale running session (session vanished)" {
+    # ステータスは running だがセッションが存在しない → エラー検出
+    cat > "$TEST_WORKTREE_DIR/.status/400.json" << 'EOF'
 {
-  "issue": 450,
+  "issue": 400,
   "status": "running",
-  "session": "pi-issue-450",
+  "session": "pi-issue-400",
   "timestamp": "2024-01-01T00:00:00Z"
 }
 EOF
 
-    # セッションが存在しない状態をモック
-    local mock_script="$BATS_TEST_TMPDIR/mock_bin/tmux"
-    mkdir -p "$(dirname "$mock_script")"
-    cat > "$mock_script" << 'MOCK_EOF'
-#!/usr/bin/env bash
-case "$1" in
-    "has-session") exit 1 ;;  # セッションが存在しない
-    *) exit 0 ;;
-esac
-MOCK_EOF
-    chmod +x "$mock_script"
-    export PATH="$BATS_TEST_TMPDIR/mock_bin:$PATH"
-
-    run "$PROJECT_ROOT/scripts/wait-for-sessions.sh" 450 --interval 1 --timeout 5 --quiet
+    run "$PROJECT_ROOT/scripts/wait-for-sessions.sh" 400 --interval 1 --timeout 5
     [ "$status" -eq 1 ]
+    [[ "$output" == *"セッション消滅"* ]]
 }
 
 # ====================
@@ -178,7 +165,19 @@ EOF
 }
 EOF
 
-    run "$PROJECT_ROOT/scripts/wait-for-sessions.sh" 500 501 --interval 1 --timeout 10 --fail-fast --quiet
+    # tmuxモックでセッション500が存在するように設定
+    mkdir -p "$BATS_TEST_TMPDIR/mock_bin"
+    cat > "$BATS_TEST_TMPDIR/mock_bin/tmux" << 'MOCK'
+#!/usr/bin/env bash
+case "$1" in
+    "has-session") exit 0 ;;  # セッションが存在する
+    *) exit 0 ;;
+esac
+MOCK
+    chmod +x "$BATS_TEST_TMPDIR/mock_bin/tmux"
+
+    PATH="$BATS_TEST_TMPDIR/mock_bin:$PATH" \
+        run "$PROJECT_ROOT/scripts/wait-for-sessions.sh" 500 501 --interval 1 --timeout 10 --fail-fast --quiet
     [ "$status" -eq 1 ]
 }
 
