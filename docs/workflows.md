@@ -19,10 +19,11 @@ pi-issue-runnerは、GitHub Issueの処理をワークフローとして定義�
 ```yaml
 # workflows/default.yaml
 name: default
-description: 完全なワークフロー（計画・実装・レビュー・マージ）
+description: 標準ワークフロー（計画・実装・テスト・レビュー・マージ）
 steps:
   - plan      # 実装計画の作成
   - implement # コードの実装
+  - test      # テスト実行とカバレッジ確認
   - review    # セルフレビュー
   - merge     # PRの作成とマージ
 context: |

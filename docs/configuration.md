@@ -106,11 +106,12 @@ parallel:
 #     ワークフロー名を指定する場合は workflows/*.yaml を作成し、-w オプションを使用
 workflow:
   # 実行するステップ
-  # ビルトイン: plan, implement, review, merge
+  # ビルトイン: plan, implement, review, merge, test, ci-fix
   # カスタムステップも定義可能（対応するエージェントテンプレートが必要）
   steps:
     - plan
     - implement
+    - test
     - review
     - merge
 
