@@ -26,6 +26,7 @@ fi
 if ! declare -f get_config &> /dev/null; then
     source "$_WORKFLOW_SELECTOR_LIB_DIR/config.sh"
 fi
+source "$_WORKFLOW_SELECTOR_LIB_DIR/compat.sh"
 
 # ===================
 # メイン関数
@@ -119,7 +120,7 @@ Workflow name:"
 
     # pi --print で非対話実行（タイムアウト15秒）
     local response
-    response=$(echo "$prompt" | timeout 15 "$pi_command" --print \
+    response=$(echo "$prompt" | safe_timeout 15 "$pi_command" --print \
         --provider "$provider" \
         --model "$model" \
         --no-tools \
