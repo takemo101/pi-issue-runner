@@ -56,16 +56,6 @@ extract_fix_commits() {
         --no-merges 2>/dev/null || true
 }
 
-# Get diff summary for a commit
-# Arguments: $1=commit_hash, $2=project_root (optional)
-# Output: diff stat lines
-get_commit_diff_summary() {
-    local commit_hash="$1"
-    local project_root="${2:-.}"
-
-    git -C "$project_root" diff-tree --no-commit-id -r --stat "$commit_hash" 2>/dev/null || true
-}
-
 # Get commit message body (full, not just subject)
 # Arguments: $1=commit_hash, $2=project_root (optional)
 # Output: commit body text
