@@ -51,10 +51,25 @@
 │  │  - クリーンアップ  │  - 設定自動生成    │  - マーカー  │ │
 │  │    トラップ管理    │                    │    検出      │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │session-resolver.sh │                    │              │ │
-│  │  - セッション名    │                    │              │ │
-│  │    解決            │                    │              │ │
+│  │session-resolver.sh │  improve.sh        │              │ │
+│  │  - セッション名    │  - 継続的改善      │              │ │
+│  │    解決            │    オーケストレータ│              │ │
 │  └────────────────────┴────────────────────┴──────────────┘ │
+│  ├── ci-fix/             # CI修正サブモジュール群          │
+│  │   ├── common.sh       # 共通ユーティリティ              │
+│  │   ├── detect.sh       # プロジェクトタイプ検出          │
+│  │   ├── bash.sh         # Bash固有の修正・検証ロジック    │
+│  │   ├── go.sh           # Go固有の修正・検証ロジック      │
+│  │   ├── node.sh         # Node固有の修正・検証ロジック    │
+│  │   ├── python.sh       # Python固有の修正・検証ロジック  │
+│  │   ├── rust.sh         # Rust固有の修正・検証ロジック    │
+│  │   └── escalation.sh   # エスカレーション処理            │
+│  ├── improve/            # 継続的改善サブモジュール群      │
+│  │   ├── args.sh         # 引数解析                        │
+│  │   ├── deps.sh         # 依存関係チェック                │
+│  │   ├── env.sh          # 環境セットアップ                │
+│  │   ├── execution.sh    # 実行・監視フェーズ              │
+│  │   └── review.sh       # レビューフェーズ                │
 └──────────────────────────────────────────────────────────────┘
          │                    │                    │
 ┌────────▼────────┐  ┌────────▼────────┐  ┌───────▼──────┐
@@ -79,6 +94,7 @@ pi-issue-runner/
 │   ├── status.sh      # 状態確認
 │   ├── attach.sh      # セッションにアタッチ
 │   ├── stop.sh        # セッション停止
+│   ├── sweep.sh       # 全セッションのマーカーチェック・cleanup
 │   ├── mux-all.sh     # 全セッション表示（マルチプレクサ対応）
 │   ├── cleanup.sh     # クリーンアップ
 │   ├── ci-fix-helper.sh  # CI修正ヘルパー
@@ -97,6 +113,15 @@ pi-issue-runner/
 │   ├── batch.sh       # バッチ処理コア機能
 │   ├── ci-classifier.sh   # CI失敗タイプ分類
 │   ├── ci-fix.sh      # CI失敗検出・自動修正
+│   ├── ci-fix/            # CI修正サブモジュール群
+│   │   ├── bash.sh        # Bash固有の修正・検証ロジック
+│   │   ├── common.sh      # 共通ユーティリティ
+│   │   ├── detect.sh      # プロジェクトタイプ検出
+│   │   ├── escalation.sh  # エスカレーション処理
+│   │   ├── go.sh          # Go固有の修正・検証ロジック
+│   │   ├── node.sh        # Node固有の修正・検証ロジック
+│   │   ├── python.sh      # Python固有の修正・検証ロジック
+│   │   └── rust.sh        # Rust固有の修正・検証ロジック
 │   ├── ci-monitor.sh      # CI状態監視
 │   ├── ci-retry.sh        # CI自動修正リトライ管理
 │   ├── cleanup-improve-logs.sh  # improve-logsのクリーンアップ
@@ -111,6 +136,13 @@ pi-issue-runner/
 │   ├── generate-config.sh  # プロジェクト解析・設定自動生成
 │   ├── github.sh      # GitHub CLI操作
 │   ├── hooks.sh       # Hook機能
+│   ├── improve.sh     # 継続的改善ライブラリ（オーケストレーター）
+│   ├── improve/       # 継続的改善サブモジュール群
+│   │   ├── args.sh    # 引数解析
+│   │   ├── deps.sh    # 依存関係チェック
+│   │   ├── env.sh     # 環境セットアップ
+│   │   ├── execution.sh # 実行・監視フェーズ
+│   │   └── review.sh  # レビューフェーズ
 │   ├── log.sh         # ログ出力
 │   ├── marker.sh      # マーカー検出ユーティリティ
 │   ├── multiplexer.sh      # マルチプレクサ抽象化レイヤー
@@ -136,6 +168,7 @@ pi-issue-runner/
 │   └── thorough.yaml  # 徹底ワークフロー
 ├── agents/            # エージェントテンプレート
 │   ├── ci-fix.md      # CI修正エージェント
+│   ├── improve-review.md  # improve.sh レビュープロンプト
 │   ├── plan.md        # 計画エージェント
 │   ├── implement.md   # 実装エージェント
 │   ├── review.md      # レビューエージェント
