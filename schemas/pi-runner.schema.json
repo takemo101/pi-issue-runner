@@ -428,6 +428,82 @@
         }
       ]
     },
+    "runStep": {
+      "type": "object",
+      "required": ["run"],
+      "additionalProperties": false,
+      "properties": {
+        "run": {
+          "type": "string",
+          "description": "Shell command to execute in the worktree"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 300,
+          "description": "Timeout in seconds"
+        },
+        "max_retry": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Maximum retry attempts (reserved for future use)"
+        },
+        "retry_interval": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 10,
+          "description": "Seconds between retries"
+        },
+        "continue_on_fail": {
+          "type": "boolean",
+          "default": false,
+          "description": "Continue to next step even if this one fails"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description for logs"
+        }
+      }
+    },
+    "callStep": {
+      "type": "object",
+      "required": ["call"],
+      "additionalProperties": false,
+      "properties": {
+        "call": {
+          "type": "string",
+          "description": "Workflow name to invoke (runs in a separate AI instance)"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 300,
+          "description": "Timeout in seconds"
+        },
+        "max_retry": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Maximum retry attempts (reserved for future use)"
+        },
+        "retry_interval": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 10,
+          "description": "Seconds between retries"
+        },
+        "continue_on_fail": {
+          "type": "boolean",
+          "default": false,
+          "description": "Continue to next step even if this one fails"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description for logs"
+        }
+      }
+    },
     "namedWorkflow": {
       "type": "object",
       "required": ["steps"],
@@ -439,9 +515,22 @@
         },
         "steps": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "AI step name (e.g., plan, implement, merge)"
+              },
+              {
+                "$ref": "#/definitions/runStep"
+              },
+              {
+                "$ref": "#/definitions/callStep"
+              }
+            ]
+          },
           "minItems": 1,
-          "description": "Steps to execute in order"
+          "description": "Steps to execute in order. Can be AI step names (string), run: commands, or call: workflows."
         },
         "context": {
           "type": "string",

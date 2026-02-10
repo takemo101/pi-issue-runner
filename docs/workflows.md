@@ -118,6 +118,70 @@ context: |
 
 > **注意**: このワークフローは通常、マージエージェントによって自動的に呼び出されます。手動実行は主にテストやデバッグ目的で使用します。
 
+## run: / call: ステップ（非AIステップ）
+
+ワークフローの `steps` 配列にはAIステップだけでなく、`run:`（外部コマンド実行）や `call:`（別ワークフロー呼び出し）を挿入できます。AIステップの間に品質チェックを挟むことで、**マージ前に検証が行われます**。
+
+### 使用例
+
+```yaml
+workflows:
+  default:
+    steps:
+      - plan
+      - implement
+      - run: "shellcheck -x scripts/*.sh lib/*.sh"
+        description: "ShellCheck"
+      - run: "bats --jobs 2 test/"
+        timeout: 600
+        description: "Batsテスト"
+      - review
+      - merge
+```
+
+### 動作フロー
+
+1. AI が `plan` → `implement` を実行し、中間マーカー `###PHASE_COMPLETE_<issue>###` を出力
+2. Watcher が `run:` ステップ群を worktree 内で順次実行
+3. **全ステップ成功** → 次の AI グループ（`review` → `merge`）のプロンプトを nudge
+4. **いずれか失敗** → エラー内容を AI セッションに nudge、AI が修正後に再度中間マーカーを出力すると、non-AI ステップ群が最初から再実行される
+
+### run: ステップのフィールド
+
+| フィールド | デフォルト | 説明 |
+|-----------|-----------|------|
+| `run` | (必須) | 実行するシェルコマンド |
+| `timeout` | 300 | タイムアウト（秒） |
+| `continue_on_fail` | false | 失敗しても次のステップへ続行 |
+| `description` | コマンド文字列 | ログ表示用の名前 |
+
+### call: ステップのフィールド
+
+| フィールド | デフォルト | 説明 |
+|-----------|-----------|------|
+| `call` | (必須) | 呼び出すワークフロー名（別AIインスタンスで実行） |
+| `timeout` | 300 | タイムアウト（秒） |
+| `continue_on_fail` | false | 失敗しても次のステップへ続行 |
+| `description` | ワークフロー名 | ログ表示用の名前 |
+
+### テンプレート変数
+
+`run:` のコマンド内で以下の変数が使用できます：
+
+```yaml
+- run: "gh pr checks ${pr_number} --watch"
+- run: "cd ${worktree_path} && make test"
+```
+
+| 変数 | 説明 |
+|------|------|
+| `${issue_number}` | GitHub Issue 番号 |
+| `${pr_number}` | PR 番号 |
+| `${branch_name}` | ブランチ名 |
+| `${worktree_path}` | worktree のパス |
+
+> **Note**: 以前の `gates:` セクションは廃止されました。`run:`/`call:` ステップに移行してください。詳細は [configuration.md](configuration.md#run--call-ステップ) を参照。
+
 ## 使用方法
 
 ### ワークフローの指定
