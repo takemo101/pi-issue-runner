@@ -254,6 +254,8 @@ pi-issue-runner/
 │   │   ├── issue-1262-bash-source-guard.bats
 │   │   ├── issue-1270-node-grep-pattern.bats
 │   │   ├── issue-1280-echo-dash-flags.bats
+│   │   ├── issue-1338-force-complete-quotes.bats
+│   │   ├── issue-1341-shellcheck-subdirs.bats
 │   │   ├── multiline-json-grep.bats
 │   │   ├── pr-merge-timeout.bats
 │   │   ├── shfmt-hardcoded-indent.bats
