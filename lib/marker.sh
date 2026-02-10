@@ -67,3 +67,57 @@ count_any_markers_outside_codeblock() {
     
     echo "$total"
 }
+
+# ANSI エスケープシーケンスを除去するフィルタ
+# Usage: echo "$text" | strip_ansi
+#    or: strip_ansi < file
+strip_ansi() {
+    sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g; s/\r//g'
+}
+
+# ファイル内のマーカー行数を grep で高速カウント
+# Usage: grep_marker_count_in_file <file> <marker1> [marker2] ...
+# Returns: total count of lines matching any marker (0 if file doesn't exist)
+grep_marker_count_in_file() {
+    local file="$1"
+    shift
+    local total=0
+
+    if [[ ! -f "$file" ]]; then
+        echo 0
+        return
+    fi
+
+    for m in "$@"; do
+        local c
+        c=$(grep -cF "$m" "$file" 2>/dev/null) || c=0
+        total=$((total + c))
+    done
+    echo "$total"
+}
+
+# マーカーがコードブロック外にあるか検証（ファイルまたはテキスト対応）
+# ファイルモードでは grep -B15 -A15 でマーカー周辺30行のみを抽出して検証する（高速）
+# Usage: verify_marker_outside_codeblock <file_or_text> <marker> [is_file]
+# Returns: 0 if at least one marker is outside a code block, 1 otherwise
+verify_marker_outside_codeblock() {
+    local source="$1"
+    local marker="$2"
+    local is_file="${3:-false}"
+
+    local text
+    if [[ "$is_file" == "true" ]]; then
+        # ファイルからANSI除去→マーカー周辺30行を抽出して検証
+        text=$(strip_ansi < "$source" | grep -B 15 -A 15 -F "$marker" 2>/dev/null) || text=""
+    else
+        text=$(echo "$source" | strip_ansi)
+    fi
+
+    if [[ -z "$text" ]]; then
+        return 1
+    fi
+
+    local count
+    count=$(count_markers_outside_codeblock "$text" "$marker")
+    [[ "$count" -gt 0 ]]
+}

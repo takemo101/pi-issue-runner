@@ -138,12 +138,9 @@ check_session_markers() {
         
         if grep -qF "$complete_marker" "$log_file" 2>/dev/null || \
            grep -qF "$alt_complete_marker" "$log_file" 2>/dev/null; then
-            # コードブロック内のマーカーを除外（watch-session.sh と同じロジック）
-            local log_content
-            log_content=$(cat "$log_file" 2>/dev/null) || log_content=""
-            local verified_count
-            verified_count=$(count_any_markers_outside_codeblock "$log_content" "$complete_marker" "$alt_complete_marker")
-            if [[ "$verified_count" -gt 0 ]]; then
+            # コードブロック内のマーカーを除外（周辺30行のみ検証で高速化）
+            if verify_marker_outside_codeblock "$log_file" "$complete_marker" "true" || \
+               verify_marker_outside_codeblock "$log_file" "$alt_complete_marker" "true"; then
                 echo "complete"
                 return
             fi
@@ -157,12 +154,9 @@ check_session_markers() {
             
             if grep -qF "$error_marker" "$log_file" 2>/dev/null || \
                grep -qF "$alt_error_marker" "$log_file" 2>/dev/null; then
-                # コードブロック内のマーカーを除外（watch-session.sh と同じロジック）
-                local err_log_content
-                err_log_content=$(cat "$log_file" 2>/dev/null) || err_log_content=""
-                local err_verified_count
-                err_verified_count=$(count_any_markers_outside_codeblock "$err_log_content" "$error_marker" "$alt_error_marker")
-                if [[ "$err_verified_count" -gt 0 ]]; then
+                # コードブロック内のマーカーを除外（周辺30行のみ検証で高速化）
+                if verify_marker_outside_codeblock "$log_file" "$error_marker" "true" || \
+                   verify_marker_outside_codeblock "$log_file" "$alt_error_marker" "true"; then
                     echo "error"
                     return
                 fi
