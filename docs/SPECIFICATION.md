@@ -189,31 +189,280 @@ project-root/
 
 ```yaml
 # .pi-runner.yaml
+
+# =====================================
+# Worktree設定
+# =====================================
 worktree:
   base_dir: ".worktrees"     # Worktree作成先
-  copy_files: ".env"         # コピーするファイル（スペース区切り）
+  base_branch: "HEAD"        # ベースブランチ
+  copy_files:                # コピーするファイル
+    - .env
+    - .env.local
+    - .envrc
 
+# =====================================
+# マルチプレクサ設定
+# =====================================
 multiplexer:
   type: "tmux"               # マルチプレクサタイプ（tmux または zellij）
   session_prefix: "pi"       # セッション名プレフィックス
   start_in_session: true     # 作成後に自動アタッチ
 
+# =====================================
+# piコマンド設定（従来の設定、後方互換性あり）
+# =====================================
 pi:
   command: "pi"              # piコマンドのパス
   args: ""                   # デフォルト引数
 
+# =====================================
+# エージェント設定（複数エージェント対応）
+# =====================================
+agent:
+  type: "pi"                 # エージェントプリセット（pi, claude, opencode, custom）
+  # command: "custom-agent"  # カスタムコマンド（type: custom の場合）
+  # args: []                 # 追加引数
+  # template: '...'          # コマンドテンプレート（type: custom の場合）
+
+# =====================================
+# 並列実行設定
+# =====================================
 parallel:
   max_concurrent: 0          # 最大同時実行数（0 = 無制限）
+
+# =====================================
+# ワークフロー設定（デフォルト）
+# =====================================
+workflow:
+  steps:                     # 実行するステップ
+    - plan
+    - implement
+    - review
+    - merge
+
+# =====================================
+# 名前付きワークフロー設定（複数定義）
+# =====================================
+workflows:
+  # 小規模修正向け
+  quick:
+    description: 小規模修正（typo、設定変更、1ファイル程度の変更）
+    steps:
+      - implement
+      - merge
+  
+  # 徹底ワークフロー
+  thorough:
+    description: 大規模機能開発（複数ファイル、新機能、アーキテクチャ変更）
+    steps:
+      - plan
+      - implement
+      - test
+      - review
+      - merge
+  
+  # フロントエンド実装向け（context 付き）
+  frontend:
+    description: フロントエンド実装（React/Next.js、UIコンポーネント、スタイリング）
+    steps:
+      - plan
+      - implement
+      - review
+      - merge
+    context: |
+      ## 技術スタック
+      - React / Next.js / TypeScript
+      - TailwindCSS
+      
+      ## 重視すべき点
+      - レスポンシブデザイン
+      - アクセシビリティ
+      - コンポーネントの再利用性
+
+# =====================================
+# AI自動選択設定（-w auto 用）
+# =====================================
+auto:
+  provider: "anthropic"       # AIプロバイダー
+  model: "claude-haiku-4-5"   # AI自動選択モデル
+
+# =====================================
+# 計画書設定
+# =====================================
+plans:
+  keep_recent: 10            # 保持する計画書の数
+  dir: "docs/plans"          # 計画書ディレクトリ
+
+# =====================================
+# 継続的改善設定
+# =====================================
+improve:
+  review_prompt_file: "agents/improve-review.md"  # カスタムレビュープロンプト
+  logs:
+    keep_recent: 10          # 保持するログファイル数
+    keep_days: 7             # 保持期間（日数）
+    dir: ".improve-logs"     # ログディレクトリ
+
+# =====================================
+# GitHub統合設定
+# =====================================
+github:
+  include_comments: true     # Issueコメントをプロンプトに含める
+  max_comments: 10           # 最大コメント数
+
+# =====================================
+# フック設定
+# =====================================
+hooks:
+  allow_inline: false        # インラインフックコマンドを許可
+  on_start: ""               # セッション開始時
+  on_success: ""             # 成功時
+  on_error: ""               # エラー時
+  on_cleanup: ""             # クリーンアップ時
+  on_improve_start: ""       # improve.sh 開始時
+  on_improve_end: ""         # improve.sh 終了時
+  on_iteration_start: ""     # 各イテレーション開始時
+  on_iteration_end: ""       # 各イテレーション終了時
+  on_review_complete: ""     # レビュー完了時
+
+# =====================================
+# エージェントテンプレート設定
+# =====================================
+agents:
+  plan: "agents/plan.md"           # 計画ステップ
+  implement: "agents/implement.md" # 実装ステップ
+  review: "agents/review.md"       # レビューステップ
+  merge: "agents/merge.md"         # マージステップ
+  test: "agents/test.md"           # テストステップ
+  ci-fix: "agents/ci-fix.md"       # CI修正ステップ
+
+# =====================================
+# Watcher設定
+# =====================================
+watcher:
+  force_cleanup_on_timeout: false  # PRマージタイムアウト時に強制クリーンアップ
+  initial_delay: 10                # 監視開始前の初期遅延（秒）
+  cleanup_delay: 5                 # クリーンアップ前の遅延（秒）
+  cleanup_retry_interval: 3        # クリーンアップリトライ間隔（秒）
+  pr_merge_max_attempts: 10        # PRマージチェック最大試行回数
+  pr_merge_retry_interval: 60      # PRマージチェック間隔（秒）
+
+# =====================================
+# プロンプトトラッカー設定
+# =====================================
+tracker:
+  file: ".worktrees/.status/tracker.jsonl"  # トラッカーファイルパス
 ```
 
 ### 環境変数による上書き
 
+すべての設定項目は環境変数で上書きできます。
+
+#### Worktree設定
+
 ```bash
 PI_RUNNER_WORKTREE_BASE_DIR=".worktrees"
-PI_RUNNER_MULTIPLEXER_TYPE="tmux"
+PI_RUNNER_WORKTREE_BASE_BRANCH="HEAD"
+PI_RUNNER_WORKTREE_COPY_FILES=".env .env.local .envrc"
+```
+
+#### マルチプレクサ設定
+
+```bash
+PI_RUNNER_MULTIPLEXER_TYPE="tmux"                # tmux または zellij
 PI_RUNNER_MULTIPLEXER_SESSION_PREFIX="pi"
-PI_RUNNER_PI_COMMAND="pi"
-PI_RUNNER_PARALLEL_MAX_CONCURRENT="5"
+PI_RUNNER_MULTIPLEXER_START_IN_SESSION="true"
+```
+
+#### エージェント設定
+
+```bash
+PI_RUNNER_PI_COMMAND="pi"                        # piコマンドパス（レガシー）
+PI_RUNNER_PI_ARGS="--model claude-sonnet-4"      # piコマンド引数（レガシー）
+PI_RUNNER_AGENT_TYPE="pi"                        # pi, claude, opencode, custom
+PI_RUNNER_AGENT_COMMAND="custom-agent"           # カスタムコマンド
+PI_RUNNER_AGENT_ARGS="--verbose"                 # エージェント引数
+PI_RUNNER_AGENT_TEMPLATE='{{command}} {{args}}' # カスタムテンプレート
+```
+
+#### 並列実行設定
+
+```bash
+PI_RUNNER_PARALLEL_MAX_CONCURRENT="5"            # 最大同時実行数
+```
+
+#### 計画書設定
+
+```bash
+PI_RUNNER_PLANS_KEEP_RECENT="10"                 # 保持する計画書の数
+PI_RUNNER_PLANS_DIR="docs/plans"                 # 計画書ディレクトリ
+```
+
+#### 継続的改善設定
+
+```bash
+PI_RUNNER_IMPROVE_REVIEW_PROMPT_FILE="agents/improve-review.md"
+PI_RUNNER_IMPROVE_LOGS_KEEP_RECENT="10"          # 保持するログファイル数
+PI_RUNNER_IMPROVE_LOGS_KEEP_DAYS="7"             # 保持期間（日数）
+PI_RUNNER_IMPROVE_LOGS_DIR=".improve-logs"       # ログディレクトリ
+```
+
+#### GitHub統合設定
+
+```bash
+PI_RUNNER_GITHUB_INCLUDE_COMMENTS="true"         # Issueコメントを含める
+PI_RUNNER_GITHUB_MAX_COMMENTS="10"               # 最大コメント数
+```
+
+#### フック設定
+
+```bash
+PI_RUNNER_HOOKS_ALLOW_INLINE="false"             # インラインフック許可
+PI_RUNNER_HOOKS_ON_START="./hooks/on-start.sh"
+PI_RUNNER_HOOKS_ON_SUCCESS="./hooks/on-success.sh"
+PI_RUNNER_HOOKS_ON_ERROR="./hooks/on-error.sh"
+PI_RUNNER_HOOKS_ON_CLEANUP="./hooks/on-cleanup.sh"
+PI_RUNNER_HOOKS_ON_IMPROVE_START="./hooks/on-improve-start.sh"
+PI_RUNNER_HOOKS_ON_IMPROVE_END="./hooks/on-improve-end.sh"
+PI_RUNNER_HOOKS_ON_ITERATION_START="./hooks/on-iteration-start.sh"
+PI_RUNNER_HOOKS_ON_ITERATION_END="./hooks/on-iteration-end.sh"
+PI_RUNNER_HOOKS_ON_REVIEW_COMPLETE="./hooks/on-review-complete.sh"
+```
+
+#### エージェントテンプレート設定
+
+```bash
+PI_RUNNER_AGENTS_PLAN="agents/plan.md"
+PI_RUNNER_AGENTS_IMPLEMENT="agents/implement.md"
+PI_RUNNER_AGENTS_REVIEW="agents/review.md"
+PI_RUNNER_AGENTS_MERGE="agents/merge.md"
+PI_RUNNER_AGENTS_TEST="agents/test.md"
+PI_RUNNER_AGENTS_CI_FIX="agents/ci-fix.md"
+```
+
+#### AI自動選択設定
+
+```bash
+PI_RUNNER_AUTO_PROVIDER="anthropic"              # AIプロバイダー
+PI_RUNNER_AUTO_MODEL="claude-haiku-4-5"          # AI自動選択モデル
+```
+
+#### Watcher設定
+
+```bash
+PI_RUNNER_WATCHER_INITIAL_DELAY="10"             # 初期遅延（秒）
+PI_RUNNER_WATCHER_CLEANUP_DELAY="5"              # クリーンアップ前遅延（秒）
+PI_RUNNER_WATCHER_CLEANUP_RETRY_INTERVAL="3"     # リトライ間隔（秒）
+PI_RUNNER_WATCHER_PR_MERGE_MAX_ATTEMPTS="10"     # PRマージ最大試行回数
+PI_RUNNER_WATCHER_PR_MERGE_RETRY_INTERVAL="60"   # PRマージチェック間隔（秒）
+PI_RUNNER_WATCHER_FORCE_CLEANUP_ON_TIMEOUT="false" # タイムアウト時強制クリーンアップ
+```
+
+#### プロンプトトラッカー設定
+
+```bash
+PI_RUNNER_TRACKER_FILE=".worktrees/.status/tracker.jsonl"
 ```
 
 ## CLI コマンド
