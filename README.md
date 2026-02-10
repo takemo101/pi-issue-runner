@@ -962,11 +962,14 @@ pi-issue-runner/
 │   ├── cleanup-improve-logs.sh  # improve-logsのクリーンアップ
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
+│   ├── cleanup-trap.sh    # エラー時クリーンアップトラップ管理
+│   ├── compat.sh      # クロスプラットフォーム互換性ヘルパー
 │   ├── config.sh           # 設定読み込み
 │   ├── context.sh          # コンテキスト管理
 │   ├── daemon.sh           # プロセスデーモン化
 │   ├── dashboard.sh        # ダッシュボード機能
 │   ├── dependency.sh       # 依存関係解析・レイヤー計算
+│   ├── generate-config.sh  # プロジェクト解析・設定生成（ライブラリ関数）
 │   ├── github.sh           # GitHub CLI操作
 │   ├── hooks.sh            # イベントhook機能
 │   ├── improve.sh          # 継続的改善ライブラリ（オーケストレーター）
@@ -982,6 +985,7 @@ pi-issue-runner/
 │   ├── priority.sh         # 優先度計算
 │   ├── session-resolver.sh # セッション名解決ユーティリティ
 │   ├── status.sh           # ステータスファイル管理
+│   ├── step-runner.sh      # run:/call: ステップ実行エンジン
 │   ├── template.sh         # テンプレート処理
 │   ├── tmux.sh             # マルチプレクサ操作（後方互換ラッパー）
 │   ├── multiplexer.sh      # マルチプレクサ抽象化レイヤー
@@ -1026,22 +1030,32 @@ pi-issue-runner/
 │   │   ├── cleanup-improve-logs.bats  # cleanup-improve-logs.sh のテスト
 │   │   ├── cleanup-orphans.bats  # cleanup-orphans.sh のテスト
 │   │   ├── cleanup-plans.bats    # cleanup-plans.sh のテスト
+│   │   ├── cleanup-trap.bats
+│   │   ├── compat.bats
 │   │   ├── config.bats      # config.sh のテスト
 │   │   ├── context.bats     # context.sh のテスト
 │   │   ├── daemon.bats      # daemon.sh のテスト
 │   │   ├── dashboard.bats   # dashboard.sh のテスト
 │   │   ├── dependency.bats  # dependency.sh のテスト
+│   │   ├── generate-config.bats
 │   │   ├── github.bats      # github.sh のテスト
 │   │   ├── hooks.bats       # hooks.sh のテスト
 │   │   ├── log.bats         # log.sh のテスト
+│   │   ├── marker.bats           # marker.sh のテスト
+│   │   ├── multiplexer.bats
+│   │   ├── multiplexer-tmux.bats
+│   │   ├── multiplexer-zellij.bats
 │   │   ├── notify.bats      # notify.sh のテスト
 │   │   ├── priority.bats    # priority.sh のテスト
+│   │   ├── session-resolver.bats
 │   │   ├── status.bats      # status.sh のテスト
+│   │   ├── step-runner.bats    # step-runner.sh のテスト
 │   │   ├── template.bats    # template.sh のテスト
 │   │   ├── tmux.bats        # tmux.sh のテスト
 │   │   ├── workflow-finder.bats  # workflow-finder.sh のテスト
 │   │   ├── workflow-loader.bats  # workflow-loader.sh のテスト
 │   │   ├── workflow-prompt.bats  # workflow-prompt.sh のテスト
+│   │   ├── workflow-selector.bats
 │   │   ├── workflow.bats    # workflow.sh のテスト
 │   │   ├── tracker.bats     # tracker.sh のテスト
 │   │   ├── knowledge-loop.bats # knowledge-loop.sh のテスト
@@ -1053,13 +1067,28 @@ pi-issue-runner/
 │   │   ├── cleanup-race-condition.bats
 │   │   ├── config-master-table-dry.bats
 │   │   ├── critical-fixes.bats
+│   │   ├── escalation-literal-newline.bats
 │   │   ├── eval-injection.bats
 │   │   ├── hooks-env-sanitization.bats
 │   │   ├── issue-1066-spaces-in-filenames.bats
 │   │   ├── issue-1129-session-label-arg.bats
+│   │   ├── issue-1145-duplicate-agent-override.bats
+│   │   ├── issue-1198-duplicate-label-usage.bats
+│   │   ├── issue-1211-uninstall-missing-commands.bats
+│   │   ├── issue-1220-inline-hook-env.bats
+│   │   ├── issue-1259-ci-fix-bash-spaces.bats
+│   │   ├── issue-1260-daemon-set-e-corruption.bats
+│   │   ├── issue-1261-validate-bash-timeout.bats
+│   │   ├── issue-1262-bash-source-guard.bats
+│   │   ├── issue-1270-node-grep-pattern.bats
+│   │   ├── issue-1280-echo-dash-flags.bats
+│   │   ├── issue-1338-force-complete-quotes.bats
+│   │   ├── issue-1341-shellcheck-subdirs.bats
 │   │   ├── multiline-json-grep.bats
 │   │   ├── pr-merge-timeout.bats
-│   │   └── workflow-name-template.bats
+│   │   ├── shfmt-hardcoded-indent.bats
+│   │   ├── workflow-name-template.bats
+│   │   └── yaml-bulk-multiline.bats
 │   ├── fixtures/            # テスト用フィクスチャ
 │   └── test_helper.bash     # Bats共通ヘルパー
 └── .worktrees/              # worktree作成先（実行時に生成）
