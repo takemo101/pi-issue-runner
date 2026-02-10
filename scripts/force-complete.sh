@@ -159,12 +159,16 @@ main() {
 
     # セッションにマーカーを送信
     # echoコマンドを送信して改行を含む出力を強制
-    send_keys "$session_name" "echo '$marker'"
+    # markerは固定形式(###TASK_COMPLETE_N###)のためダブルクォートで安全
+    local escaped_marker="${marker//\"/\\\"}"
+    send_keys "$session_name" "echo \"$escaped_marker\""
 
     # カスタムメッセージがある場合は追加送信
+    # ユーザー入力のためシングルクォート・ダブルクォートの両方をエスケープ
     if [[ -n "$custom_message" ]]; then
         log_info "Sending custom message: $custom_message"
-        send_keys "$session_name" "echo '$custom_message'"
+        local escaped_message="${custom_message//\"/\\\"}"
+        send_keys "$session_name" "echo \"$escaped_message\""
     fi
 
     log_info "Marker sent. watch-session.sh will detect and cleanup."
