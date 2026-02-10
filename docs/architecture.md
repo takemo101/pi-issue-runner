@@ -79,6 +79,7 @@ pi-issue-runner/
 │   ├── status.sh      # 状態確認
 │   ├── attach.sh      # セッションにアタッチ
 │   ├── stop.sh        # セッション停止
+│   ├── sweep.sh       # 全セッションのマーカーチェック・cleanup
 │   ├── mux-all.sh     # 全セッション表示（マルチプレクサ対応）
 │   ├── cleanup.sh     # クリーンアップ
 │   ├── ci-fix-helper.sh  # CI修正ヘルパー
@@ -136,6 +137,7 @@ pi-issue-runner/
 │   └── thorough.yaml  # 徹底ワークフロー
 ├── agents/            # エージェントテンプレート
 │   ├── ci-fix.md      # CI修正エージェント
+│   ├── improve-review.md  # improve.sh レビュープロンプト
 │   ├── plan.md        # 計画エージェント
 │   ├── implement.md   # 実装エージェント
 │   ├── review.md      # レビューエージェント
