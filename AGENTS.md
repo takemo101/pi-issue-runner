@@ -476,6 +476,7 @@ GitHub Issue #{{issue_number}} のテストを実行します。
 | `{{branch_name}}` | ブランチ名 | ✅ |
 | `{{worktree_path}}` | worktreeのパス | ✅ |
 | `{{plans_dir}}` | 計画書ディレクトリパス | ✅ |
+| `{{signal_dir}}` | シグナルファイルディレクトリパス | ✅ |
 | `{{step_name}}` | 現在のステップ名 | *カスタム用 |
 | `{{workflow_name}}` | ワークフロー名 | *カスタム用 |
 
