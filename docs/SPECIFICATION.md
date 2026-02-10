@@ -342,12 +342,18 @@ hooks:
 # エージェントテンプレート設定
 # =====================================
 agents:
-  plan: "agents/plan.md"           # 計画ステップ
-  implement: "agents/implement.md" # 実装ステップ
-  review: "agents/review.md"       # レビューステップ
-  merge: "agents/merge.md"         # マージステップ
-  test: "agents/test.md"           # テストステップ
-  ci-fix: "agents/ci-fix.md"       # CI修正ステップ
+  plan: "agents/plan.md"                           # 計画ステップ
+  implement: "agents/implement.md"                 # 実装ステップ
+  review: "agents/review.md"                       # レビューステップ（同一セッション内）
+  merge: "agents/merge.md"                         # マージステップ
+  test: "agents/test.md"                           # テストステップ
+  ci-fix: "agents/ci-fix.md"                       # CI修正ステップ
+  code-review: "agents/code-review.md"             # 独立コードレビュー（call: ステップ用）
+  improve-review: "agents/improve-review.md"       # improve.sh レビュープロンプト
+  review-bugs: "agents/review-bugs.md"             # バグ・ロジックエラーレビュー
+  review-security: "agents/review-security.md"     # セキュリティレビュー
+  review-architecture: "agents/review-architecture.md"  # 設計・構造レビュー
+  review-ai-antipattern: "agents/review-ai-antipattern.md"  # AI実装アンチパターンレビュー
 
 # =====================================
 # Watcher設定
