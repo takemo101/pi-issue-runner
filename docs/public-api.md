@@ -16,6 +16,8 @@
 - [設定管理](#設定管理)
 - [YAML処理](#yaml処理)
 - [ログ管理](#ログ管理)
+- [プロンプト効果測定](#プロンプト効果測定)
+- [知識ループ](#知識ループ)
 - [クロスプラットフォーム互換性](#クロスプラットフォーム互換性)
 
 ---
@@ -381,6 +383,731 @@ DEBUG (最も詳細)
 - `log_info` (lib/log.sh)
 - `log_warn` (lib/log.sh)
 - `log_error` (lib/log.sh)
+
+---
+
+## プロンプト効果測定
+
+### get_tracker_file
+
+**定義場所**: `lib/tracker.sh`
+
+**説明**: トラッカーファイル（`tracker.jsonl`）のパスを取得します。設定ファイルで `tracker_file` が指定されている場合はそれを使用し、未指定の場合は `.worktrees/.status/tracker.jsonl` をデフォルトとして返します。
+
+**使用例**:
+```bash
+source lib/tracker.sh
+
+# トラッカーファイルのパスを取得
+tracker_file=$(get_tracker_file)
+echo "Tracker file: $tracker_file"
+
+# ファイルが存在するか確認
+if [[ -f "$tracker_file" ]]; then
+    echo "Tracker data exists"
+    # ファイルを解析
+    jq '.' "$tracker_file"
+fi
+```
+
+**戻り値**:
+- トラッカーファイルのフルパス（文字列）
+- デフォルト: `.worktrees/.status/tracker.jsonl`
+
+**使用予定箇所**:
+- トラッカーデータの集計・分析スクリプト
+- ワークフロー成功率のレポート生成
+- デバッグ・ログ確認ツール
+
+**関連関数**:
+- `record_tracker_entry` (lib/tracker.sh)
+- `save_tracker_metadata` (lib/tracker.sh)
+
+---
+
+### save_tracker_metadata
+
+**定義場所**: `lib/tracker.sh`
+
+**説明**: セッション開始時にワークフロー名と開始時刻をメタデータとして保存します。このメタデータは後でタスク完了時に `record_tracker_entry` によって読み込まれ、実行時間の計算に使用されます。
+
+**使用例**:
+```bash
+source lib/tracker.sh
+
+issue_number=42
+workflow_name="default"
+
+# セッション開始時にメタデータを保存
+save_tracker_metadata "$issue_number" "$workflow_name"
+
+# この後、タスクが完了または失敗した時に
+# record_tracker_entry がこのメタデータを使用して実行時間を記録します
+```
+
+**引数**:
+1. `issue_number` - Issue番号（整数）
+2. `workflow_name` - ワークフロー名（文字列）
+
+**戻り値**:
+- なし（メタデータファイル `.worktrees/.status/{issue_number}.tracker-meta` を作成）
+
+**メタデータファイル形式**:
+```
+{workflow_name}
+{timestamp_iso8601}
+{epoch_seconds}
+```
+
+**使用予定箇所**:
+- `scripts/run.sh` - セッション開始時
+- `scripts/watch-session.sh` - セッション起動処理
+- カスタムワークフロースクリプト
+
+**関連関数**:
+- `load_tracker_metadata` (lib/tracker.sh)
+- `remove_tracker_metadata` (lib/tracker.sh)
+- `record_tracker_entry` (lib/tracker.sh)
+
+---
+
+### load_tracker_metadata
+
+**定義場所**: `lib/tracker.sh`
+
+**説明**: 保存されたメタデータを読み込みます。ワークフロー名、開始タイムスタンプ、エポック秒をタブ区切りで返します。
+
+**使用例**:
+```bash
+source lib/tracker.sh
+
+issue_number=42
+
+# メタデータを読み込み
+if meta_line=$(load_tracker_metadata "$issue_number"); then
+    # タブ区切りでパース
+    workflow_name=$(echo "$meta_line" | cut -f1)
+    start_timestamp=$(echo "$meta_line" | cut -f2)
+    start_epoch=$(echo "$meta_line" | cut -f3)
+    
+    echo "Workflow: $workflow_name"
+    echo "Started at: $start_timestamp"
+    echo "Epoch: $start_epoch"
+    
+    # 実行時間を計算
+    now_epoch=$(date +%s)
+    duration=$((now_epoch - start_epoch))
+    echo "Duration: ${duration}s"
+else
+    echo "No metadata found for issue #$issue_number"
+fi
+```
+
+**引数**:
+1. `issue_number` - Issue番号（整数）
+
+**戻り値**:
+- 成功時: `workflow_name<TAB>start_timestamp<TAB>start_epoch` の1行（終了コード 0）
+- メタデータが存在しない場合: 空文字列（終了コード 1）
+
+**使用予定箇所**:
+- `record_tracker_entry` 内部での実行時間計算
+- セッション状態確認スクリプト
+- デバッグツール
+
+**関連関数**:
+- `save_tracker_metadata` (lib/tracker.sh)
+- `remove_tracker_metadata` (lib/tracker.sh)
+
+---
+
+### remove_tracker_metadata
+
+**定義場所**: `lib/tracker.sh`
+
+**説明**: メタデータファイルを削除します。タスク完了時にクリーンアップとして実行されます。
+
+**使用例**:
+```bash
+source lib/tracker.sh
+
+issue_number=42
+
+# タスク完了後にメタデータを削除
+remove_tracker_metadata "$issue_number"
+
+echo "Metadata cleaned up for issue #$issue_number"
+```
+
+**引数**:
+1. `issue_number` - Issue番号（整数）
+
+**戻り値**:
+- なし（メタデータファイル `.worktrees/.status/{issue_number}.tracker-meta` を削除）
+
+**使用予定箇所**:
+- `record_tracker_entry` 内部でのクリーンアップ
+- `scripts/cleanup.sh` - 手動クリーンアップ
+- エラーハンドリング時のクリーンアップ
+
+**関連関数**:
+- `save_tracker_metadata` (lib/tracker.sh)
+- `load_tracker_metadata` (lib/tracker.sh)
+
+---
+
+### record_tracker_entry
+
+**定義場所**: `lib/tracker.sh`
+
+**説明**: タスクの結果（成功または失敗）をJSONL形式でトラッカーファイルに記録します。保存されたメタデータを読み込んで実行時間を計算し、タイムスタンプと共に記録します。
+
+**使用例**:
+```bash
+source lib/tracker.sh
+
+issue_number=42
+
+# タスク成功時
+record_tracker_entry "$issue_number" "success"
+
+# タスク失敗時（エラータイプを指定）
+record_tracker_entry "$issue_number" "error" "test_failure"
+
+# エラータイプの例:
+# - "test_failure" - テスト失敗
+# - "build_error" - ビルドエラー
+# - "ci_timeout" - CIタイムアウト
+# - "manual_intervention" - 手動介入が必要
+```
+
+**引数**:
+1. `issue_number` - Issue番号（整数）
+2. `result` - 結果（"success" または "error"）
+3. `error_type` - エラー分類（オプション、`result="error"` の時のみ）
+
+**JSONLエントリ形式**:
+```json
+{"issue":42,"workflow":"default","result":"success","duration_sec":120,"timestamp":"2026-02-10T08:00:00Z"}
+{"issue":43,"workflow":"simple","result":"error","duration_sec":45,"error_type":"test_failure","timestamp":"2026-02-10T08:05:00Z"}
+```
+
+**戻り値**:
+- なし（トラッカーファイルに1行追記、メタデータファイルを削除）
+
+**使用箇所**:
+- `scripts/watch-session.sh` - タスク完了時・エラー時
+- カスタムワークフローのフック
+- 手動テスト・デバッグスクリプト
+
+**関連コマンド**:
+- `scripts/tracker.sh` - トラッカーデータの集計・表示
+
+**関連関数**:
+- `get_tracker_file` (lib/tracker.sh)
+- `save_tracker_metadata` (lib/tracker.sh)
+- `load_tracker_metadata` (lib/tracker.sh)
+- `remove_tracker_metadata` (lib/tracker.sh)
+
+---
+
+## 知識ループ
+
+### extract_fix_commits
+
+**定義場所**: `lib/knowledge-loop.sh`
+
+**説明**: 指定した期間内の `fix:` で始まるコミットを抽出します。知識ループで過去のバグ修正から知見を収集する際に使用します。
+
+**使用例**:
+```bash
+source lib/knowledge-loop.sh
+
+# 過去1週間のfixコミットを抽出
+fix_commits=$(extract_fix_commits "1 week ago" ".")
+
+# 結果を表示
+while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    hash=$(echo "$line" | cut -d' ' -f1)
+    subject=$(echo "$line" | cut -d' ' -f2-)
+    echo "[$hash] $subject"
+done <<< "$fix_commits"
+
+# 過去1ヶ月のfixコミットを抽出
+fix_commits=$(extract_fix_commits "1 month ago" "/path/to/project")
+```
+
+**引数**:
+1. `since` - 期間指定（git date string）、例: "1 week ago", "2026-01-01"
+2. `project_root` - プロジェクトルート（オプション、デフォルト: "."）
+
+**戻り値**:
+- コミットハッシュと件名のリスト（各行: `<hash> <subject>`）
+- マージコミットは除外される
+- 該当コミットがない場合は空文字列
+
+**使用予定箇所**:
+- `scripts/knowledge-loop.sh` - 知見抽出の起点
+- `scripts/improve.sh` - レビューコンテキスト生成
+- 品質分析レポート生成
+
+**関連関数**:
+- `get_commit_diff_summary` (lib/knowledge-loop.sh)
+- `get_commit_body` (lib/knowledge-loop.sh)
+- `generate_knowledge_proposals` (lib/knowledge-loop.sh)
+
+---
+
+### get_commit_diff_summary
+
+**定義場所**: `lib/knowledge-loop.sh`
+
+**説明**: 指定したコミットの変更ファイルとその統計情報（追加・削除行数）を取得します。
+
+**使用例**:
+```bash
+source lib/knowledge-loop.sh
+
+commit_hash="a1b2c3d"
+
+# 変更サマリーを取得
+diff_summary=$(get_commit_diff_summary "$commit_hash" ".")
+
+# 結果を表示
+echo "Changes in commit $commit_hash:"
+echo "$diff_summary"
+
+# 出力例:
+# lib/config.sh    | 15 +++++++++------
+# lib/workflow.sh  |  8 +++-----
+# 2 files changed, 12 insertions(+), 11 deletions(-)
+```
+
+**引数**:
+1. `commit_hash` - コミットハッシュ（短縮形でも可）
+2. `project_root` - プロジェクトルート（オプション、デフォルト: "."）
+
+**戻り値**:
+- `git diff-tree --stat` の出力
+- ファイルごとの変更行数の統計
+- 該当コミットが存在しない場合は空文字列
+
+**使用予定箇所**:
+- 知見提案の詳細情報生成
+- コミット分析レポート
+- デバッグ・調査ツール
+
+**関連関数**:
+- `extract_fix_commits` (lib/knowledge-loop.sh)
+- `get_commit_body` (lib/knowledge-loop.sh)
+
+---
+
+### get_commit_body
+
+**定義場所**: `lib/knowledge-loop.sh`
+
+**説明**: コミットメッセージの本文（件名を除く詳細説明部分）を取得します。
+
+**使用例**:
+```bash
+source lib/knowledge-loop.sh
+
+commit_hash="a1b2c3d"
+
+# コミットの詳細説明を取得
+commit_body=$(get_commit_body "$commit_hash" ".")
+
+if [[ -n "$commit_body" ]]; then
+    echo "Commit details:"
+    echo "$commit_body"
+else
+    echo "No detailed description"
+fi
+```
+
+**引数**:
+1. `commit_hash` - コミットハッシュ（短縮形でも可）
+2. `project_root` - プロジェクトルート（オプション、デフォルト: "."）
+
+**戻り値**:
+- コミットメッセージの本文（複数行）
+- 件名は含まれない
+- 本文が存在しない場合は空文字列
+
+**使用予定箇所**:
+- 知見提案の理由（Reason）抽出
+- コミット詳細分析
+- ドキュメント自動生成
+
+**関連関数**:
+- `extract_fix_commits` (lib/knowledge-loop.sh)
+- `get_commit_diff_summary` (lib/knowledge-loop.sh)
+
+---
+
+### extract_new_decisions
+
+**定義場所**: `lib/knowledge-loop.sh`
+
+**説明**: 指定した期間内に `docs/decisions/` に追加された設計判断ファイル（ADR）を抽出します。
+
+**使用例**:
+```bash
+source lib/knowledge-loop.sh
+
+# 過去1週間の新しい設計判断を抽出
+new_decisions=$(extract_new_decisions "1 week ago" ".")
+
+# 結果を表示
+while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    hash=$(echo "$line" | cut -d' ' -f1)
+    filepath=$(echo "$line" | cut -d' ' -f2-)
+    
+    # タイトルを取得
+    title=$(get_decision_title "$filepath" ".")
+    echo "[$hash] $title"
+    echo "  File: $filepath"
+done <<< "$new_decisions"
+```
+
+**引数**:
+1. `since` - 期間指定（git date string）、例: "1 week ago", "2026-01-01"
+2. `project_root` - プロジェクトルート（オプション、デフォルト: "."）
+
+**戻り値**:
+- 各行: `<hash> <filepath>`
+- `docs/decisions/README.md` は除外される
+- 該当ファイルがない場合は空文字列
+
+**使用予定箇所**:
+- `scripts/knowledge-loop.sh` - ADRから知見を抽出
+- ドキュメント更新検出
+- 設計判断の追跡
+
+**関連関数**:
+- `get_decision_title` (lib/knowledge-loop.sh)
+- `generate_knowledge_proposals` (lib/knowledge-loop.sh)
+
+---
+
+### get_decision_title
+
+**定義場所**: `lib/knowledge-loop.sh`
+
+**説明**: 設計判断ファイル（`docs/decisions/*.md`）の最初の見出し（タイトル）を取得します。
+
+**使用例**:
+```bash
+source lib/knowledge-loop.sh
+
+filepath="docs/decisions/001-test-parallel-jobs-limit.md"
+
+# タイトルを取得
+title=$(get_decision_title "$filepath" ".")
+
+echo "Title: $title"
+# 出力例: "001: Bats並列テスト: 16ジョブでハング、デフォルト2ジョブ推奨 (2026-02-05)"
+```
+
+**引数**:
+1. `filepath` - ファイルパス（プロジェクトルートからの相対パス）
+2. `project_root` - プロジェクトルート（オプション、デフォルト: "."）
+
+**戻り値**:
+- ファイルの最初の `#` で始まる行からマークダウン記号を除いたテキスト
+- ファイルが存在しない、または見出しがない場合は空文字列
+
+**使用予定箇所**:
+- 知見提案の一覧生成
+- AGENTS.md への追加提案
+- ドキュメント索引生成
+
+**関連関数**:
+- `extract_new_decisions` (lib/knowledge-loop.sh)
+
+---
+
+### extract_tracker_failures
+
+**定義場所**: `lib/knowledge-loop.sh`
+
+**説明**: トラッカーファイル（`tracker.jsonl`）から失敗パターンを集計します。エラータイプごとの発生回数を降順で返します。
+
+**使用例**:
+```bash
+source lib/knowledge-loop.sh
+
+# 過去1週間の失敗パターンを抽出
+tracker_failures=$(extract_tracker_failures "1 week ago" ".")
+
+if [[ -n "$tracker_failures" ]]; then
+    echo "Failure patterns:"
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        count=$(echo "$line" | awk '{print $1}')
+        error_type=$(echo "$line" | awk '{print $2}')
+        
+        # 3回以上発生したエラータイプに注目
+        if [[ "$count" -ge 3 ]]; then
+            echo "⚠️  $error_type occurred $count times"
+        fi
+    done <<< "$tracker_failures"
+else
+    echo "No failures recorded"
+fi
+```
+
+**引数**:
+1. `since` - 期間指定（git date string）、例: "1 week ago"
+2. `project_root` - プロジェクトルート（オプション、デフォルト: "."）
+
+**戻り値**:
+- 各行: `<count> <error_type>`（降順ソート）
+- トラッカーファイルが存在しない、またはjqが利用不可の場合は空文字列
+
+**使用予定箇所**:
+- 繰り返し発生する問題の検出
+- ワークフロー改善の優先順位付け
+- 品質メトリクスレポート
+
+**関連関数**:
+- `generate_knowledge_proposals` (lib/knowledge-loop.sh)
+- `record_tracker_entry` (lib/tracker.sh)
+
+---
+
+### check_agents_duplicate
+
+**定義場所**: `lib/knowledge-loop.sh`
+
+**説明**: 指定したテキストが既に `AGENTS.md` の「既知の制約」セクションに記載されているか確認します。重複した知見の追加を防ぐために使用します。
+
+**使用例**:
+```bash
+source lib/knowledge-loop.sh
+
+constraint="Bats並列テスト: 16ジョブでハング"
+
+# 重複チェック
+if check_agents_duplicate "$constraint" "AGENTS.md"; then
+    echo "This constraint is already documented"
+else
+    echo "This is a new constraint"
+    # AGENTS.md への追加処理...
+fi
+
+# カスタムAGENTS.mdファイルを使用
+if check_agents_duplicate "$constraint" "/path/to/custom/AGENTS.md"; then
+    echo "Already documented in custom file"
+fi
+```
+
+**引数**:
+1. `constraint_text` - チェックする制約テキスト
+2. `agents_file` - AGENTS.mdファイルのパス（オプション、デフォルト: "AGENTS.md"）
+
+**戻り値**:
+- 重複が検出された場合: 終了コード 0
+- 重複が検出されなかった場合: 終了コード 1
+
+**判定ロジック**:
+- 制約テキストから3文字以上のキーワードを抽出（最大5個）
+- キーワードの半数以上が「既知の制約」セクションにマッチした場合に重複と判定
+
+**使用予定箇所**:
+- `generate_knowledge_proposals` 内部での重複排除
+- `apply_knowledge_proposals` での追加前チェック
+- 手動での知見追加時の確認
+
+**関連関数**:
+- `generate_knowledge_proposals` (lib/knowledge-loop.sh)
+- `apply_knowledge_proposals` (lib/knowledge-loop.sh)
+
+---
+
+### generate_knowledge_proposals
+
+**定義場所**: `lib/knowledge-loop.sh`
+
+**説明**: fixコミット、設計判断ファイル、トラッカー失敗パターンから知見提案を生成し、フォーマットされたレポートを出力します。
+
+**使用例**:
+```bash
+source lib/knowledge-loop.sh
+
+# 過去1週間の知見を抽出
+echo "=== Knowledge Loop Report ==="
+generate_knowledge_proposals "1 week ago" "."
+
+# 出力例:
+# === Knowledge Loop Analysis (since: 1 week ago) ===
+#
+# Found 3 new constraint(s) from 5 fix commit(s):
+#
+# 1. CI修正 - フォーマット対応
+#    Source: fix: CI修正 - フォーマット対応 (a1b2c3d)
+#    Reason: Rustfmt settings were updated
+#
+# 2. タイムアウト処理の追加
+#    Source: fix: タイムアウト処理の追加 (b2c3d4e)
+#
+# 3. 001: Bats並列テスト問題 (2026-02-05)
+#    Source: docs/decisions/001-test-parallel-jobs-limit.md (c3d4e5f)
+#    Detail: See docs/decisions/001-test-parallel-jobs-limit.md
+#
+# Suggested AGENTS.md additions (既知の制約 section):
+#   - CI修正 - フォーマット対応 (from commit a1b2c3d)
+#   - タイムアウト処理の追加 (from commit b2c3d4e)
+#   - 001: Bats並列テスト問題 (2026-02-05) -> [詳細](docs/decisions/001-test-parallel-jobs-limit.md)
+```
+
+**引数**:
+1. `since` - 期間指定（git date string）、例: "1 week ago", "2026-01-01"
+2. `project_root` - プロジェクトルート（オプション、デフォルト: "."）
+
+**戻り値**:
+- フォーマットされたレポート（標準出力）
+- 新しい知見が見つからない場合は "No new constraints found."
+
+**使用予定箇所**:
+- `scripts/knowledge-loop.sh` - 定期的な知見抽出
+- CI/CDでの自動レポート生成
+- 手動での知識ベース更新確認
+
+**関連関数**:
+- `extract_fix_commits` (lib/knowledge-loop.sh)
+- `extract_new_decisions` (lib/knowledge-loop.sh)
+- `extract_tracker_failures` (lib/knowledge-loop.sh)
+- `check_agents_duplicate` (lib/knowledge-loop.sh)
+- `apply_knowledge_proposals` (lib/knowledge-loop.sh)
+
+---
+
+### apply_knowledge_proposals
+
+**定義場所**: `lib/knowledge-loop.sh`
+
+**説明**: 知見提案を `AGENTS.md` の「既知の制約」セクションに自動的に追加します。重複チェックを行い、新しい制約のみを追加します。
+
+**使用例**:
+```bash
+source lib/knowledge-loop.sh
+
+# 過去1週間の知見をAGENTS.mdに追加
+if apply_knowledge_proposals "1 week ago" "."; then
+    echo "✅ Knowledge proposals applied to AGENTS.md"
+    echo "Please review and commit the changes"
+else
+    exit_code=$?
+    if [[ "$exit_code" -eq 1 ]]; then
+        echo "ℹ️ No new constraints to add"
+    elif [[ "$exit_code" -eq 2 ]]; then
+        echo "❌ AGENTS.md not found"
+    fi
+fi
+
+# 特定のプロジェクトに適用
+apply_knowledge_proposals "2 weeks ago" "/path/to/project"
+```
+
+**引数**:
+1. `since` - 期間指定（git date string）、例: "1 week ago", "2026-01-01"
+2. `project_root` - プロジェクトルート（オプション、デフォルト: "."）
+
+**戻り値**:
+- 0: 成功（新しい制約を追加した）
+- 1: 追加する制約がなかった
+- 2: `AGENTS.md` が見つからない
+
+**追加処理**:
+1. fixコミットと設計判断ファイルから知見を収集
+2. `check_agents_duplicate` で重複をフィルタリング
+3. 「既知の制約」セクションの適切な位置に挿入
+4. セクションが存在しない場合はファイル末尾に作成
+
+**使用予定箇所**:
+- `scripts/knowledge-loop.sh` - 自動適用モード
+- CI/CDでの知識ベース自動更新
+- リリース前の知見マージ
+
+**注意事項**:
+- この関数は `AGENTS.md` を直接編集します
+- 適用前に `generate_knowledge_proposals` でプレビューすることを推奨
+- 適用後は必ず内容を確認してコミットしてください
+
+**関連関数**:
+- `generate_knowledge_proposals` (lib/knowledge-loop.sh)
+- `check_agents_duplicate` (lib/knowledge-loop.sh)
+
+---
+
+### collect_knowledge_context
+
+**定義場所**: `lib/knowledge-loop.sh`
+
+**説明**: レビューフェーズでAIに提供するための知識コンテキストを収集します。fixコミット、設計判断、トラッカー失敗パターンから関連情報をマークダウン形式で生成します。
+
+**使用例**:
+```bash
+source lib/knowledge-loop.sh
+
+# 過去1週間の知識コンテキストを収集
+context=$(collect_knowledge_context "1 week ago" ".")
+
+if [[ -n "$context" ]]; then
+    # レビュープロンプトに注入
+    cat agents/review.md > /tmp/review-prompt.md
+    echo "$context" >> /tmp/review-prompt.md
+    
+    # AIにレビューを依頼
+    pi --print < /tmp/review-prompt.md
+else
+    echo "No recent knowledge to inject"
+fi
+```
+
+**引数**:
+1. `since` - 期間指定（git date string）、例: "1 week ago", "2026-01-01"
+2. `project_root` - プロジェクトルート（オプション、デフォルト: "."）
+
+**戻り値**:
+- マークダウン形式の知識コンテキスト（標準出力）
+- 関連情報がない場合は空文字列
+
+**出力形式**:
+```markdown
+## 最近のfix commitから抽出された知見
+以下のバグ修正から得られた知見です。同様のパターンのバグがないか確認してください。
+\`\`\`
+a1b2c3d fix: CI修正 - フォーマット対応
+b2c3d4e fix: タイムアウト処理の追加
+\`\`\`
+
+## 最近追加された設計判断
+以下の制約を考慮してレビューしてください。
+  - 001: Bats並列テスト問題 (docs/decisions/001-test-parallel-jobs-limit.md)
+  - 002: マーカー検出の信頼性 (docs/decisions/002-marker-detection-reliability.md)
+
+## 繰り返し発生している失敗パターン
+以下のエラータイプが繰り返し発生しています。関連するコードを重点的に確認してください。
+\`\`\`
+  5 test_failure
+  3 ci_timeout
+\`\`\`
+```
+
+**使用予定箇所**:
+- `scripts/improve.sh` - レビューフェーズでのコンテキスト注入
+- カスタムレビューワークフロー
+- AI支援コードレビューツール
+
+**関連関数**:
+- `extract_fix_commits` (lib/knowledge-loop.sh)
+- `extract_new_decisions` (lib/knowledge-loop.sh)
+- `extract_tracker_failures` (lib/knowledge-loop.sh)
 
 ---
 
