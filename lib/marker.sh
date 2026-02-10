@@ -72,7 +72,7 @@ count_any_markers_outside_codeblock() {
 # Usage: echo "$text" | strip_ansi
 #    or: strip_ansi < file
 strip_ansi() {
-    sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g; s/\r//g'
+    perl -pe 's/\e\[[0-9;?]*[a-zA-Z]//g; s/\r//g'
 }
 
 # ファイル内のマーカー行数を grep で高速カウント
