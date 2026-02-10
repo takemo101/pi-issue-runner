@@ -633,6 +633,220 @@ _extract_error_message() {
     echo "${msg:-Unknown error}"
 }
 
+# Handle completion result from handle_complete
+# Usage: _handle_complete_result <result_code> <source_label> <interval>
+# Returns: 0=exit success, 1=exit failure, 2=continue monitoring
+_handle_complete_result() {
+    local result_code="$1"
+    local source_label="$2"
+    local interval="${3:-2}"
+
+    if [[ $result_code -eq 0 ]]; then
+        log_info "Cleanup completed successfully ($source_label)"
+        exit 0
+    elif [[ $result_code -eq 2 ]]; then
+        log_warn "PR merge timeout. Continuing to monitor session..."
+        return 2
+    else
+        log_error "Cleanup failed"
+        exit 1
+    fi
+}
+
+# Phase 1: Check signal files (highest priority, most reliable)
+# AI creates files directly, so no ANSI/codeblock/scrollout issues
+# Usage: _check_signal_files <signal_complete> <signal_error> <session_name> <issue_number> <auto_attach> <cleanup_args>
+# Returns: 0=complete handled (exit 0), 1=error handled, 2=PR merge timeout, 255=no signal
+_check_signal_files() {
+    local signal_complete="$1"
+    local signal_error="$2"
+    local session_name="$3"
+    local issue_number="$4"
+    local auto_attach="$5"
+    local cleanup_args="$6"
+
+    if [[ -f "$signal_complete" ]]; then
+        log_info "Completion signal file detected: $signal_complete"
+        rm -f "$signal_complete"
+
+        local sig_result=0
+        handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args" || sig_result=$?
+        _handle_complete_result "$sig_result" "signal file"
+        return $?  # 2=continue monitoring
+    fi
+
+    if [[ -f "$signal_error" ]]; then
+        log_warn "Error signal file detected: $signal_error"
+        local sig_error_message
+        sig_error_message=$(cat "$signal_error" 2>/dev/null | head -c 200) || sig_error_message="Unknown error"
+        rm -f "$signal_error"
+
+        handle_error "$session_name" "$issue_number" "$sig_error_message" "$auto_attach" "$cleanup_args"
+        log_warn "Error notification sent. Session is still running for manual intervention."
+        return 1
+    fi
+
+    return 255  # No signal found
+}
+
+# Verify marker is outside codeblock for both primary and alt markers
+# Usage: _verify_real_marker <source> <primary_marker> <alt_marker> <is_file>
+# Returns: 0=real marker found, 1=only in codeblock
+_verify_real_marker() {
+    local source="$1"
+    local primary_marker="$2"
+    local alt_marker="$3"
+    local is_file="${4:-false}"
+
+    if _verify_marker_outside_codeblock "$source" "$primary_marker" "$is_file"; then
+        return 0
+    fi
+    if [[ -n "$alt_marker" ]] && _verify_marker_outside_codeblock "$source" "$alt_marker" "$is_file"; then
+        return 0
+    fi
+    return 1
+}
+
+# Phase 2a: Check pipe-pane markers (fast grep-based detection)
+# Usage: _check_pipe_pane_markers <output_log> <marker> <error_marker> <session_name> <issue_number> <auto_attach> <cleanup_args> <cumulative_complete_var> <cumulative_error_var>
+# Returns: 0=complete (exit 0), 1=error handled, 2=PR merge timeout, 255=no new marker
+_check_pipe_pane_markers() {
+    local output_log="$1"
+    local marker="$2"
+    local error_marker="$3"
+    local session_name="$4"
+    local issue_number="$5"
+    local auto_attach="$6"
+    local cleanup_args="$7"
+    local -n _cpp_cumulative_complete="$8"
+    local -n _cpp_cumulative_error="$9"
+
+    # Step 1: grep -cF で高速カウント（ファイルをメモリに読み込まない）
+    local file_error_count file_complete_count
+    file_error_count=$(_grep_marker_count_in_file "$output_log" "$error_marker" "$ALT_ERROR_MARKER")
+    file_complete_count=$(_grep_marker_count_in_file "$output_log" "$marker" "$ALT_COMPLETE_MARKER")
+
+    # Step 2: 新規エラーマーカーが見つかった場合のみコードブロック検証
+    if [[ "$file_error_count" -gt 0 ]] && [[ "$file_error_count" -gt "$_cpp_cumulative_error" ]]; then
+        if _verify_real_marker "$output_log" "$error_marker" "$ALT_ERROR_MARKER" "true"; then
+            log_warn "Error marker detected! (count: $file_error_count)"
+            _cpp_cumulative_error="$file_error_count"
+
+            local error_message
+            error_message=$(_extract_error_message "$output_log" "$error_marker" "$ALT_ERROR_MARKER" "true")
+            handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
+            log_warn "Error notification sent. Session is still running for manual intervention."
+        else
+            log_debug "Error marker found in code block, ignoring"
+        fi
+    fi
+
+    # Step 3: 新規完了マーカーが見つかった場合のみコードブロック検証
+    if [[ "$file_complete_count" -gt 0 ]] && [[ "$file_complete_count" -gt "$_cpp_cumulative_complete" ]]; then
+        if _verify_real_marker "$output_log" "$marker" "$ALT_COMPLETE_MARKER" "true"; then
+            log_info "Completion marker detected! (count: $file_complete_count)"
+            _cpp_cumulative_complete="$file_complete_count"
+
+            local complete_result=0
+            handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args" || complete_result=$?
+            _handle_complete_result "$complete_result" "pipe-pane"
+            return $?
+        else
+            log_debug "Complete marker found in code block, ignoring"
+        fi
+    fi
+
+    return 255  # No new marker
+}
+
+# Phase 2b: Periodic capture-pane fallback for pipe-pane mode
+# Used to catch markers already output before watcher restart (every 15 loops)
+# Note: Only checks completion markers, not error markers.
+#   capture-pane output contains template text (agents/merge.md etc.), and
+#   TASK_ERROR patterns in code examples get misdetected due to terminal wrapping.
+# Usage: _check_capture_pane_fallback <session_name> <marker> <issue_number> <auto_attach> <cleanup_args> <loop_count> <marker_count_current> <cumulative_complete_count>
+# Returns: 0=complete (exit 0), 2=PR merge timeout, 255=no marker
+_check_capture_pane_fallback() {
+    local session_name="$1"
+    local marker="$2"
+    local issue_number="$3"
+    local auto_attach="$4"
+    local cleanup_args="$5"
+    local loop_count="$6"
+    local marker_count_current="$7"
+    local cumulative_complete_count="$8"
+
+    # Only check every 15 loops (~30 seconds) and only when no markers found yet
+    if [[ "$marker_count_current" -ne 0 ]] || [[ "$cumulative_complete_count" -ne 0 ]] \
+       || [[ $((loop_count % 15)) -ne 0 ]]; then
+        return 255
+    fi
+
+    local capture_fallback_output
+    capture_fallback_output=$(get_session_output "$session_name" 500 2>/dev/null) || capture_fallback_output=""
+    if [[ -z "$capture_fallback_output" ]]; then
+        return 255
+    fi
+
+    local capture_complete_count
+    capture_complete_count=$(count_any_markers_outside_codeblock "$capture_fallback_output" "$marker" "$ALT_COMPLETE_MARKER")
+    if [[ "$capture_complete_count" -gt 0 ]]; then
+        log_info "Completion marker found via capture-pane fallback"
+        local fb_result=0
+        handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args" || fb_result=$?
+        _handle_complete_result "$fb_result" "capture-pane fallback"
+        return $?
+    fi
+
+    return 255
+}
+
+# Phase 2c: Check capture-pane markers (when pipe-pane is not available)
+# Usage: _check_capture_pane_markers <session_name> <marker> <error_marker> <issue_number> <auto_attach> <cleanup_args> <cumulative_complete_var> <cumulative_error_var>
+# Returns: 0=complete (exit 0), 1=error handled, 2=PR merge timeout, 255=no marker, 3=capture failed
+_check_capture_pane_markers() {
+    local session_name="$1"
+    local marker="$2"
+    local error_marker="$3"
+    local issue_number="$4"
+    local auto_attach="$5"
+    local cleanup_args="$6"
+    local -n _ccp_cumulative_complete="$7"
+    local -n _ccp_cumulative_error="$8"
+
+    local output
+    output=$(get_session_output "$session_name" 1000 2>/dev/null) || {
+        log_warn "Failed to capture pane output"
+        return 3
+    }
+
+    local error_count_current
+    error_count_current=$(count_any_markers_outside_codeblock "$output" "$error_marker" "$ALT_ERROR_MARKER")
+    if [[ "$error_count_current" -gt "$_ccp_cumulative_error" ]]; then
+        log_warn "Error marker detected! (cumulative: $_ccp_cumulative_error, current: $error_count_current)"
+        _ccp_cumulative_error="$error_count_current"
+
+        local error_message
+        error_message=$(_extract_error_message "$output" "$error_marker" "$ALT_ERROR_MARKER")
+        handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
+        log_warn "Error notification sent. Session is still running for manual intervention."
+    fi
+
+    local marker_count_current
+    marker_count_current=$(count_any_markers_outside_codeblock "$output" "$marker" "$ALT_COMPLETE_MARKER")
+    if [[ "$marker_count_current" -gt "$_ccp_cumulative_complete" ]]; then
+        log_info "Completion marker detected! (cumulative: $_ccp_cumulative_complete, current: $marker_count_current)"
+        _ccp_cumulative_complete="$marker_count_current"
+
+        local complete_result=0
+        handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args" || complete_result=$?
+        _handle_complete_result "$complete_result" "capture-pane"
+        return $?
+    fi
+
+    return 255
+}
+
 # Main monitoring loop - detect markers and handle completion/errors
 # Usage: run_watch_loop <session_name> <issue_number> <marker> <error_marker> <interval> <auto_attach> <cleanup_args> <baseline_output> <output_log>
 run_watch_loop() {
@@ -652,12 +866,12 @@ run_watch_loop() {
         log_info "Starting marker detection (capture-pane fallback)..."
     fi
 
-    # マーカー検出済みの累積カウント
+    # マーカー検出済みの累積カウント（ベースラインのカウントを初期値として設定）
+    # Used via nameref in _check_pipe_pane_markers / _check_capture_pane_markers
     local cumulative_complete_count=0
     local cumulative_error_count=0
-
-    # ベースラインのカウントを初期値として設定
     cumulative_complete_count=$(count_any_markers_outside_codeblock "$baseline_output" "$marker" "$ALT_COMPLETE_MARKER")
+    # shellcheck disable=SC2034
     cumulative_error_count=$(count_any_markers_outside_codeblock "$baseline_output" "$error_marker" "$ALT_ERROR_MARKER")
 
     # シグナルファイルのパス（ターミナルスクレイピングより信頼性が高い）
@@ -667,191 +881,55 @@ run_watch_loop() {
     local signal_error="${status_dir}/signal-error-${issue_number}"
 
     local loop_count=0
+    local check_result=0
     while true; do
         ((loop_count++)) || true
-        # セッションが存在しなくなったら終了
+
         if ! session_exists "$session_name"; then
             log_info "Session ended: $session_name"
             break
         fi
 
-        # === Phase 1: シグナルファイルチェック（最優先・最も信頼性が高い） ===
-        # AIがファイルを作成するだけなので、ANSI・コードブロック・スクロールアウト問題が一切ない
-        if [[ -f "$signal_complete" ]]; then
-            log_info "Completion signal file detected: $signal_complete"
-            rm -f "$signal_complete"
-
-            handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"
-            local sig_result=$?
-            if [[ $sig_result -eq 0 ]]; then
-                log_info "Cleanup completed successfully (signal file)"
-                exit 0
-            elif [[ $sig_result -eq 2 ]]; then
-                log_warn "PR merge timeout. Continuing to monitor session..."
-                sleep "$interval"
-                continue
-            else
-                log_error "Cleanup failed"
-                exit 1
-            fi
-        fi
-
-        if [[ -f "$signal_error" ]]; then
-            log_warn "Error signal file detected: $signal_error"
-            local sig_error_message
-            sig_error_message=$(cat "$signal_error" 2>/dev/null | head -c 200) || sig_error_message="Unknown error"
-            rm -f "$signal_error"
-
-            handle_error "$session_name" "$issue_number" "$sig_error_message" "$auto_attach" "$cleanup_args"
-            log_warn "Error notification sent. Session is still running for manual intervention."
+        # === Phase 1: シグナルファイルチェック（最優先） ===
+        check_result=0
+        _check_signal_files "$signal_complete" "$signal_error" \
+            "$session_name" "$issue_number" "$auto_attach" "$cleanup_args" || check_result=$?
+        if [[ $check_result -eq 2 ]]; then
+            sleep "$interval"
+            continue
         fi
 
         # === Phase 2: テキストマーカー検出（フォールバック・後方互換） ===
-        # pipe-paneモード: grep でファイルを直接検索（高速、O(n) C実装）
-        # フォールバック: capture-pane + bash行スキャン
-        local error_count_current=0
-        local marker_count_current=0
-
+        check_result=0
         if [[ -n "$output_log" && -f "$output_log" ]]; then
-            # ==== pipe-pane モード（高速パス） ====
-            # Step 1: grep -cF で高速カウント（ファイルをメモリに読み込まない）
-            local file_error_count file_complete_count
-            file_error_count=$(_grep_marker_count_in_file "$output_log" "$error_marker" "$ALT_ERROR_MARKER")
-            file_complete_count=$(_grep_marker_count_in_file "$output_log" "$marker" "$ALT_COMPLETE_MARKER")
+            local pipe_complete_count
+            pipe_complete_count=$(_grep_marker_count_in_file "$output_log" "$marker" "$ALT_COMPLETE_MARKER")
 
-            # ベースラインにあったカウントは check_initial_markers で処理済みなので
-            # ファイル内のカウントがそのまま新規検出数
-            error_count_current=$file_error_count
-            marker_count_current=$file_complete_count
+            _check_pipe_pane_markers "$output_log" "$marker" "$error_marker" \
+                "$session_name" "$issue_number" "$auto_attach" "$cleanup_args" \
+                cumulative_complete_count cumulative_error_count || check_result=$?
 
-            # Step 2: 新規マーカーが見つかった場合のみコードブロック検証（重い処理を最小限に）
-            if [[ "$error_count_current" -gt 0 ]] && [[ "$error_count_current" -gt "$cumulative_error_count" ]]; then
-                # コードブロック内でないか検証
-                local real_error=false
-                if _verify_marker_outside_codeblock "$output_log" "$error_marker" "true"; then
-                    real_error=true
-                elif [[ -n "$ALT_ERROR_MARKER" ]] && _verify_marker_outside_codeblock "$output_log" "$ALT_ERROR_MARKER" "true"; then
-                    real_error=true
-                fi
-
-                if [[ "$real_error" == "true" ]]; then
-                    log_warn "Error marker detected! (count: $error_count_current)"
-                    cumulative_error_count="$error_count_current"
-
-                    local error_message
-                    error_message=$(_extract_error_message "$output_log" "$error_marker" "$ALT_ERROR_MARKER" "true")
-                    handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
-                    log_warn "Error notification sent. Session is still running for manual intervention."
-                else
-                    log_debug "Error marker found in code block, ignoring"
-                fi
+            if [[ $check_result -eq 255 ]]; then
+                check_result=0
+                _check_capture_pane_fallback "$session_name" "$marker" \
+                    "$issue_number" "$auto_attach" "$cleanup_args" \
+                    "$loop_count" "$pipe_complete_count" "$cumulative_complete_count" || check_result=$?
             fi
-
-            # pipe-paneログにマーカーが無い場合、定期的にcapture-paneでもチェック
-            # （watcher再起動時に既出力マーカーを拾うため。15ループごと=約30秒間隔）
-            # Note: エラーマーカーはcapture-paneではチェックしない。
-            #   capture-pane出力にはテンプレート全文が含まれ、コード例内の
-            #   TASK_ERROR パターンがターミナル折り返しでコードブロック外と誤判定される。
-            #   エラー検出はシグナルファイル（Phase 1）またはpipe-pane（Phase 2）に任せる。
-            if [[ "$marker_count_current" -eq 0 ]] && [[ "$cumulative_complete_count" -eq 0 ]] \
-               && [[ $((loop_count % 15)) -eq 0 ]]; then
-                local capture_fallback_output
-                capture_fallback_output=$(get_session_output "$session_name" 500 2>/dev/null) || capture_fallback_output=""
-                if [[ -n "$capture_fallback_output" ]]; then
-                    local capture_complete_count
-                    capture_complete_count=$(count_any_markers_outside_codeblock "$capture_fallback_output" "$marker" "$ALT_COMPLETE_MARKER")
-                    if [[ "$capture_complete_count" -gt 0 ]]; then
-                        log_info "Completion marker found via capture-pane fallback"
-                        handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"
-                        local fb_result=$?
-                        if [[ $fb_result -eq 0 ]]; then
-                            log_info "Cleanup completed successfully (capture-pane fallback)"
-                            exit 0
-                        elif [[ $fb_result -eq 2 ]]; then
-                            log_warn "PR merge timeout. Continuing to monitor session..."
-                        fi
-                    fi
-                fi
-            fi
-
-            if [[ "$marker_count_current" -gt 0 ]] && [[ "$marker_count_current" -gt "$cumulative_complete_count" ]]; then
-                local real_complete=false
-                if _verify_marker_outside_codeblock "$output_log" "$marker" "true"; then
-                    real_complete=true
-                elif [[ -n "$ALT_COMPLETE_MARKER" ]] && _verify_marker_outside_codeblock "$output_log" "$ALT_COMPLETE_MARKER" "true"; then
-                    real_complete=true
-                fi
-
-                if [[ "$real_complete" == "true" ]]; then
-                    log_info "Completion marker detected! (count: $marker_count_current)"
-                    cumulative_complete_count="$marker_count_current"
-
-                    handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"
-                    local complete_result=$?
-
-                    if [[ $complete_result -eq 0 ]]; then
-                        log_info "Cleanup completed successfully"
-                        exit 0
-                    elif [[ $complete_result -eq 2 ]]; then
-                        log_warn "PR merge timeout. Continuing to monitor session..."
-                        sleep "$interval"
-                        continue
-                    else
-                        log_error "Cleanup failed"
-                        exit 1
-                    fi
-                else
-                    log_debug "Complete marker found in code block, ignoring"
-                fi
-            fi
-
         else
-            # ==== capture-pane フォールバック ====
-            local output
-            output=$(get_session_output "$session_name" 1000 2>/dev/null) || {
-                log_warn "Failed to capture pane output"
-                sleep "$interval"
-                continue
-            }
-
-            error_count_current=$(count_any_markers_outside_codeblock "$output" "$error_marker" "$ALT_ERROR_MARKER")
-            if [[ "$error_count_current" -gt "$cumulative_error_count" ]]; then
-                log_warn "Error marker detected! (cumulative: $cumulative_error_count, current: $error_count_current)"
-                cumulative_error_count="$error_count_current"
-
-                local error_message
-                error_message=$(_extract_error_message "$output" "$error_marker" "$ALT_ERROR_MARKER")
-                handle_error "$session_name" "$issue_number" "$error_message" "$auto_attach" "$cleanup_args"
-                log_warn "Error notification sent. Session is still running for manual intervention."
-            fi
-
-            marker_count_current=$(count_any_markers_outside_codeblock "$output" "$marker" "$ALT_COMPLETE_MARKER")
-            if [[ "$marker_count_current" -gt "$cumulative_complete_count" ]]; then
-                log_info "Completion marker detected! (cumulative: $cumulative_complete_count, current: $marker_count_current)"
-                cumulative_complete_count="$marker_count_current"
-
-                handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args"
-                local complete_result=$?
-
-                if [[ $complete_result -eq 0 ]]; then
-                    log_info "Cleanup completed successfully"
-                    exit 0
-                elif [[ $complete_result -eq 2 ]]; then
-                    log_warn "PR merge timeout. Continuing to monitor session..."
-                    sleep "$interval"
-                    continue
-                else
-                    log_error "Cleanup failed"
-                    exit 1
-                fi
-            fi
+            _check_capture_pane_markers "$session_name" "$marker" "$error_marker" \
+                "$issue_number" "$auto_attach" "$cleanup_args" \
+                cumulative_complete_count cumulative_error_count || check_result=$?
+        fi
+        # check_result 2=PR merge timeout, 3=capture failed → retry after sleep
+        if [[ $check_result -eq 2 ]] || [[ $check_result -eq 3 ]]; then
+            sleep "$interval"
+            continue
         fi
 
         sleep "$interval"
     done
 
     # セッションが予期せず消滅した場合（マーカー/シグナルなしで終了）
-    # ステータスを error に更新して、wait-for-sessions.sh等が検出できるようにする
     log_warn "Session disappeared without completion/error signal: $session_name"
     save_status "$issue_number" "error" "$session_name" "Session disappeared unexpectedly (no completion marker detected)"
 }
