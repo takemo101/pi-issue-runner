@@ -1171,3 +1171,120 @@ EOF
     [ "$args" = "--verbose --model gpt-4" ]
     [ "$template" = "{{command}} {{args}} < {{prompt_file}}" ]
 }
+
+# ===================
+# get_workflow_steps_typed
+# ===================
+
+@test "get_workflow_steps_typed returns ai steps for builtin workflow" {
+    run get_workflow_steps_typed "builtin:default"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"ai	plan"* ]]
+    [[ "$output" == *"ai	implement"* ]]
+    [[ "$output" == *"ai	merge"* ]]
+}
+
+@test "get_workflow_steps_typed returns ai steps for simple builtin" {
+    run get_workflow_steps_typed "builtin:simple"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"ai	implement"* ]]
+    [[ "$output" == *"ai	merge"* ]]
+}
+
+@test "get_workflow_steps_typed parses run: steps from config" {
+    if ! check_yq; then
+        skip "yq not available"
+    fi
+    cat > "$BATS_TEST_TMPDIR/config.yaml" << 'EOF'
+workflows:
+  test-wf:
+    steps:
+      - implement
+      - run: "shellcheck -x scripts/*.sh"
+        timeout: 600
+      - merge
+EOF
+    export CONFIG_FILE="$BATS_TEST_TMPDIR/config.yaml"
+    _WORKFLOW_LOADER_SH_SOURCED="" ; source "$PROJECT_ROOT/lib/workflow-loader.sh"
+
+    run get_workflow_steps_typed "config-workflow:test-wf"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"ai	implement"* ]]
+    [[ "$output" == *"run	shellcheck -x scripts/*.sh	600"* ]]
+    [[ "$output" == *"ai	merge"* ]]
+}
+
+@test "get_workflow_steps_typed parses call: steps from config" {
+    if ! check_yq; then
+        skip "yq not available"
+    fi
+    cat > "$BATS_TEST_TMPDIR/config.yaml" << 'EOF'
+workflows:
+  test-wf:
+    steps:
+      - implement
+      - call: code-review
+        timeout: 300
+        max_retry: 2
+      - merge
+EOF
+    export CONFIG_FILE="$BATS_TEST_TMPDIR/config.yaml"
+    _WORKFLOW_LOADER_SH_SOURCED="" ; source "$PROJECT_ROOT/lib/workflow-loader.sh"
+
+    run get_workflow_steps_typed "config-workflow:test-wf"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"ai	implement"* ]]
+    [[ "$output" == *"call	code-review	300	2"* ]]
+    [[ "$output" == *"ai	merge"* ]]
+}
+
+# ===================
+# get_step_groups
+# ===================
+
+@test "get_step_groups groups consecutive AI steps" {
+    local input
+    input=$(printf "ai\tplan\nai\timplement\nai\tmerge\n")
+    local result
+    result=$(echo "$input" | get_step_groups)
+    [[ "$result" == *"ai_group	plan implement merge"* ]]
+}
+
+@test "get_step_groups splits on non-AI steps" {
+    if ! check_yq; then
+        skip "yq not available"
+    fi
+    cat > "$BATS_TEST_TMPDIR/config.yaml" << 'EOF'
+workflows:
+  test-wf:
+    steps:
+      - plan
+      - implement
+      - run: "shellcheck -x scripts/*.sh"
+      - merge
+EOF
+    export CONFIG_FILE="$BATS_TEST_TMPDIR/config.yaml"
+    _WORKFLOW_LOADER_SH_SOURCED="" ; source "$PROJECT_ROOT/lib/workflow-loader.sh"
+
+    local groups
+    groups=$(get_workflow_steps_typed "config-workflow:test-wf" | get_step_groups)
+
+    # 3 groups: ai_group, non_ai_group, ai_group
+    local count
+    count=$(echo "$groups" | wc -l | tr -d ' ')
+    [ "$count" -eq 3 ]
+    [[ "$(echo "$groups" | sed -n '1p')" == "ai_group	plan implement" ]]
+    [[ "$(echo "$groups" | sed -n '2p')" == *"non_ai_group"* ]]
+    [[ "$(echo "$groups" | sed -n '3p')" == "ai_group	merge" ]]
+}
+
+# ===================
+# typed_steps_to_ai_only
+# ===================
+
+@test "typed_steps_to_ai_only extracts only AI steps" {
+    local input
+    input=$(printf "ai\tplan\nrun\tshellcheck\t300\t0\t10\tfalse\tshellcheck\nai\tmerge\n")
+    result=$(echo "$input" | typed_steps_to_ai_only)
+    [ "$result" = "plan merge" ]
+}
