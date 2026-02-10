@@ -93,6 +93,11 @@ GitHub Issueを入力として、独立したworktree環境でpiインスタン�
   - カスタムワークフローの作成
   - エージェントテンプレート
 
+- **[multi-workflow-design.md](./multi-workflow-design.md)** - マルチワークフロー設計
+  - 複数ワークフロー定義の設計背景
+  - ワークフロー選択ロジック
+  - AI自動選択の実装方針
+
 - **[hooks.md](./hooks.md)** - Hook機能
   - ライフサイクルイベント
   - カスタムスクリプト実行
