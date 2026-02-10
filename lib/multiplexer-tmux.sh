@@ -245,6 +245,28 @@ mux_check_concurrent_limit() {
     return 0
 }
 
+# paste-buffer 後に pipe-pane を再接続する
+# tmux セッション環境変数 MUX_PIPE_CMD から保存された pipe-pane コマンドを読み込んで再設定する
+_mux_reconnect_pipe_pane() {
+    local session_name="$1"
+    
+    # tmux セッション環境変数から pipe-pane コマンドを取得
+    local pipe_cmd
+    pipe_cmd="$(tmux show-environment -t "$session_name" MUX_PIPE_CMD 2>/dev/null | sed 's/^MUX_PIPE_CMD=//')" || pipe_cmd=""
+    
+    if [[ -n "$pipe_cmd" ]]; then
+        # ペースト内容がフラッシュされるのを待ってから再接続
+        sleep 1
+        tmux pipe-pane -t "$session_name" "$pipe_cmd" 2>/dev/null || {
+            log_warn "Failed to reconnect pipe-pane for session: $session_name"
+            return 1
+        }
+    else
+        log_warn "No saved pipe-pane command for session: $session_name, pipe-pane not reconnected"
+        return 1
+    fi
+}
+
 # キーを送信
 # 大きなテキスト（1024バイト超）は tmux load-buffer + paste-buffer を使用して
 # "command too long" エラーを回避する
@@ -264,14 +286,30 @@ mux_send_keys() {
         local tmpfile
         tmpfile="$(mktemp "${TMPDIR:-/tmp}/mux-send-XXXXXX")"
         printf '%s' "$keys" > "$tmpfile"
+        
+        # pipe-pane を一時停止（ペースト内容がログに記録されるとマーカー誤検出の原因になる）
+        local pipe_was_active=false
+        if [[ "$(tmux list-panes -t "$session_name" -F '#{pane_pipe}' 2>/dev/null)" == "1" ]]; then
+            pipe_was_active=true
+            tmux pipe-pane -t "$session_name" "" 2>/dev/null || true
+        fi
+        
         if tmux load-buffer "$tmpfile" 2>/dev/null \
             && tmux paste-buffer -t "$session_name" 2>/dev/null; then
             tmux send-keys -t "$session_name" Enter
             local rc=$?
+            # pipe-pane を再開（元のコマンドは不明なので、停止していた場合のみ再接続を試みる）
+            if [[ "$pipe_was_active" == "true" ]]; then
+                _mux_reconnect_pipe_pane "$session_name"
+            fi
             rm -f "$tmpfile"
             return $rc
         else
             log_warn "load-buffer/paste-buffer failed, falling back to send-keys"
+            # pipe-pane を再開
+            if [[ "$pipe_was_active" == "true" ]]; then
+                _mux_reconnect_pipe_pane "$session_name"
+            fi
             rm -f "$tmpfile"
             tmux send-keys -t "$session_name" "$keys" Enter
         fi

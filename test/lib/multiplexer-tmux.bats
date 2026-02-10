@@ -496,6 +496,10 @@ case "\$1" in
         if [[ "\$3" == "test-session" ]]; then exit 0; fi
         exit 1
         ;;
+    "list-panes")
+        # pipe-pane が非アクティブ
+        echo "0"
+        ;;
     *) exit 0 ;;
 esac
 EOF
@@ -544,7 +548,26 @@ EOF
 }
 
 @test "mux_send_keys cleans up temp file after load-buffer" {
-    mock_tmux_installed
+    # pipe-pane が非アクティブなモック
+    local call_log="$BATS_TEST_TMPDIR/tmux_calls"
+    > "$call_log"
+    
+    cat > "$MOCK_DIR/tmux" << EOF
+#!/usr/bin/env bash
+echo "\$@" >> "$call_log"
+case "\$1" in
+    "has-session")
+        if [[ "\$3" == "test-session" ]]; then exit 0; fi
+        exit 1
+        ;;
+    "list-panes")
+        echo "0"
+        ;;
+    *) exit 0 ;;
+esac
+EOF
+    chmod +x "$MOCK_DIR/tmux"
+    export PATH="$MOCK_DIR:$PATH"
     source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
     
     # テスト前の一時ファイル数を記録
@@ -561,6 +584,47 @@ EOF
     local after
     after=$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'mux-send-*' 2>/dev/null | wc -l | tr -d ' ')
     [ "$after" -eq "$before" ]
+}
+
+@test "mux_send_keys pauses pipe-pane during paste-buffer" {
+    # pipe-pane の停止・再接続を確認するモック
+    local call_log="$BATS_TEST_TMPDIR/tmux_calls"
+    > "$call_log"
+    
+    cat > "$MOCK_DIR/tmux" << EOF
+#!/usr/bin/env bash
+echo "\$@" >> "$call_log"
+case "\$1" in
+    "has-session")
+        if [[ "\$3" == "pi-issue-42" ]]; then exit 0; fi
+        exit 1
+        ;;
+    "list-panes")
+        echo "1"  # pipe-pane アクティブ
+        ;;
+    "show-environment")
+        # MUX_PIPE_CMD 環境変数を返す
+        echo "MUX_PIPE_CMD=perl -pe 's/test//' >> '/tmp/test.log'"
+        ;;
+    *) exit 0 ;;
+esac
+EOF
+    chmod +x "$MOCK_DIR/tmux"
+    export PATH="$MOCK_DIR:$PATH"
+    source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
+    
+    local large_text
+    large_text="$(printf 'x%.0s' $(seq 1 1100))"
+    
+    # 直接呼び出し（run はサブシェルのため sleep が問題になりうる）
+    local result=0
+    mux_send_keys "pi-issue-42" "$large_text" 2>/dev/null || result=$?
+    [ "$result" -eq 0 ]
+    
+    # pipe-pane が停止され（空文字列で呼ばれ）、その後再接続されたことを確認
+    local pipe_pane_calls
+    pipe_pane_calls=$(grep -c "pipe-pane" "$call_log")
+    [ "$pipe_pane_calls" -ge 2 ]
 }
 
 # ====================
