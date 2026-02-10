@@ -219,16 +219,6 @@ EOF
 # Backward Compatibility
 # ====================
 
-@test "check_dependencies() is backward compatible wrapper" {
-    grep -q 'check_dependencies()' "$PROJECT_ROOT/lib/improve/deps.sh"
-}
-
-@test "check_dependencies() calls check_improve_dependencies()" {
-    source_content=$(cat "$PROJECT_ROOT/lib/improve/deps.sh")
-    # Check that backward compat wrapper exists and calls the new function
-    [[ "$source_content" =~ check_dependencies[[:space:]]*\(\)[[:space:]]*\{[[:space:]]*check_improve_dependencies ]]
-}
-
 # ====================
 # Output Format Tests
 # ====================

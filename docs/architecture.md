@@ -40,12 +40,20 @@
 │  │  - テンプレ        │  - セッション      │  - ワーク    │ │
 │  │                    │    (tmux/Zellij)   │    フロー    │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │ workflow-finder.sh │workflow-loader.sh  │workflow-     │ │
-│  │  - WF検索          │  - WF読み込み      │  prompt.sh   │ │
-│  │                    │                    │  - プロンプト│ │
+│  │ workflow-loader.sh │workflow-prompt.sh  │workflow-selector│ │
+│  │  - WF読み込み      │  - プロンプト      │  - WF自動選択│ │
+│  │                    │                    │    (auto)    │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │  worktree.sh       │    yaml.sh         │              │ │
+│  │   worktree.sh      │     yaml.sh        │              │ │
 │  │  - worktree        │  - YAMLパーサ      │              │ │
+│  ├────────────────────┼────────────────────┼──────────────┤ │
+│  │ cleanup-trap.sh    │ generate-config.sh │  marker.sh   │ │
+│  │  - クリーンアップ  │  - 設定自動生成    │  - マーカー  │ │
+│  │    トラップ管理    │                    │    検出      │ │
+│  ├────────────────────┼────────────────────┼──────────────┤ │
+│  │session-resolver.sh │                    │              │ │
+│  │  - セッション名    │                    │              │ │
+│  │    解決            │                    │              │ │
 │  └────────────────────┴────────────────────┴──────────────┘ │
 └──────────────────────────────────────────────────────────────┘
          │                    │                    │
@@ -94,29 +102,31 @@ pi-issue-runner/
 │   ├── cleanup-improve-logs.sh  # improve-logsのクリーンアップ
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
+│   ├── cleanup-trap.sh     # エラー時クリーンアップトラップ管理
 │   ├── config.sh      # 設定管理
 │   ├── context.sh     # コンテキスト管理
 │   ├── daemon.sh      # プロセスデーモン化
 │   ├── dashboard.sh   # ダッシュボード機能
 │   ├── dependency.sh  # 依存関係解析・レイヤー計算
+│   ├── generate-config.sh  # プロジェクト解析・設定自動生成
 │   ├── github.sh      # GitHub CLI操作
 │   ├── hooks.sh       # Hook機能
 │   ├── log.sh         # ログ出力
+│   ├── marker.sh      # マーカー検出ユーティリティ
 │   ├── multiplexer.sh      # マルチプレクサ抽象化レイヤー
 │   ├── multiplexer-tmux.sh # tmux実装
 │   ├── multiplexer-zellij.sh # Zellij実装
 │   ├── notify.sh      # 通知機能
 │   ├── priority.sh    # 優先度計算
+│   ├── session-resolver.sh # セッション名解決ユーティリティ
 │   ├── status.sh      # 状態管理
 │   ├── template.sh    # テンプレート処理
-│   ├── multiplexer.sh      # マルチプレクサ抽象化レイヤー
-│   ├── multiplexer-tmux.sh # tmux実装
-│   ├── multiplexer-zellij.sh # Zellij実装
 │   ├── tmux.sh        # 後方互換ラッパー
 │   ├── workflow.sh    # ワークフローエンジン
 │   ├── workflow-finder.sh   # ワークフロー検索
 │   ├── workflow-loader.sh   # ワークフロー読み込み
 │   ├── workflow-prompt.sh   # プロンプト処理
+│   ├── workflow-selector.sh # ワークフロー自動選択（autoモード）
 │   ├── worktree.sh    # Git worktree操作
 │   └── yaml.sh        # YAMLパーサー
 ├── workflows/         # ワークフロー定義

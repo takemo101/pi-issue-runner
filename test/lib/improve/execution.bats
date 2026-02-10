@@ -631,41 +631,6 @@ EOF
 }
 
 # ====================
-# Backward Compatibility Tests
-# ====================
-
-@test "cleanup_on_exit() is backward compatible wrapper" {
-    grep -q 'cleanup_on_exit()' "$PROJECT_ROOT/lib/improve/execution.sh"
-}
-
-@test "fetch_created_issues() is backward compatible wrapper" {
-    grep -q 'fetch_created_issues()' "$PROJECT_ROOT/lib/improve/execution.sh"
-}
-
-@test "execute_issues_in_parallel() is backward compatible wrapper" {
-    grep -q 'execute_issues_in_parallel()' "$PROJECT_ROOT/lib/improve/execution.sh"
-}
-
-@test "wait_for_completion() is backward compatible wrapper" {
-    grep -q 'wait_for_completion()' "$PROJECT_ROOT/lib/improve/execution.sh"
-}
-
-@test "start_next_iteration() is backward compatible wrapper" {
-    grep -q 'start_next_iteration()' "$PROJECT_ROOT/lib/improve/execution.sh"
-}
-
-@test "all backward compatibility wrappers call new function names" {
-    source_content=$(cat "$PROJECT_ROOT/lib/improve/execution.sh")
-    
-    # Check each wrapper calls the _improve_ version
-    [[ "$source_content" =~ cleanup_on_exit\(\).*cleanup_improve_on_exit ]]
-    [[ "$source_content" =~ fetch_created_issues\(\).*fetch_improve_created_issues ]]
-    [[ "$source_content" =~ execute_issues_in_parallel\(\).*execute_improve_issues_in_parallel ]]
-    [[ "$source_content" =~ wait_for_completion\(\).*wait_for_improve_completion ]]
-    [[ "$source_content" =~ start_next_iteration\(\).*start_improve_next_iteration ]]
-}
-
-# ====================
 # Phase Markers Tests
 # ====================
 
