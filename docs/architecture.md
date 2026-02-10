@@ -20,25 +20,25 @@
 │  │cleanup-improve-logs│ cleanup-orphans.sh │cleanup-plans │ │
 │  │  - improve-logs削除│  - 孤立削除        │ - 計画ローテ │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │    config.sh       │   context.sh       │  daemon.sh   │ │
-│  │  - 設定読込        │  - コンテキスト    │  - デーモン化│ │
+│  │    config.sh       │   compat.sh        │  context.sh  │ │
+│  │  - 設定読込        │  - 互換性ヘルパー  │  - コンテキスト│ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │  dashboard.sh      │  dependency.sh     │  github.sh   │ │
-│  │  - ダッシュボード  │  - 依存解析        │  - GitHub CLI│ │
+│  │    daemon.sh       │  dashboard.sh      │  dependency.sh│ │
+│  │  - デーモン化      │  - ダッシュボード  │  - 依存解析  │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │    hooks.sh        │     log.sh         │multiplexer.sh│ │
-│  │  - Hook機能        │  - ログ出力        │  - マルチプレ│ │
-│  │                    │                    │    クサ抽象化│ │
+│  │    github.sh       │    hooks.sh        │     log.sh   │ │
+│  │  - GitHub CLI      │  - Hook機能        │  - ログ出力  │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │multiplexer-tmux.sh │multiplexer-zellij  │  notify.sh   │ │
-│  │  - tmux実装        │  - Zellij実装      │  - 通知機能  │ │
+│  │  multiplexer.sh    │multiplexer-tmux.sh │multiplexer-  │ │
+│  │  - マルチプレクサ  │  - tmux実装        │  zellij.sh   │ │
+│  │    抽象化          │                    │  - Zellij実装│ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │   priority.sh      │    status.sh       │ template.sh  │ │
-│  │  - 優先度計算      │  - 状態管理        │  - テンプレ  │ │
+│  │    notify.sh       │   priority.sh      │  status.sh   │ │
+│  │  - 通知機能        │  - 優先度計算      │  - 状態管理  │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
-│  │multiplexer.sh      │   workflow.sh      │workflow-finder│ │
-│  │  - セッション      │  - ワークフロー    │  - WF検索    │ │
-│  │  (tmux/Zellij)     │                    │              │ │
+│  │   template.sh      │  multiplexer.sh    │  workflow.sh │ │
+│  │  - テンプレ        │  - セッション      │  - ワーク    │ │
+│  │                    │    (tmux/Zellij)   │    フロー    │ │
 │  ├────────────────────┼────────────────────┼──────────────┤ │
 │  │ workflow-loader.sh │workflow-prompt.sh  │workflow-selector│ │
 │  │  - WF読み込み      │  - プロンプト      │  - WF自動選択│ │
