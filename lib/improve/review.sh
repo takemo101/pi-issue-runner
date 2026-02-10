@@ -15,6 +15,11 @@ _REVIEW_SH_SOURCED="true"
 
 _REVIEW_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Source knowledge-loop for review context enrichment
+if [[ -z "${_KNOWLEDGE_LOOP_SH_SOURCED:-}" ]]; then
+    source "$_REVIEW_LIB_DIR/../knowledge-loop.sh"
+fi
+
 # ============================================================================
 # Find review prompt template file
 # Search order:
@@ -148,7 +153,16 @@ ${prev_summary}
         fi
     fi
 
-    # 4. AGENTS.md の既知の制約
+    # 4. Knowledge Loop: fix commitからの知見注入
+    local knowledge_context=""
+    if declare -f collect_knowledge_context &>/dev/null; then
+        knowledge_context="$(collect_knowledge_context "1 week ago" "." 2>/dev/null)" || knowledge_context=""
+        if [[ -n "$knowledge_context" ]]; then
+            context+="$knowledge_context"
+        fi
+    fi
+
+    # 5. AGENTS.md の既知の制約
     local agents_constraints=""
     if [[ -f "AGENTS.md" ]]; then
         agents_constraints=$(sed -n '/## 既知の制約/,/^## /p' "AGENTS.md" 2>/dev/null | head -20) || agents_constraints=""

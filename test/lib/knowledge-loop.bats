@@ -1,0 +1,335 @@
+#!/usr/bin/env bats
+
+load '../test_helper'
+
+setup() {
+    if [[ -z "${BATS_TEST_TMPDIR:-}" ]]; then
+        export BATS_TEST_TMPDIR="$(mktemp -d)"
+        export _CLEANUP_TMPDIR=1
+    fi
+
+    export TEST_PROJECT="$BATS_TEST_TMPDIR/project"
+    mkdir -p "$TEST_PROJECT"
+
+    # Initialize a git repo for testing
+    git -C "$TEST_PROJECT" init -b main >/dev/null 2>&1
+    git -C "$TEST_PROJECT" config user.email "test@example.com"
+    git -C "$TEST_PROJECT" config user.name "Test User"
+
+    # Create initial commit
+    printf '# Test\n' > "$TEST_PROJECT/README.md"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "initial commit" >/dev/null 2>&1
+
+    reset_config_state
+    source "$PROJECT_ROOT/lib/config.sh"
+    source "$PROJECT_ROOT/lib/knowledge-loop.sh"
+
+    get_config() {
+        case "$1" in
+            worktree_base_dir) echo "$TEST_PROJECT/.worktrees" ;;
+            *) echo "" ;;
+        esac
+    }
+
+    LOG_LEVEL="ERROR"
+}
+
+teardown() {
+    if [[ "${_CLEANUP_TMPDIR:-}" == "1" && -d "${BATS_TEST_TMPDIR:-}" ]]; then
+        rm -rf "$BATS_TEST_TMPDIR"
+    fi
+}
+
+# ====================
+# extract_fix_commits
+# ====================
+
+@test "extract_fix_commits returns empty for no fix commits" {
+    result="$(extract_fix_commits "1 week ago" "$TEST_PROJECT")"
+    [ -z "$result" ]
+}
+
+@test "extract_fix_commits finds fix: commits" {
+    printf 'buggy\n' > "$TEST_PROJECT/file.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: use perl instead of sed for macOS" >/dev/null 2>&1
+
+    result="$(extract_fix_commits "1 week ago" "$TEST_PROJECT")"
+    [[ "$result" == *"fix: use perl instead of sed for macOS"* ]]
+}
+
+@test "extract_fix_commits ignores non-fix commits" {
+    printf 'feature\n' > "$TEST_PROJECT/file.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "feat: add new feature" >/dev/null 2>&1
+
+    result="$(extract_fix_commits "1 week ago" "$TEST_PROJECT")"
+    [ -z "$result" ]
+}
+
+@test "extract_fix_commits respects since parameter" {
+    printf 'old fix\n' > "$TEST_PROJECT/file.sh"
+    git -C "$TEST_PROJECT" add -A
+    # Commit with a past date
+    GIT_AUTHOR_DATE="2020-01-01T00:00:00" GIT_COMMITTER_DATE="2020-01-01T00:00:00" \
+        git -C "$TEST_PROJECT" commit -m "fix: old fix" >/dev/null 2>&1
+
+    result="$(extract_fix_commits "1 week ago" "$TEST_PROJECT")"
+    [ -z "$result" ]
+}
+
+@test "extract_fix_commits returns empty for non-git directory" {
+    local non_git="$BATS_TEST_TMPDIR/not-a-repo"
+    mkdir -p "$non_git"
+    result="$(extract_fix_commits "1 week ago" "$non_git")"
+    [ -z "$result" ]
+}
+
+# ====================
+# get_commit_body
+# ====================
+
+@test "get_commit_body returns commit body" {
+    printf 'fix\n' > "$TEST_PROJECT/file.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: some fix" -m "This is the reason" >/dev/null 2>&1
+
+    local hash
+    hash="$(git -C "$TEST_PROJECT" log -1 --format="%h")"
+    result="$(get_commit_body "$hash" "$TEST_PROJECT")"
+    [[ "$result" == *"This is the reason"* ]]
+}
+
+@test "get_commit_body returns empty for no body" {
+    printf 'fix2\n' > "$TEST_PROJECT/file.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: no body fix" >/dev/null 2>&1
+
+    local hash
+    hash="$(git -C "$TEST_PROJECT" log -1 --format="%h")"
+    result="$(get_commit_body "$hash" "$TEST_PROJECT")"
+    [ -z "$result" ]
+}
+
+# ====================
+# extract_new_decisions
+# ====================
+
+@test "extract_new_decisions returns empty when no decisions exist" {
+    result="$(extract_new_decisions "1 week ago" "$TEST_PROJECT")"
+    [ -z "$result" ]
+}
+
+@test "extract_new_decisions finds new decision files" {
+    mkdir -p "$TEST_PROJECT/docs/decisions"
+    printf '# 005: Test Decision\n\nSome content\n' > "$TEST_PROJECT/docs/decisions/005-test.md"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "docs: add decision 005" >/dev/null 2>&1
+
+    result="$(extract_new_decisions "1 week ago" "$TEST_PROJECT")"
+    [[ "$result" == *"docs/decisions/005-test.md"* ]]
+}
+
+@test "extract_new_decisions skips README.md" {
+    mkdir -p "$TEST_PROJECT/docs/decisions"
+    printf '# Decisions\n' > "$TEST_PROJECT/docs/decisions/README.md"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "docs: add decisions README" >/dev/null 2>&1
+
+    result="$(extract_new_decisions "1 week ago" "$TEST_PROJECT")"
+    [ -z "$result" ]
+}
+
+# ====================
+# get_decision_title
+# ====================
+
+@test "get_decision_title extracts first heading" {
+    mkdir -p "$TEST_PROJECT/docs/decisions"
+    printf '# 005: Test Decision Title\n\nContent here\n' > "$TEST_PROJECT/docs/decisions/005-test.md"
+
+    result="$(get_decision_title "docs/decisions/005-test.md" "$TEST_PROJECT")"
+    [ "$result" = "005: Test Decision Title" ]
+}
+
+@test "get_decision_title returns empty for missing file" {
+    result="$(get_decision_title "docs/decisions/nonexistent.md" "$TEST_PROJECT")"
+    [ -z "$result" ]
+}
+
+# ====================
+# check_agents_duplicate
+# ====================
+
+@test "check_agents_duplicate returns 1 when no AGENTS.md" {
+    run check_agents_duplicate "some constraint" "$TEST_PROJECT/AGENTS.md"
+    [ "$status" -eq 1 ]
+}
+
+@test "check_agents_duplicate returns 1 for non-duplicate" {
+    cat > "$TEST_PROJECT/AGENTS.md" << 'EOF'
+## 既知の制約
+
+- Bats並列テスト: 16ジョブでハング
+- マーカー検出: pipe-pane+grepで全出力を記録
+
+## 注意事項
+EOF
+
+    run check_agents_duplicate "completely unrelated unique thing xyz123" "$TEST_PROJECT/AGENTS.md"
+    [ "$status" -eq 1 ]
+}
+
+@test "check_agents_duplicate returns 0 for duplicate" {
+    cat > "$TEST_PROJECT/AGENTS.md" << 'EOF'
+## 既知の制約
+
+- Bats並列テスト: 16ジョブでハング
+- マーカー検出: pipe-pane+grepで全出力を記録
+
+## 注意事項
+EOF
+
+    run check_agents_duplicate "Bats並列テスト ハング ジョブ" "$TEST_PROJECT/AGENTS.md"
+    [ "$status" -eq 0 ]
+}
+
+# ====================
+# extract_tracker_failures
+# ====================
+
+@test "extract_tracker_failures returns empty when no tracker file" {
+    result="$(extract_tracker_failures "1 week ago" "$TEST_PROJECT")"
+    [ -z "$result" ]
+}
+
+@test "extract_tracker_failures counts error types" {
+    mkdir -p "$TEST_PROJECT/.worktrees/.status"
+    cat > "$TEST_PROJECT/.worktrees/.status/tracker.jsonl" << 'EOF'
+{"issue":1,"result":"error","error_type":"test_failure","timestamp":"2026-02-10T00:00:00Z"}
+{"issue":2,"result":"error","error_type":"test_failure","timestamp":"2026-02-10T00:00:00Z"}
+{"issue":3,"result":"success","timestamp":"2026-02-10T00:00:00Z"}
+{"issue":4,"result":"error","error_type":"merge_conflict","timestamp":"2026-02-10T00:00:00Z"}
+EOF
+
+    result="$(extract_tracker_failures "1 week ago" "$TEST_PROJECT")"
+    [[ "$result" == *"test_failure"* ]]
+    [[ "$result" == *"merge_conflict"* ]]
+}
+
+# ====================
+# generate_knowledge_proposals
+# ====================
+
+@test "generate_knowledge_proposals outputs header" {
+    result="$(generate_knowledge_proposals "1 week ago" "$TEST_PROJECT")"
+    [[ "$result" == *"Knowledge Loop Analysis"* ]]
+}
+
+@test "generate_knowledge_proposals reports no constraints when none found" {
+    result="$(generate_knowledge_proposals "1 week ago" "$TEST_PROJECT")"
+    [[ "$result" == *"No new constraints found"* ]]
+}
+
+@test "generate_knowledge_proposals finds fix commit constraints" {
+    printf 'bugfix\n' > "$TEST_PROJECT/file.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: prevent set -e from killing watcher" >/dev/null 2>&1
+
+    result="$(generate_knowledge_proposals "1 week ago" "$TEST_PROJECT")"
+    [[ "$result" == *"prevent set -e from killing watcher"* ]]
+    [[ "$result" == *"Found"* ]]
+}
+
+@test "generate_knowledge_proposals skips duplicates in AGENTS.md" {
+    cat > "$TEST_PROJECT/AGENTS.md" << 'EOF'
+## 既知の制約
+
+- prevent set from killing watcher process
+
+## 注意事項
+EOF
+
+    printf 'bugfix\n' > "$TEST_PROJECT/file.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: prevent set -e from killing watcher" >/dev/null 2>&1
+
+    result="$(generate_knowledge_proposals "1 week ago" "$TEST_PROJECT")"
+    [[ "$result" == *"No new constraints found"* ]]
+}
+
+# ====================
+# apply_knowledge_proposals
+# ====================
+
+@test "apply_knowledge_proposals returns 2 when AGENTS.md missing" {
+    run apply_knowledge_proposals "1 week ago" "$TEST_PROJECT"
+    [ "$status" -eq 2 ]
+}
+
+@test "apply_knowledge_proposals returns 1 when no new constraints" {
+    cat > "$TEST_PROJECT/AGENTS.md" << 'EOF'
+## 既知の制約
+
+## 注意事項
+EOF
+
+    run apply_knowledge_proposals "1 week ago" "$TEST_PROJECT"
+    [ "$status" -eq 1 ]
+}
+
+@test "apply_knowledge_proposals appends constraints to AGENTS.md" {
+    cat > "$TEST_PROJECT/AGENTS.md" << 'EOF'
+## 既知の制約
+
+- existing constraint
+
+## 注意事項
+
+- note 1
+EOF
+
+    printf 'bugfix\n' > "$TEST_PROJECT/file.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: use perl for macOS compatibility" >/dev/null 2>&1
+
+    run apply_knowledge_proposals "1 week ago" "$TEST_PROJECT"
+    [ "$status" -eq 0 ]
+
+    local content
+    content="$(cat "$TEST_PROJECT/AGENTS.md")"
+    [[ "$content" == *"use perl for macOS compatibility"* ]]
+    [[ "$content" == *"existing constraint"* ]]
+    [[ "$content" == *"注意事項"* ]]
+}
+
+# ====================
+# collect_knowledge_context
+# ====================
+
+@test "collect_knowledge_context returns empty when nothing found" {
+    result="$(collect_knowledge_context "1 week ago" "$TEST_PROJECT")"
+    [ -z "$result" ]
+}
+
+@test "collect_knowledge_context includes fix commit context" {
+    printf 'bugfix\n' > "$TEST_PROJECT/file.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: handle UTF-8 edge case" >/dev/null 2>&1
+
+    result="$(collect_knowledge_context "1 week ago" "$TEST_PROJECT")"
+    [[ "$result" == *"fix commit"* ]]
+    [[ "$result" == *"handle UTF-8 edge case"* ]]
+}
+
+@test "collect_knowledge_context includes decision context" {
+    mkdir -p "$TEST_PROJECT/docs/decisions"
+    printf '# 005: Important Decision\n\nContent\n' > "$TEST_PROJECT/docs/decisions/005-test.md"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "docs: add decision 005" >/dev/null 2>&1
+
+    result="$(collect_knowledge_context "1 week ago" "$TEST_PROJECT")"
+    [[ "$result" == *"設計判断"* ]]
+    [[ "$result" == *"Important Decision"* ]]
+}
