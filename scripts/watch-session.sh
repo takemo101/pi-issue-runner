@@ -606,9 +606,6 @@ check_initial_markers() {
 
 # Backward-compatible wrappers delegating to lib/marker.sh shared functions
 # These private aliases are kept for internal use within this file.
-_strip_ansi() { strip_ansi; }
-_grep_marker_count_in_file() { grep_marker_count_in_file "$@"; }
-_verify_marker_outside_codeblock() { verify_marker_outside_codeblock "$@"; }
 
 # Extract error message from file or text (line after error marker)
 # Usage: _extract_error_message <source> <error_marker> [alt_error_marker] [is_file]
@@ -620,14 +617,14 @@ _extract_error_message() {
 
     local msg=""
     if [[ "$is_file" == "true" ]]; then
-        msg=$(_strip_ansi < "$source" | grep -A 1 -F "$error_marker" 2>/dev/null | tail -n 1 | head -c 200) || msg=""
+        msg=$(strip_ansi < "$source" | grep -A 1 -F "$error_marker" 2>/dev/null | tail -n 1 | head -c 200) || msg=""
         if [[ -z "$msg" && -n "$alt_error_marker" ]]; then
-            msg=$(_strip_ansi < "$source" | grep -A 1 -F "$alt_error_marker" 2>/dev/null | tail -n 1 | head -c 200) || msg=""
+            msg=$(strip_ansi < "$source" | grep -A 1 -F "$alt_error_marker" 2>/dev/null | tail -n 1 | head -c 200) || msg=""
         fi
     else
-        msg=$(echo "$source" | _strip_ansi | grep -A 1 -F "$error_marker" 2>/dev/null | tail -n 1 | head -c 200) || msg=""
+        msg=$(echo "$source" | strip_ansi | grep -A 1 -F "$error_marker" 2>/dev/null | tail -n 1 | head -c 200) || msg=""
         if [[ -z "$msg" && -n "$alt_error_marker" ]]; then
-            msg=$(echo "$source" | _strip_ansi | grep -A 1 -F "$alt_error_marker" 2>/dev/null | tail -n 1 | head -c 200) || msg=""
+            msg=$(echo "$source" | strip_ansi | grep -A 1 -F "$alt_error_marker" 2>/dev/null | tail -n 1 | head -c 200) || msg=""
         fi
     fi
     echo "${msg:-Unknown error}"
@@ -698,10 +695,10 @@ _verify_real_marker() {
     local alt_marker="$3"
     local is_file="${4:-false}"
 
-    if _verify_marker_outside_codeblock "$source" "$primary_marker" "$is_file"; then
+    if verify_marker_outside_codeblock "$source" "$primary_marker" "$is_file"; then
         return 0
     fi
-    if [[ -n "$alt_marker" ]] && _verify_marker_outside_codeblock "$source" "$alt_marker" "$is_file"; then
+    if [[ -n "$alt_marker" ]] && verify_marker_outside_codeblock "$source" "$alt_marker" "$is_file"; then
         return 0
     fi
     return 1
@@ -723,8 +720,8 @@ _check_pipe_pane_markers() {
 
     # Step 1: grep -cF で高速カウント（ファイルをメモリに読み込まない）
     local file_error_count file_complete_count
-    file_error_count=$(_grep_marker_count_in_file "$output_log" "$error_marker" "$ALT_ERROR_MARKER")
-    file_complete_count=$(_grep_marker_count_in_file "$output_log" "$marker" "$ALT_COMPLETE_MARKER")
+    file_error_count=$(grep_marker_count_in_file "$output_log" "$error_marker" "$ALT_ERROR_MARKER")
+    file_complete_count=$(grep_marker_count_in_file "$output_log" "$marker" "$ALT_COMPLETE_MARKER")
 
     # Step 2: 新規エラーマーカーが見つかった場合のみコードブロック検証
     if [[ "$file_error_count" -gt 0 ]] && [[ "$file_error_count" -gt "$_cpp_cumulative_error" ]]; then
@@ -903,7 +900,7 @@ run_watch_loop() {
         check_result=0
         if [[ -n "$output_log" && -f "$output_log" ]]; then
             local pipe_complete_count
-            pipe_complete_count=$(_grep_marker_count_in_file "$output_log" "$marker" "$ALT_COMPLETE_MARKER")
+            pipe_complete_count=$(grep_marker_count_in_file "$output_log" "$marker" "$ALT_COMPLETE_MARKER")
 
             _check_pipe_pane_markers "$output_log" "$marker" "$error_marker" \
                 "$session_name" "$issue_number" "$auto_attach" "$cleanup_args" \
