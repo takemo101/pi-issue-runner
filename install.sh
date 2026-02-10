@@ -1,17 +1,34 @@
 #!/usr/bin/env bash
+# ============================================================================
 # install.sh - pi-issue-runner をグローバルにインストール
 #
-# 使用方法:
-#   ./install.sh                    # ラッパースクリプトのみ
-#   ./install.sh --with-deps        # 依存パッケージも含めてインストール
-#   ./install.sh --deps-only        # 依存パッケージのみインストール
-#   INSTALL_DIR=/usr/local/bin ./install.sh
-#
 # ラッパースクリプトを INSTALL_DIR に作成します。
+# オプションで依存パッケージ (gh, tmux, jq, yq) のインストールも可能です。
 #
-# プラットフォーム:
+# Usage: ./install.sh [options]
+#
+# Options:
+#   --with-deps     依存パッケージも含めてインストール (gh, tmux, jq, yq)
+#   --deps-only     依存パッケージのみインストール（ラッパー作成しない）
+#   -h, --help      このヘルプを表示
+#
+# Environment Variables:
+#   INSTALL_DIR     インストール先ディレクトリ (default: ~/.local/bin)
+#
+# Platform Support:
 #   --with-deps / --deps-only は macOS (Homebrew) のみ対応
-#   Linux の場合は依存パッケージ (gh, tmux, jq, yq) を手動でインストールしてください
+#   Linux の場合は依存パッケージを手動でインストールしてください
+#
+# Exit codes:
+#   0 - Success
+#   1 - General error (dependency installation failed, invalid arguments)
+#
+# Examples:
+#   ./install.sh
+#   ./install.sh --with-deps
+#   ./install.sh --deps-only
+#   INSTALL_DIR=/usr/local/bin ./install.sh
+# ============================================================================
 
 set -euo pipefail
 
