@@ -34,12 +34,10 @@ count_markers_outside_codeblock() {
             continue
         fi
         
-        # マーカー行の検出（前後の空白を除去してから完全一致を確認）
-        # 正規表現ではなくglobパターンマッチを使用（正規表現メタ文字のエスケープ不要）
-        local trimmed_line
-        trimmed_line="${line#"${line%%[![:space:]]*}"}"  # 先頭の空白を除去
-        trimmed_line="${trimmed_line%"${trimmed_line##*[![:space:]]}"}"  # 末尾の空白を除去
-        if [[ "$trimmed_line" == "$marker" ]]; then
+        # マーカー行の検出（部分一致: 行内にマーカーが含まれていればOK）
+        # pipe-paneの出力ではスピナーやステータスバーが同一行に結合されるため
+        # 完全一致では検出できないケースがある
+        if [[ "$line" == *"$marker"* ]]; then
             # コードブロック外の場合のみカウント
             if [[ "$in_codeblock" == "false" ]]; then
                 count=$((count + 1))
@@ -72,7 +70,7 @@ count_any_markers_outside_codeblock() {
 # Usage: echo "$text" | strip_ansi
 #    or: strip_ansi < file
 strip_ansi() {
-    perl -pe 's/\e\[[0-9;?]*[a-zA-Z]//g; s/\r//g'
+    perl -pe 's/\e\][^\a\e]*(?:\a|\e\\)//g; s/\e\[[0-9;?]*[a-zA-Z]//g; s/\r//g'
 }
 
 # ファイル内のマーカー行数を grep で高速カウント

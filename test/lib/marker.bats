@@ -95,11 +95,12 @@ More text
     [ "$result" -eq 1 ]
 }
 
-@test "count_markers_outside_codeblock ignores partial matches" {
-    local output="This is not a ###TASK_COMPLETE_42### marker"
+@test "count_markers_outside_codeblock detects marker embedded in line (pipe-pane output)" {
+    # pipe-paneの出力ではスピナーやステータスバーが同一行に結合される
+    local output="⠧ Working...  ###TASK_COMPLETE_42###  π | Sonnet"
     local result
     result=$(count_markers_outside_codeblock "$output" "###TASK_COMPLETE_42###")
-    [ "$result" -eq 0 ]
+    [ "$result" -eq 1 ]
 }
 
 @test "count_markers_outside_codeblock ignores marker in multi-line code block" {
@@ -334,6 +335,18 @@ more text"
     local result
     result=$(printf 'hello\rworld' | strip_ansi)
     [ "$result" = "helloworld" ]
+}
+
+@test "strip_ansi removes OSC escape sequences (hyperlinks)" {
+    local result
+    result=$(printf '\e]8;;https://example.com\aLink Text\e]8;;\a' | strip_ansi)
+    [ "$result" = "Link Text" ]
+}
+
+@test "strip_ansi removes OSC escape sequences with BEL terminator" {
+    local result
+    result=$(printf 'before\e]8;;\aafter' | strip_ansi)
+    [ "$result" = "beforeafter" ]
 }
 
 @test "count_any_markers_outside_codeblock ignores markers in code blocks" {

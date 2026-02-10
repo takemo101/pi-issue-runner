@@ -484,7 +484,7 @@ setup_output_logging() {
     # perlを使用: macOS の sed は不正バイトシーケンスで "illegal byte sequence" エラーになる。
     # ターミナル出力にはUTF-8として不正なバイトが含まれることがあり、
     # sed (UTF-8モード) では処理できない。perlはバイナリセーフ。
-    if tmux pipe-pane -t "$session_name" "perl -pe 's/\e\[[0-9;?]*[a-zA-Z]//g; s/\r//g' >> '${log_file}'" 2>/dev/null; then
+    if tmux pipe-pane -t "$session_name" "perl -pe 's/\e\][^\a\e]*(?:\a|\e\\\\)//g; s/\e\[[0-9;?]*[a-zA-Z]//g; s/\r//g' >> '${log_file}'" 2>/dev/null; then
         log_info "Output logging started: $log_file"
         echo "$log_file"
     else
