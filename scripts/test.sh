@@ -193,6 +193,7 @@ run_bats_tests() {
                 # lib直下 + lib/improve/ のサブディレクトリ
                 for f in "$TEST_DIR"/lib/*.bats; do [[ -f "$f" ]] && test_files+=("$f"); done
                 for f in "$TEST_DIR"/lib/improve/*.bats; do [[ -f "$f" ]] && test_files+=("$f"); done
+                for f in "$TEST_DIR"/lib/ci-fix/*.bats; do [[ -f "$f" ]] && test_files+=("$f"); done
                 ;;
             scripts)
                 for f in "$TEST_DIR"/scripts/*.bats; do [[ -f "$f" ]] && test_files+=("$f"); done
