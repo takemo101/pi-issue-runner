@@ -246,6 +246,8 @@ mux_check_concurrent_limit() {
 }
 
 # キーを送信
+# 大きなテキスト（1024バイト超）は tmux load-buffer + paste-buffer を使用して
+# "command too long" エラーを回避する
 mux_send_keys() {
     local session_name="$1"
     local keys="$2"
@@ -257,5 +259,23 @@ mux_send_keys() {
         return 1
     fi
     
-    tmux send-keys -t "$session_name" "$keys" Enter
+    if [[ ${#keys} -gt 1024 ]]; then
+        # 大きなテキストはファイル経由で送信（tmux send-keys の長さ制限を回避）
+        local tmpfile
+        tmpfile="$(mktemp "${TMPDIR:-/tmp}/mux-send-XXXXXX")"
+        printf '%s' "$keys" > "$tmpfile"
+        if tmux load-buffer "$tmpfile" 2>/dev/null \
+            && tmux paste-buffer -t "$session_name" 2>/dev/null; then
+            tmux send-keys -t "$session_name" Enter
+            local rc=$?
+            rm -f "$tmpfile"
+            return $rc
+        else
+            log_warn "load-buffer/paste-buffer failed, falling back to send-keys"
+            rm -f "$tmpfile"
+            tmux send-keys -t "$session_name" "$keys" Enter
+        fi
+    else
+        tmux send-keys -t "$session_name" "$keys" Enter
+    fi
 }

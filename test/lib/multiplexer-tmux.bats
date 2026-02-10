@@ -98,6 +98,14 @@ case "\$1" in
         # send-keys -t SESSION "command" Enter のパターンを処理
         exit 0
         ;;
+    "load-buffer")
+        # load-buffer FILE のパターンを処理
+        exit 0
+        ;;
+    "paste-buffer")
+        # paste-buffer -t SESSION のパターンを処理
+        exit 0
+        ;;
     "attach-session")
         # attach-session -t SESSION
         # Note: 対話的なので実際には実行しない
@@ -473,6 +481,86 @@ EOF
     
     run mux_send_keys "non-existent" "echo hello"
     [ "$status" -ne 0 ]
+}
+
+@test "mux_send_keys uses load-buffer for large text" {
+    # load-buffer/paste-buffer の呼び出しを記録するモック
+    local call_log="$BATS_TEST_TMPDIR/tmux_calls"
+    > "$call_log"
+    
+    cat > "$MOCK_DIR/tmux" << EOF
+#!/usr/bin/env bash
+echo "\$@" >> "$call_log"
+case "\$1" in
+    "has-session")
+        if [[ "\$3" == "test-session" ]]; then exit 0; fi
+        exit 1
+        ;;
+    *) exit 0 ;;
+esac
+EOF
+    chmod +x "$MOCK_DIR/tmux"
+    export PATH="$MOCK_DIR:$PATH"
+    source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
+    
+    # 1025バイト超のテキストを生成
+    local large_text
+    large_text="$(printf 'x%.0s' $(seq 1 1100))"
+    
+    run mux_send_keys "test-session" "$large_text"
+    [ "$status" -eq 0 ]
+    
+    # load-buffer と paste-buffer が呼ばれたことを確認
+    grep -q "load-buffer" "$call_log"
+    grep -q "paste-buffer" "$call_log"
+}
+
+@test "mux_send_keys uses send-keys for small text" {
+    # 呼び出しを記録するモック
+    local call_log="$BATS_TEST_TMPDIR/tmux_calls"
+    > "$call_log"
+    
+    cat > "$MOCK_DIR/tmux" << EOF
+#!/usr/bin/env bash
+echo "\$@" >> "$call_log"
+case "\$1" in
+    "has-session")
+        if [[ "\$3" == "test-session" ]]; then exit 0; fi
+        exit 1
+        ;;
+    *) exit 0 ;;
+esac
+EOF
+    chmod +x "$MOCK_DIR/tmux"
+    export PATH="$MOCK_DIR:$PATH"
+    source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
+    
+    run mux_send_keys "test-session" "short text"
+    [ "$status" -eq 0 ]
+    
+    # load-buffer は呼ばれず、send-keys が直接呼ばれたことを確認
+    ! grep -q "load-buffer" "$call_log"
+    grep -q "send-keys" "$call_log"
+}
+
+@test "mux_send_keys cleans up temp file after load-buffer" {
+    mock_tmux_installed
+    source "$PROJECT_ROOT/lib/multiplexer-tmux.sh"
+    
+    # テスト前の一時ファイル数を記録
+    local before
+    before=$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'mux-send-*' 2>/dev/null | wc -l | tr -d ' ')
+    
+    local large_text
+    large_text="$(printf 'x%.0s' $(seq 1 1100))"
+    
+    run mux_send_keys "test-session" "$large_text"
+    [ "$status" -eq 0 ]
+    
+    # 一時ファイルが増えていないことを確認
+    local after
+    after=$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'mux-send-*' 2>/dev/null | wc -l | tr -d ' ')
+    [ "$after" -eq "$before" ]
 }
 
 # ====================
