@@ -359,6 +359,7 @@ watcher:
   cleanup_retry_interval: 3        # クリーンアップリトライ間隔（秒）
   pr_merge_max_attempts: 10        # PRマージチェック最大試行回数
   pr_merge_retry_interval: 60      # PRマージチェック間隔（秒）
+  auto_attach: true                # エラー検知時にターミナルを自動で開く
 
 # =====================================
 # プロンプトトラッカー設定
@@ -469,6 +470,7 @@ PI_RUNNER_WATCHER_CLEANUP_RETRY_INTERVAL="3"     # リトライ間隔（秒）
 PI_RUNNER_WATCHER_PR_MERGE_MAX_ATTEMPTS="10"     # PRマージ最大試行回数
 PI_RUNNER_WATCHER_PR_MERGE_RETRY_INTERVAL="60"   # PRマージチェック間隔（秒）
 PI_RUNNER_WATCHER_FORCE_CLEANUP_ON_TIMEOUT="false" # タイムアウト時強制クリーンアップ
+PI_RUNNER_WATCHER_AUTO_ATTACH="true"             # エラー検知時にターミナルを自動で開く
 ```
 
 #### プロンプトトラッカー設定
