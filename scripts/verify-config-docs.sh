@@ -1,5 +1,24 @@
 #!/usr/bin/env bash
+# ============================================================================
 # verify-config-docs.sh - docs/configuration.mdとlib/config.shの整合性検証
+#
+# 設定ファイル（lib/config.sh）とドキュメント（docs/configuration.md）の
+# 整合性を検証し、差異を報告します。
+#
+# Usage: ./scripts/verify-config-docs.sh [options]
+#
+# Options:
+#   -h, --help     Show this help message
+#   -v, --verbose  Show verbose output
+#
+# Exit codes:
+#   0 - All checks passed
+#   1 - Mismatch detected
+#
+# Examples:
+#   ./scripts/verify-config-docs.sh
+#   ./scripts/verify-config-docs.sh --help
+# ============================================================================
 
 set -euo pipefail
 
