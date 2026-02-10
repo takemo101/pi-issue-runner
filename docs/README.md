@@ -98,15 +98,9 @@ GitHub Issueを入力として、独立したworktree環境でpiインスタン�
   - ワークフロー選択ロジック
   - AI自動選択の実装方針
 
-- **[gates.md](./gates.md)** - Gates（品質ゲート）
-  - 設定方法（シンプル / command / call 形式）
-  - 動作フロー
-  - Tracker連携
-
-- **[gates-spec.md](./gates-spec.md)** - Gates仕様書
-  - 詳細な技術仕様
-  - 循環呼び出し検出
-  - 実行環境
+- **run: / call: ステップ** - [configuration.md の該当セクション](./configuration.md#run--call-ステップ)
+  - ワークフロー内に非AIステップ（シェルコマンド / 別ワークフロー呼び出し）を挿入
+  - 以前の `gates` 機能の後継（#1406）
 
 - **[hooks.md](./hooks.md)** - Hook機能
   - ライフサイクルイベント

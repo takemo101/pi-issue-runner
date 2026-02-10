@@ -1212,48 +1212,42 @@ tracker:
 PI_RUNNER_TRACKER_FILE=".tracker/results.jsonl" ./scripts/run.sh 42
 ```
 
-### gates
+### run: / call: ステップ
 
-品質ゲート設定（COMPLETEマーカー検出後の自動品質チェック）
+ワークフローの `steps` 配列に `run:` や `call:` を使って非AIステップを挿入できます。
+AIステップの間に品質チェックを挟むことで、マージ前に検証が行われます。
 
-トップレベルの `gates` はグローバル設定（ワークフロー固有の gates が未定義時に適用）。
-ワークフロー固有の gates は `workflows.<name>.gates` で定義。
+> **Note**: 以前の `gates` セクションは廃止されました。`run:`/`call:` ステップに移行してください。(#1406)
 
 #### 使用例
 
 ```yaml
-# グローバルゲート
-gates:
-  - "shellcheck -x scripts/*.sh lib/*.sh"
-  - "bats --jobs 4 test/"
-
-# ワークフロー固有
 workflows:
   default:
-    steps: [plan, implement, merge]
-    gates:
-      - "shellcheck -x scripts/*.sh lib/*.sh"
-      - command: "bats test/"
+    steps:
+      - plan
+      - implement
+      - run: "shellcheck -x scripts/*.sh lib/*.sh"
+        description: "ShellCheck"
+      - run: "bats --jobs 4 test/"
         timeout: 600
-        max_retry: 1
         description: "Batsテスト"
-      - call: code-review
-        max_retry: 2
+      - merge
 ```
 
-#### ゲートアイテムのフィールド（詳細形式）
+#### run: / call: ステップのフィールド
 
 | キー | 型 | デフォルト | 説明 |
 |------|------|-----------|------|
-| `command` | string | - | 実行するシェルコマンド |
-| `call` | string | - | ゲートとして呼び出すワークフロー名 |
+| `run` | string | - | 実行するシェルコマンド |
+| `call` | string | - | 呼び出すワークフロー名（別AIインスタンスで実行） |
 | `timeout` | integer | 300 | タイムアウト（秒） |
-| `max_retry` | integer | 0 | リトライ回数 |
+| `max_retry` | integer | 0 | リトライ回数（予約、現在はグループ単位でリトライ） |
 | `retry_interval` | integer | 10 | リトライ間隔（秒） |
-| `continue_on_fail` | boolean | false | 失敗しても次のゲートに続行 |
+| `continue_on_fail` | boolean | false | 失敗しても次のステップに続行 |
 | `description` | string | - | ログ表示用の説明 |
 
-詳細は [gates.md](gates.md) を参照。
+非AIステップが失敗した場合、AIセッションにエラー内容が送信（nudge）され、AIが修正後に再度フェーズ完了マーカーを出力すると、非AIステップ群が最初から再実行されます。
 
 ### agents
 

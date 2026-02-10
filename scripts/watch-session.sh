@@ -41,7 +41,6 @@ source "$WATCHER_SCRIPT_DIR/../lib/hooks.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/cleanup-orphans.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/marker.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/tracker.sh"
-source "$WATCHER_SCRIPT_DIR/../lib/gates.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/step-runner.sh"
 
 usage() {
@@ -412,80 +411,6 @@ _post_cleanup_maintenance() {
     }
 }
 
-# Run gates for quality verification before PR check
-# Usage: _run_gates_check <session_name> <issue_number> <worktree_path> <branch_name>
-# Returns: 0=all passed or no gates, 1=gate failed (nudge sent, continue monitoring)
-_run_gates_check() {
-    local session_name="$1"
-    local issue_number="$2"
-    local worktree_path="$3"
-    local branch_name="$4"
-
-    # PI_NO_GATES が設定されている場合はスキップ
-    if [[ "${PI_NO_GATES:-}" == "1" ]]; then
-        log_info "Gates disabled (PI_NO_GATES=1), skipping"
-        return 0
-    fi
-
-    # 設定ファイルを取得
-    local config_file
-    config_file="$(config_file_found 2>/dev/null)" || config_file=""
-    if [[ -z "$config_file" ]]; then
-        log_debug "No config file found, skipping gates"
-        return 0
-    fi
-
-    # ワークフロー名を取得（tracker metadataから）
-    local workflow_name=""
-    local tracker_meta
-    tracker_meta="$(load_tracker_metadata "$issue_number" 2>/dev/null)" || tracker_meta=""
-    if [[ -n "$tracker_meta" ]]; then
-        workflow_name="$(echo "$tracker_meta" | cut -f1)"
-    fi
-
-    # ゲート設定を取得（ワークフロー固有 → グローバル → なし）
-    local gate_definitions=""
-    if [[ -n "$workflow_name" ]]; then
-        gate_definitions="$(parse_gate_config "$config_file" "$workflow_name")"
-    fi
-    if [[ -z "$gate_definitions" ]]; then
-        gate_definitions="$(parse_gate_config "$config_file")"
-    fi
-
-    if [[ -z "$gate_definitions" ]]; then
-        log_debug "No gates defined, skipping"
-        return 0
-    fi
-
-    log_info "Running gates for Issue #$issue_number..."
-
-    # ゲート実行
-    local gate_output=""
-    local gate_result=0
-    gate_output="$(run_gates "$gate_definitions" "$issue_number" "" "$branch_name" "$worktree_path" 2>&1)" || gate_result=$?
-
-    if [[ $gate_result -ne 0 ]]; then
-        log_warn "Gate(s) failed for Issue #$issue_number"
-
-        # nudge メッセージを構成
-        local nudge_message
-        nudge_message="$(printf 'ゲートチェックが失敗しました。以下の問題を修正してから、再度完了マーカーを出力してください。\n\n%s' "$gate_output")"
-
-        # nudge でAIセッションにエラー内容を送信
-        if session_exists "$session_name"; then
-            send_keys "$session_name" "$nudge_message"
-            log_info "Gate failure nudge sent to session: $session_name"
-        else
-            log_warn "Session $session_name no longer exists, cannot send nudge"
-        fi
-
-        return 1
-    fi
-
-    log_info "All gates passed for Issue #$issue_number"
-    return 0
-}
-
 # Run non-AI steps (run:/call:) for quality verification
 # Usage: _run_non_ai_steps <session_name> <issue_number> <worktree_path> <branch_name> <non_ai_group_escaped>
 # Args:
@@ -716,14 +641,8 @@ handle_complete() {
     local worktree_path branch_name
     _resolve_worktree_info "$issue_number" worktree_path branch_name
     
-    # 2. ゲート実行（PR確認前の品質チェック）
-    local gate_result=0
-    _run_gates_check "$session_name" "$issue_number" "$worktree_path" "$branch_name" || gate_result=$?
-    local gates_json="${GATE_RESULTS_JSON:-}"
-    if [[ $gate_result -ne 0 ]]; then
-        log_warn "Gate check failed. Continuing to monitor for re-completion..."
-        return 2
-    fi
+    # 2. (gates は廃止 — run:/call: ステップに統合済み。#1406)
+    local gates_json=""
     
     # 3. ステータスと計画書の処理
     _complete_status_and_plans "$issue_number" "$session_name"

@@ -186,6 +186,20 @@ teardown() {
     [ "$_PARSE_no_gates" = "false" ]
 }
 
+@test "run.sh accepts --skip-run option" {
+    run "$PROJECT_ROOT/scripts/run.sh" --help
+    [[ "$output" == *"--skip-run"* ]]
+}
+
+@test "run.sh --skip-run is parsed into _PARSE_no_gates" {
+    source "$PROJECT_ROOT/scripts/run.sh" 2>/dev/null || true
+
+    resolve_default_workflow() { echo "default"; }
+
+    parse_run_arguments 42 --skip-run
+    [ "$_PARSE_no_gates" = "true" ]
+}
+
 # ====================
 # 依存関係チェックテスト
 # ====================
