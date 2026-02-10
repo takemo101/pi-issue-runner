@@ -104,7 +104,7 @@ workflows:
       - review
       - merge
 
-  # 機能追加: 計画→実装→品質チェック→独立レビュー→マージ
+  # 機能追加: 計画→実装→品質チェック→観点別レビュー→マージ
   feature:
     description: 新機能・大規模変更（lib/scripts への新関数追加、新スクリプト作成）
     steps:
@@ -116,9 +116,15 @@ workflows:
       - run: "bats --jobs 2 test/"
         timeout: 600
         description: "Bats テスト"
-      - call: code-review
+      - call: review-bugs
         timeout: 600
-        description: "独立AIによるコードレビュー"
+        description: "バグ・ロジックエラーレビュー"
+      - call: review-security
+        timeout: 600
+        description: "セキュリティレビュー"
+      - call: review-ai-antipattern
+        timeout: 600
+        description: "AI実装アンチパターンレビュー"
       - merge
     agent:
       type: opencode
@@ -138,7 +144,7 @@ workflows:
       - 新しい scripts/ には対応する test/scripts/*.bats を必ず作成
       - AGENTS.md のディレクトリ構造を更新すること
 
-  # バグ修正・リファクタリング: 実装→品質チェック→独立レビュー→マージ
+  # バグ修正・リファクタリング: 実装→品質チェック→バグ+セキュリティレビュー→マージ
   fix:
     description: バグ修正・リファクタリング・セキュリティ修正
     steps:
@@ -149,9 +155,12 @@ workflows:
       - run: "bats --jobs 2 test/"
         timeout: 600
         description: "Bats テスト"
-      - call: code-review
+      - call: review-bugs
         timeout: 600
-        description: "独立AIによるコードレビュー"
+        description: "バグ・ロジックエラーレビュー"
+      - call: review-security
+        timeout: 600
+        description: "セキュリティレビュー"
       - merge
     context: |
       ## 方針
@@ -199,18 +208,38 @@ workflows:
       - 並列実行 (BATS_JOBS=4) でも安定するよう、グローバル状態を汚染しない
       - reset_yaml_cache, _YQ_CHECK_RESULT="" を setup で呼ぶ
 
-  # 独立コードレビュー（call: ステップから呼び出される）
-  code-review:
-    description: 別AIインスタンスによる第三者視点のコードレビュー
+  # 観点別レビュー用ワークフロー（call: ステップから呼び出される）
+  review-bugs:
+    description: バグ・ロジックエラーのレビュー
     steps:
-      - code-review
+      - review-bugs
     agent:
       type: pi
-      args:
-        - --provider
-        - anthropic
-        - --model
-        - claude-sonnet-4-5
+      args: [--provider, anthropic, --model, claude-haiku-4-5]
+
+  review-security:
+    description: セキュリティレビュー
+    steps:
+      - review-security
+    agent:
+      type: pi
+      args: [--provider, anthropic, --model, claude-haiku-4-5]
+
+  review-architecture:
+    description: 設計・構造レビュー
+    steps:
+      - review-architecture
+    agent:
+      type: pi
+      args: [--provider, anthropic, --model, claude-haiku-4-5]
+
+  review-ai-antipattern:
+    description: AI実装アンチパターンレビュー
+    steps:
+      - review-ai-antipattern
+    agent:
+      type: pi
+      args: [--provider, anthropic, --model, claude-haiku-4-5]
 
   # 簡易修正: 実装→マージのみ（軽量モデルで高速・低コスト、品質チェック不要）
   quickfix:
