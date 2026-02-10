@@ -54,8 +54,9 @@ create_worktree() {
         git worktree add -b "feature/$branch_name" "$worktree_dir" "$base_branch" >&2
     fi
     
-    # ファイルのコピー
+    # ファイル・ディレクトリのコピー
     copy_files_to_worktree "$worktree_dir"
+    copy_dirs_to_worktree "$worktree_dir"
     
     # 最後にパスのみを標準出力に出力
     echo "$worktree_dir"
@@ -89,6 +90,28 @@ copy_files_to_worktree() {
                 cp "$file" "$worktree_dir/"
             fi
         done < <(printf '%s\n' $default_files)
+    fi
+}
+
+# ディレクトリをworktreeにコピー
+# .pi-runner.yaml の worktree.copy_dirs 配列で指定されたディレクトリを
+# worktree内に再帰的にコピーする
+# 引数:
+#   $1 - worktree_dir: worktreeのパス
+copy_dirs_to_worktree() {
+    local worktree_dir="$1"
+    local config_file
+    
+    load_config
+    
+    # 設定ファイルが見つかった場合はYAML配列から直接読み取る
+    if config_file="$(config_file_found 2>/dev/null)"; then
+        while IFS= read -r dir; do
+            if [[ -n "$dir" ]] && [[ -d "$dir" ]]; then
+                log_debug "Copying directory $dir to worktree"
+                cp -R "$dir" "$worktree_dir/"
+            fi
+        done < <(yaml_get_array "$config_file" ".worktree.copy_dirs")
     fi
 }
 

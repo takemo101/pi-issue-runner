@@ -509,3 +509,96 @@ MOCK_EOF
     source "$PROJECT_ROOT/lib/worktree.sh"
     declare -f get_worktree_branch > /dev/null
 }
+
+# ====================
+# copy_dirs_to_worktree テスト
+# ====================
+
+@test "copy_dirs_to_worktree function exists" {
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    declare -f copy_dirs_to_worktree > /dev/null
+}
+
+@test "copy_dirs_to_worktree skips when no config file" {
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    
+    local worktree_dir="$BATS_TEST_TMPDIR/test-worktree"
+    mkdir -p "$worktree_dir"
+    
+    _CONFIG_LOADED=""
+    _CONFIG_FILE_FOUND=""
+    
+    run copy_dirs_to_worktree "$worktree_dir"
+    [ "$status" -eq 0 ]
+}
+
+@test "copy_dirs_to_worktree skips when no copy_dirs configured" {
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    
+    local worktree_dir="$BATS_TEST_TMPDIR/test-worktree"
+    mkdir -p "$worktree_dir"
+    
+    local config_file="$BATS_TEST_TMPDIR/config.yaml"
+    printf 'worktree:\n  base_dir: ".worktrees"\n' > "$config_file"
+    
+    _CONFIG_LOADED=""
+    _CONFIG_FILE_FOUND=""
+    load_config "$config_file"
+    
+    run copy_dirs_to_worktree "$worktree_dir"
+    [ "$status" -eq 0 ]
+}
+
+@test "copy_dirs_to_worktree copies directory recursively" {
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    
+    local worktree_dir="$BATS_TEST_TMPDIR/test-worktree"
+    mkdir -p "$worktree_dir"
+    
+    # コピー元のディレクトリを作成
+    local src_dir="$BATS_TEST_TMPDIR/project"
+    mkdir -p "$src_dir/.opencode"
+    echo '{"disabled_hooks": ["todo-continuation-enforcer"]}' > "$src_dir/.opencode/oh-my-opencode.json"
+    
+    local config_file="$src_dir/config.yaml"
+    cat > "$config_file" << 'EOF'
+worktree:
+  copy_dirs:
+    - .opencode
+EOF
+    
+    # copy_dirs_to_worktree は cwd 相対でディレクトリを探すので cd する
+    cd "$src_dir"
+    _CONFIG_LOADED=""
+    _CONFIG_FILE_FOUND=""
+    load_config "$config_file"
+    
+    copy_dirs_to_worktree "$worktree_dir"
+    
+    [ -f "$worktree_dir/.opencode/oh-my-opencode.json" ]
+    local content
+    content="$(cat "$worktree_dir/.opencode/oh-my-opencode.json")"
+    [[ "$content" == *'"todo-continuation-enforcer"'* ]]
+}
+
+@test "copy_dirs_to_worktree skips nonexistent directories" {
+    source "$PROJECT_ROOT/lib/worktree.sh"
+    
+    local worktree_dir="$BATS_TEST_TMPDIR/test-worktree"
+    mkdir -p "$worktree_dir"
+    
+    local config_file="$BATS_TEST_TMPDIR/config.yaml"
+    cat > "$config_file" << 'EOF'
+worktree:
+  copy_dirs:
+    - .nonexistent-dir
+EOF
+    
+    _CONFIG_LOADED=""
+    _CONFIG_FILE_FOUND=""
+    load_config "$config_file"
+    
+    run copy_dirs_to_worktree "$worktree_dir"
+    [ "$status" -eq 0 ]
+    [ ! -d "$worktree_dir/.nonexistent-dir" ]
+}
