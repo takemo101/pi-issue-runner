@@ -94,10 +94,15 @@ project-root/
 │   └── thorough.yaml        # 徹底ワークフロー
 ├── agents/                  # エージェントテンプレート
 │   ├── ci-fix.md            # CI修正エージェント
+│   ├── code-review.md       # 独立コードレビュー（call: ステップ用）
 │   ├── improve-review.md    # improve.sh レビュープロンプト（カスタマイズ可能）
 │   ├── plan.md              # 計画エージェント
 │   ├── implement.md         # 実装エージェント
-│   ├── review.md            # レビューエージェント
+│   ├── review.md            # レビューエージェント（同一セッション内）
+│   ├── review-bugs.md       # バグ・ロジックエラーレビュー
+│   ├── review-security.md   # セキュリティレビュー
+│   ├── review-architecture.md # 設計・構造レビュー
+│   ├── review-ai-antipattern.md # AI実装アンチパターンレビュー
 │   ├── test.md              # テストエージェント
 │   └── merge.md             # マージエージェント
 ├── lib/                     # シェルスクリプトライブラリ
@@ -120,6 +125,7 @@ project-root/
 │   ├── cleanup-orphans.sh   # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh     # 計画書のローテーション
 │   ├── cleanup-trap.sh      # エラー時クリーンアップトラップ管理
+│   ├── compat.sh            # クロスプラットフォーム互換性ヘルパー
 │   ├── config.sh            # 設定管理
 │   ├── context.sh           # コンテキスト管理
 │   ├── daemon.sh            # プロセスデーモン化
@@ -141,6 +147,7 @@ project-root/
 │   ├── priority.sh          # 優先度計算
 │   ├── session-resolver.sh  # セッション名解決ユーティリティ
 │   ├── status.sh            # ステータスファイル管理
+│   ├── step-runner.sh       # run:/call: ステップ実行エンジン
 │   ├── template.sh          # テンプレート処理
 │   ├── tracker.sh           # プロンプト効果測定（記録コア）
 │   ├── knowledge-loop.sh    # 知識ループコアライブラリ
@@ -238,6 +245,11 @@ workflow:
   steps:                     # 実行するステップ
     - plan
     - implement
+    - run: "shellcheck -x scripts/*.sh lib/*.sh"
+      description: "ShellCheck"
+    - run: "bats --jobs 4 test/"
+      timeout: 600
+      description: "Batsテスト"
     - review
     - merge
 
@@ -464,6 +476,115 @@ PI_RUNNER_WATCHER_FORCE_CLEANUP_ON_TIMEOUT="false" # タイムアウト時強制
 ```bash
 PI_RUNNER_TRACKER_FILE=".worktrees/.status/tracker.jsonl"
 ```
+
+## ワークフローステップ
+
+ワークフローの `steps` 配列には、AIエージェントステップと非AIステップ（`run:`/`call:`）を組み合わせて定義できます。
+
+### AIエージェントステップ（ビルトイン）
+
+| ステップ名 | 説明 | エージェントテンプレート |
+|-----------|------|------------------------|
+| `plan` | 実装計画を作成 | `agents/plan.md` |
+| `implement` | コードを実装 | `agents/implement.md` |
+| `review` | コードレビュー（同一セッション内） | `agents/review.md` |
+| `test` | テスト実行 | `agents/test.md` |
+| `merge` | PRを作成・マージ | `agents/merge.md` |
+| `ci-fix` | CI失敗を自動修正 | `agents/ci-fix.md` |
+
+### 観点別レビューエージェント
+
+独立したAIインスタンスで実行される専門的なレビューエージェントです。`call:` ステップで呼び出します。
+
+| エージェント名 | 説明 | エージェントテンプレート |
+|--------------|------|------------------------|
+| `review-bugs` | バグ・ロジックエラーを検出 | `agents/review-bugs.md` |
+| `review-security` | セキュリティ脆弱性を検出 | `agents/review-security.md` |
+| `review-architecture` | 設計・構造の問題を検出 | `agents/review-architecture.md` |
+| `review-ai-antipattern` | AI実装アンチパターンを検出 | `agents/review-ai-antipattern.md` |
+| `code-review` | 汎用コードレビュー | `agents/code-review.md` |
+
+### 非AIステップ（run: / call:）
+
+AIステップの間に外部コマンドや別のワークフローを挿入できます。
+
+#### run: ステップ（外部コマンド実行）
+
+```yaml
+steps:
+  - implement
+  - run: "shellcheck -x scripts/*.sh lib/*.sh"
+    description: "ShellCheck"
+    timeout: 300
+  - merge
+```
+
+**フィールド:**
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `run` | string | - | 実行するシェルコマンド（必須） |
+| `description` | string | - | ログ表示用の説明 |
+| `timeout` | integer | 300 | タイムアウト（秒） |
+| `continue_on_fail` | boolean | false | 失敗しても次のステップに続行 |
+| `max_retry` | integer | 0 | リトライ回数（予約、現在未使用） |
+| `retry_interval` | integer | 10 | リトライ間隔（秒、予約） |
+
+**使用可能な変数:**
+
+- `${issue_number}` - GitHub Issue番号
+- `${pr_number}` - PR番号
+- `${worktree_path}` - worktreeのパス
+- `${branch_name}` - ブランチ名
+
+**例:**
+
+```yaml
+- run: "gh pr checks ${pr_number} --watch"
+  description: "CI状態監視"
+  timeout: 600
+- run: "cd ${worktree_path} && make test"
+  description: "統合テスト"
+```
+
+#### call: ステップ（別AIインスタンス呼び出し）
+
+```yaml
+steps:
+  - implement
+  - call: code-review
+    description: "独立コードレビュー"
+    timeout: 600
+  - merge
+```
+
+**フィールド:**
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `call` | string | - | 呼び出すエージェント名（必須） |
+| `description` | string | - | ログ表示用の説明 |
+| `timeout` | integer | 300 | タイムアウト（秒） |
+| `continue_on_fail` | boolean | false | 失敗しても次のステップに続行 |
+
+**例:**
+
+```yaml
+- call: review-security
+  description: "セキュリティレビュー"
+- call: review-architecture
+  description: "アーキテクチャレビュー"
+```
+
+### ステップの実行順序
+
+1. AIエージェントがステップを完了すると、同一フェーズの `run:`/`call:` ステップ群がworktree内で順次実行されます
+2. すべての `run:`/`call:` ステップが成功すると、次のAIステップに進みます
+3. `run:`/`call:` ステップが失敗した場合:
+   - エラー内容がAIセッションに送信（nudge）されます
+   - AIが修正後に再度フェーズ完了マーカーを出力すると、`run:`/`call:` ステップ群が最初から再実行されます
+
+> **Note**: 以前の `gates:` セクションは廃止されました。`run:`/`call:` ステップに移行してください。
 
 ## CLI コマンド
 
