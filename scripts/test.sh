@@ -110,10 +110,10 @@ run_shellcheck() {
         [[ -f "$f" ]] && script_files+=("$f")
     done
     
-    # Collect lib files
-    for f in "$PROJECT_ROOT"/lib/*.sh; do
-        [[ -f "$f" ]] && lib_files+=("$f")
-    done
+    # Collect lib files (including subdirectories)
+    while IFS= read -r f; do
+        lib_files+=("$f")
+    done < <(find "$PROJECT_ROOT/lib" -name "*.sh" -type f | sort)
     
     local all_files=("${script_files[@]}" "${lib_files[@]}")
     
