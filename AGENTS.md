@@ -67,6 +67,7 @@ pi-issue-runner/
 │   ├── cleanup-improve-logs.sh  # improve-logsのクリーンアップ
 │   ├── cleanup-orphans.sh  # 孤立ステータスのクリーンアップ
 │   ├── cleanup-plans.sh    # 計画書のローテーション
+│   ├── compat.sh      # クロスプラットフォーム互換性ヘルパー
 │   ├── config.sh      # 設定読み込み
 │   ├── context.sh     # コンテキスト管理
 │   ├── daemon.sh      # プロセスデーモン化
@@ -148,6 +149,7 @@ pi-issue-runner/
 │   │   ├── cleanup-orphans.bats
 │   │   ├── cleanup-improve-logs.bats  # cleanup-improve-logs.sh のテスト
 │   │   ├── cleanup-plans.bats
+│   │   ├── compat.bats
 │   │   ├── config.bats
 │   │   ├── context.bats
 │   │   ├── daemon.bats
@@ -209,14 +211,26 @@ pi-issue-runner/
 │   │   ├── cleanup-race-condition.bats
 │   │   ├── config-master-table-dry.bats
 │   │   ├── critical-fixes.bats
+│   │   ├── escalation-literal-newline.bats
 │   │   ├── eval-injection.bats
 │   │   ├── hooks-env-sanitization.bats
 │   │   ├── issue-1066-spaces-in-filenames.bats
 │   │   ├── issue-1129-session-label-arg.bats
 │   │   ├── issue-1145-duplicate-agent-override.bats
+│   │   ├── issue-1198-duplicate-label-usage.bats
+│   │   ├── issue-1211-uninstall-missing-commands.bats
+│   │   ├── issue-1220-inline-hook-env.bats
+│   │   ├── issue-1259-ci-fix-bash-spaces.bats
+│   │   ├── issue-1260-daemon-set-e-corruption.bats
+│   │   ├── issue-1261-validate-bash-timeout.bats
+│   │   ├── issue-1262-bash-source-guard.bats
+│   │   ├── issue-1270-node-grep-pattern.bats
+│   │   ├── issue-1280-echo-dash-flags.bats
 │   │   ├── multiline-json-grep.bats
 │   │   ├── pr-merge-timeout.bats
-│   │   └── workflow-name-template.bats
+│   │   ├── shfmt-hardcoded-indent.bats
+│   │   ├── workflow-name-template.bats
+│   │   └── yaml-bulk-multiline.bats
 │   ├── fixtures/      # テスト用フィクスチャ
 │   │   └── sample-config.yaml
 │   └── test_helper.bash  # Bats共通ヘルパー
