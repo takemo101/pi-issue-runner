@@ -181,7 +181,7 @@ EOF
 
 @test "get_workflow_steps_array returns steps for default" {
     result="$(get_workflow_steps_array "default" "/nonexistent")"
-    [ "$result" = "plan implement review merge" ]
+    [ "$result" = "plan implement test review merge" ]
 }
 
 # ====================
