@@ -131,6 +131,221 @@ get_workflow_steps() {
     echo "$steps"
 }
 
+# ===================
+# 型付きステップ解析（run:/call: 対応）
+# ===================
+
+# ワークフローからステップ一覧を型付きで取得
+# 各行がタブ区切りで出力される:
+#   ai<TAB>step_name
+#   run<TAB>command<TAB>timeout<TAB>max_retry<TAB>retry_interval<TAB>continue_on_fail<TAB>description
+#   call<TAB>workflow_name<TAB>timeout<TAB>max_retry<TAB>retry_interval<TAB>continue_on_fail<TAB>description
+#
+# Usage: get_workflow_steps_typed <workflow_file>
+# Output: 1行1ステップのタブ区切りテキスト
+get_workflow_steps_typed() {
+    local workflow_file="$1"
+
+    # ビルトインの場合（全て AI ステップ）
+    if [[ "$workflow_file" == builtin:* ]]; then
+        local workflow_name="${workflow_file#builtin:}"
+        local steps_str
+        case "$workflow_name" in
+            simple) steps_str="$_BUILTIN_WORKFLOW_SIMPLE" ;;
+            *)      steps_str="$_BUILTIN_WORKFLOW_DEFAULT" ;;
+        esac
+        local s
+        for s in $steps_str; do
+            printf "ai\t%s\n" "$s"
+        done
+        return 0
+    fi
+
+    # config-workflow:NAME 形式
+    if [[ "$workflow_file" == config-workflow:* ]]; then
+        local workflow_name="${workflow_file#config-workflow:}"
+        local config_file
+        config_file="$(_resolve_config_file)"
+
+        if [[ ! -f "$config_file" ]]; then
+            log_warn "Config file not found, using builtin"
+            local s
+            for s in $_BUILTIN_WORKFLOW_DEFAULT; do
+                printf "ai\t%s\n" "$s"
+            done
+            return 0
+        fi
+
+        _parse_typed_steps_from_config "$config_file" ".workflows.${workflow_name}.steps"
+        return $?
+    fi
+
+    # ファイル形式のワークフロー
+    if [[ ! -f "$workflow_file" ]]; then
+        log_error "Workflow file not found: $workflow_file"
+        return 1
+    fi
+
+    local yaml_path
+    if [[ "$workflow_file" == *".pi-runner.yaml" ]]; then
+        yaml_path=".workflow.steps"
+    else
+        yaml_path=".steps"
+    fi
+
+    _parse_typed_steps_from_config "$workflow_file" "$yaml_path"
+}
+
+# YAML設定ファイルから型付きステップを解析する内部関数
+# Usage: _parse_typed_steps_from_config <config_file> <yaml_path>
+_parse_typed_steps_from_config() {
+    local config_file="$1"
+    local yaml_path="$2"
+    local found_any=false
+
+    if check_yq; then
+        # yq でJSON形式で各要素を取り出す
+        local item_json
+        while IFS= read -r item_json; do
+            [[ -z "$item_json" ]] && continue
+            found_any=true
+
+            # 文字列の場合（AIステップ）: "plan" のようにダブルクォート付き
+            if [[ "$item_json" == '"'*'"' ]]; then
+                local step_name
+                step_name="${item_json#\"}"
+                step_name="${step_name%\"}"
+                printf "ai\t%s\n" "$step_name"
+                continue
+            fi
+
+            # マップの場合: {"run":"command",...} or {"call":"name",...}
+            local run_val call_val timeout max_retry retry_interval continue_on_fail description
+            run_val=$(echo "$item_json" | yq -r '.run // ""' - 2>/dev/null) || run_val=""
+            call_val=$(echo "$item_json" | yq -r '.call // ""' - 2>/dev/null) || call_val=""
+            timeout=$(echo "$item_json" | yq -r '.timeout // "300"' - 2>/dev/null) || timeout="300"
+            max_retry=$(echo "$item_json" | yq -r '.max_retry // "0"' - 2>/dev/null) || max_retry="0"
+            retry_interval=$(echo "$item_json" | yq -r '.retry_interval // "10"' - 2>/dev/null) || retry_interval="10"
+            continue_on_fail=$(echo "$item_json" | yq -r '.continue_on_fail // "false"' - 2>/dev/null) || continue_on_fail="false"
+            description=$(echo "$item_json" | yq -r '.description // ""' - 2>/dev/null) || description=""
+
+            if [[ -n "$run_val" ]]; then
+                [[ -z "$description" ]] && description="$run_val"
+                printf "run\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+                    "$run_val" "$timeout" "$max_retry" "$retry_interval" "$continue_on_fail" "$description"
+            elif [[ -n "$call_val" ]]; then
+                [[ -z "$description" ]] && description="call:${call_val}"
+                printf "call\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+                    "$call_val" "$timeout" "$max_retry" "$retry_interval" "$continue_on_fail" "$description"
+            else
+                log_warn "Unknown step format in $config_file: $item_json"
+            fi
+        done < <(yq -o=json -I=0 "${yaml_path}[]" "$config_file" 2>/dev/null)
+    else
+        # yq なし: 簡易パーサーでは run:/call: はサポートしない（AIステップのみ）
+        log_warn "yq not available: run:/call: steps require yq. Falling back to AI-only steps."
+        while IFS= read -r step; do
+            if [[ -n "$step" ]]; then
+                found_any=true
+                printf "ai\t%s\n" "$step"
+            fi
+        done < <(yaml_get_array "$config_file" "$yaml_path")
+    fi
+
+    if [[ "$found_any" == "false" ]]; then
+        log_warn "No steps found, using builtin"
+        local s
+        for s in $_BUILTIN_WORKFLOW_DEFAULT; do
+            printf "ai\t%s\n" "$s"
+        done
+    fi
+}
+
+# 型付きステップからAIステップ名のみを抽出（後方互換用）
+# Usage: typed_steps_to_ai_only <typed_steps>
+# Input: get_workflow_steps_typed の出力（パイプまたはヒアストリングで渡す）
+# Output: スペース区切りのAIステップ名
+typed_steps_to_ai_only() {
+    local steps=""
+    local line
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        local step_type step_name
+        step_type="${line%%	*}"
+        if [[ "$step_type" == "ai" ]]; then
+            step_name="${line#ai	}"
+            step_name="${step_name%%	*}"
+            if [[ -z "$steps" ]]; then
+                steps="$step_name"
+            else
+                steps="$steps $step_name"
+            fi
+        fi
+    done
+    echo "$steps"
+}
+
+# 型付きステップをAIグループとnon-AIグループに分割
+# 出力: 各行が group_type<TAB>content の形式
+#   ai_group<TAB>plan implement        (スペース区切りのAIステップ名)
+#   non_ai_group<TAB><ステップ定義>    (改行区切りの run/call 定義、\n エスケープ)
+#   ai_group<TAB>merge
+#
+# Usage: get_step_groups <typed_steps_input>
+# Input: get_workflow_steps_typed の出力（パイプで渡す）
+get_step_groups() {
+    local current_type=""  # "ai" or "non_ai"
+    local current_ai_steps=""
+    local current_non_ai_lines=""
+    local line
+
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        local step_type
+        step_type="${line%%	*}"
+
+        if [[ "$step_type" == "ai" ]]; then
+            # non-AI グループが蓄積されていたら出力
+            if [[ "$current_type" == "non_ai" && -n "$current_non_ai_lines" ]]; then
+                printf "non_ai_group\t%s\n" "$current_non_ai_lines"
+                current_non_ai_lines=""
+            fi
+            # AI ステップを蓄積
+            local step_name="${line#ai	}"
+            if [[ -z "$current_ai_steps" || "$current_type" != "ai" ]]; then
+                # 前のAIグループが残っていたら出力
+                if [[ "$current_type" == "ai" && -n "$current_ai_steps" ]]; then
+                    printf "ai_group\t%s\n" "$current_ai_steps"
+                fi
+                current_ai_steps="$step_name"
+            else
+                current_ai_steps="$current_ai_steps $step_name"
+            fi
+            current_type="ai"
+        else
+            # AI グループが蓄積されていたら出力
+            if [[ "$current_type" == "ai" && -n "$current_ai_steps" ]]; then
+                printf "ai_group\t%s\n" "$current_ai_steps"
+                current_ai_steps=""
+            fi
+            # non-AI ステップを蓄積（改行を\\nでエスケープして1行に）
+            if [[ -z "$current_non_ai_lines" ]]; then
+                current_non_ai_lines="$line"
+            else
+                current_non_ai_lines="${current_non_ai_lines}\\n${line}"
+            fi
+            current_type="non_ai"
+        fi
+    done
+
+    # 残りを出力
+    if [[ "$current_type" == "ai" && -n "$current_ai_steps" ]]; then
+        printf "ai_group\t%s\n" "$current_ai_steps"
+    elif [[ "$current_type" == "non_ai" && -n "$current_non_ai_lines" ]]; then
+        printf "non_ai_group\t%s\n" "$current_non_ai_lines"
+    fi
+}
+
 # ワークフローのコンテキストを取得
 get_workflow_context() {
     local workflow_file="$1"

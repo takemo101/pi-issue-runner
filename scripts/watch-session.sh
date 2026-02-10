@@ -42,6 +42,7 @@ source "$WATCHER_SCRIPT_DIR/../lib/cleanup-orphans.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/marker.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/tracker.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/gates.sh"
+source "$WATCHER_SCRIPT_DIR/../lib/step-runner.sh"
 
 usage() {
     cat << EOF
@@ -479,6 +480,88 @@ _run_gates_check() {
     fi
 
     log_info "All gates passed for Issue #$issue_number"
+    return 0
+}
+
+# Run non-AI steps (run:/call:) for quality verification
+# Usage: _run_non_ai_steps <session_name> <issue_number> <worktree_path> <branch_name> <non_ai_group_escaped>
+# Args:
+#   non_ai_group_escaped: \\n区切りの run/call ステップ定義（get_step_groups の non_ai_group 出力）
+# Returns: 0=all passed or no steps, 1=step failed (nudge sent, continue monitoring)
+_run_non_ai_steps() {
+    local session_name="$1"
+    local issue_number="$2"
+    local worktree_path="$3"
+    local branch_name="$4"
+    local non_ai_group_escaped="$5"
+
+    # PI_SKIP_RUN が設定されている場合はスキップ
+    if [[ "${PI_SKIP_RUN:-}" == "1" ]]; then
+        log_info "run:/call: steps disabled (PI_SKIP_RUN=1), skipping"
+        return 0
+    fi
+
+    if [[ -z "$non_ai_group_escaped" ]]; then
+        log_debug "No non-AI steps defined, skipping"
+        return 0
+    fi
+
+    log_info "Running non-AI steps for Issue #$issue_number..."
+
+    # \\n を改行に戻して各ステップを処理
+    local step_line
+    while IFS= read -r step_line; do
+        [[ -z "$step_line" ]] && continue
+
+        local step_type
+        step_type="${step_line%%	*}"
+        local rest="${step_line#*	}"
+
+        # タブ区切りフィールドを分解
+        local cmd_or_name timeout max_retry retry_interval continue_on_fail description
+        IFS=$'\t' read -r cmd_or_name timeout max_retry retry_interval continue_on_fail description <<< "$rest"
+
+        local display_name="${description:-$cmd_or_name}"
+        log_info "Step: $display_name"
+
+        local step_output="" step_result=0
+        if [[ "$step_type" == "run" ]]; then
+            step_output=$(run_command_step "$cmd_or_name" "$timeout" "$worktree_path" "$issue_number" "" "$branch_name" 2>&1) || step_result=$?
+        elif [[ "$step_type" == "call" ]]; then
+            local config_file
+            config_file="$(config_file_found 2>/dev/null)" || config_file=""
+            step_output=$(run_call_step "$cmd_or_name" "$timeout" "$worktree_path" "$config_file" "$issue_number" "$branch_name" 2>&1) || step_result=$?
+        else
+            log_warn "Unknown step type: $step_type, skipping"
+            continue
+        fi
+
+        if [[ $step_result -ne 0 ]]; then
+            if [[ "$continue_on_fail" == "true" ]]; then
+                log_warn "Step failed but continue_on_fail=true: $display_name"
+                continue
+            fi
+
+            log_warn "Step failed: $display_name"
+
+            # nudge でAIセッションにエラー内容を送信
+            local nudge_message
+            nudge_message="$(printf 'ステップ「%s」が失敗しました。以下の問題を修正してから、再度フェーズ完了マーカーを出力してください。\n\n%s' "$display_name" "$step_output")"
+
+            if session_exists "$session_name"; then
+                send_keys "$session_name" "$nudge_message"
+                log_info "Step failure nudge sent to session: $session_name"
+            else
+                log_warn "Session $session_name no longer exists, cannot send nudge"
+            fi
+
+            return 1
+        fi
+
+        log_info "Step passed: $display_name"
+    done < <(printf '%b\n' "$non_ai_group_escaped")
+
+    log_info "All non-AI steps passed for Issue #$issue_number"
     return 0
 }
 

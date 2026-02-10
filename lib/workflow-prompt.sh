@@ -363,6 +363,135 @@ EOF
     _emit_prompt_footer "$issue_number"
 }
 
+# ===================
+# AIグループ対応プロンプト生成
+# ===================
+
+# AIグループ用のプロンプトを生成
+# 最初のAIグループのみ Issue ヘッダー等を含む完全なプロンプトを生成。
+# 最終AIグループでは COMPLETE マーカー、それ以外では PHASE_COMPLETE マーカーを指示。
+#
+# Usage: generate_ai_group_prompt <group_index> <total_groups> <ai_steps_space_separated> <is_final_ai_group> \
+#          <workflow_name> <issue_number> <issue_title> <issue_body> <branch_name> <worktree_path> \
+#          [project_root] [issue_comments] [pr_number]
+# Output: プロンプトテキストを stdout に出力
+generate_ai_group_prompt() {
+    local group_index="$1"
+    local total_groups="$2"
+    local ai_steps="$3"
+    local is_final_ai_group="$4"
+    local workflow_name="$5"
+    local issue_number="$6"
+    local issue_title="$7"
+    local issue_body="$8"
+    local branch_name="$9"
+    local worktree_path="${10}"
+    local project_root="${11:-.}"
+    local issue_comments="${12:-}"
+    local pr_number="${13:-}"
+
+    # 最初のグループのみ Issue ヘッダー・コンテキスト・コメントを含める
+    if [[ "$group_index" -eq 0 ]]; then
+        _emit_issue_header "$issue_number" "$issue_title" "$issue_body"
+        _emit_context_section "$issue_number"
+        _emit_comments_section "$issue_comments"
+
+        local workflow_file
+        workflow_file=$(find_workflow_file "$workflow_name" "$project_root")
+        local workflow_context
+        workflow_context="$(get_workflow_context "$workflow_file" 2>/dev/null || true)"
+
+        cat << EOF
+
+---
+
+## Workflow: $workflow_name (Phase $((group_index + 1))/$total_groups)
+
+You are implementing GitHub Issue #$issue_number in an isolated worktree.
+Follow the workflow steps below.
+
+EOF
+        if [[ -n "$workflow_context" ]]; then
+            cat << EOF
+### Workflow Context
+
+$workflow_context
+
+---
+
+EOF
+        fi
+    else
+        # 後続AIグループ（nudge で送信される）
+        cat << EOF
+## Continue Workflow: $workflow_name (Phase $((group_index + 1))/$total_groups)
+
+All quality checks passed. Continue with the following steps.
+
+EOF
+    fi
+
+    # 各AIステップのプロンプトを生成
+    local step_num=1
+    local step
+    for step in $ai_steps; do
+        local agent_file
+        agent_file=$(find_agent_file "$step" "$project_root")
+        local agent_prompt
+        agent_prompt=$(get_agent_prompt "$agent_file" "$issue_number" "$branch_name" "$worktree_path" "$step" "$issue_title" "$pr_number" "$workflow_name")
+
+        local step_name
+        step_name="$(echo "$step" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
+
+        echo "### Step $step_num: $step_name"
+        echo ""
+        echo "$agent_prompt"
+        echo ""
+        ((step_num++)) || true
+    done
+
+    # マーカー指示
+    if [[ "$is_final_ai_group" == "true" ]]; then
+        _emit_prompt_footer "$issue_number"
+    else
+        _emit_phase_complete_footer "$issue_number"
+    fi
+}
+
+# 中間マーカー（PHASE_COMPLETE）のフッターを出力
+_emit_phase_complete_footer() {
+    local issue_number="$1"
+
+    cat << EOF
+
+---
+
+### On Completion of This Phase
+
+**CRITICAL**: After completing all steps above, you MUST output the phase completion marker.
+
+The marker format combines these parts (no spaces):
+- Prefix: \`###PHASE\`
+- Middle: \`_COMPLETE_\`
+- Issue number: \`${issue_number}\`
+- Suffix: \`###\`
+
+Combine them and output as a single line. This marker is monitored by an external process.
+After this marker is detected, external quality checks will run automatically.
+If any check fails, you will receive the error details and should fix the issues.
+
+Do NOT output the final TASK_COMPLETE marker at this point — there are more steps after the quality checks.
+
+### On Error
+
+If you encounter an unrecoverable error, output the error marker:
+- Prefix: \`###TASK\`
+- Middle: \`_ERROR_\`
+- Issue number: \`${issue_number}\`
+- Suffix: \`###\`
+EOF
+}
+
 # ワークフロープロンプトをファイルに書き出す
 # Usage: write_workflow_prompt <output_file> <workflow_name> <issue_number> <issue_title> <issue_body> <branch_name> <worktree_path> [project_root] [issue_comments] [pr_number]
 write_workflow_prompt() {
