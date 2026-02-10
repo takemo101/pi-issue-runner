@@ -47,6 +47,7 @@ pi-issue-runner/
 │   ├── next.sh        # 次のタスク取得
 │   ├── nudge.sh       # セッションへメッセージ送信
 │   ├── test.sh        # テスト一括実行
+│   ├── tracker.sh     # プロンプト効果測定（集計・表示）
 │   ├── verify-config-docs.sh  # 設定ドキュメントの整合性検証
 │   ├── wait-for-sessions.sh  # 複数セッション完了待機
 │   └── watch-session.sh  # セッション監視
@@ -93,6 +94,7 @@ pi-issue-runner/
 │   ├── session-resolver.sh  # セッション名解決ユーティリティ
 │   ├── status.sh      # 状態管理
 │   ├── template.sh    # テンプレート処理
+│   ├── tracker.sh     # プロンプト効果測定（記録コア）
 │   ├── tmux.sh        # マルチプレクサ操作（後方互換ラッパー）
 │   ├── multiplexer.sh      # マルチプレクサ抽象化レイヤー
 │   ├── multiplexer-tmux.sh # tmux実装
@@ -183,6 +185,7 @@ pi-issue-runner/
 │   │   ├── session-resolver.bats
 │   │   ├── status.bats
 │   │   ├── template.bats
+│   │   ├── tracker.bats
 │   │   ├── multiplexer.bats
 │   │   ├── multiplexer-tmux.bats
 │   │   ├── multiplexer-zellij.bats
@@ -215,6 +218,7 @@ pi-issue-runner/
 │   │   ├── stop.bats
 │   │   ├── sweep.bats            # sweep.sh のテスト
 │   │   ├── test.bats
+│   │   ├── tracker.bats
 │   │   ├── verify-config-docs.bats
 │   │   ├── wait-for-sessions.bats
 │   │   └── watch-session.bats

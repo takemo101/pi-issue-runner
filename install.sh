@@ -172,6 +172,7 @@ pi-restart-watcher:scripts/restart-watcher.sh
 pi-mux-all:scripts/mux-all.sh
 pi-generate-config:scripts/generate-config.sh
 pi-test:scripts/test.sh
+pi-tracker:scripts/tracker.sh
 pi-verify-config-docs:scripts/verify-config-docs.sh
 "
 

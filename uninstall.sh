@@ -46,6 +46,7 @@ pi-restart-watcher
 pi-mux-all
 pi-generate-config
 pi-test
+pi-tracker
 pi-verify-config-docs
 "
 

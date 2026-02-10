@@ -144,6 +144,7 @@ source "$SCRIPT_DIR/../lib/hooks.sh"
 source "$SCRIPT_DIR/../lib/agent.sh"
 source "$SCRIPT_DIR/../lib/daemon.sh"
 source "$SCRIPT_DIR/../lib/status.sh"
+source "$SCRIPT_DIR/../lib/tracker.sh"
 
 # ============================================================================
 # Subfunction: parse_run_arguments
@@ -486,6 +487,9 @@ start_agent_session() {
     # Issue #974: セッション作成直後にステータスを保存（レースコンディション回避）
     # Issue #1106: セッションラベルを保存（improve.shで使用）
     save_status "$issue_number" "running" "$session_name" "" "$session_label"
+    
+    # Issue #1298: トラッカーメタデータを保存（ワークフロー名と開始時刻）
+    save_tracker_metadata "$issue_number" "$workflow_name"
     
     # on_start hookを実行
     run_hook "on_start" "$issue_number" "$session_name" "feature/$branch_name" "$full_worktree_path" "" "0" "$issue_title"

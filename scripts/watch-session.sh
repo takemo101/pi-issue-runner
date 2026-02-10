@@ -40,6 +40,7 @@ source "$WATCHER_SCRIPT_DIR/../lib/worktree.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/hooks.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/cleanup-orphans.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/marker.sh"
+source "$WATCHER_SCRIPT_DIR/../lib/tracker.sh"
 
 usage() {
     cat << EOF
@@ -250,6 +251,9 @@ handle_error() {
     # ステータスを保存
     save_status "$issue_number" "error" "$session_name" "$error_message" 2>/dev/null || true
     
+    # トラッカーに記録
+    record_tracker_entry "$issue_number" "error" "${error_message:0:100}" 2>/dev/null || true
+    
     # on_error hookを実行（hook未設定時はデフォルト動作）
     run_hook "on_error" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "$error_message" "1" "" 2>/dev/null || true
     
@@ -312,6 +316,9 @@ _run_completion_hooks() {
     local session_name="$2"
     local branch_name="$3"
     local worktree_path="$4"
+    
+    # トラッカーに記録
+    record_tracker_entry "$issue_number" "success" 2>/dev/null || true
     
     # on_success hookを実行（hook未設定時はデフォルト動作）
     run_hook "on_success" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "" "0" "" 2>/dev/null || true
