@@ -132,15 +132,34 @@ check_session_markers() {
     if [[ -n "$status_dir" && -f "$log_file" ]]; then
         log_debug "Using pipe-pane log file: $log_file"
         
-        # COMPLETEマーカーをチェック（grep -cF で高速検索）
+        # マーカー定義
         local complete_marker="###TASK_COMPLETE_${issue_number}###"
         local alt_complete_marker="###COMPLETE_TASK_${issue_number}###"
+        local error_marker="###TASK_ERROR_${issue_number}###"
+        local alt_error_marker="###ERROR_TASK_${issue_number}###"
         
+        # grep で高速スキャン（ファイル全体の読み込み不要）
+        local has_complete=false has_error=false
         if grep -qF "$complete_marker" "$log_file" 2>/dev/null || \
            grep -qF "$alt_complete_marker" "$log_file" 2>/dev/null; then
-            # コードブロック内のマーカーを除外（watch-session.sh と同じロジック）
-            local log_content
+            has_complete=true
+        fi
+        
+        if [[ "$check_errors" == "true" ]]; then
+            if grep -qF "$error_marker" "$log_file" 2>/dev/null || \
+               grep -qF "$alt_error_marker" "$log_file" 2>/dev/null; then
+                has_error=true
+            fi
+        fi
+        
+        # 必要な場合のみ1回だけ読み込み
+        local log_content=""
+        if [[ "$has_complete" == "true" ]] || [[ "$has_error" == "true" ]]; then
             log_content=$(cat "$log_file" 2>/dev/null) || log_content=""
+        fi
+        
+        # COMPLETEマーカーをコードブロック外で検証
+        if [[ "$has_complete" == "true" ]]; then
             local verified_count
             verified_count=$(count_any_markers_outside_codeblock "$log_content" "$complete_marker" "$alt_complete_marker")
             if [[ "$verified_count" -gt 0 ]]; then
@@ -150,24 +169,15 @@ check_session_markers() {
             log_debug "Marker found but inside code block, ignoring"
         fi
         
-        # ERRORマーカーをチェック（オプション）
-        if [[ "$check_errors" == "true" ]]; then
-            local error_marker="###TASK_ERROR_${issue_number}###"
-            local alt_error_marker="###ERROR_TASK_${issue_number}###"
-            
-            if grep -qF "$error_marker" "$log_file" 2>/dev/null || \
-               grep -qF "$alt_error_marker" "$log_file" 2>/dev/null; then
-                # コードブロック内のマーカーを除外（watch-session.sh と同じロジック）
-                local err_log_content
-                err_log_content=$(cat "$log_file" 2>/dev/null) || err_log_content=""
-                local err_verified_count
-                err_verified_count=$(count_any_markers_outside_codeblock "$err_log_content" "$error_marker" "$alt_error_marker")
-                if [[ "$err_verified_count" -gt 0 ]]; then
-                    echo "error"
-                    return
-                fi
-                log_debug "Error marker found but inside code block, ignoring"
+        # ERRORマーカーをコードブロック外で検証
+        if [[ "$has_error" == "true" ]]; then
+            local err_verified_count
+            err_verified_count=$(count_any_markers_outside_codeblock "$log_content" "$error_marker" "$alt_error_marker")
+            if [[ "$err_verified_count" -gt 0 ]]; then
+                echo "error"
+                return
             fi
+            log_debug "Error marker found but inside code block, ignoring"
         fi
         
         echo ""
