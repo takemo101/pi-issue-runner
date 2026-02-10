@@ -368,6 +368,12 @@ agents:
   merge: agents/merge.md
   test: agents/test.md
   ci-fix: agents/ci-fix.md
+  code-review: agents/code-review.md
+  improve-review: agents/improve-review.md
+  review-bugs: agents/review-bugs.md
+  review-security: agents/review-security.md
+  review-architecture: agents/review-architecture.md
+  review-ai-antipattern: agents/review-ai-antipattern.md
 ```
 
 ## 設定項目詳細
