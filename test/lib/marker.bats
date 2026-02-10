@@ -255,6 +255,87 @@ some text
     [ "$result" -eq 0 ]
 }
 
+# grep_marker_count_in_file tests
+
+@test "grep_marker_count_in_file returns count for single marker" {
+    local file="$BATS_TEST_TMPDIR/test.log"
+    printf '%s\n' "line1" "###TASK_COMPLETE_42###" "line3" "###TASK_COMPLETE_42###" > "$file"
+    local result
+    result=$(grep_marker_count_in_file "$file" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 2 ]
+}
+
+@test "grep_marker_count_in_file returns 0 for missing file" {
+    local result
+    result=$(grep_marker_count_in_file "/nonexistent/file" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 0 ]
+}
+
+@test "grep_marker_count_in_file sums counts for multiple markers" {
+    local file="$BATS_TEST_TMPDIR/test.log"
+    printf '%s\n' "###TASK_COMPLETE_42###" "###COMPLETE_TASK_42###" "other line" > "$file"
+    local result
+    result=$(grep_marker_count_in_file "$file" "###TASK_COMPLETE_42###" "###COMPLETE_TASK_42###")
+    [ "$result" -eq 2 ]
+}
+
+@test "grep_marker_count_in_file returns 0 when no match" {
+    local file="$BATS_TEST_TMPDIR/test.log"
+    printf '%s\n' "no markers here" "just text" > "$file"
+    local result
+    result=$(grep_marker_count_in_file "$file" "###TASK_COMPLETE_42###")
+    [ "$result" -eq 0 ]
+}
+
+# verify_marker_outside_codeblock tests
+
+@test "verify_marker_outside_codeblock returns 0 for marker outside code block (file)" {
+    local file="$BATS_TEST_TMPDIR/test.log"
+    printf '%s\n' "some text" "###TASK_COMPLETE_42###" "more text" > "$file"
+    verify_marker_outside_codeblock "$file" "###TASK_COMPLETE_42###" "true"
+}
+
+@test "verify_marker_outside_codeblock returns 1 for marker inside code block (file)" {
+    local file="$BATS_TEST_TMPDIR/test.log"
+    printf '%s\n' '```' "###TASK_COMPLETE_42###" '```' > "$file"
+    run verify_marker_outside_codeblock "$file" "###TASK_COMPLETE_42###" "true"
+    [ "$status" -ne 0 ]
+}
+
+@test "verify_marker_outside_codeblock returns 1 for missing marker (file)" {
+    local file="$BATS_TEST_TMPDIR/test.log"
+    printf '%s\n' "no markers" > "$file"
+    run verify_marker_outside_codeblock "$file" "###TASK_COMPLETE_42###" "true"
+    [ "$status" -ne 0 ]
+}
+
+@test "verify_marker_outside_codeblock works with text input" {
+    local text="some text
+###TASK_COMPLETE_42###
+more text"
+    verify_marker_outside_codeblock "$text" "###TASK_COMPLETE_42###" "false"
+}
+
+@test "verify_marker_outside_codeblock strips ANSI codes from file" {
+    local file="$BATS_TEST_TMPDIR/test.log"
+    printf '%s\n' "some text" $'\x1b[32m###TASK_COMPLETE_42###\x1b[0m' "more text" > "$file"
+    verify_marker_outside_codeblock "$file" "###TASK_COMPLETE_42###" "true"
+}
+
+# strip_ansi tests
+
+@test "strip_ansi removes ANSI escape sequences" {
+    local result
+    result=$(printf '\x1b[32mhello\x1b[0m' | strip_ansi)
+    [ "$result" = "hello" ]
+}
+
+@test "strip_ansi removes carriage returns" {
+    local result
+    result=$(printf 'hello\rworld' | strip_ansi)
+    [ "$result" = "helloworld" ]
+}
+
 @test "count_any_markers_outside_codeblock ignores markers in code blocks" {
     local output="\`\`\`
 ###COMPLETE_TASK_42###
