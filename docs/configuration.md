@@ -1212,6 +1212,49 @@ tracker:
 PI_RUNNER_TRACKER_FILE=".tracker/results.jsonl" ./scripts/run.sh 42
 ```
 
+### gates
+
+品質ゲート設定（COMPLETEマーカー検出後の自動品質チェック）
+
+トップレベルの `gates` はグローバル設定（ワークフロー固有の gates が未定義時に適用）。
+ワークフロー固有の gates は `workflows.<name>.gates` で定義。
+
+#### 使用例
+
+```yaml
+# グローバルゲート
+gates:
+  - "shellcheck -x scripts/*.sh lib/*.sh"
+  - "bats --jobs 4 test/"
+
+# ワークフロー固有
+workflows:
+  default:
+    steps: [plan, implement, merge]
+    gates:
+      - "shellcheck -x scripts/*.sh lib/*.sh"
+      - command: "bats test/"
+        timeout: 600
+        max_retry: 1
+        description: "Batsテスト"
+      - call: code-review
+        max_retry: 2
+```
+
+#### ゲートアイテムのフィールド（詳細形式）
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `command` | string | - | 実行するシェルコマンド |
+| `call` | string | - | ゲートとして呼び出すワークフロー名 |
+| `timeout` | integer | 300 | タイムアウト（秒） |
+| `max_retry` | integer | 0 | リトライ回数 |
+| `retry_interval` | integer | 10 | リトライ間隔（秒） |
+| `continue_on_fail` | boolean | false | 失敗しても次のゲートに続行 |
+| `description` | string | - | ログ表示用の説明 |
+
+詳細は [gates.md](gates.md) を参照。
+
 ### agents
 
 | キー | 型 | デフォルト | 説明 |

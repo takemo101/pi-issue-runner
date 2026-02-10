@@ -865,3 +865,89 @@ EOF
     [ "$status" -eq 1 ]
     [[ "$output" == *"fail_gate"* ]]
 }
+
+# ====================
+# GATE_RESULTS_JSON
+# ====================
+
+@test "run_gates sets GATE_RESULTS_JSON on success" {
+    local config="$BATS_TEST_TMPDIR/results-success.yaml"
+    cat > "$config" << 'EOF'
+gates:
+  - "true"
+  - "true"
+EOF
+    reset_yaml_cache
+
+    local gates
+    gates=$(parse_gate_config "$config")
+    run_gates "$gates" "" "" "" "$BATS_TEST_TMPDIR"
+
+    [ -n "$GATE_RESULTS_JSON" ]
+    local total_retries
+    total_retries="$(printf '%s' "$GATE_RESULTS_JSON" | jq '.total_gate_retries')"
+    [ "$total_retries" = "0" ]
+}
+
+@test "run_gates GATE_RESULTS_JSON contains gate entries" {
+    local config="$BATS_TEST_TMPDIR/results-entries.yaml"
+    cat > "$config" << 'EOF'
+gates:
+  - "echo hello"
+EOF
+    reset_yaml_cache
+
+    local gates
+    gates=$(parse_gate_config "$config")
+    run_gates "$gates" "" "" "" "$BATS_TEST_TMPDIR"
+
+    [ -n "$GATE_RESULTS_JSON" ]
+    local gate_count
+    gate_count="$(printf '%s' "$GATE_RESULTS_JSON" | jq '.gates | length')"
+    [ "$gate_count" = "1" ]
+}
+
+@test "run_gates GATE_RESULTS_JSON records pass result" {
+    local config="$BATS_TEST_TMPDIR/results-pass.yaml"
+    cat > "$config" << 'EOF'
+gates:
+  - command: "true"
+    description: "mygate"
+EOF
+    reset_yaml_cache
+
+    local gates
+    gates=$(parse_gate_config "$config")
+    run_gates "$gates" "" "" "" "$BATS_TEST_TMPDIR"
+
+    [ -n "$GATE_RESULTS_JSON" ]
+    local result
+    result="$(printf '%s' "$GATE_RESULTS_JSON" | jq -r '.gates.mygate.result')"
+    [ "$result" = "pass" ]
+}
+
+@test "run_gates GATE_RESULTS_JSON records fail result" {
+    local config="$BATS_TEST_TMPDIR/results-fail.yaml"
+    cat > "$config" << 'EOF'
+gates:
+  - command: "false"
+    description: "badgate"
+    continue_on_fail: true
+EOF
+    reset_yaml_cache
+
+    local gates
+    gates=$(parse_gate_config "$config")
+    run_gates "$gates" "" "" "" "$BATS_TEST_TMPDIR" || true
+
+    [ -n "$GATE_RESULTS_JSON" ]
+    local result
+    result="$(printf '%s' "$GATE_RESULTS_JSON" | jq -r '.gates.badgate.result')"
+    [ "$result" = "fail" ]
+}
+
+@test "run_gates GATE_RESULTS_JSON is empty when no gates" {
+    GATE_RESULTS_JSON="leftover"
+    run_gates "" "" "" "" "$BATS_TEST_TMPDIR"
+    [ -z "$GATE_RESULTS_JSON" ]
+}

@@ -9,6 +9,7 @@
 # Options:
 #   --by-workflow       ワークフロー別成功率を表示
 #   --failures          失敗パターン分析（直近の失敗一覧）
+#   --gates             ゲート統計表示（ゲート別通過率、リトライ数）
 #   --since "N days"    期間指定（N日以内のエントリのみ）
 #   --json              JSON形式で出力
 #   -h, --help          ヘルプを表示
@@ -41,6 +42,7 @@ Usage: $(basename "$0") [options]
 Options:
     --by-workflow       ワークフロー別成功率を表示
     --failures          失敗パターン分析（直近の失敗一覧）
+    --gates             ゲート統計表示（ゲート別通過率、リトライ数）
     --since "N days"    期間指定（N日以内のエントリのみ）
     --json              JSON形式で出力
     -h, --help          このヘルプを表示
@@ -244,6 +246,66 @@ _show_failures() {
     done
 }
 
+_show_gates() {
+    local tracker_file="$1"
+    local since_epoch="${2:-}"
+
+    local entries
+    if [[ -n "$since_epoch" ]]; then
+        entries="$(_filter_by_since "$since_epoch" < "$tracker_file")"
+    else
+        entries="$(cat "$tracker_file")"
+    fi
+
+    if [[ -z "$entries" ]]; then
+        echo "No entries found."
+        return 0
+    fi
+
+    if ! command -v jq &>/dev/null; then
+        log_error "jq is required for --gates"
+        return 1
+    fi
+
+    local with_gates
+    with_gates="$(printf '%s\n' "$entries" | jq -c 'select(.gates != null and .gates != {})')"
+
+    if [[ -z "$with_gates" ]]; then
+        echo "=== Gate Statistics ==="
+        echo "No gate data found."
+        return 0
+    fi
+
+    local total_entries
+    total_entries="$(printf '%s\n' "$with_gates" | wc -l | tr -d ' ')"
+
+    echo "=== Gate Statistics ==="
+    echo "Entries with gate data: $total_entries"
+    echo ""
+
+    local all_gate_names
+    all_gate_names="$(printf '%s\n' "$with_gates" | jq -r '.gates | keys[]' | sort -u)"
+
+    echo "Gate Pass Rates:"
+    while IFS= read -r gate_name; do
+        [[ -z "$gate_name" ]] && continue
+        local gate_total gate_pass gate_rate total_attempts
+        gate_total="$(printf '%s\n' "$with_gates" | jq -c --arg g "$gate_name" 'select(.gates[$g] != null)' | wc -l | tr -d ' ')"
+        gate_pass="$(printf '%s\n' "$with_gates" | jq -c --arg g "$gate_name" 'select(.gates[$g] != null and .gates[$g].result == "pass")' | wc -l | tr -d ' ')"
+        gate_rate="0.0"
+        if [[ "$gate_total" -gt 0 ]]; then
+            gate_rate="$(awk "BEGIN {printf \"%.1f\", ($gate_pass / $gate_total) * 100}")"
+        fi
+        total_attempts="$(printf '%s\n' "$with_gates" | jq --arg g "$gate_name" '.gates[$g].attempts // 0' | awk '{s+=$1} END {print s}')"
+        printf "  %-30s %d/%d  %s%%  (total attempts: %s)\n" "$gate_name" "$gate_pass" "$gate_total" "$gate_rate" "$total_attempts"
+    done <<< "$all_gate_names"
+
+    echo ""
+    local total_retries
+    total_retries="$(printf '%s\n' "$with_gates" | jq '.total_gate_retries // 0' | awk '{s+=$1} END {print s}')"
+    echo "Total retries across all entries: $total_retries"
+}
+
 _show_json() {
     local tracker_file="$1"
     local since_epoch="${2:-}"
@@ -284,6 +346,10 @@ main() {
                 ;;
             --failures)
                 mode="failures"
+                shift
+                ;;
+            --gates)
+                mode="gates"
                 shift
                 ;;
             --since)
@@ -340,6 +406,9 @@ main() {
             ;;
         failures)
             _show_failures "$tracker_file" "$since_epoch"
+            ;;
+        gates)
+            _show_gates "$tracker_file" "$since_epoch"
             ;;
     esac
 }

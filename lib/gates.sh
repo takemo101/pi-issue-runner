@@ -442,6 +442,7 @@ run_call_gate() {
 # gate_definitions: parse_gate_config の出力（タブ区切り形式）
 # Returns: 0=全通過, 1=いずれか失敗
 # Output: 失敗ゲートの出力をstdoutに出力
+# Side effect: GATE_RESULTS_JSON にゲート結果JSON文字列を格納
 run_gates() {
     local gate_definitions="$1"
     local issue_number="${2:-${PI_ISSUE_NUMBER:-}}"
@@ -451,6 +452,9 @@ run_gates() {
     local config_file="${6:-${PI_RUNNER_CONFIG_FILE:-}}"
     local calling_workflow="${7:-}"
 
+    # ゲート結果を格納するグローバル変数をリセット
+    GATE_RESULTS_JSON=""
+
     if [[ -z "$gate_definitions" ]]; then
         log_debug "No gates defined, skipping"
         return 0
@@ -459,6 +463,10 @@ run_gates() {
     local has_failure=false
     local failed_output=""
     local gate_index=0
+    local total_retries=0
+
+    # ゲート結果を蓄積する配列（ゲート名:結果:試行回数）
+    local -a gate_results_entries=()
 
     while IFS= read -r gate_line; do
         [[ -z "$gate_line" ]] && continue
@@ -493,6 +501,14 @@ run_gates() {
                 attempt=$((attempt + 1))
             done
 
+            local actual_attempts=$((attempt + 1))
+            if [[ "$gate_passed" == "true" ]]; then
+                gate_results_entries+=("${display_name}	pass	${actual_attempts}")
+            else
+                gate_results_entries+=("${display_name}	fail	${actual_attempts}")
+            fi
+            total_retries=$((total_retries + attempt))
+
             if [[ "$gate_passed" == "false" ]]; then
                 log_error "Gate $gate_index: FAILED - $display_name"
                 if [[ -n "$output" ]]; then
@@ -505,6 +521,7 @@ run_gates() {
                     log_warn "Gate $gate_index: continue_on_fail=true, continuing..."
                     has_failure=true
                 else
+                    _build_gate_results_json gate_results_entries "$total_retries"
                     echo "$failed_output"
                     return 1
                 fi
@@ -541,6 +558,14 @@ run_gates() {
             attempt=$((attempt + 1))
         done
 
+        local actual_attempts=$((attempt + 1))
+        if [[ "$gate_passed" == "true" ]]; then
+            gate_results_entries+=("${display_name}	pass	${actual_attempts}")
+        else
+            gate_results_entries+=("${display_name}	fail	${actual_attempts}")
+        fi
+        total_retries=$((total_retries + attempt))
+
         if [[ "$gate_passed" == "false" ]]; then
             log_error "Gate $gate_index: FAILED - $display_name"
             if [[ -n "$output" ]]; then
@@ -554,11 +579,14 @@ run_gates() {
                 has_failure=true
             else
                 # 失敗出力を表示して即終了
+                _build_gate_results_json gate_results_entries "$total_retries"
                 echo "$failed_output"
                 return 1
             fi
         fi
     done <<< "$gate_definitions"
+
+    _build_gate_results_json gate_results_entries "$total_retries"
 
     if [[ "$has_failure" == "true" ]]; then
         echo "$failed_output"
@@ -566,6 +594,56 @@ run_gates() {
     fi
 
     return 0
+}
+
+# ===================
+# _build_gate_results_json - ゲート結果をJSON文字列に変換
+# ===================
+
+# 内部関数: ゲート結果配列からJSON文字列を構築し GATE_RESULTS_JSON に格納
+# Usage: _build_gate_results_json <array_name_ref> <total_retries>
+# shellcheck disable=SC2034  # GATE_RESULTS_JSON is used by callers (watch-session.sh)
+_build_gate_results_json() {
+    local -n entries_ref="$1"
+    local total_retries="$2"
+
+    if [[ ${#entries_ref[@]} -eq 0 ]]; then
+        GATE_RESULTS_JSON=""
+        return 0
+    fi
+
+    if command -v jq &>/dev/null; then
+        # jq を使ったJSON構築
+        local gates_obj="{}"
+        local entry
+        for entry in "${entries_ref[@]}"; do
+            local name result attempts
+            IFS=$'\t' read -r name result attempts <<< "$entry"
+            gates_obj="$(printf '%s' "$gates_obj" | jq -c \
+                --arg name "$name" \
+                --arg result "$result" \
+                --argjson attempts "$attempts" \
+                '. + {($name): {result: $result, attempts: $attempts}}')"
+        done
+
+        GATE_RESULTS_JSON="$(jq -c -n \
+            --argjson gates "$gates_obj" \
+            --argjson total_retries "$total_retries" \
+            '{gates: $gates, total_gate_retries: $total_retries}')"
+    else
+        # jq なしフォールバック
+        local gates_parts=""
+        local entry
+        for entry in "${entries_ref[@]}"; do
+            local name result attempts
+            IFS=$'\t' read -r name result attempts <<< "$entry"
+            if [[ -n "$gates_parts" ]]; then
+                gates_parts+=","
+            fi
+            gates_parts+="\"${name}\":{\"result\":\"${result}\",\"attempts\":${attempts}}"
+        done
+        GATE_RESULTS_JSON="{\"gates\":{${gates_parts}},\"total_gate_retries\":${total_retries}}"
+    fi
 }
 
 # ===================

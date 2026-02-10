@@ -316,6 +316,13 @@
         }
       }
     },
+    "gates": {
+      "type": "array",
+      "description": "Global quality gates (used when workflow-specific gates are not defined)",
+      "items": {
+        "$ref": "#/definitions/gateItem"
+      }
+    },
     "tracker": {
       "type": "object",
       "description": "Prompt tracker settings",
@@ -372,6 +379,55 @@
     }
   },
   "definitions": {
+    "gateItem": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Simple gate: shell command string (exit 0 = pass)"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "Shell command to execute"
+            },
+            "call": {
+              "type": "string",
+              "description": "Workflow name to invoke as a gate (runs in separate AI instance)"
+            },
+            "timeout": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 300,
+              "description": "Timeout in seconds"
+            },
+            "max_retry": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "description": "Maximum retry attempts on failure"
+            },
+            "retry_interval": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 10,
+              "description": "Seconds between retries"
+            },
+            "continue_on_fail": {
+              "type": "boolean",
+              "default": false,
+              "description": "Continue to next gate even if this one fails"
+            },
+            "description": {
+              "type": "string",
+              "description": "Human-readable description for logs"
+            }
+          }
+        }
+      ]
+    },
     "namedWorkflow": {
       "type": "object",
       "required": ["steps"],
@@ -390,6 +446,13 @@
         "context": {
           "type": "string",
           "description": "Workflow-specific context injected into all step prompts"
+        },
+        "gates": {
+          "type": "array",
+          "description": "Quality gates to run after task completion (before PR merge)",
+          "items": {
+            "$ref": "#/definitions/gateItem"
+          }
         },
         "agent": {
           "type": "object",

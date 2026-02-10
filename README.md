@@ -186,6 +186,9 @@ scripts/run.sh 42 --no-attach
 # pi終了後の自動クリーンアップを無効化
 scripts/run.sh 42 --no-cleanup
 
+# 品質ゲートをスキップ
+scripts/run.sh 42 --no-gates
+
 # カスタムブランチ名で作成（-b は --branch の短縮形）
 scripts/run.sh 42 -b custom-feature
 
@@ -639,6 +642,9 @@ scripts/tracker.sh --by-workflow
 
 # 失敗パターン分析
 scripts/tracker.sh --failures
+
+# ゲート統計表示
+scripts/tracker.sh --gates
 
 # 期間指定（直近7日間）
 scripts/tracker.sh --since "7 days"
@@ -1223,6 +1229,7 @@ gh auth login
 - [公開API](docs/public-api.md) - 外部から利用可能なライブラリ関数
 - [ワークフロー](docs/workflows.md) - ワークフロー定義の詳細
 - [Hook機能](docs/hooks.md) - イベントフック詳細
+- [Gates（品質ゲート）](docs/gates.md) - COMPLETE後の自動品質チェック
 - [Git Worktree管理](docs/worktree-management.md) - worktree運用
 - [マルチプレクサ統合](docs/multiplexer-integration.md) - tmux/Zellijセッション管理
 - [並列実行](docs/parallel-execution.md) - 複数タスクの並列処理

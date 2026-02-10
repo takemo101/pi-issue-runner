@@ -311,17 +311,16 @@ _complete_status_and_plans() {
 }
 
 # Run completion hooks
-# Usage: _run_completion_hooks <issue_number> <session_name> <branch_name> <worktree_path>
+# Usage: _run_completion_hooks <issue_number> <session_name> <branch_name> <worktree_path> [gates_json]
 _run_completion_hooks() {
     local issue_number="$1"
     local session_name="$2"
     local branch_name="$3"
     local worktree_path="$4"
+    local gates_json="${5:-}"
     
-    # トラッカーに記録
-    record_tracker_entry "$issue_number" "success" 2>/dev/null || true
+    record_tracker_entry "$issue_number" "success" "" "$gates_json" 2>/dev/null || true
     
-    # on_success hookを実行（hook未設定時はデフォルト動作）
     run_hook "on_success" "$issue_number" "$session_name" "$branch_name" "$worktree_path" "" "0" "" 2>/dev/null || true
 }
 
@@ -501,6 +500,7 @@ handle_complete() {
     # 2. ゲート実行（PR確認前の品質チェック）
     local gate_result=0
     _run_gates_check "$session_name" "$issue_number" "$worktree_path" "$branch_name" || gate_result=$?
+    local gates_json="${GATE_RESULTS_JSON:-}"
     if [[ $gate_result -ne 0 ]]; then
         log_warn "Gate check failed. Continuing to monitor for re-completion..."
         return 2
@@ -510,7 +510,7 @@ handle_complete() {
     _complete_status_and_plans "$issue_number" "$session_name"
     
     # 4. Hook実行
-    _run_completion_hooks "$issue_number" "$session_name" "$branch_name" "$worktree_path"
+    _run_completion_hooks "$issue_number" "$session_name" "$branch_name" "$worktree_path" "$gates_json"
     
     # 5. PR確認（リトライロジック付き）
     local pr_check_result

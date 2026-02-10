@@ -128,25 +128,25 @@ remove_tracker_metadata() {
 # ===================
 
 # タスク結果をJSONL形式で記録
-# Usage: record_tracker_entry <issue_number> <result> [error_type]
+# Usage: record_tracker_entry <issue_number> <result> [error_type] [gates_json]
 # Arguments:
 #   issue_number - Issue番号
 #   result       - "success", "error", or "abandoned"
 #   error_type   - エラー分類（任意、result=error時のみ）
+#   gates_json   - ゲート結果JSON（任意、GATE_RESULTS_JSON から取得可能）
 record_tracker_entry() {
     local issue_number="$1"
     local result="$2"
     local error_type="${3:-}"
+    local gates_json="${4:-}"
 
     local tracker_file
     tracker_file="$(get_tracker_file)"
 
-    # ディレクトリ確認
     local tracker_dir
     tracker_dir="$(dirname "$tracker_file")"
     mkdir -p "$tracker_dir"
 
-    # メタデータ読み込み
     local workflow_name="unknown"
     local start_epoch=""
     local meta_line=""
@@ -155,7 +155,6 @@ record_tracker_entry() {
         start_epoch="$(printf '%s' "$meta_line" | cut -f3)"
     fi
 
-    # 実行時間を計算
     local duration_sec=0
     local now_epoch
     now_epoch="$(date +%s)"
@@ -163,11 +162,9 @@ record_tracker_entry() {
         duration_sec=$((now_epoch - start_epoch))
     fi
 
-    # タイムスタンプ
     local timestamp
     timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
-    # JSONLエントリを構築
     local json_entry
     if command -v jq &>/dev/null; then
         local jq_args=(
@@ -186,19 +183,40 @@ record_tracker_entry() {
         fi
 
         json_entry="$(jq "${jq_args[@]}" "$jq_expr")"
+
+        if [[ -n "$gates_json" ]]; then
+            local gates_obj total_retries
+            gates_obj="$(printf '%s' "$gates_json" | jq -c '.gates // {}' 2>/dev/null)" || gates_obj="{}"
+            total_retries="$(printf '%s' "$gates_json" | jq '.total_gate_retries // 0' 2>/dev/null)" || total_retries="0"
+            json_entry="$(printf '%s' "$json_entry" | jq -c \
+                --argjson gates "$gates_obj" \
+                --argjson total_gate_retries "$total_retries" \
+                '. + {gates: $gates, total_gate_retries: $total_gate_retries}')"
+        fi
     else
-        # jqなしフォールバック
+        local base_json
         if [[ -n "$error_type" ]]; then
-            json_entry="{\"issue\":${issue_number},\"workflow\":\"${workflow_name}\",\"result\":\"${result}\",\"duration_sec\":${duration_sec},\"error_type\":\"${error_type}\",\"timestamp\":\"${timestamp}\"}"
+            base_json="\"issue\":${issue_number},\"workflow\":\"${workflow_name}\",\"result\":\"${result}\",\"duration_sec\":${duration_sec},\"error_type\":\"${error_type}\",\"timestamp\":\"${timestamp}\""
         else
-            json_entry="{\"issue\":${issue_number},\"workflow\":\"${workflow_name}\",\"result\":\"${result}\",\"duration_sec\":${duration_sec},\"timestamp\":\"${timestamp}\"}"
+            base_json="\"issue\":${issue_number},\"workflow\":\"${workflow_name}\",\"result\":\"${result}\",\"duration_sec\":${duration_sec},\"timestamp\":\"${timestamp}\""
+        fi
+
+        if [[ -n "$gates_json" ]]; then
+            local gates_part total_retries_part
+            gates_part="$(printf '%s' "$gates_json" | grep -o '"gates":{[^}]*}' | head -1)" || gates_part=""
+            total_retries_part="$(printf '%s' "$gates_json" | grep -o '"total_gate_retries":[0-9]*' | head -1)" || total_retries_part=""
+            if [[ -n "$gates_part" && -n "$total_retries_part" ]]; then
+                json_entry="{${base_json},${gates_part},${total_retries_part}}"
+            else
+                json_entry="{${base_json}}"
+            fi
+        else
+            json_entry="{${base_json}}"
         fi
     fi
 
-    # ファイルに追記（アトミック追記）
     printf '%s\n' "$json_entry" >> "$tracker_file"
     log_info "Tracker: recorded ${result} for issue #${issue_number} (workflow: ${workflow_name}, duration: ${duration_sec}s)"
 
-    # メタデータ削除
     remove_tracker_metadata "$issue_number"
 }
