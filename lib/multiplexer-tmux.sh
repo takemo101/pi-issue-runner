@@ -77,6 +77,9 @@ mux_create_session() {
     # デタッチ状態でセッション作成
     tmux new-session -d -s "$session_name" -c "$working_dir"
     
+    # マウススクロールを有効化
+    tmux set-option -t "$session_name" mouse on 2>/dev/null || true
+    
     # エディタを無効化
     tmux send-keys -t "$session_name" "export GIT_EDITOR=true EDITOR=true VISUAL=true" Enter
     
