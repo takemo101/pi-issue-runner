@@ -201,7 +201,20 @@ process_issue_status() {
             fi
             ;;
         running)
-            _all_done_ref=false
+            # セッションが存在するか確認（watcher未更新のstale running検出）
+            local session_name
+            session_name="$(generate_session_name "$issue")"
+            if ! session_exists "$session_name" 2>/dev/null; then
+                # セッションがないのにrunning → watcherが更新せずに終了した
+                _errored_ref="$_errored_ref $issue"
+                _has_error_ref=true
+                if [[ "$quiet" != "true" ]]; then
+                    echo "[✗] Issue #$issue エラー（セッションが消滅）"
+                fi
+                _run_issue_cleanup "$issue"
+            else
+                _all_done_ref=false
+            fi
             ;;
         unknown)
             # tmuxセッションが存在するか確認
