@@ -173,6 +173,7 @@ pi-mux-all:scripts/mux-all.sh
 pi-generate-config:scripts/generate-config.sh
 pi-test:scripts/test.sh
 pi-tracker:scripts/tracker.sh
+pi-knowledge-loop:scripts/knowledge-loop.sh
 pi-verify-config-docs:scripts/verify-config-docs.sh
 "
 

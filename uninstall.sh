@@ -47,6 +47,7 @@ pi-mux-all
 pi-generate-config
 pi-test
 pi-tracker
+pi-knowledge-loop
 pi-verify-config-docs
 "
 

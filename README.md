@@ -78,6 +78,8 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | `pi-generate-config` | プロジェクト解析・設定生成 |
 | `pi-test` | テスト一括実行 |
 | `pi-verify-config-docs` | 設定ドキュメントの整合性検証 |
+| `pi-tracker` | プロンプト効果測定（ワークフロー別成功率の集計・表示） |
+| `pi-knowledge-loop` | 知識ループ（fixコミットからAGENTS.md更新を提案） |
 
 | オプション | 説明 |
 |-----------|------|
@@ -623,6 +625,53 @@ scripts/wait-for-sessions.sh 140 141 --timeout 1800
 scripts/wait-for-sessions.sh 140 141 --fail-fast
 ```
 
+### プロンプト効果測定（tracker）
+
+タスクの成功/失敗をワークフロー別に記録・集計し、プロンプト改善に活用できます。
+`run.sh` 実行時に自動的に結果が記録されます。
+
+```bash
+# 全体の成功率を表示
+scripts/tracker.sh
+
+# ワークフロー別成功率
+scripts/tracker.sh --by-workflow
+
+# 失敗パターン分析
+scripts/tracker.sh --failures
+
+# 期間指定（直近7日間）
+scripts/tracker.sh --since "7 days"
+
+# JSON形式で出力
+scripts/tracker.sh --json
+```
+
+設定（`.pi-runner.yaml`）:
+```yaml
+tracker:
+  file: ".worktrees/.status/tracker.jsonl"  # 記録ファイルのパス
+```
+
+### 知識ループ（knowledge-loop）
+
+fixコミットや `docs/decisions/` から知見を抽出し、AGENTS.md への更新を提案します。
+`improve.sh` のレビューフェーズでも自動的に呼び出されます。
+
+```bash
+# 直近1週間のfixコミットを解析して提案を表示
+scripts/knowledge-loop.sh
+
+# 期間を指定
+scripts/knowledge-loop.sh --since "3 days ago"
+
+# 提案をAGENTS.mdに自動適用
+scripts/knowledge-loop.sh --apply
+
+# ドライラン（デフォルト）
+scripts/knowledge-loop.sh --dry-run
+```
+
 ## ワークフロー
 
 ### ビルトインワークフロー
@@ -844,6 +893,8 @@ pi-issue-runner/
 │   ├── improve.sh          # 継続的改善スクリプト
 │   ├── init.sh             # プロジェクト初期化
 │   ├── test.sh             # テスト一括実行
+│   ├── tracker.sh          # プロンプト効果測定（集計・表示）
+│   ├── knowledge-loop.sh   # 知識ループ（fixコミットから知見抽出）
 │   └── verify-config-docs.sh  # 設定ドキュメントの整合性検証
 ├── lib/
 │   ├── agent.sh            # マルチエージェント対応
@@ -885,6 +936,8 @@ pi-issue-runner/
 │   ├── workflow-prompt.sh  # プロンプト処理
 │   ├── workflow-selector.sh # ワークフロー自動選択（auto モード）
 │   ├── workflow.sh         # ワークフローエンジン
+│   ├── tracker.sh          # プロンプト効果測定（記録コア）
+│   ├── knowledge-loop.sh   # 知識ループコアライブラリ
 │   ├── worktree.sh         # Git worktree操作
 │   └── yaml.sh             # YAMLパーサー
 ├── workflows/               # ビルトインワークフロー定義
@@ -928,6 +981,8 @@ pi-issue-runner/
 │   │   ├── workflow-loader.bats  # workflow-loader.sh のテスト
 │   │   ├── workflow-prompt.bats  # workflow-prompt.sh のテスト
 │   │   ├── workflow.bats    # workflow.sh のテスト
+│   │   ├── tracker.bats     # tracker.sh のテスト
+│   │   ├── knowledge-loop.bats # knowledge-loop.sh のテスト
 │   │   ├── worktree.bats    # worktree.sh のテスト
 │   │   └── yaml.bats        # yaml.sh のテスト
 │   ├── scripts/             # スクリプトの統合テスト
@@ -1023,6 +1078,8 @@ test/
 │   ├── workflow-prompt.bats     # workflow-prompt.sh のテスト
 │   ├── workflow-selector.bats   # workflow-selector.sh のテスト
 │   ├── workflow.bats            # workflow.sh のテスト
+│   ├── tracker.bats             # tracker.sh のテスト
+│   ├── knowledge-loop.bats     # knowledge-loop.sh のテスト
 │   ├── worktree.bats            # worktree.sh のテスト
 │   └── yaml.bats                # yaml.sh のテスト
 ├── scripts/                     # スクリプトの統合テスト
@@ -1046,6 +1103,8 @@ test/
 │   ├── stop.bats                # stop.sh のテスト
 │   ├── sweep.bats               # sweep.sh のテスト
 │   ├── test.bats                # test.sh のテスト
+│   ├── tracker.bats             # tracker.sh のテスト
+│   ├── knowledge-loop.bats     # knowledge-loop.sh のテスト
 │   ├── verify-config-docs.bats  # verify-config-docs.sh のテスト
 │   ├── wait-for-sessions.bats   # wait-for-sessions.sh のテスト
 │   └── watch-session.bats       # watch-session.sh のテスト
