@@ -318,7 +318,7 @@
     },
     "gates": {
       "type": "array",
-      "description": "Global quality gates (used when workflow-specific gates are not defined)",
+      "description": "DEPRECATED: Use run:/call: steps in workflows instead. See #1406.",
       "items": {
         "$ref": "#/definitions/gateItem"
       }
@@ -449,7 +449,7 @@
         },
         "gates": {
           "type": "array",
-          "description": "Quality gates to run after task completion (before PR merge)",
+          "description": "DEPRECATED: Use run:/call: steps instead. See #1406.",
           "items": {
             "$ref": "#/definitions/gateItem"
           }
