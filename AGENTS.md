@@ -44,6 +44,7 @@ pi-issue-runner/
 │   ├── generate-config.sh  # プロジェクト解析・設定生成
 │   ├── force-complete.sh  # セッション強制完了
 │   ├── improve.sh     # 継続的改善スクリプト
+│   ├── knowledge-loop.sh  # 知識ループ（fixコミットから知見抽出・AGENTS.md更新提案）
 │   ├── next.sh        # 次のタスク取得
 │   ├── nudge.sh       # セッションへメッセージ送信
 │   ├── test.sh        # テスト一括実行
@@ -81,6 +82,7 @@ pi-issue-runner/
 │   ├── github.sh      # GitHub CLI操作
 │   ├── hooks.sh       # Hook機能
 │   ├── improve.sh     # 継続的改善ライブラリ（オーケストレーター）
+│   ├── knowledge-loop.sh  # 知識ループコアライブラリ
 │   ├── improve/       # 継続的改善モジュール群
 │   │   ├── args.sh    # 引数解析
 │   │   ├── deps.sh    # 依存関係チェック
@@ -178,6 +180,7 @@ pi-issue-runner/
 │   │   │   ├── execution.bats
 │   │   │   └── review.bats
 │   │   ├── improve.bats
+│   │   ├── knowledge-loop.bats  # knowledge-loop.sh のテスト
 │   │   ├── log.bats
 │   │   ├── marker.bats           # marker.sh のテスト
 │   │   ├── notify.bats
@@ -206,6 +209,7 @@ pi-issue-runner/
 │   │   ├── force-complete.bats  # force-complete.sh のテスト
 │   │   ├── generate-config.bats  # generate-config.sh のテスト
 │   │   ├── improve.bats
+│   │   ├── knowledge-loop.bats  # knowledge-loop.sh のテスト
 │   │   ├── init.bats
 │   │   ├── list.bats
 │   │   ├── mux-all.bats         # mux-all.sh のテスト
