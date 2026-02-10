@@ -107,6 +107,8 @@ pi-issue-runner/
 │   ├── nudge.sh       # メッセージ送信
 │   ├── test.sh        # テスト実行
 │   ├── verify-config-docs.sh  # 設定ドキュメントの整合性検証
+│   ├── tracker.sh     # プロンプト効果測定（集計・表示）
+│   ├── knowledge-loop.sh  # 知識ループ（fixコミットから知見抽出・AGENTS.md更新提案）
 │   ├── wait-for-sessions.sh  # 複数セッション待機
 │   └── watch-session.sh      # セッション監視
 ├── lib/               # 共通ライブラリ
@@ -154,6 +156,8 @@ pi-issue-runner/
 │   ├── session-resolver.sh # セッション名解決ユーティリティ
 │   ├── status.sh      # 状態管理
 │   ├── template.sh    # テンプレート処理
+│   ├── tracker.sh     # プロンプト効果測定（記録コア）
+│   ├── knowledge-loop.sh  # 知識ループコアライブラリ
 │   ├── tmux.sh        # 後方互換ラッパー
 │   ├── workflow.sh    # ワークフローエンジン
 │   ├── workflow-finder.sh   # ワークフロー検索
@@ -207,6 +211,8 @@ pi-issue-runner/
 | `next.sh` | 依存関係を考慮した次のタスクを推奨 |
 | `nudge.sh` | セッションへメッセージ送信 |
 | `force-complete.sh` | セッション強制完了 |
+| `tracker.sh` | ワークフロー別成功率の集計・表示 |
+| `knowledge-loop.sh` | fixコミットから知見抽出・AGENTS.md更新提案 |
 | `cleanup.sh` | worktreeとセッションをクリーンアップ |
 
 **共通パターン**:
