@@ -147,7 +147,63 @@ EOF
     [ "$count" -ge 1 ]
     local type
     type="$(echo "$output" | jq -r '.[0].type')"
-    [ "$type" = "fix_commit" ]
+    [ "$type" = "category" ]
+    # Verify category has commits
+    local commit_count
+    commit_count="$(echo "$output" | jq -r '.[0].count')"
+    [ "$commit_count" -ge 1 ]
+}
+
+# ====================
+# --since
+# ====================
+
+# ====================
+# --top N
+# ====================
+
+@test "knowledge-loop.sh --top N limits output" {
+    cd "$TEST_PROJECT"
+    mkdir -p "$TEST_PROJECT/lib"
+
+    printf 'a\n' > "$TEST_PROJECT/lib/marker.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: marker fix" >/dev/null 2>&1
+
+    printf 'b\n' > "$TEST_PROJECT/lib/ci-fix.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: ci fix" >/dev/null 2>&1
+
+    run "$PROJECT_ROOT/scripts/knowledge-loop.sh" --top 1 --since "1 week ago"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Top 1 insights"* ]]
+}
+
+@test "knowledge-loop.sh --top requires numeric argument" {
+    cd "$TEST_PROJECT"
+    run "$PROJECT_ROOT/scripts/knowledge-loop.sh" --top abc
+    [ "$status" -eq 1 ]
+}
+
+# ====================
+# --all
+# ====================
+
+@test "knowledge-loop.sh --all shows all insights" {
+    cd "$TEST_PROJECT"
+    mkdir -p "$TEST_PROJECT/lib"
+
+    printf 'a\n' > "$TEST_PROJECT/lib/marker.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: marker fix" >/dev/null 2>&1
+
+    printf 'b\n' > "$TEST_PROJECT/lib/ci-fix.sh"
+    git -C "$TEST_PROJECT" add -A
+    git -C "$TEST_PROJECT" commit -m "fix: ci fix" >/dev/null 2>&1
+
+    run "$PROJECT_ROOT/scripts/knowledge-loop.sh" --all --since "1 week ago"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Top 2 insights"* ]]
 }
 
 # ====================

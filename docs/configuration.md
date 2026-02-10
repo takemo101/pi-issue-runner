@@ -100,20 +100,20 @@ parallel:
   max_concurrent: 3
 
 # =====================================
-# ワークフロー設定（デフォルト）
+# ワークフロー設定（デフォルト） - 非推奨: workflows.default を推奨
 # =====================================
-# 注: -w オプション未指定時に使用されるデフォルトワークフロー
-#     ワークフロー名を指定する場合は workflows/*.yaml を作成し、-w オプションを使用
-workflow:
-  # 実行するステップ
-  # ビルトイン: plan, implement, review, merge, test, ci-fix
-  # カスタムステップも定義可能（対応するエージェントテンプレートが必要）
-  steps:
-    - plan
-    - implement
-    - test
-    - review
-    - merge
+# NOTE: workflow:（単数形）は後方互換のために残されています。
+# 新しいプロジェクトでは workflows.default を使用してください。
+# workflow:
+#   # 実行するステップ
+#   # ビルトイン: plan, implement, test, review, merge, ci-fix
+#   # カスタムステップも定義可能（対応するエージェントテンプレートが必要）
+#   steps:
+#     - plan
+#     - implement
+#     - test
+#     - review
+#     - merge
 
 # =====================================
 # 名前付きワークフロー設定（複数定義）
@@ -281,6 +281,41 @@ tracker:
   # トラッカーファイルのパス
   # デフォルト: .worktrees/.status/tracker.jsonl
   file: ".worktrees/.status/tracker.jsonl"
+
+# =====================================
+# GitHub設定
+# =====================================
+github:
+  # Issueコメントをプロンプトに含めるか
+  # デフォルト: true
+  include_comments: true
+  
+  # 含めるコメント数の上限
+  # デフォルト: 10
+  max_comments: 10
+
+# =====================================
+# Hook設定
+# =====================================
+hooks:
+  # タスク開始時
+  on_start: ""
+  # 成功時
+  on_success: ""
+  # エラー時
+  on_error: ""
+  # クリーンアップ時
+  on_cleanup: ""
+  # improve開始時
+  on_improve_start: ""
+  # improve終了時
+  on_improve_end: ""
+  # イテレーション開始時
+  on_iteration_start: ""
+  # イテレーション終了時
+  on_iteration_end: ""
+  # レビュー完了時
+  on_review_complete: ""
 
 # =====================================
 # Watcher設定
@@ -738,9 +773,11 @@ PI_RUNNER_AUTO_PROVIDER=anthropic ./scripts/run.sh 42 -w auto
 PI_RUNNER_AUTO_MODEL=claude-haiku-4-5 ./scripts/run.sh 42 -w auto
 ```
 
-### workflow
+### workflow（非推奨）
 
-**重要**: `.pi-runner.yaml` の `workflow` セクションは、**`-w` オプションを指定しない場合に使用される「デフォルトワークフロー」**を定義します。
+> **⚠️ 非推奨**: `workflow:`（単数形）は後方互換のために残されています。新しいプロジェクトでは `workflows.default` を使用してください。`workflows.default` が定義されている場合、`workflow:` は無視されます。
+
+`.pi-runner.yaml` の `workflow` セクションは、`-w` オプション未指定時のデフォルトワークフローを定義します。
 
 | キー | 型 | デフォルト | 説明 |
 |------|------|-----------|------|
