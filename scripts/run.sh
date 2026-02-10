@@ -66,6 +66,7 @@ Options:
     -l, --label LABEL   セッションラベル（識別用タグ）
     --no-attach         セッション作成後にアタッチしない
     --no-cleanup        エージェント終了後の自動クリーンアップを無効化
+    --no-gates          ゲート（品質チェック）を無効化
     --reattach          既存セッションがあればアタッチ
     --force             既存セッション/worktreeを削除して再作成
     --agent-args ARGS   エージェントに渡す追加の引数
@@ -165,6 +166,7 @@ parse_run_arguments() {
     local list_workflows=false
     local ignore_blockers=false
     local session_label=""
+    local no_gates=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -207,6 +209,10 @@ parse_run_arguments() {
                 ;;
             --no-cleanup)
                 cleanup_mode="none"
+                shift
+                ;;
+            --no-gates)
+                no_gates=true
                 shift
                 ;;
             --ignore-blockers)
@@ -264,6 +270,7 @@ parse_run_arguments() {
     _PARSE_list_workflows="$list_workflows"
     _PARSE_ignore_blockers="$ignore_blockers"
     _PARSE_session_label="$session_label"
+    _PARSE_no_gates="$no_gates"
 }
 
 # ============================================================================
@@ -591,6 +598,7 @@ main() {
     local list_workflows="$_PARSE_list_workflows"
     local ignore_blockers="$_PARSE_ignore_blockers"
     local session_label="$_PARSE_session_label"
+    local no_gates="$_PARSE_no_gates"
     
     # Validate inputs
     validate_run_inputs "$issue_number" "$list_workflows"
@@ -630,6 +638,9 @@ main() {
     start_agent_session "$session_name" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path" "$workflow_name" "$issue_comments" "$extra_agent_args" "$session_label"
     
     # Setup completion watcher
+    if [[ "$no_gates" == "true" ]]; then
+        export PI_NO_GATES=1
+    fi
     setup_completion_watcher "$cleanup_mode" "$session_name" "$issue_number"
     
     # Display summary and attach

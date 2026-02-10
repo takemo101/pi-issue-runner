@@ -41,6 +41,7 @@ source "$WATCHER_SCRIPT_DIR/../lib/hooks.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/cleanup-orphans.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/marker.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/tracker.sh"
+source "$WATCHER_SCRIPT_DIR/../lib/gates.sh"
 
 usage() {
     cat << EOF
@@ -408,9 +409,83 @@ _post_cleanup_maintenance() {
     }
 }
 
+# Run gates for quality verification before PR check
+# Usage: _run_gates_check <session_name> <issue_number> <worktree_path> <branch_name>
+# Returns: 0=all passed or no gates, 1=gate failed (nudge sent, continue monitoring)
+_run_gates_check() {
+    local session_name="$1"
+    local issue_number="$2"
+    local worktree_path="$3"
+    local branch_name="$4"
+
+    # PI_NO_GATES が設定されている場合はスキップ
+    if [[ "${PI_NO_GATES:-}" == "1" ]]; then
+        log_info "Gates disabled (PI_NO_GATES=1), skipping"
+        return 0
+    fi
+
+    # 設定ファイルを取得
+    local config_file
+    config_file="$(config_file_found 2>/dev/null)" || config_file=""
+    if [[ -z "$config_file" ]]; then
+        log_debug "No config file found, skipping gates"
+        return 0
+    fi
+
+    # ワークフロー名を取得（tracker metadataから）
+    local workflow_name=""
+    local tracker_meta
+    tracker_meta="$(load_tracker_metadata "$issue_number" 2>/dev/null)" || tracker_meta=""
+    if [[ -n "$tracker_meta" ]]; then
+        workflow_name="$(echo "$tracker_meta" | cut -f1)"
+    fi
+
+    # ゲート設定を取得（ワークフロー固有 → グローバル → なし）
+    local gate_definitions=""
+    if [[ -n "$workflow_name" ]]; then
+        gate_definitions="$(parse_gate_config "$config_file" "$workflow_name")"
+    fi
+    if [[ -z "$gate_definitions" ]]; then
+        gate_definitions="$(parse_gate_config "$config_file")"
+    fi
+
+    if [[ -z "$gate_definitions" ]]; then
+        log_debug "No gates defined, skipping"
+        return 0
+    fi
+
+    log_info "Running gates for Issue #$issue_number..."
+
+    # ゲート実行
+    local gate_output=""
+    local gate_result=0
+    gate_output="$(run_gates "$gate_definitions" "$issue_number" "" "$branch_name" "$worktree_path" 2>&1)" || gate_result=$?
+
+    if [[ $gate_result -ne 0 ]]; then
+        log_warn "Gate(s) failed for Issue #$issue_number"
+
+        # nudge メッセージを構成
+        local nudge_message
+        nudge_message="$(printf 'ゲートチェックが失敗しました。以下の問題を修正してから、再度完了マーカーを出力してください。\n\n%s' "$gate_output")"
+
+        # nudge でAIセッションにエラー内容を送信
+        if session_exists "$session_name"; then
+            send_keys "$session_name" "$nudge_message"
+            log_info "Gate failure nudge sent to session: $session_name"
+        else
+            log_warn "Session $session_name no longer exists, cannot send nudge"
+        fi
+
+        return 1
+    fi
+
+    log_info "All gates passed for Issue #$issue_number"
+    return 0
+}
+
 # 完了ハンドリング関数
 # Usage: handle_complete <session_name> <issue_number> <auto_attach> <cleanup_args>
-# Returns: 0 on success, 1 on cleanup failure, 2 on PR merge timeout (continue monitoring)
+# Returns: 0 on success, 1 on cleanup failure, 2 on PR merge timeout or gate failure (continue monitoring)
 handle_complete() {
     local session_name="$1"
     local issue_number="$2"
@@ -423,19 +498,26 @@ handle_complete() {
     local worktree_path branch_name
     _resolve_worktree_info "$issue_number" worktree_path branch_name
     
-    # 2. ステータスと計画書の処理
+    # 2. ゲート実行（PR確認前の品質チェック）
+    local gate_result=0
+    _run_gates_check "$session_name" "$issue_number" "$worktree_path" "$branch_name" || gate_result=$?
+    if [[ $gate_result -ne 0 ]]; then
+        log_warn "Gate check failed. Continuing to monitor for re-completion..."
+        return 2
+    fi
+    
+    # 3. ステータスと計画書の処理
     _complete_status_and_plans "$issue_number" "$session_name"
     
-    # 3. Hook実行
+    # 4. Hook実行
     _run_completion_hooks "$issue_number" "$session_name" "$branch_name" "$worktree_path"
     
-    # 4. PR確認（リトライロジック付き）
+    # 5. PR確認（リトライロジック付き）
     local pr_check_result
     check_pr_merge_status "$session_name" "$branch_name" "$issue_number"
     pr_check_result=$?
     
     if [[ $pr_check_result -eq 2 ]]; then
-        # Timeout: PR が見つからないまたはマージされないままタイムアウト
         local force_cleanup
         force_cleanup="$(get_config watcher_force_cleanup_on_timeout)"
         if [[ "$force_cleanup" == "true" ]]; then
@@ -446,17 +528,16 @@ handle_complete() {
             return 2
         fi
     elif [[ $pr_check_result -ne 0 ]]; then
-        # その他のエラー
         log_error "PR check failed with unexpected error"
         return 1
     fi
     
-    # 5. Cleanup実行
+    # 6. Cleanup実行
     if ! _run_cleanup_with_retry "$session_name" "$cleanup_args"; then
         return 1
     fi
     
-    # 6. 事後処理
+    # 7. 事後処理
     _post_cleanup_maintenance
     
     log_info "Cleanup completed successfully"
