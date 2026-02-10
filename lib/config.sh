@@ -62,6 +62,9 @@ CONFIG_AGENTS_CI_FIX="${CONFIG_AGENTS_CI_FIX:-}"     # ci-fixステップのエ�
 CONFIG_AUTO_PROVIDER="${CONFIG_AUTO_PROVIDER:-}"    # auto選択用のAIプロバイダー（空 = agent設定から推定 or anthropic）
 CONFIG_AUTO_MODEL="${CONFIG_AUTO_MODEL:-}"          # auto選択用のモデル（空 = claude-haiku-4-5）
 
+# Tracker設定
+CONFIG_TRACKER_FILE="${CONFIG_TRACKER_FILE:-}"      # トラッカーファイルパス（空 = .worktrees/.status/tracker.jsonl）
+
 # Hooks設定
 CONFIG_HOOKS_ALLOW_INLINE="${CONFIG_HOOKS_ALLOW_INLINE:-false}"  # インラインhookの許可
 CONFIG_HOOKS_ON_START="${CONFIG_HOOKS_ON_START:-}"       # セッション開始時のhook
@@ -214,6 +217,7 @@ _CONFIG_MASTER=(
     ".hooks.on_iteration_start:HOOKS_ON_ITERATION_START:hooks_on_iteration_start:CONFIG_HOOKS_ON_ITERATION_START"
     ".hooks.on_iteration_end:HOOKS_ON_ITERATION_END:hooks_on_iteration_end:CONFIG_HOOKS_ON_ITERATION_END"
     ".hooks.on_review_complete:HOOKS_ON_REVIEW_COMPLETE:hooks_on_review_complete:CONFIG_HOOKS_ON_REVIEW_COMPLETE"
+    ".tracker.file:TRACKER_FILE:tracker_file:CONFIG_TRACKER_FILE"
     ".watcher.initial_delay:WATCHER_INITIAL_DELAY:watcher_initial_delay:CONFIG_WATCHER_INITIAL_DELAY"
     ".watcher.cleanup_delay:WATCHER_CLEANUP_DELAY:watcher_cleanup_delay:CONFIG_WATCHER_CLEANUP_DELAY"
     ".watcher.cleanup_retry_interval:WATCHER_CLEANUP_RETRY_INTERVAL:watcher_cleanup_retry_interval:CONFIG_WATCHER_CLEANUP_RETRY_INTERVAL"

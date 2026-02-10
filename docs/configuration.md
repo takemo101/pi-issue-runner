@@ -274,6 +274,14 @@ improve:
 # NOTE: 旧形式 improve_logs: も後方互換で引き続きサポートされます
 
 # =====================================
+# Tracker設定（プロンプト効果測定）
+# =====================================
+tracker:
+  # トラッカーファイルのパス
+  # デフォルト: .worktrees/.status/tracker.jsonl
+  file: ".worktrees/.status/tracker.jsonl"
+
+# =====================================
 # Watcher設定
 # =====================================
 watcher:
@@ -1139,6 +1147,26 @@ hookスクリプトには以下の環境変数が渡されます：
 > **⚠️ 非推奨**: テンプレート変数（`{{issue_number}}`等）はセキュリティ上の理由により非推奨です。
 > 環境変数を使用してください。詳細は [Hook機能ドキュメント](./hooks.md#マイグレーションガイド) を参照してください。
 
+### tracker
+
+プロンプト効果測定（ワークフロー別成功率の記録）の設定
+
+| キー | 型 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `file` | string | `.worktrees/.status/tracker.jsonl` | トラッカーファイルのパス |
+
+#### 使用例
+
+```yaml
+tracker:
+  file: ".worktrees/.status/tracker.jsonl"
+```
+
+環境変数でも設定可能:
+```bash
+PI_RUNNER_TRACKER_FILE=".tracker/results.jsonl" ./scripts/run.sh 42
+```
+
 ### agents
 
 | キー | 型 | デフォルト | 説明 |
@@ -1273,6 +1301,7 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_WATCHER_CLEANUP_RETRY_INTERVAL` | `watcher.cleanup_retry_interval` |
 | `PI_RUNNER_WATCHER_PR_MERGE_MAX_ATTEMPTS` | `watcher.pr_merge_max_attempts` |
 | `PI_RUNNER_WATCHER_PR_MERGE_RETRY_INTERVAL` | `watcher.pr_merge_retry_interval` |
+| `PI_RUNNER_TRACKER_FILE` | `tracker.file` |
 
 ### 例: CI環境での使用
 
