@@ -142,6 +142,15 @@ pi-issue-runner/
 │   │   ├── batch.bats
 │   │   ├── ci-classifier.bats  # ci-classifier.sh のテスト
 │   │   ├── ci-fix.bats
+│   │   ├── ci-fix/             # ci-fix サブモジュールのテスト
+│   │   │   ├── bash.bats
+│   │   │   ├── common.bats
+│   │   │   ├── detect.bats
+│   │   │   ├── escalation.bats
+│   │   │   ├── go.bats
+│   │   │   ├── node.bats
+│   │   │   ├── python.bats
+│   │   │   └── rust.bats
 │   │   ├── ci-monitor.bats     # ci-monitor.sh のテスト
 │   │   ├── ci-retry.bats       # ci-retry.sh のテスト
 │   │   ├── cleanup-trap.bats
