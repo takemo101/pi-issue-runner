@@ -281,8 +281,8 @@ pi-issue-runner/
 ./scripts/test.sh scripts      # test/scripts/*.bats のみ
 ./scripts/test.sh regression   # test/regression/*.bats のみ
 
-# Batsテスト直接実行
-bats test/**/*.bats
+# Batsテスト直接実行（--jobs で並列化推奨）
+bats --jobs 4 test/**/*.bats
 
 # 特定のテストファイル実行
 bats test/lib/config.bats

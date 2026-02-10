@@ -1308,6 +1308,7 @@ GitHub Issue #{{issue_number}} の実装計画を作成します。
 | `PI_RUNNER_WATCHER_CLEANUP_RETRY_INTERVAL` | `watcher.cleanup_retry_interval` |
 | `PI_RUNNER_WATCHER_PR_MERGE_MAX_ATTEMPTS` | `watcher.pr_merge_max_attempts` |
 | `PI_RUNNER_WATCHER_PR_MERGE_RETRY_INTERVAL` | `watcher.pr_merge_retry_interval` |
+| `PI_RUNNER_WATCHER_FORCE_CLEANUP_ON_TIMEOUT` | `watcher.force_cleanup_on_timeout` |
 | `PI_RUNNER_TRACKER_FILE` | `tracker.file` |
 
 ### 例: CI環境での使用
