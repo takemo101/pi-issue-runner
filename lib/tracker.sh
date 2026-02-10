@@ -131,7 +131,7 @@ remove_tracker_metadata() {
 # Usage: record_tracker_entry <issue_number> <result> [error_type]
 # Arguments:
 #   issue_number - Issue番号
-#   result       - "success" or "error"
+#   result       - "success", "error", or "abandoned"
 #   error_type   - エラー分類（任意、result=error時のみ）
 record_tracker_entry() {
     local issue_number="$1"

@@ -42,7 +42,7 @@ pi-issue-runner/
 │   ├── context.sh     # コンテキスト管理
 │   ├── dashboard.sh   # ダッシュボード表示
 │   ├── generate-config.sh  # プロジェクト解析・設定生成
-│   ├── force-complete.sh  # セッション強制完了
+│   ├── force-complete.sh  # ⚠️ 廃止予定: stop.sh --cleanup にリダイレクト
 │   ├── improve.sh     # 継続的改善スクリプト
 │   ├── knowledge-loop.sh  # 知識ループ（fixコミットから知見抽出・AGENTS.md更新提案）
 │   ├── next.sh        # 次のタスク取得

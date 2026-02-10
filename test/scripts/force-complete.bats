@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# force-complete.sh のBatsテスト
+# force-complete.sh のBatsテスト（廃止・リダイレクト確認）
 
 load '../test_helper'
 
@@ -30,76 +30,7 @@ teardown() {
 }
 
 # ====================
-# ヘルプオプションテスト
-# ====================
-
-@test "force-complete.sh --help returns success" {
-    run "$PROJECT_ROOT/scripts/force-complete.sh" --help
-    [ "$status" -eq 0 ]
-}
-
-@test "force-complete.sh --help shows usage" {
-    run "$PROJECT_ROOT/scripts/force-complete.sh" --help
-    [[ "$output" == *"Usage:"* ]]
-}
-
-@test "force-complete.sh --help shows session-name argument" {
-    run "$PROJECT_ROOT/scripts/force-complete.sh" --help
-    [[ "$output" == *"session-name"* ]] || [[ "$output" == *"issue-number"* ]]
-}
-
-@test "force-complete.sh --help shows --error option" {
-    run "$PROJECT_ROOT/scripts/force-complete.sh" --help
-    [[ "$output" == *"--error"* ]]
-}
-
-@test "force-complete.sh --help shows --message option" {
-    run "$PROJECT_ROOT/scripts/force-complete.sh" --help
-    [[ "$output" == *"--message"* ]]
-}
-
-@test "force-complete.sh --help shows examples" {
-    run "$PROJECT_ROOT/scripts/force-complete.sh" --help
-    [[ "$output" == *"Examples:"* ]]
-}
-
-@test "force-complete.sh --help shows pi-issue-42 example" {
-    run "$PROJECT_ROOT/scripts/force-complete.sh" --help
-    [[ "$output" == *"pi-issue-42"* ]] || [[ "$output" == *"42"* ]]
-}
-
-@test "force-complete.sh -h returns success" {
-    run "$PROJECT_ROOT/scripts/force-complete.sh" -h
-    [ "$status" -eq 0 ]
-}
-
-# ====================
-# エラーケーステスト
-# ====================
-
-@test "force-complete.sh without argument fails" {
-    run "$PROJECT_ROOT/scripts/force-complete.sh"
-    [ "$status" -ne 0 ]
-}
-
-@test "force-complete.sh without argument shows error message" {
-    run "$PROJECT_ROOT/scripts/force-complete.sh"
-    [[ "$output" == *"required"* ]] || [[ "$output" == *"Usage:"* ]]
-}
-
-@test "force-complete.sh with unknown option fails" {
-    run "$PROJECT_ROOT/scripts/force-complete.sh" --unknown-option
-    [ "$status" -ne 0 ]
-    [[ "$output" == *"Unknown option"* ]] || [[ "$output" == *"unknown"* ]]
-}
-
-@test "force-complete.sh with --message but no value fails" {
-    run "$PROJECT_ROOT/scripts/force-complete.sh" 42 --message
-    [ "$status" -ne 0 ]
-}
-
-# ====================
-# スクリプト構造テスト
+# 廃止テスト
 # ====================
 
 @test "force-complete.sh has valid bash syntax" {
@@ -107,86 +38,26 @@ teardown() {
     [ "$status" -eq 0 ]
 }
 
-@test "force-complete.sh sources config.sh" {
-    grep -q "lib/config.sh" "$PROJECT_ROOT/scripts/force-complete.sh"
+@test "force-complete.sh outputs deprecation warning" {
+    # Without argument, it should fail but still show warning
+    run "$PROJECT_ROOT/scripts/force-complete.sh" 2>&1 || true
+    [[ "$output" == *"deprecated"* ]] || [[ "$output" == *"WARNING"* ]]
 }
 
-@test "force-complete.sh sources log.sh" {
-    grep -q "lib/log.sh" "$PROJECT_ROOT/scripts/force-complete.sh"
+@test "force-complete.sh mentions stop.sh --cleanup in warning" {
+    run "$PROJECT_ROOT/scripts/force-complete.sh" 2>&1 || true
+    [[ "$output" == *"stop.sh"* ]] || [[ "$output" == *"--cleanup"* ]]
 }
 
-@test "force-complete.sh sources status.sh" {
-    grep -q "lib/status.sh" "$PROJECT_ROOT/scripts/force-complete.sh"
+@test "force-complete.sh without argument fails" {
+    run "$PROJECT_ROOT/scripts/force-complete.sh"
+    [ "$status" -ne 0 ]
 }
 
-@test "force-complete.sh sources tmux.sh" {
-    grep -q "lib/tmux.sh" "$PROJECT_ROOT/scripts/force-complete.sh"
+@test "force-complete.sh redirects to stop.sh" {
+    grep -q 'exec.*stop.sh' "$PROJECT_ROOT/scripts/force-complete.sh"
 }
 
-@test "force-complete.sh has main function" {
-    grep -q "main()" "$PROJECT_ROOT/scripts/force-complete.sh"
-}
-
-@test "force-complete.sh has usage function" {
-    grep -q "usage()" "$PROJECT_ROOT/scripts/force-complete.sh"
-}
-
-@test "force-complete.sh sources session-resolver.sh" {
-    grep -q "session-resolver.sh" "$PROJECT_ROOT/scripts/force-complete.sh"
-}
-
-@test "force-complete.sh uses resolve_session_target" {
-    grep -q "resolve_session_target" "$PROJECT_ROOT/scripts/force-complete.sh"
-}
-
-@test "force-complete.sh calls session_exists" {
-    grep -q "session_exists" "$PROJECT_ROOT/scripts/force-complete.sh"
-}
-
-@test "force-complete.sh sends completion marker" {
-    grep -q "TASK_COMPLETE" "$PROJECT_ROOT/scripts/force-complete.sh"
-}
-
-@test "force-complete.sh sends error marker" {
-    grep -q "TASK_ERROR" "$PROJECT_ROOT/scripts/force-complete.sh"
-}
-
-@test "force-complete.sh uses send_keys function" {
-    grep -q "send_keys" "$PROJECT_ROOT/scripts/force-complete.sh"
-}
-
-# ====================
-# オプション処理テスト
-# ====================
-
-@test "force-complete.sh has --error flag handling" {
-    grep -q '\-\-error' "$PROJECT_ROOT/scripts/force-complete.sh"
-}
-
-@test "force-complete.sh has --message flag handling" {
-    grep -q '\-\-message' "$PROJECT_ROOT/scripts/force-complete.sh"
-}
-
-@test "force-complete.sh completion marker format is correct" {
-    grep -q 'TASK_COMPLETE_.*issue_number' "$PROJECT_ROOT/scripts/force-complete.sh"
-}
-
-@test "force-complete.sh error marker format is correct" {
-    grep -q 'TASK_ERROR_.*issue_number' "$PROJECT_ROOT/scripts/force-complete.sh"
-}
-
-# ====================
-# シグナルファイル作成テスト
-# ====================
-
-@test "force-complete.sh creates signal file via get_status_dir" {
-    grep -q "get_status_dir" "$PROJECT_ROOT/scripts/force-complete.sh"
-}
-
-@test "force-complete.sh creates signal-complete file" {
-    grep -q 'signal-complete-' "$PROJECT_ROOT/scripts/force-complete.sh"
-}
-
-@test "force-complete.sh creates signal-error file" {
-    grep -q 'signal-error-' "$PROJECT_ROOT/scripts/force-complete.sh"
+@test "force-complete.sh passes --cleanup flag to stop.sh" {
+    grep -q '\-\-cleanup' "$PROJECT_ROOT/scripts/force-complete.sh"
 }
