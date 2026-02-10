@@ -115,6 +115,10 @@ teardown() {
     grep -q "lib/log.sh" "$PROJECT_ROOT/scripts/force-complete.sh"
 }
 
+@test "force-complete.sh sources status.sh" {
+    grep -q "lib/status.sh" "$PROJECT_ROOT/scripts/force-complete.sh"
+}
+
 @test "force-complete.sh sources tmux.sh" {
     grep -q "lib/tmux.sh" "$PROJECT_ROOT/scripts/force-complete.sh"
 }
@@ -169,4 +173,20 @@ teardown() {
 
 @test "force-complete.sh error marker format is correct" {
     grep -q 'TASK_ERROR_.*issue_number' "$PROJECT_ROOT/scripts/force-complete.sh"
+}
+
+# ====================
+# シグナルファイル作成テスト
+# ====================
+
+@test "force-complete.sh creates signal file via get_status_dir" {
+    grep -q "get_status_dir" "$PROJECT_ROOT/scripts/force-complete.sh"
+}
+
+@test "force-complete.sh creates signal-complete file" {
+    grep -q 'signal-complete-' "$PROJECT_ROOT/scripts/force-complete.sh"
+}
+
+@test "force-complete.sh creates signal-error file" {
+    grep -q 'signal-error-' "$PROJECT_ROOT/scripts/force-complete.sh"
 }

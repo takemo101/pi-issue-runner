@@ -33,6 +33,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
+source "$SCRIPT_DIR/../lib/status.sh"
 source "$SCRIPT_DIR/../lib/tmux.sh"
 source "$SCRIPT_DIR/../lib/session-resolver.sh"
 
@@ -129,7 +130,24 @@ main() {
         exit 1
     fi
 
-    # マーカー形式を決定
+    # シグナルファイルを作成（最優先検出方式）
+    local status_dir
+    status_dir="$(get_status_dir 2>/dev/null)" || true
+
+    if [[ -n "$status_dir" ]]; then
+        mkdir -p "$status_dir"
+        if [[ "$send_error" == "true" ]]; then
+            local error_msg="${custom_message:-Forced error by user}"
+            echo "$error_msg" > "${status_dir}/signal-error-${issue_number}"
+            log_info "Created signal file: signal-error-${issue_number}"
+        else
+            local complete_msg="${custom_message:-Forced completion by user}"
+            echo "$complete_msg" > "${status_dir}/signal-complete-${issue_number}"
+            log_info "Created signal file: signal-complete-${issue_number}"
+        fi
+    fi
+
+    # テキストマーカーも送信（後方互換・フォールバック）
     local marker
     if [[ "$send_error" == "true" ]]; then
         marker="###TASK_ERROR_${issue_number}###"
