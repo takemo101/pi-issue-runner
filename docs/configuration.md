@@ -282,6 +282,41 @@ tracker:
   file: ".worktrees/.status/tracker.jsonl"
 
 # =====================================
+# GitHub設定
+# =====================================
+github:
+  # Issueコメントをプロンプトに含めるか
+  # デフォルト: true
+  include_comments: true
+  
+  # 含めるコメント数の上限
+  # デフォルト: 10
+  max_comments: 10
+
+# =====================================
+# Hook設定
+# =====================================
+hooks:
+  # タスク開始時
+  on_start: ""
+  # 成功時
+  on_success: ""
+  # エラー時
+  on_error: ""
+  # クリーンアップ時
+  on_cleanup: ""
+  # improve開始時
+  on_improve_start: ""
+  # improve終了時
+  on_improve_end: ""
+  # イテレーション開始時
+  on_iteration_start: ""
+  # イテレーション終了時
+  on_iteration_end: ""
+  # レビュー完了時
+  on_review_complete: ""
+
+# =====================================
 # Watcher設定
 # =====================================
 watcher:
