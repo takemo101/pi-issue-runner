@@ -53,6 +53,26 @@ teardown() {
     [[ "$output" == *"pi-issue-42"* ]] || [[ "$output" == *"42"* ]]
 }
 
+@test "stop.sh --help shows --cleanup option" {
+    run "$PROJECT_ROOT/scripts/stop.sh" --help
+    [[ "$output" == *"--cleanup"* ]]
+}
+
+@test "stop.sh --help shows --close-issue option" {
+    run "$PROJECT_ROOT/scripts/stop.sh" --help
+    [[ "$output" == *"--close-issue"* ]]
+}
+
+@test "stop.sh --help shows --force option" {
+    run "$PROJECT_ROOT/scripts/stop.sh" --help
+    [[ "$output" == *"--force"* ]]
+}
+
+@test "stop.sh --help shows --delete-branch option" {
+    run "$PROJECT_ROOT/scripts/stop.sh" --help
+    [[ "$output" == *"--delete-branch"* ]]
+}
+
 @test "stop.sh -h returns success" {
     run "$PROJECT_ROOT/scripts/stop.sh" -h
     [ "$status" -eq 0 ]
@@ -155,4 +175,57 @@ teardown() {
 
 @test "stop.sh logs session stopped" {
     grep -q "Session stopped" "$PROJECT_ROOT/scripts/stop.sh" || grep -q "stopped" "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+# ====================
+# --cleanup オプションテスト
+# ====================
+
+@test "stop.sh has --cleanup option handling" {
+    grep -q '\-\-cleanup' "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+@test "stop.sh --cleanup calls cleanup.sh" {
+    grep -q 'cleanup.sh' "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+@test "stop.sh --cleanup records abandoned in tracker" {
+    grep -q 'record_tracker_entry' "$PROJECT_ROOT/scripts/stop.sh"
+    grep -q '"abandoned"' "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+@test "stop.sh --cleanup sets status to abandoned" {
+    grep -q 'set_status.*abandoned' "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+@test "stop.sh --cleanup passes --keep-session to cleanup.sh" {
+    grep -q '\-\-keep-session' "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+@test "stop.sh --cleanup passes --force to cleanup.sh when specified" {
+    grep -q '\-\-force' "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+@test "stop.sh --cleanup passes --delete-branch to cleanup.sh when specified" {
+    grep -q '\-\-delete-branch' "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+# ====================
+# --close-issue オプションテスト
+# ====================
+
+@test "stop.sh has --close-issue option handling" {
+    grep -q '\-\-close-issue' "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+@test "stop.sh --close-issue uses gh issue close" {
+    grep -q 'gh issue close' "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+@test "stop.sh sources tracker.sh for --cleanup" {
+    grep -q 'lib/tracker.sh' "$PROJECT_ROOT/scripts/stop.sh"
+}
+
+@test "stop.sh sources status.sh for --cleanup" {
+    grep -q 'lib/status.sh' "$PROJECT_ROOT/scripts/stop.sh"
 }

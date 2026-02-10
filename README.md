@@ -60,10 +60,10 @@ cd ~/.pi/agent/skills/pi-issue-runner
 | `pi-list` | セッション一覧 |
 | `pi-attach` | セッションアタッチ |
 | `pi-status` | 状態確認 |
-| `pi-stop` | セッション停止 |
+| `pi-stop` | セッション停止（`--cleanup` でworktree/ブランチ削除、`--close-issue` でIssueクローズ） |
 | `pi-sweep` | 全セッションのマーカーチェック・cleanup |
 | `pi-cleanup` | クリーンアップ |
-| `pi-force-complete` | セッション強制完了 |
+| `pi-force-complete` | ⚠️ 廃止予定: `pi-stop --cleanup` にリダイレクト |
 | `pi-improve` | 継続的改善 |
 | `pi-wait` | 完了待機 |
 | `pi-watch` | セッション監視 |
@@ -885,7 +885,7 @@ pi-issue-runner/
 │   ├── context.sh          # コンテキスト管理
 │   ├── dashboard.sh        # ダッシュボード表示
 │   ├── generate-config.sh  # プロジェクト解析・設定生成
-│   ├── force-complete.sh   # セッション強制完了
+│   ├── force-complete.sh   # ⚠️ 廃止予定: stop.sh --cleanup にリダイレクト
 │   ├── next.sh             # 次のタスク取得
 │   ├── nudge.sh            # セッションへメッセージ送信
 │   ├── watch-session.sh    # セッション監視と自動クリーンアップ
