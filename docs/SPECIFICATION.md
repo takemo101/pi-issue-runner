@@ -1163,7 +1163,10 @@ Examples:
     generate-config.sh -o custom.yaml   # カスタム出力先
 ```
 
-### force-complete.sh - セッション強制完了
+### force-complete.sh - セッション強制完了（⚠️ 非推奨）
+
+> **⚠️ 非推奨**: `force-complete.sh` は非推奨です。代わりに `stop.sh <target> --cleanup` を使用してください。
+> このスクリプトは内部的に `stop.sh --cleanup` にリダイレクトされます。
 
 ```bash
 ./scripts/force-complete.sh <session-name|issue-number> [options]
@@ -1187,6 +1190,11 @@ AIが完了マーカーを出力し忘れた場合や、手動でタスク完了
 #### 使用例
 
 ```bash
+# 推奨: stop.sh --cleanup を直接使用
+./scripts/stop.sh 42 --cleanup
+./scripts/stop.sh pi-issue-42 --cleanup
+
+# 非推奨（force-complete.sh は stop.sh にリダイレクト）
 ./scripts/force-complete.sh 42
 ./scripts/force-complete.sh pi-issue-42
 ./scripts/force-complete.sh 42 --error
