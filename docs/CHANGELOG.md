@@ -5,6 +5,13 @@ Pi Issue Runnerの主要な変更履歴です。
 ## [Unreleased]
 
 ### Added
+- **プロンプト効果測定** (`scripts/tracker.sh`, `lib/tracker.sh`)
+  - ワークフロー実行の成功/失敗をJSONL形式で記録・集計
+  - `pi-tracker` コマンドでワークフロー別成功率を表示
+  - `tracker.file` 設定でファイルパスをカスタマイズ可能
+- **知識ループ** (`scripts/knowledge-loop.sh`, `lib/knowledge-loop.sh`)
+  - fixコミットから知見を自動抽出しAGENTS.md更新を提案
+  - `pi-knowledge-loop` コマンドで実行
 - **マルチプレクサ抽象化** (`lib/multiplexer.sh`, `lib/multiplexer-tmux.sh`, `lib/multiplexer-zellij.sh`, `docs/multiplexer-integration.md`)
   - tmux/Zellijの統一インターフェース
   - `multiplexer.type` 設定で切り替え可能
