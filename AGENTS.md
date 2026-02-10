@@ -589,6 +589,9 @@ PRをマージする前に警告が解消されている必要があります。
 - Bats並列テスト: 16ジョブでハング、デフォルト2ジョブ推奨 → [詳細](docs/decisions/001-test-parallel-jobs-limit.md)
 - マーカー検出: pipe-pane+grepで全出力を記録・検索、代替パターンも検出 → [詳細](docs/decisions/002-marker-detection-reliability.md)
 - 完了検出: シグナルファイル最優先、テキストマーカーはフォールバック → [詳細](docs/decisions/003-signal-file-completion.md)
+- 004: AIエージェントによるファイル誤上書き事故 (2026-02-10) -> [詳細](docs/decisions/004-accidental-file-overwrite.md)
+- 003: シグナルファイルによる完了検出 (2026-02-10) -> [詳細](docs/decisions/003-signal-file-completion.md)
+- 002: マーカー検出の信頼性とパフォーマンス改善 (2026-02-08) -> [詳細](docs/decisions/002-marker-detection-reliability.md)
 - ファイル誤上書き防止: コミット前に `git diff --stat` で無関係な変更がないか必ず確認 → [詳細](docs/decisions/004-accidental-file-overwrite.md)
 ## 注意事項
 
