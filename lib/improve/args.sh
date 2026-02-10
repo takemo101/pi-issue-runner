@@ -176,8 +176,3 @@ parse_improve_arguments() {
     _PARSE_review_only="$review_only"
     _PARSE_auto_continue="$auto_continue"
 }
-
-# Backward compatibility: keep old function name
-usage() {
-    show_improve_usage "$@"
-}

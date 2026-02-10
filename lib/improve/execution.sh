@@ -306,24 +306,3 @@ start_improve_next_iteration() {
     
     exec "$0" "${args[@]}"
 }
-
-# Backward compatibility: keep old function names
-cleanup_on_exit() {
-    cleanup_improve_on_exit "$@"
-}
-
-fetch_created_issues() {
-    fetch_improve_created_issues "$@"
-}
-
-execute_issues_in_parallel() {
-    execute_improve_issues_in_parallel "$@"
-}
-
-wait_for_completion() {
-    wait_for_improve_completion "$@"
-}
-
-start_next_iteration() {
-    start_improve_next_iteration "$@"
-}

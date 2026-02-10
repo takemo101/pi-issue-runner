@@ -50,8 +50,3 @@ check_improve_dependencies() {
 
     return 0
 }
-
-# Backward compatibility: keep old function name
-check_dependencies() {
-    check_improve_dependencies "$@"
-}

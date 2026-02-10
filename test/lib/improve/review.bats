@@ -471,16 +471,6 @@ EOF
 # Backward Compatibility
 # ====================
 
-@test "run_review_phase() is backward compatible wrapper" {
-    grep -q 'run_review_phase()' "$PROJECT_ROOT/lib/improve/review.sh"
-}
-
-@test "run_review_phase() calls run_improve_review_phase()" {
-    source_content=$(cat "$PROJECT_ROOT/lib/improve/review.sh")
-    # Check that backward compat wrapper exists and calls the new function
-    [[ "$source_content" =~ run_review_phase\(\).*run_improve_review_phase ]]
-}
-
 # ====================
 # Prompt Content Verification
 # ====================
