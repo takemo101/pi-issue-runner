@@ -253,6 +253,79 @@ teardown() {
 }
 
 # ====================
+# build_status_json テスト（統一関数）
+# ====================
+
+@test "build_status_json produces valid JSON with jq" {
+    if ! command -v jq &>/dev/null; then
+        skip "jq not installed"
+    fi
+    result="$(build_status_json "42" "running" "pi-issue-42" "2025-01-01T00:00:00Z")"
+    echo "$result" | jq . > /dev/null 2>&1
+    [ "$(echo "$result" | jq -r '.issue')" = "42" ]
+    [ "$(echo "$result" | jq -r '.status')" = "running" ]
+    [ "$(echo "$result" | jq -r '.session')" = "pi-issue-42" ]
+}
+
+@test "build_status_json includes error_message when provided" {
+    if ! command -v jq &>/dev/null; then
+        skip "jq not installed"
+    fi
+    result="$(build_status_json "42" "error" "pi-issue-42" "2025-01-01T00:00:00Z" "something broke")"
+    [ "$(echo "$result" | jq -r '.error_message')" = "something broke" ]
+    [ "$(echo "$result" | jq 'has("session_label")')" = "false" ]
+}
+
+@test "build_status_json includes session_label when provided" {
+    if ! command -v jq &>/dev/null; then
+        skip "jq not installed"
+    fi
+    result="$(build_status_json "42" "running" "pi-issue-42" "2025-01-01T00:00:00Z" "" "my-label")"
+    [ "$(echo "$result" | jq -r '.session_label')" = "my-label" ]
+    [ "$(echo "$result" | jq 'has("error_message")')" = "false" ]
+}
+
+@test "build_status_json includes both error_message and session_label" {
+    if ! command -v jq &>/dev/null; then
+        skip "jq not installed"
+    fi
+    result="$(build_status_json "42" "error" "pi-issue-42" "2025-01-01T00:00:00Z" "err msg" "lbl")"
+    [ "$(echo "$result" | jq -r '.error_message')" = "err msg" ]
+    [ "$(echo "$result" | jq -r '.session_label')" = "lbl" ]
+}
+
+@test "build_status_json omits optional fields when empty" {
+    if ! command -v jq &>/dev/null; then
+        skip "jq not installed"
+    fi
+    result="$(build_status_json "42" "running" "pi-issue-42" "2025-01-01T00:00:00Z")"
+    [ "$(echo "$result" | jq 'has("error_message")')" = "false" ]
+    [ "$(echo "$result" | jq 'has("session_label")')" = "false" ]
+}
+
+@test "build_status_json handles special characters in error_message" {
+    if ! command -v jq &>/dev/null; then
+        skip "jq not installed"
+    fi
+    result="$(build_status_json "42" "error" "pi-issue-42" "2025-01-01T00:00:00Z" $'line1\nline2\t"quoted"')"
+    echo "$result" | jq . > /dev/null 2>&1
+    # jq properly escapes the value; verify round-trip
+    decoded="$(echo "$result" | jq -r '.error_message')"
+    [[ "$decoded" == *"line1"* ]]
+    [[ "$decoded" == *"line2"* ]]
+    [[ "$decoded" == *'"quoted"'* ]]
+}
+
+@test "build_json_with_jq is backward-compatible alias for build_status_json" {
+    if ! command -v jq &>/dev/null; then
+        skip "jq not installed"
+    fi
+    result="$(build_json_with_jq "10" "running" "pi-issue-10" "2025-01-01T00:00:00Z")"
+    echo "$result" | jq . > /dev/null 2>&1
+    [ "$(echo "$result" | jq -r '.issue')" = "10" ]
+}
+
+# ====================
 # build_json_fallback テスト
 # ====================
 

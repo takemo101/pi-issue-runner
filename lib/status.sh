@@ -48,7 +48,41 @@ json_escape() {
     echo "$str"
 }
 
-# jqを使用してJSONを構築
+# ステータスJSONを構築（統一関数）
+# jqがあれば使用、なければbuild_json_fallbackにフォールバック
+# 引数:
+#   $1 - issue_number
+#   $2 - status
+#   $3 - session_name
+#   $4 - timestamp
+#   $5 - error_message (オプション)
+#   $6 - session_label (オプション)
+# 出力: JSON文字列
+build_status_json() {
+    local issue_number="$1"
+    local status="$2"
+    local session_name="$3"
+    local timestamp="$4"
+    local error_message="${5:-}"
+    local session_label="${6:-}"
+
+    if command -v jq &>/dev/null; then
+        jq -n \
+            --argjson issue "$issue_number" \
+            --arg status "$status" \
+            --arg session "$session_name" \
+            --arg timestamp "$timestamp" \
+            --arg error "$error_message" \
+            --arg label "$session_label" \
+            '{issue: $issue, status: $status, session: $session, timestamp: $timestamp}
+             | if $error != "" then . + {error_message: $error} else . end
+             | if $label != "" then . + {session_label: $label} else . end'
+    else
+        build_json_fallback "$@"
+    fi
+}
+
+# 後方互換エイリアス: build_json_with_jq → build_status_json
 # 引数:
 #   $1 - issue_number
 #   $2 - status
@@ -58,39 +92,7 @@ json_escape() {
 #   $6 - session_label (オプション)
 # 出力: JSON文字列
 build_json_with_jq() {
-    local issue_number="$1"
-    local status="$2"
-    local session_name="$3"
-    local timestamp="$4"
-    local error_message="${5:-}"
-    local session_label="${6:-}"
-    
-    local base_args=(
-        -n
-        --argjson issue "$issue_number"
-        --arg status "$status"
-        --arg session "$session_name"
-        --arg timestamp "$timestamp"
-    )
-    
-    local base_obj='{issue: $issue, status: $status, session: $session, timestamp: $timestamp}'
-    
-    if [[ -n "$error_message" && -n "$session_label" ]]; then
-        jq "${base_args[@]}" \
-            --arg error "$error_message" \
-            --arg label "$session_label" \
-            "$base_obj | . + {error_message: \$error, session_label: \$label}"
-    elif [[ -n "$error_message" ]]; then
-        jq "${base_args[@]}" \
-            --arg error "$error_message" \
-            "$base_obj | . + {error_message: \$error}"
-    elif [[ -n "$session_label" ]]; then
-        jq "${base_args[@]}" \
-            --arg label "$session_label" \
-            "$base_obj | . + {session_label: \$label}"
-    else
-        jq "${base_args[@]}" "$base_obj"
-    fi
+    build_status_json "$@"
 }
 
 # jqなしでJSONを構築（フォールバック）
@@ -181,13 +183,9 @@ save_status() {
     local timestamp
     timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
     
-    # JSONを構築（jqがあれば使用、なければフォールバック）
+    # JSONを構築（統一関数: jqがあれば使用、なければフォールバック）
     local json
-    if command -v jq &>/dev/null; then
-        json="$(build_json_with_jq "$issue_number" "$status" "$session_name" "$timestamp" "$error_message" "$session_label")"
-    else
-        json="$(build_json_fallback "$issue_number" "$status" "$session_name" "$timestamp" "$error_message" "$session_label")"
-    fi
+    json="$(build_status_json "$issue_number" "$status" "$session_name" "$timestamp" "$error_message" "$session_label")"
     
     # Atomic write: write to temp file and rename
     local tmp_file="${status_file}.tmp.$$"
