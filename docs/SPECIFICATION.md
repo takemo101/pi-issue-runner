@@ -525,7 +525,7 @@ steps:
   - implement
   - run: "shellcheck -x scripts/*.sh lib/*.sh"
     description: "ShellCheck"
-    timeout: 300
+    timeout: 900
   - merge
 ```
 
@@ -535,7 +535,7 @@ steps:
 |------|------|-----------|------|
 | `run` | string | - | 実行するシェルコマンド（必須） |
 | `description` | string | - | ログ表示用の説明 |
-| `timeout` | integer | 300 | タイムアウト（秒） |
+| `timeout` | integer | 900 | タイムアウト（秒） |
 | `continue_on_fail` | boolean | false | 失敗しても次のステップに続行 |
 | `max_retry` | integer | 0 | リトライ回数（予約、現在未使用） |
 | `retry_interval` | integer | 10 | リトライ間隔（秒、予約） |
@@ -574,7 +574,7 @@ steps:
 |------|------|-----------|------|
 | `call` | string | - | 呼び出すエージェント名（必須） |
 | `description` | string | - | ログ表示用の説明 |
-| `timeout` | integer | 300 | タイムアウト（秒） |
+| `timeout` | integer | 900 | タイムアウト（秒） |
 | `continue_on_fail` | boolean | false | 失敗しても次のステップに続行 |
 
 **例:**

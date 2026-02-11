@@ -380,6 +380,82 @@ write_workflow_prompt \
    - scripts/cleanup.sh でworktree/セッション削除
 ```
 
+### run:/call: ステップの実行アーキテクチャ
+
+ワークフローにはAIステップ（plan, implement等）と非AIステップ（`run:`, `call:`）を混在させることができます。以下はその内部アーキテクチャです。
+
+#### ステップグループの分割
+
+`workflow-loader.sh` の `get_step_groups()` が、ワークフローの全ステップを**連続する同種ステップのグループ**に分割します。
+
+```
+ワークフロー定義:
+  steps:
+    - plan              ─┐
+    - implement          │→ ai_group: "plan implement"
+    - run: npm test     ─┐
+    - call: code-review  │→ non_ai_group: "run\tnpm test..." + "call\tcode-review..."
+    - merge             ─┘→ ai_group: "merge"
+
+分割結果（_STEP_GROUPS_DATA）:
+  グループ0: ai_group      → "plan implement"
+  グループ1: non_ai_group  → run/call ステップ群
+  グループ2: ai_group      → "merge"
+```
+
+連続するAIステップ同士、連続する非AIステップ同士がそれぞれ1つのグループにまとめられます。
+
+#### フェーズ追跡の仕組み
+
+`watch-session.sh` はグローバル変数 `_CURRENT_PHASE_INDEX` でフェーズの進行を追跡します。
+
+```
+_CURRENT_PHASE_INDEX = 0（初期値）
+
+[1] AI が plan → implement を実行
+    → "###PHASE_COMPLETE_42###" マーカーを出力
+    → watch-session.sh が output_log をポーリングして検出
+    → handle_phase_complete() が呼ばれる
+    → _CURRENT_PHASE_INDEX を +1 → グループ1（non_ai_group）
+
+[2] _run_non_ai_steps() が run/call ステップを順次実行
+    ├── 成功 → _CURRENT_PHASE_INDEX を +1 → グループ2（ai_group）
+    │         → AIセッションに次のステップのプロンプトを nudge（send_keys）
+    └── 失敗 → エラー内容を AIセッションに nudge
+              → AIが修正して再度 PHASE_COMPLETE を出力すると再実行
+
+[3] AI が merge を実行
+    → "###TASK_COMPLETE_42###" マーカーを出力（最終グループ）
+    → handle_complete() でタスク完了処理
+```
+
+#### マーカーの種類と役割
+
+| マーカー | 出力元 | 検出先 | 役割 |
+|----------|--------|--------|------|
+| `###PHASE_COMPLETE_<issue>###` | AIセッション | watch-session.sh | 非AIステップ群の実行をトリガー |
+| `###TASK_COMPLETE_<issue>###` | AIセッション | watch-session.sh | タスク全体の完了 |
+| `###TASK_ERROR_<issue>###` | AIセッション | watch-session.sh | エラー通知 |
+
+AIのプロンプトには「フェーズ完了時にマーカーを出力すること」が指示されますが、`run:`/`call:` コマンドの具体的な内容はプロンプトに含まれません。**何を実行するかの判断は全て `watch-session.sh` 側がインデックスで決定します**。
+
+#### run: と call: の実行方式
+
+- **`run:`** — `run_command_step()` が worktree 内で `bash -c` によりシェルコマンドを直接実行
+- **`call:`** — `run_call_step()` が別のAIインスタンスを `--print` モード（非インタラクティブ）で起動。プロンプトファイルを一時生成し、完了後にマーカーで成否を判定
+
+#### セッション間の独立性
+
+`run.sh` はIssueごとに `watch-session.sh` を `daemonize` で**別プロセス**として起動します。`_CURRENT_PHASE_INDEX` や `_STEP_GROUPS_DATA` は各プロセスのシェル変数として保持されるため、**複数セッションが同時に動いていても互いの状態が干渉することはありません**。
+
+```
+Issue #42: run.sh → daemonize → watch-session.sh (PID 1234)
+             └── _CURRENT_PHASE_INDEX, _STEP_GROUPS_DATA（プロセス固有）
+
+Issue #43: run.sh → daemonize → watch-session.sh (PID 5678)
+             └── _CURRENT_PHASE_INDEX, _STEP_GROUPS_DATA（プロセス固有）
+```
+
 ### 並列実行フロー
 
 ```
