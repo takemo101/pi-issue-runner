@@ -63,17 +63,16 @@ _skip_in_fast_mode() {
     grep -qF "## Workflow: default" "$result_file"
     grep -qF "implementing GitHub Issue #42 in an isolated worktree" "$result_file"
     
-    # ステップ
+    # ステップ（workflows/default.yaml: plan→implement→test→review→merge）
     grep -qF "### Step 1: Plan" "$result_file"
     grep -qF "### Step 2: Implement" "$result_file"
-    grep -qF "### Step 3: Review" "$result_file"
-    grep -qF "### Step 4: Merge" "$result_file"
+    grep -qF "### Step 3: Test" "$result_file"
+    grep -qF "### Step 4: Review" "$result_file"
+    grep -qF "### Step 5: Merge" "$result_file"
     
-    # フッター
-    grep -qF "### Commit Types" "$result_file"
-    grep -qF "feat: New feature" "$result_file"
-    grep -qF "fix: Bug fix" "$result_file"
-    grep -qF "test: Adding tests" "$result_file"
+    # 共通指示（Common Rules）
+    grep -qF "## Execution Context" "$result_file"
+    grep -qF "### Commit Convention" "$result_file"
     grep -qF "### On Error" "$result_file"
     grep -qF "### On Completion" "$result_file"
     
@@ -81,7 +80,6 @@ _skip_in_fast_mode() {
     grep -qF '###TASK' "$result_file"
     grep -qF '_ERROR_' "$result_file"
     grep -qF '_COMPLETE_' "$result_file"
-    grep -qF "unrecoverable errors" "$result_file"
     
     # Workflow Context（ビルトインdefaultにもcontextがある - Issue #1040）
     grep -qF "### Workflow Context" "$result_file"
@@ -105,7 +103,7 @@ _skip_in_fast_mode() {
     [ ${#desc_pos} -lt ${#workflow_pos} ]
     
     # Has --- separator
-    grep -qF "---" "$result_file"
+    grep -q '^---$' "$result_file"
 }
 
 @test "generate_workflow_prompt simple has only 2 steps" {

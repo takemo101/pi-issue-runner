@@ -196,14 +196,12 @@ EOF
     # Error marker documentation
     grep -qF '###TASK' "$result_file"
     grep -qF '_ERROR_' "$result_file"
-    grep -qF "unrecoverable errors" "$result_file"
     
     # Completion marker documentation
     grep -qF '_COMPLETE_' "$result_file"
     
     # On Error section
     grep -qF "### On Error" "$result_file"
-    grep -qF "manual intervention" "$result_file"
     
     # Issue number
     grep -qF "42" "$result_file"

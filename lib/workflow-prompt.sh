@@ -97,45 +97,76 @@ EOF
     fi
 }
 
-# フッター（コミットタイプ・エラー・完了）を出力
+# 共通指示セクション（コンテキスト・知見・コミット規約）を出力
+# 各ステップの重複を排除し、プロンプト冒頭に1回だけ出力する
+_emit_common_instructions() {
+    local issue_number="$1"
+    local branch_name="$2"
+    local worktree_path="$3"
+
+    cat << EOF
+
+## Execution Context
+
+- **Issue**: #${issue_number}
+- **Branch**: feature/${branch_name}
+- **Worktree**: ${worktree_path}
+
+## Common Rules
+
+### Commit Convention
+Use \`git commit -m\` (never open an editor). Format: \`<type>: <description>\`
+Types: feat, fix, docs, refactor, test, chore
+
+### Knowledge Recording (optional)
+重要な発見（外部依存の仕様変更、失敗したアプローチ、設計上の制限など）があれば、
+\`.worktrees/.context/issues/${issue_number}.md\` にメモしてください。
+最終ステップ（merge）で永続化を判断します。
+EOF
+}
+
+# フッター（エラー・完了マーカー）を出力
+# Usage: _emit_prompt_footer <issue_number> [worktree_path]
 _emit_prompt_footer() {
     local issue_number="$1"
+    local worktree_path="${2:-}"
+    local signal_dir=""
+    if [[ -n "$worktree_path" ]]; then
+        signal_dir="${worktree_path}/../.status"
+    fi
     
     cat << EOF
 
 ---
 
-### Commit Types
-- feat: New feature
-- fix: Bug fix
-- docs: Documentation
-- refactor: Code refactoring
-- test: Adding tests
-- chore: Maintenance
-
 ### On Error
-- If tests fail, fix the issue before committing
-- If PR merge fails, report the error
-- **For unrecoverable errors**, output the error marker:
-  - Prefix: \`###TASK\`
-  - Middle: \`_ERROR_\`
-  - Issue number: \`${issue_number}\`
-  - Suffix: \`###\`
 
-This will notify the user and allow manual intervention.
+回復不能なエラーが発生した場合は、**以下の2つを両方実行**してください：
+
+1. シグナルファイル作成（最優先）:
+\`\`\`bash
+mkdir -p "${signal_dir}" && echo "エラーの説明" > "${signal_dir}/signal-error-${issue_number}"
+\`\`\`
+
+2. エラーマーカーを**行頭から**出力:
+  - Prefix: \`###TASK\`  Middle: \`_ERROR_\`  Issue: \`${issue_number}\`  Suffix: \`###\`
+  - 連結して1行で出力（例: \`###TASK_ERROR_${issue_number}###\`）
 
 ### On Completion
-**CRITICAL**: After completing all workflow steps (including PR merge), you MUST output the completion marker.
 
-The marker format combines these parts (no spaces):
-- Prefix: \`###TASK\`
-- Middle: \`_COMPLETE_\`
-- Issue number: \`${issue_number}\`
-- Suffix: \`###\`
+**CRITICAL**: 全ワークフローステップ（PRマージ含む）完了後、**以下の2つを両方実行**してください：
 
-Combine them and output as a single line. This marker is monitored by an external process that will automatically clean up the worktree and terminate this session.
+1. シグナルファイル作成（最優先）:
+\`\`\`bash
+mkdir -p "${signal_dir}" && echo "done" > "${signal_dir}/signal-complete-${issue_number}"
+\`\`\`
 
-Do NOT skip this step.
+2. 完了マーカーを**行頭から**出力:
+  - Prefix: \`###TASK\`  Middle: \`_COMPLETE_\`  Issue: \`${issue_number}\`  Suffix: \`###\`
+  - 連結して1行で出力（例: \`###TASK_COMPLETE_${issue_number}###\`）
+
+> These markers are monitored by an external process (watch-session.sh).
+> Always output markers at the beginning of a line. Do NOT skip this step.
 EOF
 }
 
@@ -268,7 +299,7 @@ EOF
 EOF
     
     # フッターを出力
-    _emit_prompt_footer "$issue_number"
+    _emit_prompt_footer "$issue_number" "$worktree_path"
 }
 
 # ワークフロープロンプトを生成する
@@ -318,9 +349,12 @@ generate_workflow_prompt() {
 ## Workflow: $workflow_name
 
 You are implementing GitHub Issue #$issue_number in an isolated worktree.
-Follow the workflow steps below.
+Follow the workflow steps below in order. Each step has specific tasks and completion criteria.
 
 EOF
+
+    # 共通指示を1回だけ出力
+    _emit_common_instructions "$issue_number" "$branch_name" "$worktree_path"
     
     # ワークフローコンテキストを取得して注入（存在する場合のみ）
     local workflow_context
@@ -333,10 +367,11 @@ EOF
 
 $workflow_context
 
----
-
 EOF
     fi
+
+    echo "---"
+    echo ""
     
     # 各ステップのプロンプトを生成
     local step_num=1
@@ -360,7 +395,7 @@ EOF
     done
     
     # フッターを出力
-    _emit_prompt_footer "$issue_number"
+    _emit_prompt_footer "$issue_number" "$worktree_path"
 }
 
 # ===================
@@ -408,19 +443,25 @@ generate_ai_group_prompt() {
 ## Workflow: $workflow_name (Phase $((group_index + 1))/$total_groups)
 
 You are implementing GitHub Issue #$issue_number in an isolated worktree.
-Follow the workflow steps below.
+Follow the workflow steps below in order. Each step has specific tasks and completion criteria.
 
 EOF
+
+        # 共通指示を1回だけ出力
+        _emit_common_instructions "$issue_number" "$branch_name" "$worktree_path"
+
         if [[ -n "$workflow_context" ]]; then
             cat << EOF
+
 ### Workflow Context
 
 $workflow_context
 
----
-
 EOF
         fi
+
+        echo "---"
+        echo ""
     else
         # 後続AIグループ（nudge で送信される）
         cat << EOF
@@ -452,7 +493,7 @@ EOF
 
     # マーカー指示
     if [[ "$is_final_ai_group" == "true" ]]; then
-        _emit_prompt_footer "$issue_number"
+        _emit_prompt_footer "$issue_number" "$worktree_path"
     else
         _emit_phase_complete_footer "$issue_number"
     fi
