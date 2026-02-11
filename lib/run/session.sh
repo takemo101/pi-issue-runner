@@ -182,7 +182,7 @@ start_agent_session() {
     local session_label="${10:-}"
 
     # ワークフローからプロンプトファイルを生成
-    local prompt_file="$full_worktree_path/.pi-prompt-phase1.md"
+    local prompt_file="$full_worktree_path/.pi-prompt.md"
     
     # プロンプト生成
     generate_session_prompt "$prompt_file" "$workflow_name" "$issue_number" \

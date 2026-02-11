@@ -1,37 +1,22 @@
 #!/usr/bin/env bash
-# workflow.sh - ワークフローエンジン（ステップ・ワークフロー実行）
-#
-# このファイルは以下のモジュールを統合します:
-#   - workflow-finder.sh: ワークフロー・エージェントファイル検索
-#   - workflow-loader.sh: ワークフロー読み込み・解析
-#   - workflow-prompt.sh: プロンプト生成
+# ============================================================================
+# lib/workflow.sh - Simple workflow engine
+# ============================================================================
 
 set -euo pipefail
 
-# ソースガード（多重読み込み防止）
-if [[ -n "${_WORKFLOW_SH_SOURCED:-}" ]]; then
-    return 0
-fi
-_WORKFLOW_SH_SOURCED="true"
-
 _WORKFLOW_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# モジュール読み込み
-source "$_WORKFLOW_LIB_DIR/workflow-finder.sh"
 source "$_WORKFLOW_LIB_DIR/workflow-loader.sh"
+source "$_WORKFLOW_LIB_DIR/workflow-prompt.sh"
 source "$_WORKFLOW_LIB_DIR/config.sh"
 source "$_WORKFLOW_LIB_DIR/log.sh"
-# workflow-prompt.sh は finder と loader に依存するため最後に読み込む
-source "$_WORKFLOW_LIB_DIR/workflow-prompt.sh"
-source "$_WORKFLOW_LIB_DIR/workflow-selector.sh"
 
-# ===================
-# デフォルトワークフロー解決
-# ===================
+# ============================================================================
+# Workflow Resolution
+# ============================================================================
 
-# -w 未指定時のデフォルトワークフロー名を決定
-# .pi-runner.yaml に workflows セクションがあれば "auto"、なければ "default"
-# Usage: resolve_default_workflow [project_root]
+# Resolve default workflow name
+# Returns "auto" if .pi-runner.yaml has workflows section, else "default"
 resolve_default_workflow() {
     local project_root="${1:-.}"
     local config_file="$project_root/.pi-runner.yaml"
@@ -43,67 +28,116 @@ resolve_default_workflow() {
     fi
 }
 
-# ===================
-# ワークフロー管理
-# ===================
-
-# ワークフローステップを配列として取得
-get_workflow_steps_array() {
+# Find workflow file
+# Usage: find_workflow_file <workflow_name> [project_root]
+find_workflow_file() {
     local workflow_name="${1:-default}"
     local project_root="${2:-.}"
     
-    local workflow_file
-    workflow_file=$(find_workflow_file "$workflow_name" "$project_root")
+    # Handle special prefixes
+    if [[ "$workflow_name" == builtin:* ]] || [[ "$workflow_name" == config-workflow:* ]]; then
+        echo "$workflow_name"
+        return 0
+    fi
     
-    get_workflow_steps "$workflow_file"
+    # Check .pi-runner.yaml workflows section
+    local config_file="$project_root/.pi-runner.yaml"
+    if [[ -f "$config_file" ]] && yaml_exists "$config_file" ".workflows.${workflow_name}"; then
+        echo "config-workflow:$workflow_name"
+        return 0
+    fi
+    
+    # Check workflows/ directory
+    local workflow_file="$project_root/workflows/${workflow_name}.yaml"
+    if [[ -f "$workflow_file" ]]; then
+        echo "$workflow_file"
+        return 0
+    fi
+    
+    # Check .pi/workflows.yaml
+    workflow_file="$project_root/.pi/workflows.yaml"
+    if [[ -f "$workflow_file" ]]; then
+        echo "$workflow_file"
+        return 0
+    fi
+    
+    # Fallback to builtin
+    if [[ "$workflow_name" == "simple" ]]; then
+        echo "builtin:simple"
+    else
+        echo "builtin:default"
+    fi
 }
 
-# ===================
-# ワークフロー一覧
-# ===================
+# ============================================================================
+# Workflow Execution
+# ============================================================================
 
-# 利用可能なワークフロー一覧を表示
+# Execute a workflow step
+# Usage: execute_step <step_name> <step_context> <issue_number> <issue_title> <issue_body> <branch_name> <worktree_path> [project_root] [workflow_name]
+execute_step() {
+    local step_name="$1"
+    local step_context="$2"
+    local issue_number="$3"
+    local issue_title="$4"
+    local issue_body="$5"
+    local branch_name="$6"
+    local worktree_path="$7"
+    local project_root="${8:-.}"
+    local workflow_name="${9:-default}"
+    
+    log_info "Executing step: $step_name"
+    
+    # Generate prompt
+    local prompt
+    prompt=$(generate_step_prompt "$step_name" "$step_context" "$issue_number" "$issue_title" "$issue_body" "$branch_name" "$worktree_path" "$project_root" "$workflow_name")
+    
+    # Get pi command
+    local pi_cmd
+    pi_cmd="$(get_config pi_command)"
+    
+    # Execute pi with prompt
+    echo "$prompt" | $pi_cmd
+}
+
+# List available workflows
 list_available_workflows() {
     local project_root="${1:-.}"
+    
+    echo "Available workflows:"
+    echo ""
+    
+    # Builtin workflows
+    echo "  [builtin] default  - Full workflow (plan → implement → review → merge)"
+    echo "  [builtin] simple   - Simple workflow (implement → merge)"
+    echo ""
+    
+    # Config workflows
     local config_file="$project_root/.pi-runner.yaml"
-    
-    # ビルトインと設定ファイルのワークフローを収集
-    declare -A workflows  # 連想配列（名前 → description）
-    
-    # ビルトインワークフロー
-    workflows["default"]="完全なワークフロー（計画・実装・レビュー・マージ）"
-    workflows["simple"]="簡易ワークフロー（実装・マージのみ）"
-    workflows["thorough"]="徹底ワークフロー（計画・実装・テスト・レビュー・マージ）"
-    workflows["ci-fix"]="CI失敗を検出し自動修正を試行"
-    
-    # .pi-runner.yaml の workflows セクション（存在する場合）
     if [[ -f "$config_file" ]] && yaml_exists "$config_file" ".workflows"; then
-        while IFS= read -r name; do
-            if [[ -n "$name" ]]; then
-                # description を取得（なければデフォルトメッセージ）
-                local desc
-                desc=$(yaml_get "$config_file" ".workflows.${name}.description" "(project workflow)")
-                workflows["$name"]="$desc"
-            fi
-        done < <(yaml_get_keys "$config_file" ".workflows")
+        echo "  [config] workflows from .pi-runner.yaml:"
+        yq -r '.workflows | keys[]' "$config_file" 2>/dev/null | while read -r name; do
+            local desc
+            desc=$(yq -r ".workflows.${name}.description // \"\"" "$config_file" 2>/dev/null)
+            printf "    %-20s %s\n" "$name" "$desc"
+        done
+        echo ""
     fi
     
-    # プロジェクト固有のワークフローファイル（workflows/*.yaml）
+    # File workflows
     if [[ -d "$project_root/workflows" ]]; then
+        echo "  [file] workflows/ directory:"
         for f in "$project_root/workflows"/*.yaml; do
-            if [[ -f "$f" ]]; then
-                local name
-                name="$(basename "$f" .yaml)"
-                # .pi-runner.yaml で定義済みでなければ追加
-                if [[ -z "${workflows[$name]:-}" ]]; then
-                    workflows["$name"]="(custom workflow file)"
-                fi
-            fi
+            [[ -f "$f" ]] || continue
+            local name
+            name=$(basename "$f" .yaml)
+            printf "    %s\n" "$name"
         done
     fi
-    
-    # ソートして出力
-    for name in $(printf '%s\n' "${!workflows[@]}" | sort); do
-        echo "$name: ${workflows[$name]}"
-    done
 }
+
+# Export functions
+export -f resolve_default_workflow
+export -f find_workflow_file
+export -f execute_step
+export -f list_available_workflows
