@@ -20,6 +20,9 @@ count_markers_outside_codeblock() {
     local in_codeblock=false
     local line_num=0
     
+    # Skip empty markers (empty string matches everything)
+    [[ -z "$marker" ]] && { echo 0; return; }
+    
     # 行を順にスキャンし、コードブロックの開始/終了を追跡
     while IFS= read -r line; do
         line_num=$((line_num + 1))
