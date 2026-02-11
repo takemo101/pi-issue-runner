@@ -111,7 +111,45 @@ workflows:
               ]
             })
             ```
-      - review
+      - review:
+          context: |
+            コードレビューを行い、10点満点でスコアリングしてください。
+            
+            ## 評価基準
+            - コード品質（4点）: ShellCheck準拠、エラーハンドリング、可読性
+            - テスト（3点）: カバレッジ、エッジケース、信頼性
+            - 設計整合性（3点）: Issue要件充足、既存コードとの整合性
+            
+            ## レビュープロセス
+            ```javascript
+            subagent({
+              tasks: [
+                { agent: "reviewer", task: "コード品質チェック" },
+                { agent: "reviewer", task: "テスト評価" },
+                { agent: "reviewer", task: "設計整合性評価" }
+              ]
+            })
+            ```
+            
+            ## 判定基準
+            - **9-10点**: APPROVE → 次のステップへ進む
+            - **6-8点**: REQUEST_CHANGES → fixer エージェントで修正
+              ```javascript
+              subagent({ agent: "fixer", task: "レビュー指摘を修正" })
+              ```
+              修正後、再度レビュー（実装ステップに戻る）
+            - **5点以下**: MAJOR_REVISION → 設計からやり直し
+              実装ステップに戻って再実装
+            
+            必ず最終スコアを出力してください：
+            ```
+            ## レビュースコア: X/10
+            - コード品質: X/4
+            - テスト: X/3
+            - 設計整合性: X/3
+            
+            判定: [APPROVE/REQUEST_CHANGES/MAJOR_REVISION]
+            ```
       - merge
 
   # 機能追加: 計画→実装→レビュー→マージ
@@ -156,7 +194,25 @@ workflows:
             ```javascript
             subagent({ agent: "librarian", task: "AGENTS.mdを更新" })
             ```
-      - review
+      - review:
+          context: |
+            コードレビューを行い、10点満点でスコアリングしてください。
+            
+            ## 評価基準
+            - コード品質（4点）: ShellCheck準拠、エラーハンドリング、可読性
+            - テスト（3点）: カバレッジ、エッジケース、信頼性
+            - 設計整合性（3点）: Issue要件充足、既存コードとの整合性
+            
+            ## 判定基準
+            - **9-10点**: APPROVE → 次のステップへ
+            - **6-8点**: fixer で修正 → 再レビュー
+            - **5点以下**: 設計からやり直し
+            
+            出力形式:
+            ```
+            ## レビュースコア: X/10
+            判定: [APPROVE/REQUEST_CHANGES/MAJOR_REVISION]
+            ```
       - merge
     context: |
       ## 技術スタック
@@ -190,7 +246,25 @@ workflows:
               ]
             })
             ```
-      - review
+      - review:
+          context: |
+            コードレビューを行い、10点満点でスコアリングしてください。
+            
+            ## 評価基準
+            - コード品質（4点）: ShellCheck準拠、エラーハンドリング、可読性
+            - テスト（3点）: カバレッジ、エッジケース、信頼性
+            - 設計整合性（3点）: Issue要件充足、既存コードとの整合性
+            
+            ## 判定基準
+            - **9-10点**: APPROVE → 次のステップへ
+            - **6-8点**: fixer で修正 → 再レビュー
+            - **5点以下**: 設計からやり直し
+            
+            出力形式:
+            ```
+            ## レビュースコア: X/10
+            判定: [APPROVE/REQUEST_CHANGES/MAJOR_REVISION]
+            ```
       - merge
     context: |
       ## 方針
@@ -229,7 +303,25 @@ workflows:
               ]
             })
             ```
-      - review
+      - review:
+          context: |
+            コードレビューを行い、10点満点でスコアリングしてください。
+            
+            ## 評価基準
+            - コード品質（4点）: ShellCheck準拠、エラーハンドリング、可読性
+            - テスト（3点）: カバレッジ、エッジケース、信頼性
+            - 設計整合性（3点）: Issue要件充足、既存コードとの整合性
+            
+            ## 判定基準
+            - **9-10点**: APPROVE → 次のステップへ
+            - **6-8点**: fixer で修正 → 再レビュー
+            - **5点以下**: 設計からやり直し
+            
+            出力形式:
+            ```
+            ## レビュースコア: X/10
+            判定: [APPROVE/REQUEST_CHANGES/MAJOR_REVISION]
+            ```
       - merge
 
   # 簡易修正: 実装→マージのみ（軽微な変更）
