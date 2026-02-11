@@ -68,7 +68,7 @@ Options:
     --no-cleanup        エージェント終了後の自動クリーンアップを無効化
     --no-gates          ゲート（品質チェック）を無効化（非推奨: --skip-run を使用）
     --skip-run          run: ステップをスキップ
-    --skip-call         call: ステップをスキップ
+    
     --reattach          既存セッションがあればアタッチ
     --force             既存セッション/worktreeを削除して再作成
     --agent-args ARGS   エージェントに渡す追加の引数
@@ -486,12 +486,12 @@ start_agent_session() {
     _config_for_gates="$(config_file_found 2>/dev/null)" || _config_for_gates=""
     if [[ -n "$_config_for_gates" ]] && [[ -f "$_config_for_gates" ]]; then
         if yaml_exists "$_config_for_gates" ".gates" 2>/dev/null; then
-            log_warn "⚠ 'gates' section is deprecated. Move gate definitions into workflow 'steps' as run:/call: entries."
+            log_warn "⚠ 'gates' section is deprecated. Move gate definitions into workflow 'steps' as run: entries."
             log_warn "  See: docs/workflows.md#run--call-ステップ非aiステップ"
         fi
     fi
 
-    # ステップグループを解析（run:/call: 対応）
+    # ステップグループを解析（run: 対応）
     local workflow_file
     workflow_file=$(find_workflow_file "$workflow_name" ".")
     local typed_steps step_groups has_non_ai_steps=false
@@ -513,8 +513,8 @@ start_agent_session() {
         local first_group_type
         first_group_type="$(echo "$step_groups" | head -1 | cut -f1)"
         if [[ "$first_group_type" != "ai_group" ]]; then
-            log_error "Workflow '$workflow_name': first step must be an AI step (e.g., plan, implement), not run:/call:"
-            log_error "Move run:/call: steps after at least one AI step."
+            log_error "Workflow '$workflow_name': first step must be an AI step (e.g., plan, implement), not run:"
+            log_error "Move run: steps after at least one AI step."
             exit 1
         fi
 

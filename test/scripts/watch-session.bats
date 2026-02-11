@@ -700,7 +700,7 @@ EOF
 }
 
 # ====================
-# Issue #1406: run:/call: ステップ統合テスト
+# Issue #1406: run: ステップ統合テスト
 # ====================
 
 @test "_run_non_ai_steps exists in watch-session.sh" {

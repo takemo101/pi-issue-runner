@@ -157,7 +157,7 @@ setup_watch_environment() {
     ALT_COMPLETE_MARKER="###COMPLETE_TASK_${issue_number_ref}###"
     ALT_ERROR_MARKER="###ERROR_TASK_${issue_number_ref}###"
 
-    # 中間マーカー（run:/call: ステップ対応）
+    # 中間マーカー（run: ステップ対応）
     PHASE_COMPLETE_MARKER="###PHASE_COMPLETE_${issue_number_ref}###"
 }
 
@@ -412,7 +412,7 @@ _post_cleanup_maintenance() {
     }
 }
 
-# Run non-AI steps (run:/call:) for quality verification
+# Run non-AI steps (run:) for quality verification
 # Usage: _run_non_ai_steps <session_name> <issue_number> <worktree_path> <branch_name> <non_ai_group_escaped>
 # Args:
 #   non_ai_group_escaped: \\n区切りの run/call ステップ定義（get_step_groups の non_ai_group 出力）
@@ -510,7 +510,7 @@ _run_non_ai_steps() {
 }
 
 # ===================
-# PHASE_COMPLETE ハンドリング（run:/call: ステップ対応）
+# PHASE_COMPLETE ハンドリング（run: ステップ対応）
 # ===================
 
 # 現在のフェーズ進行状態を管理するグローバル変数
@@ -675,7 +675,7 @@ handle_complete() {
     local worktree_path branch_name
     _resolve_worktree_info "$issue_number" worktree_path branch_name
     
-    # 2. (gates は廃止 — run:/call: ステップに統合済み。#1406)
+    # 2. (gates は廃止 — run: ステップに統合済み。#1406)
     local gates_json=""
     
     # 3. ステータスと計画書の処理
@@ -1041,7 +1041,7 @@ _check_pipe_pane_markers() {
         fi
     fi
 
-    # Step 3: PHASE_COMPLETE マーカーチェック（run:/call: ステップ対応）
+    # Step 3: PHASE_COMPLETE マーカーチェック（run: ステップ対応）
     if [[ -n "${PHASE_COMPLETE_MARKER:-}" ]]; then
         new_phase_count=$(echo "$new_content" | grep -cF "$PHASE_COMPLETE_MARKER" 2>/dev/null) || new_phase_count=0
         if [[ "$new_phase_count" -gt 0 ]]; then
@@ -1122,7 +1122,7 @@ _check_capture_pane_fallback() {
         return 255
     fi
 
-    # Check PHASE_COMPLETE marker first (run:/call: step workflow)
+    # Check PHASE_COMPLETE marker first (run: step workflow)
     if [[ -n "${PHASE_COMPLETE_MARKER:-}" ]]; then
         local capture_phase_count=0
         capture_phase_count=$(count_markers_outside_codeblock "$capture_fallback_output" "$PHASE_COMPLETE_MARKER") || capture_phase_count=0
@@ -1235,7 +1235,7 @@ run_watch_loop() {
     # shellcheck disable=SC2034
     cumulative_error_count=$(count_any_markers_outside_codeblock "$baseline_output" "$error_marker" "$ALT_ERROR_MARKER")
 
-    # PHASE_COMPLETE マーカーの累積カウント（run:/call: ステップ対応）
+    # PHASE_COMPLETE マーカーの累積カウント（run: ステップ対応）
     # shellcheck disable=SC2034
     _cpp_cumulative_phase=0
 
