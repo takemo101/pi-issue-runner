@@ -55,6 +55,7 @@ feature/
 # Config file (user-specific)
 .pi-runner.yml
 .pi-prompt.md
+.pi-prompt-phase*.md
 # pi-issue-runner
 .pi-runner.yaml.local
 
