@@ -60,9 +60,7 @@ feature/
 .pi-runner.yaml.local
 
 # Pi Agent (but allow skills)
-!.pi/
-.pi/*
-!.pi/skills/
+.pi/
 
 # Serena
 .serena/
