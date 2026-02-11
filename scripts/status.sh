@@ -31,7 +31,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/github.sh"
-source "$SCRIPT_DIR/../lib/tmux.sh"
+source "$SCRIPT_DIR/../lib/multiplexer.sh"
 source "$SCRIPT_DIR/../lib/worktree.sh"
 source "$SCRIPT_DIR/../lib/session-resolver.sh"
 
@@ -105,9 +105,9 @@ main() {
     # セッション情報
     echo "--- Session ---"
     echo "Name: $session_name"
-    if session_exists "$session_name"; then
+    if mux_session_exists "$session_name"; then
         echo "Status: Running"
-        get_session_info "$session_name" 2>/dev/null || true
+        mux_get_session_info "$session_name" 2>/dev/null || true
     else
         echo "Status: Not running"
     fi
@@ -129,7 +129,7 @@ main() {
         fi
     else
         echo "Status: No watcher found"
-        if session_exists "$session_name"; then
+        if mux_session_exists "$session_name"; then
             echo "Hint: Run 'scripts/restart-watcher.sh $issue_number' to start"
         fi
     fi
@@ -155,9 +155,9 @@ main() {
     echo ""
 
     # セッション出力
-    if session_exists "$session_name"; then
+    if mux_session_exists "$session_name"; then
         echo "--- Recent Output (last $output_lines lines) ---"
-        get_session_output "$session_name" "$output_lines" 2>/dev/null || echo "Unable to capture output"
+        mux_get_session_output "$session_name" "$output_lines" 2>/dev/null || echo "Unable to capture output"
     fi
 }
 

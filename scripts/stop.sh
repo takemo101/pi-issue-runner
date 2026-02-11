@@ -36,7 +36,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
-source "$SCRIPT_DIR/../lib/tmux.sh"
+source "$SCRIPT_DIR/../lib/multiplexer.sh"
 source "$SCRIPT_DIR/../lib/session-resolver.sh"
 
 usage() {
@@ -119,7 +119,7 @@ main() {
     IFS=$'\t' read -r issue_number session_name < <(resolve_session_target "$target")
 
     # セッション停止
-    kill_session "$session_name"
+    mux_kill_session "$session_name"
     log_info "Session stopped: $session_name"
 
     # --cleanup: worktree/ブランチ削除 + tracker記録

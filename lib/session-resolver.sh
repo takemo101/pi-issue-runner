@@ -10,7 +10,7 @@
 #   resolve_session_target - Resolves issue number and session name from input
 #
 # Dependencies:
-#   - lib/tmux.sh (generate_session_name, extract_issue_number)
+#   - lib/tmux.sh (mux_generate_session_name, mux_extract_issue_number)
 # ============================================================================
 
 set -euo pipefail
@@ -23,7 +23,7 @@ _SESSION_RESOLVER_SH_SOURCED="true"
 
 # Source dependencies
 _SESSION_RESOLVER_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$_SESSION_RESOLVER_LIB_DIR/tmux.sh"
+source "$_SESSION_RESOLVER_LIB_DIR/multiplexer.sh"
 
 # ============================================================================
 # resolve_session_target - Resolve issue number and session name from input
@@ -65,11 +65,11 @@ resolve_session_target() {
     if [[ "$target" =~ ^[0-9]+$ ]]; then
         # Input is an issue number
         issue_number="$target"
-        session_name="$(generate_session_name "$issue_number")"
+        session_name="$(mux_generate_session_name "$issue_number")"
     else
         # Input is a session name
         session_name="$target"
-        issue_number="$(extract_issue_number "$session_name")"
+        issue_number="$(mux_extract_issue_number "$session_name")"
     fi
     
     # Output as tab-separated values

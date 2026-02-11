@@ -115,8 +115,8 @@ teardown() {
     grep -q "lib/log.sh" "$PROJECT_ROOT/scripts/stop.sh"
 }
 
-@test "stop.sh sources tmux.sh" {
-    grep -q "lib/tmux.sh" "$PROJECT_ROOT/scripts/stop.sh"
+@test "stop.sh sources multiplexer.sh" {
+    grep -q "lib/multiplexer.sh" "$PROJECT_ROOT/scripts/stop.sh"
 }
 
 @test "stop.sh has main function" {
@@ -135,33 +135,33 @@ teardown() {
     grep -q "resolve_session_target" "$PROJECT_ROOT/scripts/stop.sh"
 }
 
-@test "stop.sh calls kill_session" {
-    grep -q "kill_session" "$PROJECT_ROOT/scripts/stop.sh"
+@test "stop.sh calls mux_kill_session" {
+    grep -q "mux_kill_session" "$PROJECT_ROOT/scripts/stop.sh"
 }
 
 # ====================
 # セッション名生成テスト
 # ====================
 
-@test "generate_session_name contains issue number for stop" {
+@test "mux_generate_session_name contains issue number for stop" {
     source "$PROJECT_ROOT/lib/config.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     
     _CONFIG_LOADED=""
     load_config
     
-    result="$(generate_session_name "42")"
+    result="$(mux_generate_session_name "42")"
     [[ "$result" == *"42"* ]]
 }
 
-@test "generate_session_name contains issue pattern for stop" {
+@test "mux_generate_session_name contains issue pattern for stop" {
     source "$PROJECT_ROOT/lib/config.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     
     _CONFIG_LOADED=""
     load_config
     
-    result="$(generate_session_name "999")"
+    result="$(mux_generate_session_name "999")"
     [[ "$result" == *"999"* ]]
 }
 
@@ -169,8 +169,8 @@ teardown() {
 # セッション停止ロジックテスト
 # ====================
 
-@test "stop.sh calls kill_session with session_name" {
-    grep -q 'kill_session "$session_name"' "$PROJECT_ROOT/scripts/stop.sh"
+@test "stop.sh calls mux_kill_session with session_name" {
+    grep -q 'mux_kill_session "$session_name"' "$PROJECT_ROOT/scripts/stop.sh"
 }
 
 @test "stop.sh logs session stopped" {

@@ -30,7 +30,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
-source "$SCRIPT_DIR/../lib/tmux.sh"
+source "$SCRIPT_DIR/../lib/multiplexer.sh"
 source "$SCRIPT_DIR/../lib/marker.sh"
 source "$SCRIPT_DIR/../lib/status.sh"
 
@@ -170,7 +170,7 @@ check_session_markers() {
     
     # 2. フォールバック: capture-pane で最後の500行を取得
     log_debug "No pipe-pane log found, falling back to capture-pane (500 lines)"
-    if ! output=$(get_session_output "$session_name" 500 2>/dev/null); then
+    if ! output=$(mux_get_session_output "$session_name" 500 2>/dev/null); then
         log_warn "Failed to get output for session: $session_name"
         echo ""
         return
@@ -261,7 +261,7 @@ main() {
     
     # セッション一覧を取得
     local sessions
-    sessions="$(list_sessions)"
+    sessions="$(mux_list_sessions)"
     
     if [[ -z "$sessions" ]]; then
         log_info "No active sessions found."
@@ -283,7 +283,7 @@ main() {
         
         # Issue番号を抽出
         local issue_num
-        issue_num=$(extract_issue_number "$session" 2>/dev/null) || {
+        issue_num=$(mux_extract_issue_number "$session" 2>/dev/null) || {
             log_debug "Could not extract issue number from: $session (skipping)"
             continue
         }

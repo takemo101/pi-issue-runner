@@ -244,7 +244,7 @@ EOF
         source '$PROJECT_ROOT/lib/log.sh'
         # Stub functions needed by _wait_for_available_slot
         get_config() { echo '0'; }
-        count_active_sessions() { echo '0'; }
+        mux_count_active_sessions() { echo '0'; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         
@@ -275,7 +275,7 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '0'; }
-        count_active_sessions() { echo '0'; }
+        mux_count_active_sessions() { echo '0'; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         execute_improve_issues_in_parallel '' 2>&1
@@ -316,7 +316,7 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '0'; }
-        count_active_sessions() { echo '0'; }
+        mux_count_active_sessions() { echo '0'; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         
@@ -356,7 +356,7 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '0'; }
-        count_active_sessions() { echo '5'; }
+        mux_count_active_sessions() { echo '5'; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         _wait_for_available_slot 1
@@ -370,7 +370,7 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '2'; }
-        count_active_sessions() { echo '1'; }
+        mux_count_active_sessions() { echo '1'; }
         get_status_value() { echo ''; }
         source '$PROJECT_ROOT/lib/improve/execution.sh'
         _wait_for_available_slot 1
@@ -387,7 +387,7 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '2'; }
-        generate_session_name() { echo \"pi-issue-\$1\"; }
+        mux_generate_session_name() { echo \"pi-issue-\$1\"; }
         mux_session_exists() { return 0; }
         COUNTER_FILE='$counter_file'
         
@@ -439,7 +439,7 @@ EOF
     run bash -c "
         source '$PROJECT_ROOT/lib/log.sh'
         get_config() { echo '2'; }
-        generate_session_name() { echo \"pi-issue-\$1\"; }
+        mux_generate_session_name() { echo \"pi-issue-\$1\"; }
         mux_session_exists() { return 0; }
         COUNTER_FILE='$counter_file'
         

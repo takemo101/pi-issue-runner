@@ -26,7 +26,7 @@ source "$_IMPROVE_LIB_DIR/config.sh"
 source "$_IMPROVE_LIB_DIR/log.sh"
 source "$_IMPROVE_LIB_DIR/github.sh"
 source "$_IMPROVE_LIB_DIR/status.sh"
-source "$_IMPROVE_LIB_DIR/tmux.sh"
+source "$_IMPROVE_LIB_DIR/multiplexer.sh"
 source "$_IMPROVE_LIB_DIR/hooks.sh"
 
 # Source improve sub-modules

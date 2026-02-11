@@ -19,7 +19,7 @@ setup() {
     # 必要なライブラリを読み込み
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
 }
 
 teardown() {
@@ -95,33 +95,33 @@ line2
 # Issue番号抽出テスト
 # ====================
 
-@test "extract_issue_number from pi-issue-42" {
-    result="$(extract_issue_number "pi-issue-42")"
+@test "mux_extract_issue_number from pi-issue-42" {
+    result="$(mux_extract_issue_number "pi-issue-42")"
     [ "$result" = "42" ]
 }
 
-@test "extract_issue_number from pi-issue-134" {
-    result="$(extract_issue_number "pi-issue-134")"
+@test "mux_extract_issue_number from pi-issue-134" {
+    result="$(mux_extract_issue_number "pi-issue-134")"
     [ "$result" = "134" ]
 }
 
-@test "extract_issue_number from project-issue-999" {
-    result="$(extract_issue_number "project-issue-999")"
+@test "mux_extract_issue_number from project-issue-999" {
+    result="$(mux_extract_issue_number "project-issue-999")"
     [ "$result" = "999" ]
 }
 
-@test "extract_issue_number from pi-issue-42-feature" {
-    result="$(extract_issue_number "pi-issue-42-feature")"
+@test "mux_extract_issue_number from pi-issue-42-feature" {
+    result="$(mux_extract_issue_number "pi-issue-42-feature")"
     [ "$result" = "42" ]
 }
 
-@test "extract_issue_number from pi-issue-10-fix-bug-abc" {
-    result="$(extract_issue_number "pi-issue-10-fix-bug-abc")"
+@test "mux_extract_issue_number from pi-issue-10-fix-bug-abc" {
+    result="$(mux_extract_issue_number "pi-issue-10-fix-bug-abc")"
     [ "$result" = "10" ]
 }
 
-@test "extract_issue_number returns empty for invalid session name" {
-    result="$(extract_issue_number "session-name-only" 2>/dev/null)" || result=""
+@test "mux_extract_issue_number returns empty for invalid session name" {
+    result="$(mux_extract_issue_number "session-name-only" 2>/dev/null)" || result=""
     [ -z "$result" ]
 }
 

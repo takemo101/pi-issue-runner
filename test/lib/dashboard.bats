@@ -253,7 +253,7 @@ MOCK_EOF
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/github.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/dashboard.sh"
     
     # ghコマンドのモック
@@ -404,7 +404,7 @@ MOCK_EOF
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/github.sh"
     source "$PROJECT_ROOT/lib/status.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/dashboard.sh"
     
     # 必要なモックをセットアップ
