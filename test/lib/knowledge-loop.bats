@@ -219,6 +219,38 @@ EOF
 }
 
 # ====================
+# _score_to_stars
+# ====================
+
+@test "_score_to_stars returns 3 stars for score >= 10" {
+    result="$(_score_to_stars 10)"
+    [ "$result" = "★★★" ]
+    result="$(_score_to_stars 15)"
+    [ "$result" = "★★★" ]
+}
+
+@test "_score_to_stars returns 2 stars for score >= 5" {
+    result="$(_score_to_stars 5)"
+    [ "$result" = "★★☆" ]
+    result="$(_score_to_stars 9)"
+    [ "$result" = "★★☆" ]
+}
+
+@test "_score_to_stars returns 1 star for score >= 2" {
+    result="$(_score_to_stars 2)"
+    [ "$result" = "★☆☆" ]
+    result="$(_score_to_stars 4)"
+    [ "$result" = "★☆☆" ]
+}
+
+@test "_score_to_stars returns 0 stars for score < 2" {
+    result="$(_score_to_stars 1)"
+    [ "$result" = "☆☆☆" ]
+    result="$(_score_to_stars 0)"
+    [ "$result" = "☆☆☆" ]
+}
+
+# ====================
 # generate_knowledge_proposals
 # ====================
 
