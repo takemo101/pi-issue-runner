@@ -50,9 +50,77 @@ generate_session_prompt() {
     local workflow_file
     workflow_file=$(find_workflow_file "$workflow_name" ".")
 
-    # プロンプト生成（シンプル版 - 全ステップを一括）
-    write_workflow_prompt "$prompt_file" "$workflow_name" "$issue_number" \
-        "$issue_title" "$issue_body" "$branch_name" "$full_worktree_path" "." "$issue_comments"
+    # プロンプトヘッダー
+    cat > "$prompt_file" << EOF
+# GitHub Issue #${issue_number} - ${workflow_name} Workflow
+
+**Title:** ${issue_title}
+**Branch:** ${branch_name}
+**Workflow:** ${workflow_name}
+
+## Issue Description
+
+${issue_body}
+
+EOF
+
+    # コメントがあれば追加
+    if [[ -n "$issue_comments" ]]; then
+        echo "" >> "$prompt_file"
+        echo "## Comments" >> "$prompt_file"
+        echo "" >> "$prompt_file"
+        echo "$issue_comments" >> "$prompt_file"
+        echo "" >> "$prompt_file"
+    fi
+
+    # ワークフローステップを取得してプロンプト生成
+    local steps
+    steps=$(get_workflow_steps "$workflow_file")
+    
+    echo "" >> "$prompt_file"
+    echo "## Workflow Steps" >> "$prompt_file"
+    echo "" >> "$prompt_file"
+    
+    local step_num=1
+    while IFS=$'\t' read -r step_name step_context; do
+        [[ -z "$step_name" ]] && continue
+        
+        # エージェントファイルを取得
+        local agent_file
+        agent_file=$(find_agent_file "$step_name" ".")
+        
+        # エージェントプロンプトを取得
+        local agent_prompt
+        agent_prompt=$(get_agent_prompt "$agent_file" "$issue_number" "$branch_name" "$full_worktree_path" "$step_name" "$issue_title" "" "$workflow_name")
+        
+        echo "### Step $step_num: $step_name" >> "$prompt_file"
+        echo "" >> "$prompt_file"
+        echo "$agent_prompt" >> "$prompt_file"
+        
+        # context があれば追加
+        if [[ -n "$step_context" ]]; then
+            echo "" >> "$prompt_file"
+            echo "#### Additional Context" >> "$prompt_file"
+            echo "" >> "$prompt_file"
+            echo "$step_context" >> "$prompt_file"
+        fi
+        
+        echo "" >> "$prompt_file"
+        ((step_num++)) || true
+    done <<< "$steps"
+
+    # フッター
+    cat >> "$prompt_file" << EOF
+---
+
+## Completion
+
+After completing all steps above, output the completion marker:
+
+\`\`\`
+###TASK_COMPLETE_${issue_number}###
+\`\`\`
+EOF
 }
 
 # ============================================================================
