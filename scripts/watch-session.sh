@@ -612,7 +612,7 @@ handle_phase_complete() {
                 workflow_name="$(echo "$tracker_meta" | cut -f1)"
             fi
 
-            # 次のAIグループのプロンプトを生成
+            # 次のAIグループのプロンプトをファイルに書き出す
             local worktree_path_resolved branch_name_resolved
             _resolve_worktree_info "$issue_number" worktree_path_resolved branch_name_resolved
             # AIグループのインデックスを正確に計算
@@ -624,25 +624,24 @@ handle_phase_complete() {
             done
             ((ai_group_index--)) || true  # 0始まりに調整
 
-            local continue_prompt
-            continue_prompt="$(generate_ai_group_prompt "$ai_group_index" "$total_groups" "$after_content" "$is_final" \
-                "$workflow_name" "$issue_number" "" "" "$branch_name_resolved" "$worktree_path_resolved" "." "" "" 2>/dev/null)"
+            # プロンプトをファイルに書き出す
+            local phase_num=$((ai_group_index + 1))
+            local prompt_filename=".pi-prompt-phase${phase_num}.md"
+            local prompt_filepath="${worktree_path_resolved}/${prompt_filename}"
 
-            # run: 出力の参照情報を追加
+            write_ai_group_prompt_file "$prompt_filepath" \
+                "$ai_group_index" "$total_groups" "$after_content" "$is_final" \
+                "$workflow_name" "$issue_number" "" "" "$branch_name_resolved" "$worktree_path_resolved" "." "" ""
+
+            # run: 出力の参照情報をファイルに追記
             if [[ -n "${PI_RUN_OUTPUT_SUMMARY:-}" ]]; then
-                local output_refs
-                output_refs="$(printf '\n## Quality Check Results\n\nAll quality checks passed. Results are saved in `.pi/run-outputs/`:\n')"
-                while IFS='=' read -r step_name output_path; do
-                    output_refs="$(printf '%s\n- ✅ %s → `%s`' "$output_refs" "$step_name" "$output_path")"
-                done <<< "$PI_RUN_OUTPUT_SUMMARY"
-                output_refs="$(printf '%s\n\nYou can read these files if you need details about the check results.\n' "$output_refs")"
-                continue_prompt="${continue_prompt}${output_refs}"
+                append_run_output_summary "$prompt_filepath" "$PI_RUN_OUTPUT_SUMMARY"
                 unset PI_RUN_OUTPUT_SUMMARY
             fi
 
             if mux_session_exists "$session_name"; then
-                mux_send_keys "$session_name" "$continue_prompt"
-                log_info "Continue prompt sent for next AI group: $after_content"
+                mux_send_keys "$session_name" "Read and follow the instructions in ${prompt_filename}"
+                log_info "Continue prompt file written: $prompt_filepath (sent path to session)"
             else
                 log_warn "Session $session_name no longer exists"
                 return 1
