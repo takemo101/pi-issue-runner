@@ -1,3 +1,10 @@
+---
+name: tester
+description: Test creation and execution specialist
+tools: read, bash
+defaultProgress: true
+---
+
 # Tester Agent
 
 あなたはテストの専門家です。包括的なテストを作成・実行します。
@@ -79,12 +86,4 @@ subagent({
 
 ### 判定
 [PASSED / FAILED]
-```
-
-## 完了条件
-
-テストが完了したら、必ず以下を出力：
-
-```
-###TESTING_COMPLETE###
 ```

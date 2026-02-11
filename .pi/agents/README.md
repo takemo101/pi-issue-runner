@@ -4,16 +4,38 @@ pi-issue-runner 用の専門家エージェント定義です。
 
 ## エージェント一覧
 
-| エージェント | 役割 | 使用タイミング |
-|------------|------|--------------|
-| `orchestrator` | 全体統括・戦略立案 | Issue開始時 |
-| `explorer` | コードベース探索 | 構造把握が必要な時 |
-| `designer` | 設計・構成決定 | 実装前の設計時 |
-| `implementer` | 実装 | コーディング時 |
-| `reviewer` | レビュー | 実装完了後 |
-| `tester` | テスト作成・実行 | 品質保証時 |
-| `librarian` | ドキュメント更新 | ドキュメント整備時 |
-| `fixer` | 修正 | エラー/指摘対応時 |
+| エージェント | 役割 | メタデータ |
+|------------|------|-----------|
+| `orchestrator` | 全体統括・戦略立案 | `tools: read, grep, find, ls, bash` |
+| `explorer` | コードベース探索 | `tools: read, grep, find, ls, bash` |
+| `designer` | 設計・構成決定 | `tools: read, grep, find, ls, bash` |
+| `implementer` | 実装 | `tools: read, write, edit, bash`, `skill: safe-bash` |
+| `reviewer` | レビュー | `tools: read, grep, bash` |
+| `tester` | テスト作成・実行 | `tools: read, bash` |
+| `librarian` | ドキュメント管理 | `tools: read, write, edit` |
+| `fixer` | 修正 | `tools: read, write, edit, bash` |
+
+## メタデータ形式
+
+各エージェントは YAML frontmatter で定義されています：
+
+```yaml
+---
+name: agent-name
+description: Brief description of the agent's role
+tools: tool1, tool2, tool3
+defaultProgress: true
+skill: skill-name  # optional
+---
+```
+
+| フィールド | 説明 | 必須 |
+|-----------|------|------|
+| `name` | エージェント名 | ✅ |
+| `description` | エージェントの説明 | ✅ |
+| `tools` | 使用可能なツール（カンマ区切り） | ✅ |
+| `defaultProgress` | 進捗管理を有効化 | ✅ |
+| `skill` | 注入するスキル（オプション） | ❌ |
 
 ## 使用方法
 
@@ -50,13 +72,7 @@ subagent({
     { agent: "designer", task: "実装設計を作成" },
     { 
       agent: "implementer", 
-      task: "設計に基づいて実装",
-      // 並列サブタスク
-      subtasks: [
-        "lib/module/core.sh",
-        "lib/module/utils.sh",
-        "scripts/script.sh"
-      ]
+      task: "設計に基づいて実装"
     },
     { agent: "tester", task: "テストを作成・実行" },
     { agent: "reviewer", task: "実装をレビュー" },
@@ -74,23 +90,8 @@ subagent({
 5. **Reviewer** が承認 → Librarian がドキュメント更新
 6. **Fixer** がレビュー指摘やエラーを修正
 
-## 完了マーカー
-
-各エージェントは完了時に固有のマーカーを出力します：
-
-| エージェント | 完了マーカー |
-|------------|------------|
-| orchestrator | `###ORCHESTRATION_COMPLETE###` |
-| explorer | `###EXPLORATION_COMPLETE###` |
-| designer | `###DESIGN_COMPLETE###` |
-| implementer | `###IMPLEMENTATION_COMPLETE###` |
-| reviewer | `###REVIEW_COMPLETE###` |
-| tester | `###TESTING_COMPLETE###` |
-| librarian | `###DOCUMENTATION_COMPLETE###` |
-| fixer | `###FIX_COMPLETE###` |
-
 ## 注意事項
 
-- 各エージェントは `.md` ファイルとして定義
-- テンプレート変数は展開されてから subagent に渡される
+- 各エージェントは `.md` ファイルとして定義（YAML frontmatter + Markdown body）
+- subagent の完了は自動的に検出されるため、明示的な完了マーカーは不要
 - エージェント内でさらに subagent を呼び出すことで並列化が可能

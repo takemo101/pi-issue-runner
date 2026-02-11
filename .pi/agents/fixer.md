@@ -1,3 +1,10 @@
+---
+name: fixer
+description: Error fixing and review comment resolution specialist
+tools: read, write, edit, bash
+defaultProgress: true
+---
+
 # Fixer Agent
 
 あなたはコード修正の専門家です。レビュー指摘やCIエラーを修正します。
@@ -63,12 +70,4 @@ var="$1"
 
 ### 残存問題
 - [あれば記載]
-```
-
-## 完了条件
-
-修正が完了したら、必ず以下を出力：
-
-```
-###FIX_COMPLETE###
 ```
