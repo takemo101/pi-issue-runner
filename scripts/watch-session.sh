@@ -959,7 +959,9 @@ _verify_real_marker() {
     return 1
 }
 
-# Phase 2a: Check pipe-pane markers (fast grep-based detection)
+# Phase 2a: Check pipe-pane markers (incremental grep-based detection)
+# Scans only new content since last check to avoid false positives from
+# continue prompts that contain marker text (displayed via pi's Steering output).
 # Usage: _check_pipe_pane_markers <output_log> <marker> <error_marker> <session_name> <issue_number> <auto_attach> <cleanup_args> <cumulative_complete_var> <cumulative_error_var>
 # Returns: 0=complete (exit 0), 1=error handled, 2=PR merge timeout, 255=no new marker
 _check_pipe_pane_markers() {
@@ -973,14 +975,41 @@ _check_pipe_pane_markers() {
     local -n _cpp_cumulative_complete="$8"
     local -n _cpp_cumulative_error="$9"
 
-    # Step 1: grep -cF で高速カウント（ファイルをメモリに読み込まない）
-    local file_error_count file_complete_count
-    file_error_count=$(grep_marker_count_in_file "$output_log" "$error_marker" "$ALT_ERROR_MARKER")
-    file_complete_count=$(grep_marker_count_in_file "$output_log" "$marker" "$ALT_COMPLETE_MARKER")
+    # Step 0: 差分スキャン — 前回チェック位置から新しい部分のみを抽出
+    local current_size=0
+    current_size=$(wc -c < "$output_log" 2>/dev/null) || current_size=0
+    if [[ "$current_size" -le "${_pipe_pane_last_offset:-0}" ]]; then
+        return 255  # ファイルサイズ変化なし
+    fi
+
+    local new_content=""
+    new_content=$(tail -c +"$((_pipe_pane_last_offset + 1))" "$output_log" 2>/dev/null) || new_content=""
+    _pipe_pane_last_offset="$current_size"
+
+    if [[ -z "$new_content" ]]; then
+        return 255
+    fi
+
+    # Step 1: 差分内のマーカーカウント
+    local new_error_count=0 new_complete_count=0 new_phase_count=0
+    new_error_count=$(echo "$new_content" | grep -cF "$error_marker" 2>/dev/null) || new_error_count=0
+    if [[ -n "${ALT_ERROR_MARKER:-}" ]]; then
+        local alt_c=0
+        alt_c=$(echo "$new_content" | grep -cF "$ALT_ERROR_MARKER" 2>/dev/null) || alt_c=0
+        new_error_count=$((new_error_count + alt_c))
+    fi
+    new_complete_count=$(echo "$new_content" | grep -cF "$marker" 2>/dev/null) || new_complete_count=0
+    if [[ -n "${ALT_COMPLETE_MARKER:-}" ]]; then
+        local alt_c=0
+        alt_c=$(echo "$new_content" | grep -cF "$ALT_COMPLETE_MARKER" 2>/dev/null) || alt_c=0
+        new_complete_count=$((new_complete_count + alt_c))
+    fi
 
     # Step 2: 新規エラーマーカーが見つかった場合のみコードブロック検証
-    if [[ "$file_error_count" -gt 0 ]] && [[ "$file_error_count" -gt "$_cpp_cumulative_error" ]]; then
+    if [[ "$new_error_count" -gt 0 ]]; then
         if _verify_real_marker "$output_log" "$error_marker" "$ALT_ERROR_MARKER" "true"; then
+            local file_error_count
+            file_error_count=$(grep_marker_count_in_file "$output_log" "$error_marker" "$ALT_ERROR_MARKER")
             log_warn "Error marker detected! (count: $file_error_count)"
             _cpp_cumulative_error="$file_error_count"
 
@@ -995,12 +1024,14 @@ _check_pipe_pane_markers() {
 
     # Step 3: PHASE_COMPLETE マーカーチェック（run:/call: ステップ対応）
     if [[ -n "${PHASE_COMPLETE_MARKER:-}" ]]; then
-        local file_phase_count=0
-        file_phase_count=$(grep -cF "$PHASE_COMPLETE_MARKER" "$output_log" 2>/dev/null) || file_phase_count=0
-        if [[ "$file_phase_count" -gt 0 ]] && [[ "$file_phase_count" -gt "${_cpp_cumulative_phase:-0}" ]]; then
-            if verify_marker_outside_codeblock "$output_log" "$PHASE_COMPLETE_MARKER" "true" 2>/dev/null; then
-                log_info "Phase complete marker detected! (count: $file_phase_count)"
-                _cpp_cumulative_phase="$file_phase_count"
+        new_phase_count=$(echo "$new_content" | grep -cF "$PHASE_COMPLETE_MARKER" 2>/dev/null) || new_phase_count=0
+        if [[ "$new_phase_count" -gt 0 ]]; then
+            # 差分内にマーカーがある場合、コードブロック外か検証
+            local phase_outside_count
+            phase_outside_count=$(count_markers_outside_codeblock "$new_content" "$PHASE_COMPLETE_MARKER")
+            if [[ "$phase_outside_count" -gt 0 ]]; then
+                _cpp_cumulative_phase=$((_cpp_cumulative_phase + phase_outside_count))
+                log_info "Phase complete marker detected! (count: $_cpp_cumulative_phase)"
 
                 local phase_result=0
                 handle_phase_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args" || phase_result=$?
@@ -1023,10 +1054,12 @@ _check_pipe_pane_markers() {
     fi
 
     # Step 4: 新規完了マーカーが見つかった場合のみコードブロック検証
-    if [[ "$file_complete_count" -gt 0 ]] && [[ "$file_complete_count" -gt "$_cpp_cumulative_complete" ]]; then
-        if _verify_real_marker "$output_log" "$marker" "$ALT_COMPLETE_MARKER" "true"; then
-            log_info "Completion marker detected! (count: $file_complete_count)"
-            _cpp_cumulative_complete="$file_complete_count"
+    if [[ "$new_complete_count" -gt 0 ]]; then
+        local complete_outside_count
+        complete_outside_count=$(count_any_markers_outside_codeblock "$new_content" "$marker" "$ALT_COMPLETE_MARKER")
+        if [[ "$complete_outside_count" -gt 0 ]]; then
+            _cpp_cumulative_complete=$((_cpp_cumulative_complete + complete_outside_count))
+            log_info "Completion marker detected! (count: $_cpp_cumulative_complete)"
 
             local complete_result=0
             handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args" || complete_result=$?
@@ -1187,6 +1220,15 @@ run_watch_loop() {
     # shellcheck disable=SC2034
     _cpp_cumulative_phase=0
 
+    # pipe-pane ログのバイトオフセット（差分スキャン用）
+    # continueプロンプト等がpipe-paneログに流れるとマーカーが大量に重複するため、
+    # 前回チェック済みの位置から差分のみをスキャンする
+    # shellcheck disable=SC2034
+    _pipe_pane_last_offset=0
+    if [[ -n "$output_log" && -f "$output_log" ]]; then
+        _pipe_pane_last_offset=$(wc -c < "$output_log" 2>/dev/null) || _pipe_pane_last_offset=0
+    fi
+
     # シグナルファイルのパス（ターミナルスクレイピングより信頼性が高い）
     local status_dir
     status_dir="$(get_status_dir)"
@@ -1215,18 +1257,17 @@ run_watch_loop() {
         # === Phase 2: テキストマーカー検出（フォールバック・後方互換） ===
         check_result=0
         if [[ -n "$output_log" && -f "$output_log" ]]; then
-            local pipe_complete_count
-            pipe_complete_count=$(grep_marker_count_in_file "$output_log" "$marker" "$ALT_COMPLETE_MARKER")
-
             _check_pipe_pane_markers "$output_log" "$marker" "$error_marker" \
                 "$session_name" "$issue_number" "$auto_attach" "$cleanup_args" \
                 cumulative_complete_count cumulative_error_count || check_result=$?
 
             if [[ $check_result -eq 255 ]]; then
                 check_result=0
+                # capture-pane fallback: pipe-pane がフラッシュしない場合の補完
+                # cumulative counts を渡してまだ未検出の場合のみチェック
                 _check_capture_pane_fallback "$session_name" "$marker" \
                     "$issue_number" "$auto_attach" "$cleanup_args" \
-                    "$loop_count" "$pipe_complete_count" "$cumulative_complete_count" || check_result=$?
+                    "$loop_count" 0 "$cumulative_complete_count" || check_result=$?
             fi
         else
             _check_capture_pane_markers "$session_name" "$marker" "$error_marker" \
