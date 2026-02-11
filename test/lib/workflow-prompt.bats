@@ -638,3 +638,122 @@ YAML_EOF
     ellipsis_count=$(grep -o '\.\.\.' "$result_file" | wc -l | tr -d ' ')
     [ "$ellipsis_count" -ge 2 ]
 }
+
+# ====================
+# write_ai_group_prompt_file テスト
+# ====================
+
+@test "write_ai_group_prompt_file creates prompt file for first AI group" {
+    # ワークフローとエージェントを準備
+    cat > "$TEST_DIR/workflows/default.yaml" << 'YAML_EOF'
+name: default
+steps:
+  - implement
+  - merge
+YAML_EOF
+    cat > "$TEST_DIR/agents/implement.md" << 'AGENT_EOF'
+Implement the changes.
+AGENT_EOF
+    cat > "$TEST_DIR/agents/merge.md" << 'AGENT_EOF'
+Merge the changes.
+AGENT_EOF
+
+    local output_file="$BATS_TEST_TMPDIR/prompt-phase1.md"
+
+    write_ai_group_prompt_file "$output_file" \
+        0 2 "implement" "false" \
+        "default" "42" "Test Issue" "Test body" "feature/branch" "/path/worktree" "$TEST_DIR" "" ""
+
+    [ -f "$output_file" ]
+    grep -qF "#42" "$output_file"
+    grep -qF "Phase 1/2" "$output_file"
+}
+
+@test "write_ai_group_prompt_file creates prompt file for subsequent AI group" {
+    cat > "$TEST_DIR/workflows/default.yaml" << 'YAML_EOF'
+name: default
+steps:
+  - implement
+  - merge
+YAML_EOF
+    cat > "$TEST_DIR/agents/merge.md" << 'AGENT_EOF'
+Merge the changes.
+AGENT_EOF
+
+    local output_file="$BATS_TEST_TMPDIR/prompt-phase2.md"
+
+    write_ai_group_prompt_file "$output_file" \
+        1 2 "merge" "true" \
+        "default" "42" "" "" "feature/branch" "/path/worktree" "$TEST_DIR" "" ""
+
+    [ -f "$output_file" ]
+    grep -qF "Continue Workflow" "$output_file"
+    grep -qF "Phase 2/2" "$output_file"
+}
+
+@test "write_ai_group_prompt_file overwrites existing file" {
+    _skip_in_fast_mode
+    cat > "$TEST_DIR/workflows/default.yaml" << 'YAML_EOF'
+name: default
+steps:
+  - implement
+YAML_EOF
+    cat > "$TEST_DIR/agents/implement.md" << 'AGENT_EOF'
+Implement changes.
+AGENT_EOF
+
+    local output_file="$BATS_TEST_TMPDIR/prompt-phase.md"
+    echo "old content" > "$output_file"
+
+    write_ai_group_prompt_file "$output_file" \
+        0 1 "implement" "true" \
+        "default" "99" "Title" "Body" "branch" "/path" "$TEST_DIR" "" ""
+
+    ! grep -qF "old content" "$output_file"
+    grep -qF "#99" "$output_file"
+}
+
+# ====================
+# append_run_output_summary テスト
+# ====================
+
+@test "append_run_output_summary appends results to file" {
+    local prompt_file="$BATS_TEST_TMPDIR/prompt.md"
+    echo "# Original content" > "$prompt_file"
+
+    append_run_output_summary "$prompt_file" "shellcheck=.pi/run-outputs/shellcheck.txt
+bats=.pi/run-outputs/bats.txt"
+
+    grep -qF "# Original content" "$prompt_file"
+    grep -qF "Quality Check Results" "$prompt_file"
+    grep -qF "shellcheck" "$prompt_file"
+    grep -qF "bats" "$prompt_file"
+    grep -qF ".pi/run-outputs/shellcheck.txt" "$prompt_file"
+}
+
+@test "append_run_output_summary does nothing with empty summary" {
+    local prompt_file="$BATS_TEST_TMPDIR/prompt.md"
+    echo "# Original content" > "$prompt_file"
+    local original_size
+    original_size=$(wc -c < "$prompt_file")
+
+    append_run_output_summary "$prompt_file" ""
+
+    local new_size
+    new_size=$(wc -c < "$prompt_file")
+    [ "$original_size" -eq "$new_size" ]
+}
+
+@test "append_run_output_summary adds checkmark for each step" {
+    _skip_in_fast_mode
+    local prompt_file="$BATS_TEST_TMPDIR/prompt.md"
+    echo "# Prompt" > "$prompt_file"
+
+    append_run_output_summary "$prompt_file" "step1=output1.txt
+step2=output2.txt
+step3=output3.txt"
+
+    local checkmark_count
+    checkmark_count=$(grep -c "✅" "$prompt_file")
+    [ "$checkmark_count" -eq 3 ]
+}

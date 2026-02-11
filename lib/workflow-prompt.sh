@@ -551,3 +551,36 @@ write_workflow_prompt() {
     
     log_debug "Workflow prompt written to: $output_file"
 }
+
+# AIグループプロンプトをファイルに書き出す
+# Usage: write_ai_group_prompt_file <output_file> <group_index> <total_groups> <ai_steps_space_separated> <is_final_ai_group> \
+#          <workflow_name> <issue_number> <issue_title> <issue_body> <branch_name> <worktree_path> \
+#          [project_root] [issue_comments] [pr_number]
+# Output: ファイルに書き出す。追加情報は後から append 可能。
+write_ai_group_prompt_file() {
+    local output_file="$1"
+    shift
+    # 残りの引数はそのまま generate_ai_group_prompt に渡す
+    generate_ai_group_prompt "$@" > "$output_file"
+    log_debug "AI group prompt written to: $output_file"
+}
+
+# AIグループプロンプトファイルに run: 出力サマリーを追記する
+# Usage: append_run_output_summary <prompt_file> <run_output_summary>
+append_run_output_summary() {
+    local prompt_file="$1"
+    local run_output_summary="$2"
+
+    if [[ -z "$run_output_summary" ]]; then
+        return 0
+    fi
+
+    {
+        printf '\n## Quality Check Results\n\nAll quality checks passed. Results are saved in `.pi/run-outputs/`:\n'
+        while IFS='=' read -r step_name output_path; do
+            printf '\n- ✅ %s → `%s`' "$step_name" "$output_path"
+        done <<< "$run_output_summary"
+        printf '\n\nYou can read these files if you need details about the check results.\n'
+    } >> "$prompt_file"
+    log_debug "Run output summary appended to: $prompt_file"
+}
