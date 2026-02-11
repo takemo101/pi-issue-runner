@@ -162,6 +162,11 @@ teardown() {
 @test "Issue #289: handle_complete deletes plan file in host environment" {
     # watch-session.sh の handle_complete が計画書を削除することを確認
     # (Issue #883/#904: notify.sh から watch-session.sh に移動)
-    grep -q 'issue-.*-plan.md' "$PROJECT_ROOT/scripts/watch-session.sh"
-    grep -q 'rm -f "$plan_file"' "$PROJECT_ROOT/scripts/watch-session.sh"
+    # (Issue #1445: サブモジュールに分割 - lib/watcher/cleanup.sh または lib/watcher/phase.sh を確認)
+    grep -q 'issue-.*-plan.md' "$PROJECT_ROOT/scripts/watch-session.sh" || \
+        grep -q 'issue-.*-plan.md' "$PROJECT_ROOT/lib/watcher/cleanup.sh" || \
+        grep -q 'issue-.*-plan.md' "$PROJECT_ROOT/lib/watcher/phase.sh"
+    grep -q 'rm -f "$plan_file"' "$PROJECT_ROOT/scripts/watch-session.sh" || \
+        grep -q 'rm -f "$plan_file"' "$PROJECT_ROOT/lib/watcher/cleanup.sh" || \
+        grep -q 'rm -f "$plan_file"' "$PROJECT_ROOT/lib/watcher/phase.sh"
 }
