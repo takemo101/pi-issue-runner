@@ -523,6 +523,17 @@ If any check fails, you will receive the error details and should fix the issues
 
 Do NOT output the final TASK_COMPLETE marker at this point — there are more steps after the quality checks.
 
+### ⚠️ IMPORTANT: Do NOT Run Quality Checks Manually
+
+**The \`run:\` steps (shellcheck, bats, etc.) are executed AUTOMATICALLY by the system after you output the PHASE_COMPLETE marker.**
+
+- ❌ DO NOT run \`./scripts/test.sh\` or \`shellcheck\` manually in this phase
+- ❌ DO NOT wait for test results or verify quality checks yourself
+- ✅ Simply complete the AI steps (implement, test, review) and output PHASE_COMPLETE
+- ✅ The system will automatically run quality checks and notify you if fixes are needed
+
+Manually running tests will cause the workflow to skip the automated quality checks, leading to inconsistent state.
+
 ### On Error
 
 If you encounter an unrecoverable error, output the error marker:
