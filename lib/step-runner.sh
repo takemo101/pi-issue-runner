@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# step-runner.sh - run:/call: ステップの実行エンジン
+# step-runner.sh - run: ステップの実行エンジン
 #
 # 提供関数:
 #   - run_command_step: run: ステップ（外部コマンド）を実行
-#   - run_call_step: call: ステップ（別ワークフロー呼び出し）を実行
+#   - save_run_output: run: ステップの出力をファイルに保存
+#   - sanitize_filename: ステップ名をファイル名安全な形式に変換
 #   - expand_step_variables: テンプレート変数を展開
 
 set -euo pipefail
@@ -43,13 +44,79 @@ expand_step_variables() {
 }
 
 # ===================
+# run: 出力ファイル保存
+# ===================
+
+# run: 出力の最大保存サイズ（バイト）
+_RUN_OUTPUT_MAX_SIZE="${PI_RUN_OUTPUT_MAX_SIZE:-102400}"  # 100KB
+
+# ステップ名をファイル名安全な形式に変換
+# Usage: sanitize_filename <description>
+# Output: sanitized filename string (without extension)
+sanitize_filename() {
+    local name="$1"
+    # 空白・スラッシュをハイフンに、ファイル名に使えない文字（:*?"<>|）を除去、連続ハイフンを1つに
+    printf '%s' "$name" | tr ' /' '--' | sed 's/[:*?"<>|]//g; s/--*/-/g; s/^-//; s/-$//'
+}
+
+# run: ステップの出力をファイルに保存
+# Usage: save_run_output <worktree_path> <description> <command> <exit_code> <output>
+# Output: 保存先ファイルパス（worktree からの相対パス）を stdout に出力
+save_run_output() {
+    local worktree_path="$1"
+    local description="$2"
+    local command="$3"
+    local exit_code="$4"
+    local output="$5"
+
+    local output_dir="$worktree_path/.pi/run-outputs"
+    mkdir -p "$output_dir"
+
+    local filename
+    if [[ -n "$description" ]]; then
+        filename="$(sanitize_filename "$description").log"
+    else
+        filename="step-$(date +%s).log"
+    fi
+
+    local output_file="$output_dir/$filename"
+    local relative_path=".pi/run-outputs/$filename"
+
+    # ヘッダ + 出力を書き込み
+    {
+        printf '# Step: %s\n' "$description"
+        printf '# Command: %s\n' "$command"
+        printf '# Exit Code: %d\n' "$exit_code"
+        printf '# Timestamp: %s\n' "$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S%z')"
+        printf '# ---\n'
+        printf '%s\n' "$output"
+    } > "$output_file"
+
+    # サイズ制限（末尾を保持）
+    local file_size
+    file_size=$(wc -c < "$output_file" | tr -d ' ')
+    if [[ "$file_size" -gt "$_RUN_OUTPUT_MAX_SIZE" ]]; then
+        local tmp_file
+        tmp_file="$(mktemp "${TMPDIR:-/tmp}/pi-run-output-XXXXXX")"
+        printf '# [truncated: first %d bytes omitted]\n' "$(( file_size - _RUN_OUTPUT_MAX_SIZE ))"  > "$tmp_file"
+        tail -c "$_RUN_OUTPUT_MAX_SIZE" "$output_file" >> "$tmp_file"
+        mv "$tmp_file" "$output_file"
+    fi
+
+    log_debug "run: output saved to $relative_path (${file_size} bytes)"
+    printf '%s' "$relative_path"
+}
+
+# ===================
 # run: ステップ実行
 # ===================
 
-# 外部コマンドを worktree 内で実行
-# Usage: run_command_step <command> <timeout> <worktree_path> [issue_number] [pr_number] [branch_name]
+# 外部コマンドを worktree 内で実行し、出力をファイルに保存
+# Usage: run_command_step <command> <timeout> <worktree_path> [issue_number] [pr_number] [branch_name] [description]
 # Returns: 0=成功, 1=失敗, 124=タイムアウト
 # Output: コマンドの stdout/stderr を stdout に出力
+# Side effect: 出力を .pi/run-outputs/<description>.log に保存
+#   保存先パスは PI_LAST_RUN_OUTPUT_PATH に設定される
 run_command_step() {
     local command="$1"
     local timeout="${2:-900}"
@@ -57,6 +124,7 @@ run_command_step() {
     local issue_number="${4:-${PI_ISSUE_NUMBER:-}}"
     local pr_number="${5:-${PI_PR_NUMBER:-}}"
     local branch_name="${6:-${PI_BRANCH_NAME:-}}"
+    local description="${7:-$command}"
 
     # テンプレート変数を展開
     local expanded_cmd
@@ -82,6 +150,10 @@ run_command_step() {
         echo "$output"
     fi
 
+    # 出力をファイルに保存
+    PI_LAST_RUN_OUTPUT_PATH="$(save_run_output "$worktree_path" "$description" "$expanded_cmd" "$exit_code" "$output")"
+    export PI_LAST_RUN_OUTPUT_PATH
+
     if [[ $exit_code -eq 124 ]]; then
         log_warn "run: timed out after ${timeout}s: $command"
     elif [[ $exit_code -ne 0 ]]; then
@@ -93,125 +165,4 @@ run_command_step() {
     return $exit_code
 }
 
-# ===================
-# call: ステップ実行
-# ===================
 
-# 別ワークフローを別AIインスタンスで実行
-# Usage: run_call_step <workflow_name> <timeout> <worktree_path> [config_file] [issue_number] [branch_name]
-# Returns: 0=成功(COMPLETEマーカー検出), 1=失敗
-# Output: AIの出力を stdout に出力
-run_call_step() {
-    local workflow_name="$1"
-    local timeout="${2:-900}"
-    local worktree_path="${3:-.}"
-    local config_file="${4:-${PI_RUNNER_CONFIG_FILE:-}}"
-    local issue_number="${5:-${PI_ISSUE_NUMBER:-0}}"
-    local branch_name="${6:-${PI_BRANCH_NAME:-}}"
-
-    # 設定ファイル解決
-    if [[ -z "$config_file" ]] && [[ -f "$worktree_path/.pi-runner.yaml" ]]; then
-        config_file="$worktree_path/.pi-runner.yaml"
-    fi
-
-    # ワークフロー存在確認
-    if [[ -n "$config_file" ]] && [[ -f "$config_file" ]]; then
-        if ! yaml_exists "$config_file" ".workflows.${workflow_name}"; then
-            log_error "Workflow not found: $workflow_name"
-            echo "Workflow not found: $workflow_name"
-            return 1
-        fi
-    else
-        log_error "Config file not found, cannot resolve call: $workflow_name"
-        echo "Config file not found, cannot resolve call: $workflow_name"
-        return 1
-    fi
-
-    # プロンプトファイルを生成（write_workflow_prompt で agents/*.md テンプレートを使用）
-    local prompt_file
-    prompt_file="$(mktemp "${TMPDIR:-/tmp}/pi-call-step-XXXXXX.md")"
-
-    # Issue タイトルを取得（利用可能な場合）
-    local issue_title=""
-    issue_title=$(cd "$worktree_path" && gh issue view "$issue_number" --json title -q '.title' 2>/dev/null) || issue_title=""
-
-    write_workflow_prompt "$prompt_file" "$workflow_name" "$issue_number" "$issue_title" "" \
-        "$branch_name" "$worktree_path" "$worktree_path" ""
-
-    # エージェント設定を取得
-    local agent_type agent_args=""
-    agent_type=$(yaml_get "$config_file" ".workflows.${workflow_name}.agent.type" 2>/dev/null || echo "")
-    while IFS= read -r arg; do
-        [[ -n "$arg" ]] && agent_args="${agent_args:+$agent_args }$arg"
-    done < <(yaml_get_array "$config_file" ".workflows.${workflow_name}.agent.args" 2>/dev/null)
-
-    # フォールバック: グローバルagent設定
-    if [[ -z "$agent_type" ]]; then
-        agent_type=$(yaml_get "$config_file" ".agent.type" 2>/dev/null || echo "pi")
-    fi
-    if [[ -z "$agent_args" ]]; then
-        while IFS= read -r arg; do
-            [[ -n "$arg" ]] && agent_args="${agent_args:+$agent_args }$arg"
-        done < <(yaml_get_array "$config_file" ".agent.args" 2>/dev/null)
-    fi
-
-    # コマンド組み立て
-    # call: ステップは非インタラクティブで実行する必要がある（処理完了後に自動終了）
-    local agent_command agent_template
-    case "$agent_type" in
-        pi)       agent_command="pi";       agent_template='{{command}} --print {{args}} @"{{prompt_file}}"' ;;
-        claude)   agent_command="claude";   agent_template='{{command}} {{args}} --print "{{prompt_file}}"' ;;
-        opencode) agent_command="opencode"; agent_template='cat "{{prompt_file}}" | {{command}} {{args}}' ;;
-        *)        agent_command="$agent_type"; agent_template='{{command}} --print {{args}} @"{{prompt_file}}"' ;;
-    esac
-
-    local full_command="$agent_template"
-    full_command="${full_command//\{\{command\}\}/$agent_command}"
-    full_command="${full_command//\{\{args\}\}/$agent_args}"
-    full_command="${full_command//\{\{prompt_file\}\}/$prompt_file}"
-
-    log_info "call: $workflow_name (agent: $agent_type, timeout: ${timeout}s)"
-
-    # 実行
-    local output="" exit_code=0
-    output=$(
-        cd "$worktree_path" 2>/dev/null || true
-        safe_timeout "$timeout" bash -c "$full_command" 2>&1
-    ) || exit_code=$?
-
-    rm -f "$prompt_file"
-
-    if [[ -n "$output" ]]; then
-        echo "$output"
-    fi
-
-    # タイムアウト
-    if [[ $exit_code -eq 124 ]]; then
-        log_warn "call: timed out after ${timeout}s: $workflow_name"
-        return 1
-    fi
-
-    # マーカー判定
-    local complete_marker="###TASK_COMPLETE_${issue_number}###"
-    local error_marker="###TASK_ERROR_${issue_number}###"
-
-    if [[ $(count_markers_outside_codeblock "$output" "$complete_marker") -gt 0 ]]; then
-        log_info "call: passed ($workflow_name)"
-        return 0
-    fi
-
-    if [[ $(count_markers_outside_codeblock "$output" "$error_marker") -gt 0 ]]; then
-        log_error "call: failed ($workflow_name) — ERROR marker detected"
-        return 1
-    fi
-
-    # マーカーなし: 終了コードで判定
-    if [[ $exit_code -ne 0 ]]; then
-        log_error "call: failed ($workflow_name) — exit code $exit_code"
-        return 1
-    fi
-
-    # 正常終了、マーカーなし → 通過扱い
-    log_info "call: passed ($workflow_name) — no marker, exit 0"
-    return 0
-}

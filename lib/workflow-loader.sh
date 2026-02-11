@@ -132,14 +132,14 @@ get_workflow_steps() {
 }
 
 # ===================
-# 型付きステップ解析（run:/call: 対応）
+# 型付きステップ解析（run: 対応）
 # ===================
 
 # ワークフローからステップ一覧を型付きで取得
 # 各行がタブ区切りで出力される:
 #   ai<TAB>step_name
 #   run<TAB>command<TAB>timeout<TAB>max_retry<TAB>retry_interval<TAB>continue_on_fail<TAB>description
-#   call<TAB>workflow_name<TAB>timeout<TAB>max_retry<TAB>retry_interval<TAB>continue_on_fail<TAB>description
+# Note: call: ステップは廃止されました。検出時は警告を出してスキップします。
 #
 # Usage: get_workflow_steps_typed <workflow_file>
 # Output: 1行1ステップのタブ区切りテキスト
@@ -234,16 +234,14 @@ _parse_typed_steps_from_config() {
                 printf "run\t%s\t%s\t%s\t%s\t%s\t%s\n" \
                     "$run_val" "$timeout" "$max_retry" "$retry_interval" "$continue_on_fail" "$description"
             elif [[ -n "$call_val" ]]; then
-                [[ -z "$description" ]] && description="call:${call_val}"
-                printf "call\t%s\t%s\t%s\t%s\t%s\t%s\n" \
-                    "$call_val" "$timeout" "$max_retry" "$retry_interval" "$continue_on_fail" "$description"
+                log_warn "call: steps are deprecated and ignored. Use AI steps instead: $call_val"
             else
                 log_warn "Unknown step format in $config_file: $item_json"
             fi
         done < <(yq -o=json -I=0 "${yaml_path}[]" "$config_file" 2>/dev/null)
     else
-        # yq なし: 簡易パーサーでは run:/call: はサポートしない（AIステップのみ）
-        log_warn "yq not available: run:/call: steps require yq. Falling back to AI-only steps."
+        # yq なし: 簡易パーサーでは run: はサポートしない（AIステップのみ）
+        log_warn "yq not available: run: steps require yq. Falling back to AI-only steps."
         while IFS= read -r step; do
             if [[ -n "$step" ]]; then
                 found_any=true

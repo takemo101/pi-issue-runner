@@ -1241,12 +1241,13 @@ tracker:
 PI_RUNNER_TRACKER_FILE=".tracker/results.jsonl" ./scripts/run.sh 42
 ```
 
-### run: / call: ステップ
+### run: ステップ
 
-ワークフローの `steps` 配列に `run:` や `call:` を使って非AIステップを挿入できます。
+ワークフローの `steps` 配列に `run:` を使って非AIステップを挿入できます。
 AIステップの間に品質チェックを挟むことで、マージ前に検証が行われます。
+実行結果は `.pi/run-outputs/` にファイル保存され、後続のAIステップから参照可能です。
 
-> **Note**: 以前の `gates` セクションは廃止されました。`run:`/`call:` ステップに移行してください。(#1406)
+> **Note**: 以前の `gates` セクションおよび `call:` ステップは廃止されました。レビュー等のAIタスクは通常のAIステップとして実行してください。(#1406, #1438)
 
 #### 使用例
 
@@ -1259,17 +1260,17 @@ workflows:
       - run: "shellcheck -x scripts/*.sh lib/*.sh"
         description: "ShellCheck"
       - run: "bats --jobs 4 test/"
-        timeout: 600
+        timeout: 900
         description: "Batsテスト"
+      - review
       - merge
 ```
 
-#### run: / call: ステップのフィールド
+#### run: ステップのフィールド
 
 | キー | 型 | デフォルト | 説明 |
 |------|------|-----------|------|
 | `run` | string | - | 実行するシェルコマンド |
-| `call` | string | - | 呼び出すワークフロー名（別AIインスタンスで実行） |
 | `timeout` | integer | 900 | タイムアウト（秒） |
 | `max_retry` | integer | 0 | リトライ回数（予約、現在はグループ単位でリトライ） |
 | `retry_interval` | integer | 10 | リトライ間隔（秒） |

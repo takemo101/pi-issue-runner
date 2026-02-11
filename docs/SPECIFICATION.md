@@ -514,9 +514,9 @@ PI_RUNNER_TRACKER_FILE=".worktrees/.status/tracker.jsonl"
 | `review-ai-antipattern` | AI実装アンチパターンを検出 | `agents/review-ai-antipattern.md` |
 | `code-review` | 汎用コードレビュー | `agents/code-review.md` |
 
-### 非AIステップ（run: / call:）
+### 非AIステップ（run:）
 
-AIステップの間に外部コマンドや別のワークフローを挿入できます。
+AIステップの間に外部コマンドを挿入できます。
 
 #### run: ステップ（外部コマンド実行）
 
@@ -557,44 +557,19 @@ steps:
   description: "統合テスト"
 ```
 
-#### call: ステップ（別AIインスタンス呼び出し）
+#### run: 出力のファイル保存
 
-```yaml
-steps:
-  - implement
-  - call: code-review
-    description: "独立コードレビュー"
-    timeout: 600
-  - merge
-```
-
-**フィールド:**
-
-| キー | 型 | デフォルト | 説明 |
-|------|------|-----------|------|
-| `call` | string | - | 呼び出すエージェント名（必須） |
-| `description` | string | - | ログ表示用の説明 |
-| `timeout` | integer | 900 | タイムアウト（秒） |
-| `continue_on_fail` | boolean | false | 失敗しても次のステップに続行 |
-
-**例:**
-
-```yaml
-- call: review-security
-  description: "セキュリティレビュー"
-- call: review-architecture
-  description: "アーキテクチャレビュー"
-```
+`run:` ステップの実行結果は `.pi/run-outputs/<description>.log` に自動保存されます。後続のAIステップから参照可能です。出力サイズが 100KB を超える場合は先頭が切り捨てられます。
 
 ### ステップの実行順序
 
-1. AIエージェントがステップを完了すると、同一フェーズの `run:`/`call:` ステップ群がworktree内で順次実行されます
-2. すべての `run:`/`call:` ステップが成功すると、次のAIステップに進みます
-3. `run:`/`call:` ステップが失敗した場合:
-   - エラー内容がAIセッションに送信（nudge）されます
-   - AIが修正後に再度フェーズ完了マーカーを出力すると、`run:`/`call:` ステップ群が最初から再実行されます
+1. AIエージェントがステップを完了すると、同一フェーズの `run:` ステップ群がworktree内で順次実行されます
+2. すべての `run:` ステップが成功すると、実行結果ファイルへの参照とともに次のAIステップに進みます
+3. `run:` ステップが失敗した場合:
+   - エラー内容と出力ファイルパスがAIセッションに送信（nudge）されます
+   - AIが修正後に再度フェーズ完了マーカーを出力すると、`run:` ステップ群が最初から再実行されます
 
-> **Note**: 以前の `gates:` セクションは廃止されました。`run:`/`call:` ステップに移行してください。
+> **Note**: 以前の `gates:` セクションおよび `call:` ステップは廃止されました。レビュー等のAIタスクは通常のAIステップとして実行してください。
 
 ## CLI コマンド
 

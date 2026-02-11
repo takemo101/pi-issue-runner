@@ -1214,7 +1214,7 @@ EOF
     [[ "$output" == *"ai	merge"* ]]
 }
 
-@test "get_workflow_steps_typed parses call: steps from config" {
+@test "get_workflow_steps_typed ignores deprecated call: steps with warning" {
     if ! check_yq; then
         skip "yq not available"
     fi
@@ -1234,7 +1234,8 @@ EOF
     run get_workflow_steps_typed "config-workflow:test-wf"
     [ "$status" -eq 0 ]
     [[ "$output" == *"ai	implement"* ]]
-    [[ "$output" == *"call	code-review	300	2"* ]]
+    # call: steps should be ignored (deprecated)
+    [[ "$output" != *"call	code-review"* ]]
     [[ "$output" == *"ai	merge"* ]]
 }
 

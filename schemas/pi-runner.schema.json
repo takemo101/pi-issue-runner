@@ -305,10 +305,6 @@
           "type": "string",
           "description": "Template file for ci-fix step"
         },
-        "code-review": {
-          "type": "string",
-          "description": "Template file for independent code review (used with call: steps)"
-        },
         "improve-review": {
           "type": "string",
           "description": "Template file for improve.sh review prompt"
@@ -348,7 +344,7 @@
     },
     "gates": {
       "type": "array",
-      "description": "DEPRECATED: Use run:/call: steps in workflows instead. See #1406.",
+      "description": "DEPRECATED: Use run: steps in workflows instead. See #1406.",
       "items": {
         "$ref": "#/definitions/gateItem"
       }
@@ -501,44 +497,6 @@
         }
       }
     },
-    "callStep": {
-      "type": "object",
-      "required": ["call"],
-      "additionalProperties": false,
-      "properties": {
-        "call": {
-          "type": "string",
-          "description": "Workflow name to invoke (runs in a separate AI instance)"
-        },
-        "timeout": {
-          "type": "integer",
-          "minimum": 1,
-          "default": 900,
-          "description": "Timeout in seconds"
-        },
-        "max_retry": {
-          "type": "integer",
-          "minimum": 0,
-          "default": 0,
-          "description": "Maximum retry attempts (reserved for future use)"
-        },
-        "retry_interval": {
-          "type": "integer",
-          "minimum": 0,
-          "default": 10,
-          "description": "Seconds between retries"
-        },
-        "continue_on_fail": {
-          "type": "boolean",
-          "default": false,
-          "description": "Continue to next step even if this one fails"
-        },
-        "description": {
-          "type": "string",
-          "description": "Human-readable description for logs"
-        }
-      }
-    },
     "namedWorkflow": {
       "type": "object",
       "required": ["steps"],
@@ -558,14 +516,11 @@
               },
               {
                 "$ref": "#/definitions/runStep"
-              },
-              {
-                "$ref": "#/definitions/callStep"
               }
             ]
           },
           "minItems": 1,
-          "description": "Steps to execute in order. Can be AI step names (string), run: commands, or call: workflows."
+          "description": "Steps to execute in order. Can be AI step names (string) or run: commands."
         },
         "context": {
           "type": "string",
@@ -573,7 +528,7 @@
         },
         "gates": {
           "type": "array",
-          "description": "DEPRECATED: Use run:/call: steps instead. See #1406.",
+          "description": "DEPRECATED: Use run: steps instead. See #1406.",
           "items": {
             "$ref": "#/definitions/gateItem"
           }

@@ -380,9 +380,9 @@ write_workflow_prompt \
    - scripts/cleanup.sh でworktree/セッション削除
 ```
 
-### run:/call: ステップの実行アーキテクチャ
+### run: ステップの実行アーキテクチャ
 
-ワークフローにはAIステップ（plan, implement等）と非AIステップ（`run:`, `call:`）を混在させることができます。以下はその内部アーキテクチャです。
+ワークフローにはAIステップ（plan, implement等）と非AIステップ（`run:`）を混在させることができます。以下はその内部アーキテクチャです。
 
 #### ステップグループの分割
 
@@ -394,12 +394,12 @@ write_workflow_prompt \
     - plan              ─┐
     - implement          │→ ai_group: "plan implement"
     - run: npm test     ─┐
-    - call: code-review  │→ non_ai_group: "run\tnpm test..." + "call\tcode-review..."
+    - run: npm run lint  │→ non_ai_group: "run\tnpm test..." + "run\tnpm run lint..."
     - merge             ─┘→ ai_group: "merge"
 
 分割結果（_STEP_GROUPS_DATA）:
   グループ0: ai_group      → "plan implement"
-  グループ1: non_ai_group  → run/call ステップ群
+  グループ1: non_ai_group  → run ステップ群
   グループ2: ai_group      → "merge"
 ```
 
@@ -418,10 +418,11 @@ _CURRENT_PHASE_INDEX = 0（初期値）
     → handle_phase_complete() が呼ばれる
     → _CURRENT_PHASE_INDEX を +1 → グループ1（non_ai_group）
 
-[2] _run_non_ai_steps() が run/call ステップを順次実行
-    ├── 成功 → _CURRENT_PHASE_INDEX を +1 → グループ2（ai_group）
-    │         → AIセッションに次のステップのプロンプトを nudge（send_keys）
-    └── 失敗 → エラー内容を AIセッションに nudge
+[2] _run_non_ai_steps() が run ステップを順次実行
+    ├── 成功 → 出力を .pi/run-outputs/ にファイル保存
+    │         → _CURRENT_PHASE_INDEX を +1 → グループ2（ai_group）
+    │         → AIセッションに次のステップのプロンプトを nudge（実行結果ファイル参照つき）
+    └── 失敗 → エラー内容と出力ファイルパスを AIセッションに nudge
               → AIが修正して再度 PHASE_COMPLETE を出力すると再実行
 
 [3] AI が merge を実行
@@ -439,10 +440,11 @@ _CURRENT_PHASE_INDEX = 0（初期値）
 
 AIのプロンプトには「フェーズ完了時にマーカーを出力すること」が指示されますが、`run:`/`call:` コマンドの具体的な内容はプロンプトに含まれません。**何を実行するかの判断は全て `watch-session.sh` 側がインデックスで決定します**。
 
-#### run: と call: の実行方式
+#### run: の実行方式
 
-- **`run:`** — `run_command_step()` が worktree 内で `bash -c` によりシェルコマンドを直接実行
-- **`call:`** — `run_call_step()` が別のAIインスタンスを `--print` モード（非インタラクティブ）で起動。プロンプトファイルを一時生成し、完了後にマーカーで成否を判定
+`run_command_step()` が worktree 内で `bash -c` によりシェルコマンドを直接実行します。実行結果は `.pi/run-outputs/<description>.log` にファイル保存され、後続のAIステップから参照可能です。
+
+> **Note**: 以前存在した `call:` ステップ（別AIインスタンス呼び出し）は廃止されました。レビュー等のAIタスクは通常のAIステップとしてメインセッション内で実行します。
 
 #### セッション間の独立性
 

@@ -431,6 +431,9 @@ _run_non_ai_steps() {
 
     log_info "Running non-AI steps for Issue #$issue_number..."
 
+    # run: 出力ファイルパスを追跡（成功時のnudge用）
+    local -a _run_output_paths=()
+
     # \\n を改行に戻して各ステップを処理
     local step_line
     while IFS= read -r step_line; do
@@ -454,20 +457,14 @@ _run_non_ai_steps() {
                 log_info "run: step skipped (PI_SKIP_RUN=1): $display_name"
                 continue
             fi
-            step_output=$(run_command_step "$cmd_or_name" "$timeout" "$worktree_path" "$issue_number" "" "$branch_name" 2>&1) || step_result=$?
+            step_output=$(run_command_step "$cmd_or_name" "$timeout" "$worktree_path" "$issue_number" "" "$branch_name" "$description" 2>&1) || step_result=$?
+            # run: 出力ファイルパスを記録
+            if [[ -n "${PI_LAST_RUN_OUTPUT_PATH:-}" ]]; then
+                _run_output_paths+=("${display_name}=${PI_LAST_RUN_OUTPUT_PATH}")
+            fi
         elif [[ "$step_type" == "call" ]]; then
-            if [[ "${PI_SKIP_CALL:-}" == "1" ]]; then
-                log_info "call: step skipped (PI_SKIP_CALL=1): $display_name"
-                continue
-            fi
-            # worktree 内の .pi-runner.yaml を優先、なければ config_file_found
-            local config_file=""
-            if [[ -f "$worktree_path/.pi-runner.yaml" ]]; then
-                config_file="$worktree_path/.pi-runner.yaml"
-            else
-                config_file="$(config_file_found 2>/dev/null)" || config_file=""
-            fi
-            step_output=$(run_call_step "$cmd_or_name" "$timeout" "$worktree_path" "$config_file" "$issue_number" "$branch_name" 2>&1) || step_result=$?
+            log_warn "call: steps are deprecated and ignored. Use AI steps instead: $cmd_or_name"
+            continue
         else
             log_warn "Unknown step type: $step_type, skipping"
             continue
@@ -482,8 +479,12 @@ _run_non_ai_steps() {
             log_warn "Step failed: $display_name"
 
             # nudge でAIセッションにエラー内容を送信
+            local output_path_info=""
+            if [[ -n "${PI_LAST_RUN_OUTPUT_PATH:-}" ]]; then
+                output_path_info="$(printf '\n詳細出力: %s' "$PI_LAST_RUN_OUTPUT_PATH")"
+            fi
             local nudge_message
-            nudge_message="$(printf 'ステップ「%s」が失敗しました。以下の問題を修正してから、再度フェーズ完了マーカーを出力してください。\n\n%s' "$display_name" "$step_output")"
+            nudge_message="$(printf 'ステップ「%s」が失敗しました。以下の問題を修正してから、再度フェーズ完了マーカーを出力してください。%s\n\n%s' "$display_name" "$output_path_info" "$step_output")"
 
             if session_exists "$session_name"; then
                 send_keys "$session_name" "$nudge_message"
@@ -497,6 +498,12 @@ _run_non_ai_steps() {
 
         log_info "Step passed: $display_name"
     done < <(printf '%b\n' "$non_ai_group_escaped")
+
+    # 成功時: run: 出力パスをエクスポート（後続nudgeで使用）
+    if [[ ${#_run_output_paths[@]} -gt 0 ]]; then
+        PI_RUN_OUTPUT_SUMMARY="$(printf '%s\n' "${_run_output_paths[@]}")"
+        export PI_RUN_OUTPUT_SUMMARY
+    fi
 
     log_info "All non-AI steps passed for Issue #$issue_number"
     return 0
@@ -619,6 +626,18 @@ handle_phase_complete() {
             local continue_prompt
             continue_prompt="$(generate_ai_group_prompt "$ai_group_index" "$total_groups" "$after_content" "$is_final" \
                 "$workflow_name" "$issue_number" "" "" "$branch_name_resolved" "$worktree_path_resolved" "." "" "" 2>/dev/null)"
+
+            # run: 出力の参照情報を追加
+            if [[ -n "${PI_RUN_OUTPUT_SUMMARY:-}" ]]; then
+                local output_refs
+                output_refs="$(printf '\n## Quality Check Results\n\nAll quality checks passed. Results are saved in `.pi/run-outputs/`:\n')"
+                while IFS='=' read -r step_name output_path; do
+                    output_refs="$(printf '%s\n- ✅ %s → `%s`' "$output_refs" "$step_name" "$output_path")"
+                done <<< "$PI_RUN_OUTPUT_SUMMARY"
+                output_refs="$(printf '%s\n\nYou can read these files if you need details about the check results.\n' "$output_refs")"
+                continue_prompt="${continue_prompt}${output_refs}"
+                unset PI_RUN_OUTPUT_SUMMARY
+            fi
 
             if session_exists "$session_name"; then
                 send_keys "$session_name" "$continue_prompt"

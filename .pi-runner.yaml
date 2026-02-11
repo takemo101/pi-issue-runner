@@ -116,15 +116,7 @@ workflows:
       - run: "bats --jobs 2 test/"
         timeout: 900
         description: "Bats テスト"
-      - call: review-bugs
-        timeout: 900
-        description: "バグ・ロジックエラーレビュー"
-      - call: review-security
-        timeout: 900
-        description: "セキュリティレビュー"
-      - call: review-ai-antipattern
-        timeout: 900
-        description: "AI実装アンチパターンレビュー"
+      - review
       - merge
     agent:
       type: opencode
@@ -155,12 +147,7 @@ workflows:
       - run: "bats --jobs 2 test/"
         timeout: 900
         description: "Bats テスト"
-      - call: review-bugs
-        timeout: 900
-        description: "バグ・ロジックエラーレビュー"
-      - call: review-security
-        timeout: 900
-        description: "セキュリティレビュー"
+      - review
       - merge
     context: |
       ## 方針
@@ -207,39 +194,6 @@ workflows:
       - setup/teardown で環境を確実にクリーンアップ
       - 並列実行 (BATS_JOBS=4) でも安定するよう、グローバル状態を汚染しない
       - reset_yaml_cache, _YQ_CHECK_RESULT="" を setup で呼ぶ
-
-  # 観点別レビュー用ワークフロー（call: ステップから呼び出される）
-  review-bugs:
-    description: バグ・ロジックエラーのレビュー
-    steps:
-      - review-bugs
-    agent:
-      type: pi
-      args: [--provider, anthropic, --model, claude-haiku-4-5]
-
-  review-security:
-    description: セキュリティレビュー
-    steps:
-      - review-security
-    agent:
-      type: pi
-      args: [--provider, anthropic, --model, claude-haiku-4-5]
-
-  review-architecture:
-    description: 設計・構造レビュー
-    steps:
-      - review-architecture
-    agent:
-      type: pi
-      args: [--provider, anthropic, --model, claude-haiku-4-5]
-
-  review-ai-antipattern:
-    description: AI実装アンチパターンレビュー
-    steps:
-      - review-ai-antipattern
-    agent:
-      type: pi
-      args: [--provider, anthropic, --model, claude-haiku-4-5]
 
   # 簡易修正: 実装→マージのみ（軽量モデルで高速・低コスト、品質チェック不要）
   quickfix:

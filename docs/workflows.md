@@ -118,9 +118,9 @@ context: |
 
 > **注意**: このワークフローは通常、マージエージェントによって自動的に呼び出されます。手動実行は主にテストやデバッグ目的で使用します。
 
-## run: / call: ステップ（非AIステップ）
+## run: ステップ（非AIステップ）
 
-ワークフローの `steps` 配列にはAIステップだけでなく、`run:`（外部コマンド実行）や `call:`（別ワークフロー呼び出し）を挿入できます。AIステップの間に品質チェックを挟むことで、**マージ前に検証が行われます**。
+ワークフローの `steps` 配列にはAIステップだけでなく、`run:`（外部コマンド実行）を挿入できます。AIステップの間に品質チェックを挟むことで、**マージ前に検証が行われます**。
 
 ### 使用例
 
@@ -133,7 +133,7 @@ workflows:
       - run: "shellcheck -x scripts/*.sh lib/*.sh"
         description: "ShellCheck"
       - run: "bats --jobs 2 test/"
-        timeout: 600
+        timeout: 900
         description: "Batsテスト"
       - review
       - merge
@@ -143,8 +143,8 @@ workflows:
 
 1. AI が `plan` → `implement` を実行し、中間マーカー `###PHASE_COMPLETE_<issue>###` を出力
 2. Watcher が `run:` ステップ群を worktree 内で順次実行
-3. **全ステップ成功** → 次の AI グループ（`review` → `merge`）のプロンプトを nudge
-4. **いずれか失敗** → エラー内容を AI セッションに nudge、AI が修正後に再度中間マーカーを出力すると、non-AI ステップ群が最初から再実行される
+3. **全ステップ成功** → 実行結果を `.pi/run-outputs/` にファイル保存し、次の AI グループ（`review` → `merge`）のプロンプトを nudge（結果ファイルへの参照つき）
+4. **いずれか失敗** → エラー内容と出力ファイルパスを AI セッションに nudge、AI が修正後に再度中間マーカーを出力すると、non-AI ステップ群が最初から再実行される
 
 ### run: ステップのフィールド
 
@@ -155,14 +155,19 @@ workflows:
 | `continue_on_fail` | false | 失敗しても次のステップへ続行 |
 | `description` | コマンド文字列 | ログ表示用の名前 |
 
-### call: ステップのフィールド
+### run: 出力のファイル保存
 
-| フィールド | デフォルト | 説明 |
-|-----------|-----------|------|
-| `call` | (必須) | 呼び出すワークフロー名（別AIインスタンスで実行） |
-| `timeout` | 900 | タイムアウト（秒） |
-| `continue_on_fail` | false | 失敗しても次のステップへ続行 |
-| `description` | ワークフロー名 | ログ表示用の名前 |
+`run:` ステップの実行結果は成功・失敗を問わず `.pi/run-outputs/<description>.log` に自動保存されます。
+
+```
+<worktree>/.pi/run-outputs/
+├── ShellCheck-静的解析.log
+└── Bats-テスト.log
+```
+
+各ファイルにはメタデータヘッダ（コマンド、終了コード、タイムスタンプ）と実行出力が含まれます。後続のAIステップはこれらのファイルを参照して、テスト結果やlint結果を踏まえた判断ができます。
+
+出力サイズが 100KB を超える場合は、先頭が切り捨てられ末尾が保持されます。
 
 ### テンプレート変数
 
@@ -180,7 +185,7 @@ workflows:
 | `${branch_name}` | ブランチ名 |
 | `${worktree_path}` | worktree のパス |
 
-> **Note**: 以前の `gates:` セクションは廃止されました。`run:`/`call:` ステップに移行してください。詳細は [configuration.md](configuration.md#run--call-ステップ) を参照。
+> **Note**: 以前の `gates:` セクションおよび `call:` ステップは廃止されました。レビュー等のAIタスクは通常のAIステップとして実行してください。
 
 ## 使用方法
 

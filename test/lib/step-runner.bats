@@ -97,3 +97,73 @@ teardown() {
     run run_command_step "sleep 60" 1 "$BATS_TEST_TMPDIR" "42" "" "main"
     [[ "$status" -ne 0 ]]
 }
+
+# ===================
+# sanitize_filename
+# ===================
+
+@test "sanitize_filename converts spaces to hyphens" {
+    result="$(sanitize_filename "ShellCheck 静的解析")"
+    [[ "$result" == "ShellCheck-静的解析" ]]
+}
+
+@test "sanitize_filename removes unsafe characters" {
+    result="$(sanitize_filename "test/foo:bar")"
+    [[ "$result" == "test-foobar" ]]
+}
+
+@test "sanitize_filename collapses multiple hyphens" {
+    result="$(sanitize_filename "a  /  b")"
+    [[ "$result" == "a-b" ]]
+}
+
+# ===================
+# save_run_output
+# ===================
+
+@test "save_run_output creates output file with metadata header" {
+    local output_path
+    output_path="$(save_run_output "$BATS_TEST_TMPDIR" "test step" "echo hello" 0 "hello")"
+    [[ "$output_path" == ".pi/run-outputs/test-step.log" ]]
+    [[ -f "$BATS_TEST_TMPDIR/.pi/run-outputs/test-step.log" ]]
+    local content
+    content="$(cat "$BATS_TEST_TMPDIR/.pi/run-outputs/test-step.log")"
+    [[ "$content" == *"# Step: test step"* ]]
+    [[ "$content" == *"# Command: echo hello"* ]]
+    [[ "$content" == *"# Exit Code: 0"* ]]
+    [[ "$content" == *"hello"* ]]
+}
+
+@test "save_run_output truncates large output" {
+    # Generate output larger than 100KB
+    local large_output
+    large_output="$(head -c 200000 /dev/urandom | base64)"
+    _RUN_OUTPUT_MAX_SIZE=1024
+    local output_path
+    output_path="$(save_run_output "$BATS_TEST_TMPDIR" "large" "cat big" 0 "$large_output")"
+    local file_size
+    file_size=$(wc -c < "$BATS_TEST_TMPDIR/.pi/run-outputs/large.log" | tr -d ' ')
+    # Should be around 1024 + truncation header
+    [[ "$file_size" -lt 2048 ]]
+    local content
+    content="$(cat "$BATS_TEST_TMPDIR/.pi/run-outputs/large.log")"
+    [[ "$content" == *"truncated"* ]]
+}
+
+@test "run_command_step saves output to file" {
+    run_command_step "echo test-output" 10 "$BATS_TEST_TMPDIR" "42" "" "main" "My Test"
+    [[ -f "$BATS_TEST_TMPDIR/.pi/run-outputs/My-Test.log" ]]
+    local content
+    content="$(cat "$BATS_TEST_TMPDIR/.pi/run-outputs/My-Test.log")"
+    [[ "$content" == *"test-output"* ]]
+    [[ "$content" == *"# Exit Code: 0"* ]]
+}
+
+@test "run_command_step saves output on failure too" {
+    run_command_step "echo fail-output && exit 1" 10 "$BATS_TEST_TMPDIR" "42" "" "main" "Failing Step" || true
+    [[ -f "$BATS_TEST_TMPDIR/.pi/run-outputs/Failing-Step.log" ]]
+    local content
+    content="$(cat "$BATS_TEST_TMPDIR/.pi/run-outputs/Failing-Step.log")"
+    [[ "$content" == *"fail-output"* ]]
+    [[ "$content" == *"# Exit Code: 1"* ]]
+}
