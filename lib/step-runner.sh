@@ -156,12 +156,13 @@ run_call_step() {
     fi
 
     # コマンド組み立て
+    # call: ステップは非インタラクティブで実行する必要がある（処理完了後に自動終了）
     local agent_command agent_template
     case "$agent_type" in
-        pi)       agent_command="pi";       agent_template='{{command}} {{args}} @"{{prompt_file}}"' ;;
+        pi)       agent_command="pi";       agent_template='{{command}} --print {{args}} @"{{prompt_file}}"' ;;
         claude)   agent_command="claude";   agent_template='{{command}} {{args}} --print "{{prompt_file}}"' ;;
         opencode) agent_command="opencode"; agent_template='cat "{{prompt_file}}" | {{command}} {{args}}' ;;
-        *)        agent_command="$agent_type"; agent_template='{{command}} {{args}} @"{{prompt_file}}"' ;;
+        *)        agent_command="$agent_type"; agent_template='{{command}} --print {{args}} @"{{prompt_file}}"' ;;
     esac
 
     local full_command="$agent_template"
