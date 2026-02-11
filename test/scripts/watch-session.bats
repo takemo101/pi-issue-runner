@@ -476,7 +476,7 @@ EOF
     source "$PROJECT_ROOT/lib/worktree.sh"
     source "$PROJECT_ROOT/lib/hooks.sh"
     source "$PROJECT_ROOT/lib/cleanup-orphans.sh"
-    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    source "$PROJECT_ROOT/lib/watcher/markers.sh" 2>/dev/null || true
     
     get_config() {
         case "$1" in
@@ -490,15 +490,9 @@ EOF
     # Create signal-complete file
     echo "done" > "$TEST_WORKTREE_DIR/.status/signal-complete-42"
     
-    # Mock handle_complete to track call and return success
-    handle_complete() {
-        echo "handle_complete called for issue $2"
-        return 0
-    }
-    
     run check_initial_markers "pi-issue-42" "42" "###TASK_COMPLETE_42###" "###TASK_ERROR_42###" "true" "" ""
     [ "$status" -eq 0 ]
-    [[ "$output" == *"handle_complete called for issue 42"* ]]
+    [[ "$output" == *"COMPLETE_SIGNAL"* ]]
     
     # Signal file should be removed after detection
     [ ! -f "$TEST_WORKTREE_DIR/.status/signal-complete-42" ]
@@ -514,7 +508,7 @@ EOF
     source "$PROJECT_ROOT/lib/worktree.sh"
     source "$PROJECT_ROOT/lib/hooks.sh"
     source "$PROJECT_ROOT/lib/cleanup-orphans.sh"
-    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    source "$PROJECT_ROOT/lib/watcher/markers.sh" 2>/dev/null || true
     
     get_config() {
         case "$1" in
@@ -528,24 +522,12 @@ EOF
     # Create signal-error file
     echo "build failed" > "$TEST_WORKTREE_DIR/.status/signal-error-42"
     
-    # Mock handle_error
-    handle_error() {
-        echo "handle_error called: $3"
-        return 0
-    }
-    
-    # Mock handle_complete (should not be called since no signal-complete)
-    handle_complete() {
-        echo "handle_complete should not be called"
-        return 1
-    }
-    
     # Mock count_any_markers_outside_codeblock to return 0 (no text markers)
     count_any_markers_outside_codeblock() { echo "0"; }
     
     run check_initial_markers "pi-issue-42" "42" "###TASK_COMPLETE_42###" "###TASK_ERROR_42###" "true" "" ""
     [ "$status" -eq 1 ]  # Returns 1 = continue monitoring
-    [[ "$output" == *"handle_error called: build failed"* ]]
+    [[ "$output" == *"ERROR_SIGNAL:build failed"* ]]
     
     # Signal file should be removed after detection
     [ ! -f "$TEST_WORKTREE_DIR/.status/signal-error-42" ]
@@ -561,7 +543,7 @@ EOF
     source "$PROJECT_ROOT/lib/worktree.sh"
     source "$PROJECT_ROOT/lib/hooks.sh"
     source "$PROJECT_ROOT/lib/cleanup-orphans.sh"
-    source "$PROJECT_ROOT/scripts/watch-session.sh" 2>/dev/null || true
+    source "$PROJECT_ROOT/lib/watcher/markers.sh" 2>/dev/null || true
     
     get_config() {
         case "$1" in
@@ -694,9 +676,9 @@ EOF
 }
 
 @test "force_cleanup_on_timeout: handle_complete code path exists in watch-session.sh" {
-    # Verify the force_cleanup_on_timeout code path is present
-    grep -q 'force_cleanup_on_timeout' "$PROJECT_ROOT/scripts/watch-session.sh"
-    grep -q 'Force cleanup enabled' "$PROJECT_ROOT/scripts/watch-session.sh"
+    # Verify the force_cleanup_on_timeout code path is present (now in phase.sh submodule)
+    grep -q 'force_cleanup_on_timeout' "$PROJECT_ROOT/lib/watcher/phase.sh"
+    grep -q 'Force cleanup enabled' "$PROJECT_ROOT/lib/watcher/phase.sh"
 }
 
 # ====================
@@ -704,11 +686,12 @@ EOF
 # ====================
 
 @test "_run_non_ai_steps exists in watch-session.sh" {
-    grep -q '^_run_non_ai_steps()' "$PROJECT_ROOT/scripts/watch-session.sh"
+    # Function moved to phase.sh submodule, sourced by watch-session.sh
+    grep -q '^_run_non_ai_steps()' "$PROJECT_ROOT/lib/watcher/phase.sh"
 }
 
 @test "_run_non_ai_steps checks PI_SKIP_RUN" {
-    grep -q 'PI_SKIP_RUN' "$PROJECT_ROOT/scripts/watch-session.sh"
+    grep -q 'PI_SKIP_RUN' "$PROJECT_ROOT/lib/watcher/phase.sh"
 }
 
 @test "PHASE_COMPLETE_MARKER is defined in _init_markers" {
@@ -716,19 +699,21 @@ EOF
 }
 
 @test "handle_phase_complete function exists in watch-session.sh" {
-    grep -q '^handle_phase_complete()' "$PROJECT_ROOT/scripts/watch-session.sh"
+    # Function moved to phase.sh submodule, sourced by watch-session.sh
+    grep -q '^handle_phase_complete()' "$PROJECT_ROOT/lib/watcher/phase.sh"
 }
 
 @test "_check_pipe_pane_markers checks PHASE_COMPLETE_MARKER" {
-    grep -q 'PHASE_COMPLETE_MARKER' "$PROJECT_ROOT/scripts/watch-session.sh"
+    # Function uses phase_complete_marker parameter (passed from global PHASE_COMPLETE_MARKER)
+    grep -q 'phase_complete_marker' "$PROJECT_ROOT/lib/watcher/markers.sh"
 }
 
 @test "gates references removed from handle_complete" {
-    # _run_gates_check should no longer be called in handle_complete
+    # _run_gates_check should no longer be called in handle_complete (now in phase.sh)
     local handle_start
-    handle_start=$(grep -n '^handle_complete()' "$PROJECT_ROOT/scripts/watch-session.sh" | head -1 | cut -d: -f1)
+    handle_start=$(grep -n '^handle_complete()' "$PROJECT_ROOT/lib/watcher/phase.sh" | head -1 | cut -d: -f1)
     local func_body
-    func_body=$(awk "NR>$handle_start && NR<$((handle_start+50))" "$PROJECT_ROOT/scripts/watch-session.sh")
+    func_body=$(awk "NR>$handle_start && NR<$((handle_start+50))" "$PROJECT_ROOT/lib/watcher/phase.sh")
     ! echo "$func_body" | grep -q '_run_gates_check'
 }
 

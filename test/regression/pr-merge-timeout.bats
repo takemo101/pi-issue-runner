@@ -84,8 +84,9 @@ teardown() {
     # Config defaults: 10 attempts with 60 second intervals
     # (total: 10 minutes of retry time)
     
+    # Function moved to phase.sh submodule
     local script_content
-    script_content=$(<"$PROJECT_ROOT/scripts/watch-session.sh")
+    script_content=$(<"$PROJECT_ROOT/lib/watcher/phase.sh")
     
     # Check for config-based default values in function signature
     [[ "$script_content" == *'max_attempts="${4:-$(get_config watcher_pr_merge_max_attempts)}"'* ]] || \
@@ -99,8 +100,9 @@ teardown() {
     # Verify that CLOSED PRs (not just MERGED) are treated as successful completion
     # This prevents resource leaks for manually closed PRs
     
+    # Function moved to phase.sh submodule
     local script_content
-    script_content=$(<"$PROJECT_ROOT/scripts/watch-session.sh")
+    script_content=$(<"$PROJECT_ROOT/lib/watcher/phase.sh")
     
     [[ "$script_content" == *'CLOSED'* ]]
     [[ "$script_content" == *'treating as completion'* ]]
@@ -112,8 +114,9 @@ teardown() {
     # - Hard failure (1)
     # - Timeout/retry needed (2)
     
+    # Function moved to phase.sh submodule
     local script_content
-    script_content=$(<"$PROJECT_ROOT/scripts/watch-session.sh")
+    script_content=$(<"$PROJECT_ROOT/lib/watcher/phase.sh")
     
     # Check that timeout returns 2
     [[ "$script_content" == *'return 2'* ]]
