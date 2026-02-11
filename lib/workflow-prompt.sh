@@ -525,9 +525,9 @@ Do NOT output the final TASK_COMPLETE marker at this point — there are more st
 
 ### ⚠️ IMPORTANT: Do NOT Run Quality Checks Manually
 
-**The \`run:\` steps (shellcheck, bats, etc.) are executed AUTOMATICALLY by the system after you output the PHASE_COMPLETE marker.**
+**The \`run:\` steps (quality check commands defined in workflow) are executed AUTOMATICALLY by the system after you output the PHASE_COMPLETE marker.**
 
-- ❌ DO NOT run \`./scripts/test.sh\` or \`shellcheck\` manually in this phase
+- ❌ DO NOT run test commands or linters manually in this phase
 - ❌ DO NOT wait for test results or verify quality checks yourself
 - ✅ Simply complete the AI steps (implement, test, review) and output PHASE_COMPLETE
 - ✅ The system will automatically run quality checks and notify you if fixes are needed
