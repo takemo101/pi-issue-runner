@@ -59,8 +59,10 @@ feature/
 # pi-issue-runner
 .pi-runner.yaml.local
 
-# Pi Agent (but allow skills)
-.pi/
+# Pi Agent (but allow skills and agents)
+.pi/*
+!.pi/skills/
+!.pi/agents/
 
 # Serena
 .serena/
