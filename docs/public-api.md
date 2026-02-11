@@ -613,9 +613,12 @@ record_tracker_entry "$issue_number" "error" "test_failure"
 
 ## 知識ループ
 
+> **Note**: 知識ループ関数は `lib/knowledge-loop/` サブモジュールに分割されています。
+> `source lib/knowledge-loop.sh` で後方互換ラッパー経由で全関数にアクセスできます。
+
 ### extract_fix_commits
 
-**定義場所**: `lib/knowledge-loop.sh`
+**定義場所**: `lib/knowledge-loop/commits.sh`（`lib/knowledge-loop.sh` 経由でアクセス可能）
 
 **説明**: 指定した期間内の `fix:` で始まるコミットを抽出します。知識ループで過去のバグ修正から知見を収集する際に使用します。
 
@@ -653,54 +656,8 @@ fix_commits=$(extract_fix_commits "1 month ago" "/path/to/project")
 - 品質分析レポート生成
 
 **関連関数**:
-- `get_commit_diff_summary` (lib/knowledge-loop.sh)
 - `get_commit_body` (lib/knowledge-loop.sh)
 - `generate_knowledge_proposals` (lib/knowledge-loop.sh)
-
----
-
-### get_commit_diff_summary
-
-**定義場所**: `lib/knowledge-loop.sh`
-
-**説明**: 指定したコミットの変更ファイルとその統計情報（追加・削除行数）を取得します。
-
-**使用例**:
-```bash
-source lib/knowledge-loop.sh
-
-commit_hash="a1b2c3d"
-
-# 変更サマリーを取得
-diff_summary=$(get_commit_diff_summary "$commit_hash" ".")
-
-# 結果を表示
-echo "Changes in commit $commit_hash:"
-echo "$diff_summary"
-
-# 出力例:
-# lib/config.sh    | 15 +++++++++------
-# lib/workflow.sh  |  8 +++-----
-# 2 files changed, 12 insertions(+), 11 deletions(-)
-```
-
-**引数**:
-1. `commit_hash` - コミットハッシュ（短縮形でも可）
-2. `project_root` - プロジェクトルート（オプション、デフォルト: "."）
-
-**戻り値**:
-- `git diff-tree --stat` の出力
-- ファイルごとの変更行数の統計
-- 該当コミットが存在しない場合は空文字列
-
-**使用予定箇所**:
-- 知見提案の詳細情報生成
-- コミット分析レポート
-- デバッグ・調査ツール
-
-**関連関数**:
-- `extract_fix_commits` (lib/knowledge-loop.sh)
-- `get_commit_body` (lib/knowledge-loop.sh)
 
 ---
 
@@ -743,7 +700,6 @@ fi
 
 **関連関数**:
 - `extract_fix_commits` (lib/knowledge-loop.sh)
-- `get_commit_diff_summary` (lib/knowledge-loop.sh)
 
 ---
 
