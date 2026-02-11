@@ -80,7 +80,7 @@ teardown() {
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/status.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/marker.sh"
     source "$PROJECT_ROOT/scripts/sweep.sh"
     
@@ -116,7 +116,7 @@ teardown() {
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/status.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/marker.sh"
     source "$PROJECT_ROOT/scripts/sweep.sh"
     
@@ -143,7 +143,7 @@ teardown() {
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/status.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/marker.sh"
     source "$PROJECT_ROOT/scripts/sweep.sh"
     
@@ -171,7 +171,7 @@ teardown() {
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/status.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/marker.sh"
     source "$PROJECT_ROOT/scripts/sweep.sh"
     
@@ -199,7 +199,7 @@ teardown() {
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/status.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/marker.sh"
     source "$PROJECT_ROOT/scripts/sweep.sh"
     
@@ -210,8 +210,8 @@ teardown() {
         esac
     }
     
-    # Mock get_session_output to return marker (simulating capture-pane)
-    get_session_output() {
+    # Mock mux_get_session_output to return marker (simulating capture-pane)
+    mux_get_session_output() {
         echo "###TASK_COMPLETE_88###"
     }
     
@@ -227,7 +227,7 @@ teardown() {
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/status.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/marker.sh"
     source "$PROJECT_ROOT/scripts/sweep.sh"
     
@@ -238,9 +238,9 @@ teardown() {
         esac
     }
     
-    # Mock get_session_output to verify it receives 500 as line count
+    # Mock mux_get_session_output to verify it receives 500 as line count
     local captured_lines=""
-    get_session_output() {
+    mux_get_session_output() {
         captured_lines="$2"
         echo "line_count=$2"
     }
@@ -251,7 +251,7 @@ teardown() {
     [ "$output" = "" ]
     
     # Verify 500 lines by checking the source code directly
-    run grep -c 'get_session_output.*500' "$PROJECT_ROOT/scripts/sweep.sh"
+    run grep -c 'mux_get_session_output.*500' "$PROJECT_ROOT/scripts/sweep.sh"
     [ "$output" = "1" ]
 }
 
@@ -266,7 +266,7 @@ teardown() {
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/status.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/marker.sh"
     source "$PROJECT_ROOT/scripts/sweep.sh"
     
@@ -314,7 +314,7 @@ MOCK_EOF
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/status.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/marker.sh"
     source "$PROJECT_ROOT/scripts/sweep.sh"
     
@@ -359,7 +359,7 @@ MOCK_EOF
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/status.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/marker.sh"
     source "$PROJECT_ROOT/scripts/sweep.sh"
     
@@ -388,7 +388,7 @@ MOCK_EOF
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/status.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/marker.sh"
     source "$PROJECT_ROOT/scripts/sweep.sh"
     
@@ -416,7 +416,7 @@ MOCK_EOF
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/status.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/marker.sh"
     source "$PROJECT_ROOT/scripts/sweep.sh"
     
@@ -432,8 +432,8 @@ MOCK_EOF
     # Create signal-error file but check_errors=false
     echo "some error" > "$TEST_WORKTREE_DIR/.status/signal-error-55"
     
-    # No log file, mock get_session_output to return empty
-    get_session_output() { echo ""; }
+    # No log file, mock mux_get_session_output to return empty
+    mux_get_session_output() { echo ""; }
     
     run check_session_markers "pi-issue-55" "55" "false"
     [ "$status" -eq 0 ]
@@ -447,7 +447,7 @@ MOCK_EOF
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/status.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/marker.sh"
     source "$PROJECT_ROOT/scripts/sweep.sh"
     
@@ -461,7 +461,7 @@ MOCK_EOF
     get_status_dir() { echo "$TEST_WORKTREE_DIR/.status"; }
     
     # No signal files, no log file
-    get_session_output() { echo "just normal output"; }
+    mux_get_session_output() { echo "just normal output"; }
     
     run check_session_markers "pi-issue-77" "77" "false"
     [ "$status" -eq 0 ]
@@ -475,7 +475,7 @@ MOCK_EOF
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/status.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/marker.sh"
     source "$PROJECT_ROOT/scripts/sweep.sh"
     
@@ -510,7 +510,7 @@ MOCK_EOF
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/status.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/marker.sh"
     source "$PROJECT_ROOT/scripts/sweep.sh"
     
@@ -546,7 +546,7 @@ EOF
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/status.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/marker.sh"
     source "$PROJECT_ROOT/scripts/sweep.sh"
     
@@ -582,7 +582,7 @@ EOF
     source "$PROJECT_ROOT/lib/config.sh"
     source "$PROJECT_ROOT/lib/log.sh"
     source "$PROJECT_ROOT/lib/status.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     source "$PROJECT_ROOT/lib/marker.sh"
     source "$PROJECT_ROOT/scripts/sweep.sh"
     

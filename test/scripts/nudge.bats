@@ -115,8 +115,8 @@ teardown() {
     grep -q "lib/log.sh" "$PROJECT_ROOT/scripts/nudge.sh"
 }
 
-@test "nudge.sh sources tmux.sh" {
-    grep -q "lib/tmux.sh" "$PROJECT_ROOT/scripts/nudge.sh"
+@test "nudge.sh sources multiplexer.sh" {
+    grep -q "lib/multiplexer.sh" "$PROJECT_ROOT/scripts/nudge.sh"
 }
 
 @test "nudge.sh has main function" {
@@ -143,8 +143,8 @@ teardown() {
     grep -q "DEFAULT_MESSAGE" "$PROJECT_ROOT/scripts/nudge.sh"
 }
 
-@test "nudge.sh uses send_keys function" {
-    grep -q "send_keys" "$PROJECT_ROOT/scripts/nudge.sh"
+@test "nudge.sh uses mux_send_keys function" {
+    grep -q "mux_send_keys" "$PROJECT_ROOT/scripts/nudge.sh"
 }
 
 # ====================

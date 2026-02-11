@@ -37,8 +37,8 @@ if ! declare -f list_all_statuses > /dev/null 2>&1; then
     source "$_DASHBOARD_LIB_DIR/status.sh"
 fi
 
-if ! declare -f list_sessions > /dev/null 2>&1; then
-    source "$_DASHBOARD_LIB_DIR/tmux.sh"
+if ! declare -f mux_list_sessions > /dev/null 2>&1; then
+    source "$_DASHBOARD_LIB_DIR/multiplexer.sh"
 fi
 
 # ====================
@@ -215,7 +215,7 @@ draw_in_progress_section() {
     for issue_num in $issues; do
         local title session
         title="$(get_issue_title "$issue_num" 2>/dev/null || echo "Issue #$issue_num")"
-        session="$(generate_session_name "$issue_num")"
+        session="$(mux_generate_session_name "$issue_num")"
         
         # タイトルを短縮（最大50文字）
         if [[ ${#title} -gt 50 ]]; then
@@ -224,7 +224,7 @@ draw_in_progress_section() {
         
         # セッションが実行中か確認
         local session_status="[stopped]"
-        if session_exists "$session" 2>/dev/null; then
+        if mux_session_exists "$session" 2>/dev/null; then
             session_status="[running]"
         fi
         

@@ -44,7 +44,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
-source "$SCRIPT_DIR/../lib/tmux.sh"
+source "$SCRIPT_DIR/../lib/multiplexer.sh"
 source "$SCRIPT_DIR/../lib/worktree.sh"
 source "$SCRIPT_DIR/../lib/status.sh"
 source "$SCRIPT_DIR/../lib/hooks.sh"
@@ -240,9 +240,9 @@ execute_single_cleanup() {
 
         # セッション停止
         if [[ "$keep_session" == "false" ]]; then
-            if session_exists "$session_name"; then
+            if mux_session_exists "$session_name"; then
                 log_info "Stopping session: $session_name"
-                kill_session "$session_name"
+                mux_kill_session "$session_name"
             else
                 log_debug "Session not found: $session_name (skipping)"
             fi

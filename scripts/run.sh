@@ -139,7 +139,7 @@ done
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/github.sh"
 source "$SCRIPT_DIR/../lib/worktree.sh"
-source "$SCRIPT_DIR/../lib/tmux.sh"
+source "$SCRIPT_DIR/../lib/multiplexer.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/cleanup-trap.sh"
 source "$SCRIPT_DIR/../lib/workflow.sh"
@@ -325,16 +325,16 @@ handle_existing_session() {
     local force="$3"
 
     local session_name
-    session_name="$(generate_session_name "$issue_number")"
+    session_name="$(mux_generate_session_name "$issue_number")"
 
-    if session_exists "$session_name"; then
+    if mux_session_exists "$session_name"; then
         if [[ "$reattach" == "true" ]]; then
             log_info "Attaching to existing session: $session_name"
-            attach_session "$session_name"
+            mux_attach_session "$session_name"
             exit 0
         elif [[ "$force" == "true" ]]; then
             log_info "Removing existing session: $session_name"
-            kill_session "$session_name" || true
+            mux_kill_session "$session_name" || true
         else
             log_error "Session '$session_name' already exists."
             log_info "Options:"
@@ -346,7 +346,7 @@ handle_existing_session() {
 
     # 並列実行数の制限チェック（--forceの場合はスキップ）
     if [[ "$force" != "true" ]]; then
-        if ! check_concurrent_limit; then
+        if ! mux_check_concurrent_limit; then
             exit 1
         fi
     fi
@@ -545,7 +545,7 @@ start_agent_session() {
     # tmuxセッション作成
     log_info "=== Starting Agent Session ==="
     log_info "Agent: $(get_agent_type)"
-    create_session "$session_name" "$full_worktree_path" "$full_command"
+    mux_create_session "$session_name" "$full_worktree_path" "$full_command"
     
     # セッション作成成功 - クリーンアップ対象から除外
     unregister_worktree_for_cleanup
@@ -638,7 +638,7 @@ display_summary_and_attach() {
         start_in_session="$(get_config multiplexer_start_in_session)"
         if [[ "$start_in_session" == "true" ]]; then
             log_info "Attaching to session..."
-            attach_session "$session_name"
+            mux_attach_session "$session_name"
         fi
     else
         log_info "Session started in background."

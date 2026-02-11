@@ -31,7 +31,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
-source "$SCRIPT_DIR/../lib/tmux.sh"
+source "$SCRIPT_DIR/../lib/multiplexer.sh"
 source "$SCRIPT_DIR/../lib/session-resolver.sh"
 
 # デフォルトメッセージ
@@ -63,9 +63,9 @@ send_nudge() {
     local session_name="$1"
     local message="$2"
     
-    check_tmux || return 1
+    mux_check || return 1
     
-    if ! session_exists "$session_name"; then
+    if ! mux_session_exists "$session_name"; then
         log_error "Session not found: $session_name"
         return 1
     fi
@@ -74,7 +74,7 @@ send_nudge() {
     log_info "Message: $message"
     
     # メッセージを送信してEnterキーを押す
-    send_keys "$session_name" "$message"
+    mux_send_keys "$session_name" "$message"
     
     log_info "Nudge sent successfully"
 }

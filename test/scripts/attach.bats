@@ -90,8 +90,8 @@ teardown() {
     grep -q "lib/log.sh" "$PROJECT_ROOT/scripts/attach.sh"
 }
 
-@test "attach.sh sources tmux.sh" {
-    grep -q "lib/tmux.sh" "$PROJECT_ROOT/scripts/attach.sh"
+@test "attach.sh sources multiplexer.sh" {
+    grep -q "lib/multiplexer.sh" "$PROJECT_ROOT/scripts/attach.sh"
 }
 
 @test "attach.sh has main function" {
@@ -110,32 +110,32 @@ teardown() {
     grep -q "resolve_session_target" "$PROJECT_ROOT/scripts/attach.sh"
 }
 
-@test "attach.sh calls attach_session" {
-    grep -q "attach_session" "$PROJECT_ROOT/scripts/attach.sh"
+@test "attach.sh calls mux_attach_session" {
+    grep -q "mux_attach_session" "$PROJECT_ROOT/scripts/attach.sh"
 }
 
 # ====================
 # セッション名生成テスト
 # ====================
 
-@test "generate_session_name contains issue number" {
+@test "mux_generate_session_name contains issue number" {
     source "$PROJECT_ROOT/lib/config.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     
     _CONFIG_LOADED=""
     load_config
     
-    result="$(generate_session_name "42")"
+    result="$(mux_generate_session_name "42")"
     [[ "$result" == *"42"* ]]
 }
 
-@test "generate_session_name contains issue pattern" {
+@test "mux_generate_session_name contains issue pattern" {
     source "$PROJECT_ROOT/lib/config.sh"
-    source "$PROJECT_ROOT/lib/tmux.sh"
+    source "$PROJECT_ROOT/lib/multiplexer.sh"
     
     _CONFIG_LOADED=""
     load_config
     
-    result="$(generate_session_name "42")"
+    result="$(mux_generate_session_name "42")"
     [[ "$result" == *"issue"* ]]
 }

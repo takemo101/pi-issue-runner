@@ -34,7 +34,7 @@ WATCHER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$WATCHER_SCRIPT_DIR/../lib/config.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/log.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/status.sh"
-source "$WATCHER_SCRIPT_DIR/../lib/tmux.sh"
+source "$WATCHER_SCRIPT_DIR/../lib/multiplexer.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/notify.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/worktree.sh"
 source "$WATCHER_SCRIPT_DIR/../lib/hooks.sh"
@@ -130,13 +130,13 @@ setup_watch_environment() {
     fi
 
     # セッション存在確認
-    if ! session_exists "$session_name"; then
+    if ! mux_session_exists "$session_name"; then
         log_error "Session not found: $session_name"
         exit 1
     fi
 
     # Issue番号を抽出してマーカーを生成
-    issue_number_ref=$(extract_issue_number "$session_name")
+    issue_number_ref=$(mux_extract_issue_number "$session_name")
     
     if [[ -z "$issue_number_ref" ]]; then
         log_error "Could not extract issue number from session name: $session_name"
@@ -338,7 +338,7 @@ _run_cleanup_with_retry() {
     log_info "Running cleanup..."
     
     # セッション終了の最終確認（handle_complete で kill 済みだが念のため待機）
-    if session_exists "$session_name"; then
+    if mux_session_exists "$session_name"; then
         local cleanup_delay
         cleanup_delay="$(get_config watcher_cleanup_delay)"
         log_info "Session still alive, waiting for termination (${cleanup_delay}s)..."
@@ -487,8 +487,8 @@ _run_non_ai_steps() {
             local nudge_message
             nudge_message="$(printf 'ステップ「%s」が失敗しました。以下の問題を修正してから、再度フェーズ完了マーカーを出力してください。%s\n\n%s' "$display_name" "$output_path_info" "$step_output")"
 
-            if session_exists "$session_name"; then
-                send_keys "$session_name" "$nudge_message"
+            if mux_session_exists "$session_name"; then
+                mux_send_keys "$session_name" "$nudge_message"
                 log_info "Step failure nudge sent to session: $session_name"
             else
                 log_warn "Session $session_name no longer exists, cannot send nudge"
@@ -640,8 +640,8 @@ handle_phase_complete() {
                 unset PI_RUN_OUTPUT_SUMMARY
             fi
 
-            if session_exists "$session_name"; then
-                send_keys "$session_name" "$continue_prompt"
+            if mux_session_exists "$session_name"; then
+                mux_send_keys "$session_name" "$continue_prompt"
                 log_info "Continue prompt sent for next AI group: $after_content"
             else
                 log_warn "Session $session_name no longer exists"
@@ -710,12 +710,12 @@ handle_complete() {
     
     # 6. セッションを明示的に終了させる（cleanup前にworktreeロックを解放）
     # AIがCOMPLETEマーカーを出した後もプロンプト待ちで居座るケースを防ぐ
-    if session_exists "$session_name"; then
+    if mux_session_exists "$session_name"; then
         log_info "Terminating session before cleanup: $session_name"
-        kill_session "$session_name" 10 2>/dev/null || true
+        mux_kill_session "$session_name" 10 2>/dev/null || true
         
-        # kill_session 後に確認
-        if session_exists "$session_name"; then
+        # mux_kill_session 後に確認
+        if mux_session_exists "$session_name"; then
             log_warn "Session still alive after kill attempt, proceeding with cleanup anyway"
         fi
     fi
@@ -816,7 +816,7 @@ capture_baseline() {
     sleep "$initial_delay"
 
     # 初期出力をキャプチャ（ベースライン）
-    get_session_output "$session_name" 1000 2>/dev/null || echo ""
+    mux_get_session_output "$session_name" 1000 2>/dev/null || echo ""
 }
 
 # Check for markers already present at startup (fast-completing tasks)
@@ -1130,7 +1130,7 @@ _check_capture_pane_fallback() {
     fi
 
     local capture_fallback_output
-    capture_fallback_output=$(get_session_output "$session_name" 500 2>/dev/null) || capture_fallback_output=""
+    capture_fallback_output=$(mux_get_session_output "$session_name" 500 2>/dev/null) || capture_fallback_output=""
     if [[ -z "$capture_fallback_output" ]]; then
         return 255
     fi
@@ -1189,7 +1189,7 @@ _check_capture_pane_markers() {
     local -n _ccp_cumulative_error="$8"
 
     local output
-    output=$(get_session_output "$session_name" 1000 2>/dev/null) || {
+    output=$(mux_get_session_output "$session_name" 1000 2>/dev/null) || {
         log_warn "Failed to capture pane output"
         return 3
     }
@@ -1272,7 +1272,7 @@ run_watch_loop() {
     while true; do
         ((loop_count++)) || true
 
-        if ! session_exists "$session_name"; then
+        if ! mux_session_exists "$session_name"; then
             log_info "Session ended: $session_name"
             break
         fi

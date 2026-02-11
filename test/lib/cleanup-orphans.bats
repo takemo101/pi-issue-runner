@@ -264,11 +264,11 @@ teardown() {
     # completeステータスを作成（セッション名付き）
     save_status "800" "complete" "pi-issue-800"
     
-    # session_exists をモック（セッションが存在する場合）
-    session_exists() {
+    # mux_session_exists をモック（セッションが存在する場合）
+    mux_session_exists() {
         return 0  # セッション存在
     }
-    export -f session_exists
+    export -f mux_session_exists
     
     # 検索を実行
     run find_complete_with_existing_worktrees
@@ -285,11 +285,11 @@ teardown() {
     # completeステータスを作成（セッション名付き）
     save_status "801" "complete" "pi-issue-801"
     
-    # session_exists をモック（セッションが存在しない場合）
-    session_exists() {
+    # mux_session_exists をモック（セッションが存在しない場合）
+    mux_session_exists() {
         return 1  # セッション不存在
     }
-    export -f session_exists
+    export -f mux_session_exists
     
     # 検索を実行
     run find_complete_with_existing_worktrees
@@ -322,11 +322,11 @@ teardown() {
     # completeステータスを作成
     save_status "803" "complete" "pi-issue-803"
     
-    # session_exists をモック（セッションが存在する場合）
-    session_exists() {
+    # mux_session_exists をモック（セッションが存在する場合）
+    mux_session_exists() {
         return 0  # セッション存在
     }
-    export -f session_exists
+    export -f mux_session_exists
     
     # クリーンアップを実行
     run cleanup_complete_with_worktrees "false" "false"

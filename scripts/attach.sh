@@ -28,7 +28,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
-source "$SCRIPT_DIR/../lib/tmux.sh"
+source "$SCRIPT_DIR/../lib/multiplexer.sh"
 source "$SCRIPT_DIR/../lib/session-resolver.sh"
 
 usage() {
@@ -82,7 +82,7 @@ main() {
     IFS=$'\t' read -r _ session_name < <(resolve_session_target "$target")
 
     log_info "Attaching to session: $session_name"
-    attach_session "$session_name"
+    mux_attach_session "$session_name"
 }
 
 main "$@"

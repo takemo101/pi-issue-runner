@@ -208,8 +208,8 @@ set_status() {
     
     # セッション名を生成
     local session_name
-    if declare -f generate_session_name > /dev/null 2>&1; then
-        session_name="$(generate_session_name "$issue")"
+    if declare -f mux_generate_session_name > /dev/null 2>&1; then
+        session_name="$(mux_generate_session_name "$issue")"
     else
         session_name="pi-issue-${issue}"
     fi

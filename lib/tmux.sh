@@ -1,11 +1,24 @@
 #!/usr/bin/env bash
-# tmux.sh - マルチプレクサ操作（公式API）
+# tmux.sh - 後方互換ラッパー（非推奨）
 #
-# このファイルはマルチプレクサ操作の公式APIを提供します。
-# 内部実装は lib/multiplexer.sh によって提供されています。
+# ⚠️ DEPRECATED: このファイルは後方互換性のために残されています。
+# 新しいコードでは lib/multiplexer.sh を直接使用してください。
 #
-# 設定で multiplexer.type を変更することで、
-# tmux または zellij を使用できます。
+# 移行ガイド:
+#   source lib/tmux.sh       → source lib/multiplexer.sh
+#   check_tmux               → mux_check
+#   generate_session_name    → mux_generate_session_name
+#   extract_issue_number     → mux_extract_issue_number
+#   create_session           → mux_create_session
+#   session_exists           → mux_session_exists
+#   attach_session           → mux_attach_session
+#   kill_session             → mux_kill_session
+#   list_sessions            → mux_list_sessions
+#   get_session_info         → mux_get_session_info
+#   get_session_output       → mux_get_session_output
+#   count_active_sessions    → mux_count_active_sessions
+#   check_concurrent_limit   → mux_check_concurrent_limit
+#   send_keys                → mux_send_keys
 
 set -euo pipefail
 
@@ -21,71 +34,20 @@ _TMUX_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_TMUX_LIB_DIR/multiplexer.sh"
 
 # ============================================================================
-# 後方互換性のためのエイリアス関数
-# 既存のスクリプトはこれらの関数名を使用しています
+# 後方互換性のためのエイリアス関数（非推奨）
+# 外部ツールやプラグインが使用している可能性があるため残しています
 # ============================================================================
 
-# マルチプレクサがインストールされているか確認
-check_tmux() {
-    mux_check
-}
-
-# セッション名を生成
-generate_session_name() {
-    mux_generate_session_name "$@"
-}
-
-# セッション名からIssue番号を抽出
-extract_issue_number() {
-    mux_extract_issue_number "$@"
-}
-
-# セッションを作成してコマンドを実行
-create_session() {
-    mux_create_session "$@"
-}
-
-# セッションが存在するか確認
-session_exists() {
-    mux_session_exists "$@"
-}
-
-# セッションにアタッチ
-attach_session() {
-    mux_attach_session "$@"
-}
-
-# セッションを終了
-kill_session() {
-    mux_kill_session "$@"
-}
-
-# セッション一覧を取得
-list_sessions() {
-    mux_list_sessions
-}
-
-# セッションの状態を取得
-get_session_info() {
-    mux_get_session_info "$@"
-}
-
-# セッションのペインの内容を取得（最新N行）
-get_session_output() {
-    mux_get_session_output "$@"
-}
-
-# アクティブなセッション数をカウント
-count_active_sessions() {
-    mux_count_active_sessions
-}
-
-# 並列実行数の制限をチェック
-check_concurrent_limit() {
-    mux_check_concurrent_limit
-}
-
-# キーを送信
-send_keys() {
-    mux_send_keys "$@"
-}
+check_tmux() { mux_check; }
+generate_session_name() { mux_generate_session_name "$@"; }
+extract_issue_number() { mux_extract_issue_number "$@"; }
+create_session() { mux_create_session "$@"; }
+session_exists() { mux_session_exists "$@"; }
+attach_session() { mux_attach_session "$@"; }
+kill_session() { mux_kill_session "$@"; }
+list_sessions() { mux_list_sessions; }
+get_session_info() { mux_get_session_info "$@"; }
+get_session_output() { mux_get_session_output "$@"; }
+count_active_sessions() { mux_count_active_sessions; }
+check_concurrent_limit() { mux_check_concurrent_limit; }
+send_keys() { mux_send_keys "$@"; }

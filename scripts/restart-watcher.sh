@@ -28,7 +28,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
-source "$SCRIPT_DIR/../lib/tmux.sh"
+source "$SCRIPT_DIR/../lib/multiplexer.sh"
 source "$SCRIPT_DIR/../lib/daemon.sh"
 source "$SCRIPT_DIR/../lib/status.sh"
 source "$SCRIPT_DIR/../lib/session-resolver.sh"
@@ -76,10 +76,10 @@ main() {
     IFS=$'\t' read -r issue_number session_name < <(resolve_session_target "$target")
 
     # セッション存在確認
-    if ! session_exists "$session_name"; then
+    if ! mux_session_exists "$session_name"; then
         log_error "Session not found: $session_name"
         log_info "Active sessions:"
-        list_sessions | sed 's/^/  /'
+        mux_list_sessions | sed 's/^/  /'
         exit 1
     fi
 

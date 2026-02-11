@@ -26,7 +26,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/status.sh"
-source "$SCRIPT_DIR/../lib/tmux.sh"
+source "$SCRIPT_DIR/../lib/multiplexer.sh"
 source "$SCRIPT_DIR/../lib/worktree.sh"
 source "$SCRIPT_DIR/../lib/notify.sh"
 
@@ -69,7 +69,7 @@ main() {
     echo ""
 
     local sessions
-    sessions="$(list_sessions)"
+    sessions="$(mux_list_sessions)"
 
     if [[ -z "$sessions" ]]; then
         echo "No active sessions found."
@@ -131,7 +131,7 @@ main() {
             fi
             
             # セッション情報
-            get_session_info "$session" 2>/dev/null | sed 's/^/  /' || true
+            mux_get_session_info "$session" 2>/dev/null | sed 's/^/  /' || true
             echo ""
         else
             printf "%-20s #%-7s %-10s %s\n" "$session" "$issue_num" "$status" "$error_msg"

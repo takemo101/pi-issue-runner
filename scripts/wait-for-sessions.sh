@@ -36,7 +36,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/config.sh"
 source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/status.sh"
-source "$SCRIPT_DIR/../lib/tmux.sh"
+source "$SCRIPT_DIR/../lib/multiplexer.sh"
 
 usage() {
     cat << EOF
@@ -203,8 +203,8 @@ process_issue_status() {
         running)
             # セッションが実際に存在するか確認（stale running 検出）
             local session_name
-            session_name="$(generate_session_name "$issue")"
-            if session_exists "$session_name" 2>/dev/null; then
+            session_name="$(mux_generate_session_name "$issue")"
+            if mux_session_exists "$session_name" 2>/dev/null; then
                 _all_done_ref=false
             else
                 # セッション不在 → watcherがステータス更新せず終了した可能性
@@ -223,7 +223,7 @@ process_issue_status() {
         unknown)
             # tmuxセッションが存在するか確認
             local session_name="pi-issue-$issue"
-            if session_exists "$session_name"; then
+            if mux_session_exists "$session_name"; then
                 # セッションはあるがステータス不明 → まだ開始中
                 _all_done_ref=false
             else
