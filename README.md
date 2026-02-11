@@ -186,7 +186,7 @@ scripts/run.sh 42 --no-attach
 # pi終了後の自動クリーンアップを無効化
 scripts/run.sh 42 --no-cleanup
 
-# run:/call: ステップをスキップ
+# run: ステップをスキップ
 scripts/run.sh 42 --skip-run
 
 # カスタムブランチ名で作成（-b は --branch の短縮形）
@@ -829,7 +829,7 @@ steps:
 
 ## 観点別レビューエージェント
 
-`call:` ステップで利用できる観点別のレビューエージェントテンプレートが用意されています。各エージェントは `git diff origin/main` を対象に特定の観点からレビューし、重大度 HIGH の問題は直接修正します。
+観点別のレビューエージェントテンプレートが用意されています。各エージェントは `git diff origin/main` を対象に特定の観点からレビューし、重大度 HIGH の問題は直接修正します。
 
 | エージェント | ファイル | 観点 |
 |---|---|---|
@@ -837,6 +837,8 @@ steps:
 | セキュリティ | `agents/review-security.md` | インジェクション、パストラバーサル、機密情報等 |
 | 設計・構造 | `agents/review-architecture.md` | 単一責任、循環依存、重複コード等 |
 | AI実装アンチパターン | `agents/review-ai-antipattern.md` | ハルシネーション、スコープクリープ、形だけのテスト等 |
+
+これらは通常のAIステップ（`review` 等）としてメインセッション内で実行されます。実装コンテキストを保持したままレビューできるため、的確な指摘が可能です。並列レビューが必要な場合は、AIエージェント自身のサブエージェント機能を使用できます。
 
 ### 設定例
 
@@ -848,30 +850,12 @@ workflows:
       - implement
       - run: "shellcheck -x scripts/*.sh lib/*.sh"
       - run: "bats --jobs 2 test/"
-        timeout: 600
-      - call: review-bugs
-      - call: review-security
+        timeout: 900
+      - review
       - merge
-
-  # レビュー用ワークフロー（call: から呼び出される）
-  review-bugs:
-    description: バグ・ロジックエラーのレビュー
-    steps:
-      - review-bugs
-    agent:
-      type: pi
-      args: [--provider, anthropic, --model, claude-haiku-4-5]
-
-  review-security:
-    description: セキュリティレビュー
-    steps:
-      - review-security
-    agent:
-      type: pi
-      args: [--provider, anthropic, --model, claude-haiku-4-5]
 ```
 
-プロジェクトごとに必要な観点だけ `call:` ステップとして追加してください。
+`agents/review.md` テンプレートにバグ・セキュリティ・アーキテクチャ等の観点を含めることで、1つのレビューステップで複数の観点をカバーできます。
 
 ## Hook機能
 
@@ -985,7 +969,7 @@ pi-issue-runner/
 │   ├── priority.sh         # 優先度計算
 │   ├── session-resolver.sh # セッション名解決ユーティリティ
 │   ├── status.sh           # ステータスファイル管理
-│   ├── step-runner.sh      # run:/call: ステップ実行エンジン
+│   ├── step-runner.sh      # run: ステップ実行エンジン
 │   ├── template.sh         # テンプレート処理
 │   ├── tmux.sh             # マルチプレクサ操作（後方互換ラッパー）
 │   ├── multiplexer.sh      # マルチプレクサ抽象化レイヤー
@@ -1007,7 +991,6 @@ pi-issue-runner/
 │   └── thorough.yaml       # 徹底ワークフロー
 ├── agents/                  # エージェントテンプレート
 │   ├── ci-fix.md           # CI修正エージェント
-│   ├── code-review.md      # 独立コードレビュー（call: ステップ用）
 │   ├── improve-review.md   # improve.sh レビュープロンプト
 │   ├── plan.md             # 計画エージェント
 │   ├── implement.md        # 実装エージェント
@@ -1313,7 +1296,7 @@ gh auth login
 - [公開API](docs/public-api.md) - 外部から利用可能なライブラリ関数
 - [ワークフロー](docs/workflows.md) - ワークフロー定義の詳細
 - [Hook機能](docs/hooks.md) - イベントフック詳細
-- [設定リファレンス: run:/call: ステップ](docs/configuration.md#run--call-ステップ) - ワークフロー内の品質チェック
+- [設定リファレンス: run: ステップ](docs/configuration.md#run-ステップ) - ワークフロー内の品質チェック
 - [Git Worktree管理](docs/worktree-management.md) - worktree運用
 - [マルチプレクサ統合](docs/multiplexer-integration.md) - tmux/Zellijセッション管理
 - [並列実行](docs/parallel-execution.md) - 複数タスクの並列処理

@@ -98,7 +98,7 @@ GitHub Issueを入力として、独立したworktree環境でpiインスタン�
   - ワークフロー選択ロジック
   - AI自動選択の実装方針
 
-- **run: / call: ステップ** - [configuration.md の該当セクション](./configuration.md#run--call-ステップ)
+- **run: ステップ** - [configuration.md の該当セクション](./configuration.md#run-ステップ)
   - ワークフロー内に非AIステップ（シェルコマンド / 別ワークフロー呼び出し）を挿入
   - 以前の `gates` 機能の後継（#1406）
 

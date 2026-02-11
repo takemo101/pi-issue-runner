@@ -94,7 +94,7 @@ project-root/
 │   └── thorough.yaml        # 徹底ワークフロー
 ├── agents/                  # エージェントテンプレート
 │   ├── ci-fix.md            # CI修正エージェント
-│   ├── code-review.md       # 独立コードレビュー（call: ステップ用）
+│   ├── improve-review.md     # improve.sh レビュープロンプト
 │   ├── improve-review.md    # improve.sh レビュープロンプト（カスタマイズ可能）
 │   ├── plan.md              # 計画エージェント
 │   ├── implement.md         # 実装エージェント
@@ -147,7 +147,7 @@ project-root/
 │   ├── priority.sh          # 優先度計算
 │   ├── session-resolver.sh  # セッション名解決ユーティリティ
 │   ├── status.sh            # ステータスファイル管理
-│   ├── step-runner.sh       # run:/call: ステップ実行エンジン
+│   ├── step-runner.sh       # run: ステップ実行エンジン
 │   ├── template.sh          # テンプレート処理
 │   ├── tracker.sh           # プロンプト効果測定（記録コア）
 │   ├── knowledge-loop.sh    # 知識ループコアライブラリ
@@ -350,7 +350,7 @@ agents:
   merge: "agents/merge.md"                         # マージステップ
   test: "agents/test.md"                           # テストステップ
   ci-fix: "agents/ci-fix.md"                       # CI修正ステップ
-  code-review: "agents/code-review.md"             # 独立コードレビュー（call: ステップ用）
+  improve-review: "agents/improve-review.md"       # improve.sh レビュープロンプト
   improve-review: "agents/improve-review.md"       # improve.sh レビュープロンプト
   review-bugs: "agents/review-bugs.md"             # バグ・ロジックエラーレビュー
   review-security: "agents/review-security.md"     # セキュリティレビュー
@@ -489,7 +489,7 @@ PI_RUNNER_TRACKER_FILE=".worktrees/.status/tracker.jsonl"
 
 ## ワークフローステップ
 
-ワークフローの `steps` 配列には、AIエージェントステップと非AIステップ（`run:`/`call:`）を組み合わせて定義できます。
+ワークフローの `steps` 配列には、AIエージェントステップと非AIステップ（`run:`）を組み合わせて定義できます。
 
 ### AIエージェントステップ（ビルトイン）
 
@@ -504,7 +504,7 @@ PI_RUNNER_TRACKER_FILE=".worktrees/.status/tracker.jsonl"
 
 ### 観点別レビューエージェント
 
-独立したAIインスタンスで実行される専門的なレビューエージェントです。`call:` ステップで呼び出します。
+専門的な観点からレビューを行うエージェントテンプレートです。通常のAIステップとしてメインセッション内で実行します。
 
 | エージェント名 | 説明 | エージェントテンプレート |
 |--------------|------|------------------------|
