@@ -125,7 +125,8 @@ pi-issue-runner/
 │   ├── review-architecture.md  # 設計・構造レビュー
 │   ├── review-ai-antipattern.md # AI実装アンチパターンレビュー
 │   ├── test.md        # テストエージェント
-│   └── merge.md       # マージエージェント
+│   ├── merge.md       # マージエージェント
+│   └── ci-watch.md    # CI監視エージェント（マージなし）
 ├── schemas/           # JSON Schema
 │   └── pi-runner.schema.json  # .pi-runner.yaml のスキーマ
 ├── docs/              # ドキュメント

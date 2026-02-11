@@ -104,7 +104,8 @@ project-root/
 │   ├── review-architecture.md # 設計・構造レビュー
 │   ├── review-ai-antipattern.md # AI実装アンチパターンレビュー
 │   ├── test.md              # テストエージェント
-│   └── merge.md             # マージエージェント
+│   ├── merge.md             # マージエージェント
+│   └── ci-watch.md          # CI監視エージェント（マージなし）
 ├── lib/                     # シェルスクリプトライブラリ
 │   ├── agent.sh             # マルチエージェント対応
 │   ├── batch.sh             # バッチ処理コア機能
@@ -348,6 +349,7 @@ agents:
   implement: "agents/implement.md"                 # 実装ステップ
   review: "agents/review.md"                       # レビューステップ（同一セッション内）
   merge: "agents/merge.md"                         # マージステップ
+  ci-watch: "agents/ci-watch.md"                   # CI監視ステップ（マージなし）
   test: "agents/test.md"                           # テストステップ
   ci-fix: "agents/ci-fix.md"                       # CI修正ステップ
   improve-review: "agents/improve-review.md"       # improve.sh レビュープロンプト
@@ -500,6 +502,7 @@ PI_RUNNER_TRACKER_FILE=".worktrees/.status/tracker.jsonl"
 | `review` | コードレビュー（同一セッション内） | `agents/review.md` |
 | `test` | テスト実行 | `agents/test.md` |
 | `merge` | PRを作成・マージ | `agents/merge.md` |
+| `ci-watch` | PR作成・CI監視のみ（マージなし） | `agents/ci-watch.md` |
 | `ci-fix` | CI失敗を自動修正 | `agents/ci-fix.md` |
 
 ### 観点別レビューエージェント

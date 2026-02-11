@@ -15,6 +15,7 @@ pi-issue-runnerは、GitHub Issueの処理をワークフローとして定義�
 | `test` | テスト実行とカバレッジ確認 |
 | `review` | セルフレビューと品質確認 |
 | `merge` | PR作成とマージ |
+| `ci-watch` | PR作成・CI監視のみ（マージなし） |
 
 ```yaml
 # workflows/default.yaml
