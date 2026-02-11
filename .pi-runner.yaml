@@ -99,7 +99,7 @@ workflows:
       - run: "shellcheck -x scripts/*.sh lib/*.sh"
         description: "ShellCheck 静的解析"
       - run: "bats --jobs 2 test/"
-        timeout: 600
+        timeout: 900
         description: "Bats テスト"
       - review
       - merge
@@ -114,16 +114,16 @@ workflows:
       - run: "shellcheck -x scripts/*.sh lib/*.sh"
         description: "ShellCheck 静的解析"
       - run: "bats --jobs 2 test/"
-        timeout: 600
+        timeout: 900
         description: "Bats テスト"
       - call: review-bugs
-        timeout: 600
+        timeout: 900
         description: "バグ・ロジックエラーレビュー"
       - call: review-security
-        timeout: 600
+        timeout: 900
         description: "セキュリティレビュー"
       - call: review-ai-antipattern
-        timeout: 600
+        timeout: 900
         description: "AI実装アンチパターンレビュー"
       - merge
     agent:
@@ -153,13 +153,13 @@ workflows:
       - run: "shellcheck -x scripts/*.sh lib/*.sh"
         description: "ShellCheck 静的解析"
       - run: "bats --jobs 2 test/"
-        timeout: 600
+        timeout: 900
         description: "Bats テスト"
       - call: review-bugs
-        timeout: 600
+        timeout: 900
         description: "バグ・ロジックエラーレビュー"
       - call: review-security
-        timeout: 600
+        timeout: 900
         description: "セキュリティレビュー"
       - merge
     context: |
@@ -197,7 +197,7 @@ workflows:
       - run: "shellcheck -x scripts/*.sh lib/*.sh"
         description: "ShellCheck 静的解析"
       - run: "bats --jobs 2 test/"
-        timeout: 600
+        timeout: 900
         description: "Bats テスト"
       - review
       - merge

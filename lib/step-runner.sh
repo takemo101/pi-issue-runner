@@ -52,7 +52,7 @@ expand_step_variables() {
 # Output: コマンドの stdout/stderr を stdout に出力
 run_command_step() {
     local command="$1"
-    local timeout="${2:-300}"
+    local timeout="${2:-900}"
     local worktree_path="${3:-.}"
     local issue_number="${4:-${PI_ISSUE_NUMBER:-}}"
     local pr_number="${5:-${PI_PR_NUMBER:-}}"
@@ -103,7 +103,7 @@ run_command_step() {
 # Output: AIの出力を stdout に出力
 run_call_step() {
     local workflow_name="$1"
-    local timeout="${2:-300}"
+    local timeout="${2:-900}"
     local worktree_path="${3:-.}"
     local config_file="${4:-${PI_RUNNER_CONFIG_FILE:-}}"
     local issue_number="${5:-${PI_ISSUE_NUMBER:-0}}"

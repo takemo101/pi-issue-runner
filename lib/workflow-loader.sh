@@ -223,7 +223,7 @@ _parse_typed_steps_from_config() {
             local run_val call_val timeout max_retry retry_interval continue_on_fail description
             run_val=$(echo "$item_json" | yq -r '.run // ""' - 2>/dev/null) || run_val=""
             call_val=$(echo "$item_json" | yq -r '.call // ""' - 2>/dev/null) || call_val=""
-            timeout=$(echo "$item_json" | yq -r '.timeout // "300"' - 2>/dev/null) || timeout="300"
+            timeout=$(echo "$item_json" | yq -r '.timeout // "900"' - 2>/dev/null) || timeout="900"
             max_retry=$(echo "$item_json" | yq -r '.max_retry // "0"' - 2>/dev/null) || max_retry="0"
             retry_interval=$(echo "$item_json" | yq -r '.retry_interval // "10"' - 2>/dev/null) || retry_interval="10"
             continue_on_fail=$(echo "$item_json" | yq -r '.continue_on_fail // "false"' - 2>/dev/null) || continue_on_fail="false"

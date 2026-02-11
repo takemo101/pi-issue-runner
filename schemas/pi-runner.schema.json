@@ -435,7 +435,7 @@
             "timeout": {
               "type": "integer",
               "minimum": 1,
-              "default": 300,
+              "default": 900,
               "description": "Timeout in seconds"
             },
             "max_retry": {
@@ -475,7 +475,7 @@
         "timeout": {
           "type": "integer",
           "minimum": 1,
-          "default": 300,
+          "default": 900,
           "description": "Timeout in seconds"
         },
         "max_retry": {
@@ -513,7 +513,7 @@
         "timeout": {
           "type": "integer",
           "minimum": 1,
-          "default": 300,
+          "default": 900,
           "description": "Timeout in seconds"
         },
         "max_retry": {
