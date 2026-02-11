@@ -683,14 +683,14 @@ EOF
     [ "$continue_monitoring" = true ]
 }
 
-@test "force_cleanup_on_timeout: config default is false" {
-    # CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT defaults to "false" in config.sh
-    [ "$CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT" = "false" ]
+@test "force_cleanup_on_timeout: config default is true" {
+    # CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT defaults to "true" in config.sh
+    [ "$CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT" = "true" ]
 }
 
 @test "force_cleanup_on_timeout: config respects environment override" {
-    export CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT="true"
-    [ "$CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT" = "true" ]
+    export CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT="false"
+    [ "$CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT" = "false" ]
 }
 
 @test "force_cleanup_on_timeout: handle_complete code path exists in watch-session.sh" {
@@ -732,8 +732,8 @@ EOF
     ! echo "$func_body" | grep -q '_run_gates_check'
 }
 
-@test "force_cleanup_on_timeout: handle_complete returns 2 when disabled (default)" {
-    # Default behavior: force_cleanup_on_timeout is false
+@test "force_cleanup_on_timeout: handle_complete returns 2 when disabled" {
+    # When force_cleanup_on_timeout is explicitly disabled, timeout returns 2 (continue monitoring)
     export CONFIG_WATCHER_FORCE_CLEANUP_ON_TIMEOUT="false"
 
     # Verify the design: when disabled, timeout returns 2 (continue monitoring)

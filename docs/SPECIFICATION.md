@@ -168,7 +168,7 @@ project-root/
     ├── cleanup.sh           # クリーンアップ
     ├── context.sh           # コンテキスト管理
     ├── dashboard.sh         # ダッシュボード表示
-    ├── force-complete.sh    # セッション強制完了
+    ├── force-complete.sh    # ⚠️ 廃止予定: stop.sh --cleanup にリダイレクト
     ├── generate-config.sh   # プロジェクト解析・設定生成
     ├── improve.sh           # 継続的改善スクリプト
     ├── knowledge-loop.sh    # 知識ループ（fixコミットから知見抽出・AGENTS.md更新提案）

@@ -164,7 +164,7 @@ GitHub Issueを入力として、独立したworktree環境でpiインスタン�
 - **2026-02-03**: CI機能とバッチ処理
   - CI自動修正機能（ci-fix, ci-monitor, ci-retry, ci-classifier）
   - バッチ実行機能（run-batch.sh, dependency.sh）
-  - セッション管理強化（force-complete, nudge）
+  - セッション管理強化（stop --cleanup, nudge）
 
 - **2026-01-31**: Hook機能とセキュリティ強化
   - Hook機能（on_start, on_success, on_error, on_cleanup）

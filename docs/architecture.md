@@ -101,7 +101,7 @@ pi-issue-runner/
 │   ├── context.sh     # コンテキスト管理
 │   ├── dashboard.sh   # ダッシュボード表示
 │   ├── generate-config.sh  # プロジェクト解析・設定生成
-│   ├── force-complete.sh  # セッション強制完了
+│   ├── force-complete.sh  # ⚠️ 廃止予定: stop.sh --cleanup にリダイレクト
 │   ├── improve.sh     # 継続的改善
 │   ├── next.sh        # 次のタスク取得
 │   ├── nudge.sh       # メッセージ送信
@@ -158,6 +158,13 @@ pi-issue-runner/
 │   ├── template.sh    # テンプレート処理
 │   ├── tracker.sh     # プロンプト効果測定（記録コア）
 │   ├── knowledge-loop.sh  # 知識ループコアライブラリ
+│   ├── knowledge-loop/    # 知識ループサブモジュール群
+│   │   ├── commits.sh     # コミット解析
+│   │   ├── context.sh     # コンテキスト収集
+│   │   ├── decisions.sh   # 設計判断抽出
+│   │   ├── proposals.sh   # 提案生成
+│   │   └── tracker.sh     # トラッカー連携
+│   ├── step-runner.sh # run: ステップ実行エンジン
 │   ├── tmux.sh        # 後方互換ラッパー
 │   ├── workflow.sh    # ワークフローエンジン
 │   ├── workflow-finder.sh   # ワークフロー検索
@@ -176,7 +183,11 @@ pi-issue-runner/
 │   ├── improve-review.md  # improve.sh レビュープロンプト
 │   ├── plan.md        # 計画エージェント
 │   ├── implement.md   # 実装エージェント
-│   ├── review.md      # レビューエージェント
+│   ├── review.md      # レビューエージェント（同一セッション内）
+│   ├── review-bugs.md          # バグ・ロジックエラーレビュー
+│   ├── review-security.md      # セキュリティレビュー
+│   ├── review-architecture.md  # 設計・構造レビュー
+│   ├── review-ai-antipattern.md # AI実装アンチパターンレビュー
 │   ├── test.md        # テストエージェント
 │   └── merge.md       # マージエージェント
 ├── test/              # Batsテスト
@@ -210,7 +221,7 @@ pi-issue-runner/
 | `dashboard.sh` | プロジェクト全体のステータスを表示 |
 | `next.sh` | 依存関係を考慮した次のタスクを推奨 |
 | `nudge.sh` | セッションへメッセージ送信 |
-| `force-complete.sh` | セッション強制完了 |
+| `force-complete.sh` | ⚠️ 廃止予定: `stop.sh --cleanup` にリダイレクト |
 | `tracker.sh` | ワークフロー別成功率の集計・表示 |
 | `knowledge-loop.sh` | fixコミットから知見抽出・AGENTS.md更新提案 |
 | `cleanup.sh` | worktreeとセッションをクリーンアップ |

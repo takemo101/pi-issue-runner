@@ -368,7 +368,7 @@
       "properties": {
         "force_cleanup_on_timeout": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "Force cleanup on PR merge timeout"
         },
         "initial_delay": {

@@ -337,12 +337,13 @@ _run_cleanup_with_retry() {
     
     log_info "Running cleanup..."
     
-    # セッションが完全に終了し、プロセスが解放されるまで待機
-    # Issue #585対策: worktree削除前に確実にセッションを終了させる
-    local cleanup_delay
-    cleanup_delay="$(get_config watcher_cleanup_delay)"
-    log_info "Waiting for session termination (${cleanup_delay}s)..."
-    sleep "$cleanup_delay"
+    # セッション終了の最終確認（handle_complete で kill 済みだが念のため待機）
+    if session_exists "$session_name"; then
+        local cleanup_delay
+        cleanup_delay="$(get_config watcher_cleanup_delay)"
+        log_info "Session still alive, waiting for termination (${cleanup_delay}s)..."
+        sleep "$cleanup_delay"
+    fi
     
     # cleanup実行（リトライ付き）
     local cleanup_success=false
@@ -699,7 +700,7 @@ handle_complete() {
             log_warn "PR merge timeout. Force cleanup enabled - proceeding with cleanup anyway."
         else
             log_warn "PR merge timeout. Will continue monitoring for manual completion."
-            log_warn "Hint: Set watcher.force_cleanup_on_timeout: true in .pi-runner.yaml to auto-cleanup on timeout."
+            log_warn "Hint: Set watcher.force_cleanup_on_timeout: false in .pi-runner.yaml to disable auto-cleanup on timeout."
             return 2
         fi
     elif [[ $pr_check_result -ne 0 ]]; then
@@ -707,12 +708,24 @@ handle_complete() {
         return 1
     fi
     
-    # 6. Cleanup実行
+    # 6. セッションを明示的に終了させる（cleanup前にworktreeロックを解放）
+    # AIがCOMPLETEマーカーを出した後もプロンプト待ちで居座るケースを防ぐ
+    if session_exists "$session_name"; then
+        log_info "Terminating session before cleanup: $session_name"
+        kill_session "$session_name" 10 2>/dev/null || true
+        
+        # kill_session 後に確認
+        if session_exists "$session_name"; then
+            log_warn "Session still alive after kill attempt, proceeding with cleanup anyway"
+        fi
+    fi
+    
+    # 7. Cleanup実行
     if ! _run_cleanup_with_retry "$session_name" "$cleanup_args"; then
         return 1
     fi
     
-    # 7. 事後処理
+    # 8. 事後処理
     _post_cleanup_maintenance
     
     log_info "Cleanup completed successfully"

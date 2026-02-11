@@ -355,7 +355,7 @@ watcher:
   # true にすると、PRが見つからない/マージされない場合でも
   # 完了マーカー検出後にセッションを強制終了・クリーンアップする
   # デフォルト: false
-  force_cleanup_on_timeout: false
+  force_cleanup_on_timeout: true
   
   # エラー検知時にターミナルを自動で開いてセッションにアタッチする
   # Terminal.app以外（Ghostty等）を使用中にウィンドウが多発する場合はfalseに設定
@@ -674,7 +674,7 @@ docs/plans/
 | `cleanup_retry_interval` | integer | `3` | cleanupリトライ間隔（秒） |
 | `pr_merge_max_attempts` | integer | `10` | PRマージチェックの最大試行回数 |
 | `pr_merge_retry_interval` | integer | `60` | PRマージチェックのリトライ間隔（秒） |
-| `force_cleanup_on_timeout` | boolean | `false` | PRマージタイムアウト時に強制クリーンアップを実行する |
+| `force_cleanup_on_timeout` | boolean | `true` | PRマージタイムアウト時に強制クリーンアップを実行する |
 | `auto_attach` | boolean | `true` | エラー検知時にターミナルを自動で開いてセッションにアタッチする |
 
 #### タイミング調整の指針
