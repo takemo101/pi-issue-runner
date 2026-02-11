@@ -81,13 +81,36 @@ workflows:
   default:
     description: 標準ワークフロー（計画・実装・レビュー・マージ）
     steps:
-      - plan
+      - plan:
+          context: |
+            実装計画を作成してください。
+            複雑な場合は designer エージェントに委譲してください：
+            ```javascript
+            subagent({ agent: "designer", task: "実装設計を作成" })
+            ```
       - implement:
           context: |
-            実装完了後、必ず以下を実行してください：
-            1. ShellCheck: `shellcheck -x scripts/*.sh lib/*.sh`
-            2. テスト: `bats --jobs 2 test/`
-            3. 両方パスしたらコミット・プッシュ
+            実装を行ってください。
+            
+            複数ファイルを作成する場合は並列実行：
+            ```javascript
+            subagent({
+              tasks: [
+                { agent: "implementer", task: "[ファイル1] を作成" },
+                { agent: "implementer", task: "[ファイル2] を作成" }
+              ]
+            })
+            ```
+            
+            品質チェックも並列実行：
+            ```javascript
+            subagent({
+              tasks: [
+                { agent: "tester", task: "ShellCheckとテストを実行" },
+                { agent: "reviewer", task: "コードレビュー" }
+              ]
+            })
+            ```
       - review
       - merge
 
@@ -95,19 +118,44 @@ workflows:
   feature:
     description: 新機能・大規模変更（lib/scripts への新関数追加、新スクリプト作成）
     steps:
-      - plan
+      - plan:
+          context: |
+            実装計画を作成してください。
+            複雑な場合は designer エージェントに委譲：
+            ```javascript
+            subagent({ agent: "designer", task: "実装設計を作成" })
+            ```
       - implement:
           context: |
-            実装時の方針：
-            - 複数ファイルを並列作成する場合は subagent を使用
-            - 新しい lib/ には対応する test/lib/*.bats を必ず作成
-            - 新しい scripts/ には対応する test/scripts/*.bats を必ず作成
-
-            実装完了後、必ず以下を実行：
-            1. ShellCheck: `shellcheck -x scripts/*.sh lib/*.sh`
-            2. テスト: `bats --jobs 2 test/`
-            3. AGENTS.md のディレクトリ構造を更新
-            4. コミット・プッシュ
+            新機能を実装してください。
+            
+            複数ファイルは並列作成：
+            ```javascript
+            subagent({
+              tasks: [
+                { agent: "implementer", task: "lib/xxx.sh を作成" },
+                { agent: "implementer", task: "lib/yyy.sh を作成" },
+                { agent: "implementer", task: "scripts/zzz.sh を作成" },
+                { agent: "tester", task: "テストファイルを作成" }
+              ]
+            })
+            ```
+            
+            品質チェック（並列）：
+            ```javascript
+            subagent({
+              tasks: [
+                { agent: "tester", task: "ShellCheck実行" },
+                { agent: "tester", task: "Batsテスト実行" },
+                { agent: "reviewer", task: "セルフレビュー" }
+              ]
+            })
+            ```
+            
+            ドキュメント更新：
+            ```javascript
+            subagent({ agent: "librarian", task: "AGENTS.mdを更新" })
+            ```
       - review
       - merge
     context: |
@@ -126,21 +174,30 @@ workflows:
     steps:
       - implement:
           context: |
-            実装時の方針：
-            - 修正範囲を最小限に抑える
-            - 回帰テスト (test/regression/) の追加を検討
-
-            実装完了後、必ず以下を実行：
-            1. ShellCheck: `shellcheck -x scripts/*.sh lib/*.sh`
-            2. テスト: `bats --jobs 2 test/`
-            3. 既存テストが壊れていないことを確認
-            4. コミット・プッシュ
+            バグ修正・リファクタリングを行ってください。
+            
+            修正前に影響範囲を確認：
+            ```javascript
+            subagent({ agent: "explorer", task: "変更の影響範囲を調査" })
+            ```
+            
+            修正後の検証（並列）：
+            ```javascript
+            subagent({
+              tasks: [
+                { agent: "tester", task: "ShellCheck実行" },
+                { agent: "tester", task: "Batsテスト実行" }
+              ]
+            })
+            ```
       - review
       - merge
     context: |
       ## 方針
-      - ShellCheck 警告を解消すること
-      - 既存機能の後方互換性を維持すること
+      - 修正範囲を最小限に抑える
+      - 回帰テストの追加を検討
+      - ShellCheck 警告を解消
+      - 既存機能の後方互換性を維持
 
   # ドキュメント: 実装→マージ（軽量モデルで十分）
   docs:
@@ -148,12 +205,11 @@ workflows:
     steps:
       - implement:
           context: |
-            ドキュメント作成時の確認事項：
-            - docs/ 以下の既存ドキュメントとの整合性
-            - AGENTS.md のディレクトリ構造が実態と一致しているか
-            - コード例は実際に動作するものを記載
-            
-            完了後、コミット・プッシュ
+            ドキュメントを更新してください。
+            完了後、librarian エージェントで最終確認：
+            ```javascript
+            subagent({ agent: "librarian", task: "ドキュメント整合性を確認" })
+            ```
       - merge
 
   # テスト追加: 実装→レビュー→マージ
@@ -162,15 +218,17 @@ workflows:
     steps:
       - implement:
           context: |
-            テスト作成時の方針：
-            - Bats テストの規約に従う（test_helper.bash のモック関数を活用）
-            - setup/teardown で環境を確実にクリーンアップ
-            - グローバル状態を汚染しない（reset_yaml_cache, _YQ_CHECK_RESULT="" を setup で呼ぶ）
-
-            実装完了後、必ず以下を実行：
-            1. ShellCheck: `shellcheck -x scripts/*.sh lib/*.sh`
-            2. テスト: `bats --jobs 2 test/`
-            3. コミット・プッシュ
+            テストを追加・改善してください。
+            tester エージェントを使用：
+            ```javascript
+            subagent({
+              tasks: [
+                { agent: "tester", task: "ユニットテストを作成" },
+                { agent: "tester", task: "統合テストを作成" },
+                { agent: "tester", task: "全テストを実行して検証" }
+              ]
+            })
+            ```
       - review
       - merge
 
@@ -178,9 +236,7 @@ workflows:
   quickfix:
     description: typo修正・設定値変更・コメント修正など軽微な変更
     steps:
-      - implement:
-          context: |
-            軽微な修正のみ行い、コミット・プッシュ
+      - implement
       - merge
 
   # シンプル: 実装→マージ（テストなし、最速）
