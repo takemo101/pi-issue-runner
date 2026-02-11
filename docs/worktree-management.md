@@ -257,7 +257,7 @@ project-root/
 │   ├── issue-42-add-feature/       # Issue #42のworktree
 │   │   ├── .git                    # Gitリンク（親の.git/worktrees/へ）
 │   │   ├── .env                    # コピーされた設定ファイル
-│   │   ├── .pi-prompt.md           # 生成されたプロンプト
+│   │   ├── .pi-prompt-phase1.md           # 生成されたプロンプト
 │   │   ├── src/
 │   │   └── package.json
 │   └── issue-43-fix-bug/           # Issue #43のworktree

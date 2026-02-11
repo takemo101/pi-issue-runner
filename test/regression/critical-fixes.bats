@@ -134,7 +134,7 @@ teardown() {
 }
 
 @test "Issue #21: run.sh creates prompt file" {
-    grep -q '.pi-prompt.md' "$PROJECT_ROOT/scripts/run.sh"
+    grep -q '.pi-prompt-phase1.md' "$PROJECT_ROOT/scripts/run.sh"
 }
 
 @test "Issue #21: run.sh includes issue title in prompt" {

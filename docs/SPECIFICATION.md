@@ -68,9 +68,9 @@ Git Worktreeを作成（git worktree add）
     ↓
 マルチプレクサセッションを作成（tmux/Zellij）
     ↓
-.pi-prompt.mdを生成（Issue情報を埋め込み）
+.pi-prompt-phase1.mdを生成（Issue情報を埋め込み）
     ↓
-セッション内でpiを起動（pi @.pi-prompt.md）
+セッション内でpiを起動（pi @.pi-prompt-phase1.md）
     ↓
 pi終了後、自動クリーンアップ実行（--no-cleanup指定時は省略）
 ```

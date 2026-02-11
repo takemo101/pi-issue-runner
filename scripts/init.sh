@@ -157,7 +157,7 @@ GITIGNORE_ENTRIES="
 .pi-runner.yaml.local
 .pi-runner.yaml
 .pi-runner.yml
-.pi-prompt.md
+.pi-prompt-phase*.md
 *.swp
 "
 

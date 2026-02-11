@@ -478,7 +478,7 @@ start_agent_session() {
     local session_label="${10:-}"
 
     # ワークフローからプロンプトファイルを生成
-    local prompt_file="$full_worktree_path/.pi-prompt.md"
+    local prompt_file="$full_worktree_path/.pi-prompt-phase1.md"
     log_info "Workflow: $workflow_name"
 
     # gates 後方互換警告

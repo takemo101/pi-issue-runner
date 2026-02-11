@@ -92,7 +92,7 @@ issue_number="$(mux_extract_issue_number "pi-issue-42")"
 # → "42"
 
 # セッションを作成
-mux_create_session "pi-issue-42" "/path/to/worktree" "pi '@.pi-prompt.md'"
+mux_create_session "pi-issue-42" "/path/to/worktree" "pi '@.pi-prompt-phase1.md'"
 
 # セッション存在確認
 if mux_session_exists "pi-issue-42"; then

@@ -136,10 +136,10 @@ EOF
     grep -q '\.pi-runner\.yml' ".gitignore"
 }
 
-@test "init.sh adds .pi-prompt.md to .gitignore" {
+@test "init.sh adds .pi-prompt-phase*.md to .gitignore" {
     run "$PROJECT_ROOT/scripts/init.sh"
     [ "$status" -eq 0 ]
-    grep -q '\.pi-prompt\.md' ".gitignore"
+    grep -q '\.pi-prompt-phase' ".gitignore"
 }
 
 @test "init.sh .pi-runner.yaml contains worktree section" {
