@@ -1041,10 +1041,11 @@ _check_pipe_pane_markers() {
 }
 
 # Phase 2b: Periodic capture-pane fallback for pipe-pane mode
-# Used to catch markers already output before watcher restart (every 15 loops)
-# Note: Only checks completion markers, not error markers.
-#   capture-pane output contains template text (agents/merge.md etc.), and
-#   TASK_ERROR patterns in code examples get misdetected due to terminal wrapping.
+# Used to catch markers when pipe-pane hasn't flushed (every 15 loops ~30s)
+# This handles the case where the AI outputs a marker then goes idle,
+# causing tmux pipe-pane to hold the buffer without flushing to the log file.
+# Checks both TASK_COMPLETE and PHASE_COMPLETE markers.
+# Note: Does not check error markers to avoid false positives from template text.
 # Usage: _check_capture_pane_fallback <session_name> <marker> <issue_number> <auto_attach> <cleanup_args> <loop_count> <marker_count_current> <cumulative_complete_count>
 # Returns: 0=complete (exit 0), 2=PR merge timeout, 255=no marker
 _check_capture_pane_fallback() {
@@ -1069,6 +1070,33 @@ _check_capture_pane_fallback() {
         return 255
     fi
 
+    # Check PHASE_COMPLETE marker first (run:/call: step workflow)
+    if [[ -n "${PHASE_COMPLETE_MARKER:-}" ]]; then
+        local capture_phase_count=0
+        capture_phase_count=$(count_markers_outside_codeblock "$capture_fallback_output" "$PHASE_COMPLETE_MARKER") || capture_phase_count=0
+        if [[ "$capture_phase_count" -gt 0 ]] && [[ "$capture_phase_count" -gt "${_cpp_cumulative_phase:-0}" ]]; then
+            log_info "Phase complete marker found via capture-pane fallback (count: $capture_phase_count)"
+            _cpp_cumulative_phase="$capture_phase_count"
+
+            local phase_result=0
+            handle_phase_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args" || phase_result=$?
+
+            if [[ $phase_result -eq 0 ]]; then
+                # All phases complete → handle as COMPLETE
+                local complete_result=0
+                handle_complete "$session_name" "$issue_number" "$auto_attach" "$cleanup_args" || complete_result=$?
+                _handle_complete_result "$complete_result" "capture-pane fallback (phase-complete)"
+                return $?
+            elif [[ $phase_result -eq 2 ]]; then
+                # non-AI steps failed or next AI group → continue monitoring
+                return 255
+            else
+                return 1
+            fi
+        fi
+    fi
+
+    # Check TASK_COMPLETE marker
     local capture_complete_count
     capture_complete_count=$(count_any_markers_outside_codeblock "$capture_fallback_output" "$marker" "$ALT_COMPLETE_MARKER")
     if [[ "$capture_complete_count" -gt 0 ]]; then
