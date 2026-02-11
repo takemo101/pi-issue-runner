@@ -52,9 +52,9 @@ agent:
   # エージェントに渡す追加引数
   args:
     - --provider
-    - anthropic
+    - kimi-coding
     - --model
-    - claude-opus-4-6
+    - k2p5
 
 # =====================================
 # GitHub設定
@@ -77,12 +77,12 @@ parallel:
 # auto ワークフロー選択設定
 # =====================================
 auto:
-  # auto選択用のAIプロバイダー（省略時: agent設定から推定 or anthropic）
-  provider: anthropic
+  # auto選択用のAIプロバイダー（省略時: agent設定から推定 or kimi-coding）
+  provider: kimi-coding
 
   # auto選択用のモデル（軽量・高速なモデル推奨）
   # 省略時: claude-haiku-4-5
-  model: claude-haiku-4-5
+  model: k2p5
 
 # =====================================
 # 複数ワークフロー定義
@@ -119,10 +119,12 @@ workflows:
       - review
       - merge
     agent:
-      type: opencode
+      type: pi
       args:
-        - -m
-        - anthropic/claude-opus-4-6
+        - --provider
+        - kimi-coding
+        - --model
+        - k2p5
     context: |
       ## 技術スタック
       - Bash 4.0+ / ShellCheck 準拠
@@ -166,9 +168,9 @@ workflows:
       type: pi
       args:
         - --provider
-        - anthropic
+        - kimi-coding
         - --model
-        - claude-sonnet-4-5
+        - k2p5
     context: |
       ## 方針
       - docs/ 以下の既存ドキュメントとの整合性を確認
@@ -205,9 +207,9 @@ workflows:
       type: pi
       args:
         - --provider
-        - anthropic
+        - kimi-coding
         - --model
-        - claude-sonnet-4-5
+        - k2p5
 
 # =====================================
 # 計画書設定
